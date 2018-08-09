@@ -1,3 +1,28 @@
+# Implemented commands:
+# ----------------------------
+# Acquisition commands
+# Measurement Commands
+
+# Commands not yet implemented here:
+# ----------------------------
+# Calibration and Diagnostic Commands
+# Cursor Commands
+# Display Commands
+# File System Commands (TDS2MEM Module, TDS1000B, TDS2000B, and TPS2000 Only)
+# Hard Copy Commands
+# Horizontal Commands
+# Math Commands
+# Miscellaneous Commands
+# PictBridge Commands (TDS1000B and TDS2000B Only)
+# Power and Battery-Related Commands (TPS2000 Only)
+# Power Measurement (TPS2000 with TPS2PWR1 Power Analysis Application Key Installed Only)
+# RS-232 Commands
+# Save and Recall Commands
+# Status and Error Commands
+# Trigger Commands
+# Vertical Commands
+# Waveform Commands
+
 import visa
 import numpy as np
 
@@ -324,28 +349,3 @@ class Tektronix2014B:
         acquisitions when the oscilloscope is in single sequence mode.
         """
         self.instr.write('acquire:stopafter '+ctrl)
-
-# Implemented commands:
-# ----------------------------
-# Acquisition commands
-# Measurement Commands
-
-# Commands not yet implemented here:
-# ----------------------------
-# Calibration and Diagnostic Commands
-# Cursor Commands
-# Display Commands
-# File System Commands (TDS2MEM Module, TDS1000B, TDS2000B, and TPS2000 Only)
-# Hard Copy Commands
-# Horizontal Commands
-# Math Commands
-# Miscellaneous Commands
-# PictBridge Commands (TDS1000B and TDS2000B Only)
-# Power and Battery-Related Commands (TPS2000 Only)
-# Power Measurement (TPS2000 with TPS2PWR1 Power Analysis Application Key Installed Only)
-# RS-232 Commands
-# Save and Recall Commands
-# Status and Error Commands
-# Trigger Commands
-# Vertical Commands
-# Waveform Commands

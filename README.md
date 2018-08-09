@@ -20,12 +20,20 @@ Let's store data in HDF5 files.
 
 The drivers are Python modules stored in software/drivers.
 
-- **Lakeshore 330 temperature controller:** Python wrapper for all the IEEE-488/serial commands supported by the Lake Shore Model 330 Autotuning Temperature Controller.
-- **Lakeshore 218 temperature monitor:** Python wrapper for all the serial commands supported by the Lake Shore Model 330 eight input temperature monitor.
-- **Big Sky Laser CFR 200 (ablation laser):** Python wrapper for all the serial commands supported by the Big Sky Laser CFR 200 Nd:YAG Laser System.
-- **Tektronix 2014B scope:** a subset of the interface described in the Programmer Manual.
+- **Lakeshore 330 temperature controller:** Python wrapper for all the
+  IEEE-488/serial commands supported by the Lake Shore Model 330 Autotuning
+  Temperature Controller.
+- **Lakeshore 218 temperature monitor:** Python wrapper for all the serial
+  commands supported by the Lake Shore Model 330 eight input temperature
+  monitor.
+- **Big Sky Laser CFR 200 (ablation laser):** Python wrapper for all the serial
+  commands supported by the Big Sky Laser CFR 200 Nd:YAG Laser System.
+- **Tektronix 2014B scope:** a subset of the interface described in the
+  Programmer Manual.
 - **Cryomech CPA1110:** the entire interface from the manual.
-- **MKS 1179C:** Python interface for all the control lines of the MKS 1179C General Purpose Mass-Flo® Controller, as controlled by a NI USB-6008 Multifunction I/O Device.
+- **MKS 1179C:** Python interface for all the control lines of the MKS 1179C
+  General Purpose Mass-Flo® Controller, as controlled by a NI USB-6008
+  Multifunction I/O Device.
 
 #### Todo
 
@@ -47,7 +55,8 @@ The drivers are Python modules stored in software/drivers.
 - Where to store data (filename or filename pattern).
 - How to break long datasets amongst multiple files.
 - Default sampling and display refresh rates.
-- Synchronisation of date & time. Check with some online time source, and the Rb clock and GPS.
+- Synchronisation of date & time. Check with some online time source, and the Rb
+  clock and GPS.
 - Available disk space; current size of dataset.
 
 ### Thermal
@@ -75,4 +84,5 @@ A schematic like the one on the compressor package,
 
 ### Remote access
 
-- Access from smartphones (Android) and everywhere around the world would be nice.
+- Access from smartphones (Android) and everywhere around the world would be
+  nice.

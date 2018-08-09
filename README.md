@@ -1,13 +1,19 @@
 # CeNTREX slow DAQ software
 
+This repository has a very simple structure: `drivers` contains raw `.py` files
+which define the classes that access devices through NI-VISA; `examples`
+contains examples; `testing` has random stuff I'm working on.
+
 ## Recording
 
-> "Still, I was accumulating experience and information, and I never threw
-> anything away. I kept files on everything. [...] I had a strict rule, which I
-> think secret services follow, too: No piece of information is superior to any
-> other. Power lies in having them all on file and then finding the connections.
-> There are always connections; you have only to want to find them.
-> [Umberto Ecco: Foucault's Pendulum] 
+   > "Still, I was accumulating experience and information,
+   > and I never threw anything away. I kept files on
+   > everything. [...] I had a strict rule, which I think
+   > secret services follow, too: No piece of information is
+   > superior to any other. Power lies in having them all on
+   > file and then finding the connections.  There are always
+   > connections; you have only to want to find them.
+   > [Umberto Ecco: Foucault's Pendulum] 
 
 Let's store data in HDF5 files.
 
@@ -32,7 +38,7 @@ The drivers are Python modules stored in software/drivers.
   Programmer Manual.
 - **Cryomech CPA1110:** the entire interface from the manual.
 - **MKS 1179C:** Python interface for all the control lines of the MKS 1179C
-  General Purpose Mass-FloÂ® Controller, as controlled by a NI USB-6008
+  General Purpose Mass-Flo® Controller, as controlled by a NI USB-6008
   Multifunction I/O Device.
 
 #### Todo

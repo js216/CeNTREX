@@ -1,5 +1,7 @@
 .ipynb_checkpoints
 desktop.ini
 __pycache__
-*.hdf5
 *.swp
+*.pdf
+*.hdf5
+*.npy

@@ -5,3 +5,4 @@ __pycache__
 *.pdf
 *.hdf5
 *.npy
+*.exe

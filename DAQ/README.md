@@ -40,6 +40,7 @@ The drivers are Python modules stored in software/drivers.
 - **MKS 1179C:** Python interface for all the control lines of the MKS 1179C
   General Purpose Mass-Flo® Controller, as controlled by a NI USB-6008
   Multifunction I/O Device.
+- **MKS 1179C:** Python interface for all the control lines of the MKS 1179C General Purpose Mass-Flo® Controller, as controlled by a NI USB-6008 Multifunction I/O Device.
 
 #### Todo
 

@@ -51,12 +51,12 @@ class State {
  * COMPARISON
  */
 
-template<typename B> const bool operator==(const State<B>& lhs, const State<B> rhs)
+template<typename B> const bool operator==(const State<B>& lhs, const State<B>& rhs)
 { 
    return lhs.data == rhs.data;
 }
 
-template<typename B> const bool operator!=(const State<B>& lhs, const State<B> rhs)
+template<typename B> const bool operator!=(const State<B>& lhs, const State<B>& rhs)
 { 
    return !(lhs == rhs);
 }
@@ -70,8 +70,8 @@ template<typename B> complex operator*(const State<B>& lhs, const State<B>& rhs)
 {
    complex result = 0;
 
-   for (const auto & [ket1, amp1] : lhs)
-      for (const auto & [ket2, amp2] : rhs)
+   for (const auto & [ket1, amp1] : lhs.data)
+      for (const auto & [ket2, amp2] : rhs.data)
          if (ket1 == ket2)
             result += amp1 * amp2;
 
@@ -110,10 +110,36 @@ template<typename B> State<B> operator+(const State<B>& lhs, const State<B>& rhs
 {
    State<B> result = State<B>();
 
-   for (const auto & [ket1, amp1] : lhs.data)
+   /*
+    * LHS and RHS might both contain a ket, possibly with different amplitudes;
+    * in this case, the ket is considered 'common' and we just need to sum the
+    * amplitudes. Else (common == false), the ket only appears in LHS, and we
+    * just add it to the sum. Finally, we have to check for kets which appear in
+    * RHS only. There has to be a more efficient way to do this, but this seems
+    * to work well enough for my purposes.
+    * */
+
+   // check for kets that are in both LHS and RHS, or in LHS only
+   for (const auto & [ket1, amp1] : lhs.data) {
+      bool common = false;
       for (const auto & [ket2, amp2] : rhs.data)
-         if (ket1 == ket2)
+         if (ket1 == ket2) {
+            common = true;
             result += State(ket1, amp1 + amp2);
+         }
+      if (common == false)
+         result += State(ket1, amp1);
+   }
+
+   // check for kets that are in RHS only
+   for (const auto & [ket1, amp1] : rhs.data) {
+      bool common = false;
+      for (const auto & [ket2, amp2] : lhs.data)
+         if (ket1 == ket2)
+            common = true;
+      if (common == false)
+         result += State(ket1, amp1);
+   }
 
    return result;
 }

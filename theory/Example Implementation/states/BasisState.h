@@ -10,12 +10,15 @@ typedef std::complex<double> complex;
 
 class BasisState {
    public:
+      // constructors
       BasisState() : data(std::unordered_map<std::string, double> {}) {}
       BasisState(std::unordered_map<std::string, double> data) :data(data) {}
 
    private:
       friend const bool operator==(const BasisState&, const BasisState&);
       friend class BasisState_hash;
+
+   protected:
       std::unordered_map<std::string, double> data;
 };
 

@@ -6,3 +6,4 @@ __pycache__
 *.hdf5
 *.npy
 *.exe
+*.gch

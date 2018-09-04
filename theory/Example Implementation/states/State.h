@@ -104,38 +104,10 @@ template<typename B> State<B> operator/(const State<B>& phi, complex a)
 
 template<typename B> State<B> operator+(const State<B>& lhs, const State<B>& rhs)
 {
-   State<B> result = State<B>();
+   State<B> result = lhs;
 
-   /*
-    * LHS and RHS might both contain a ket, possibly with different amplitudes;
-    * in this case, the ket is considered 'common' and we just need to sum the
-    * amplitudes. Else (common == false), the ket only appears in LHS, and we
-    * just add it to the sum. Finally, we have to check for kets which appear in
-    * RHS only. There has to be a more efficient way to do this, but this seems
-    * to work well enough for my purposes.
-    * */
-
-   // check for kets that are in both LHS and RHS, or in LHS only
-   for (const auto & [ket1, amp1] : lhs.data) {
-      bool common = false;
-      for (const auto & [ket2, amp2] : rhs.data)
-         if (ket1 == ket2) {
-            common = true;
-            result += State(ket1, amp1 + amp2);
-         }
-      if (common == false)
-         result += State(ket1, amp1);
-   }
-
-   // check for kets that are in RHS only
-   for (const auto & [ket1, amp1] : rhs.data) {
-      bool common = false;
-      for (const auto & [ket2, amp2] : lhs.data)
-         if (ket1 == ket2)
-            common = true;
-      if (common == false)
-         result += State(ket1, amp1);
-   }
+   for (const auto & [ket, amp] : rhs.data)
+      (result.data)[ket] += amp;
 
    return result;
 }

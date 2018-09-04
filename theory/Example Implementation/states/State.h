@@ -26,9 +26,7 @@ class State {
       }
       State<B> operator-=(const State<B>& other)
       {
-         for (const auto & [ket, amp] : other.data)
-            (this->data)[ket] -= amp;
-         return *this;
+         return *this += (-1)*other;
       }
       State<B> operator*=(complex a)
       {
@@ -38,9 +36,7 @@ class State {
       }
       State<B> operator/=(complex a)
       {
-         for (const auto & ket_amp : this->data)
-            (this->data)[ket_amp.first] /= a;
-         return *this;
+         return *this *= (1.0/a);
       }
 
       template<typename B2> friend const bool operator==(const State<B2>&, const State<B2>&);
@@ -79,7 +75,7 @@ template<typename B> complex operator*(const State<B>& lhs, const State<B>& rhs)
 }
 
 /*
- * SCALAR PRODUCTS
+ * SCALAR MULTIPLICATION
  */
 
 template<typename B> State<B> operator*(complex a, const State<B>& phi)

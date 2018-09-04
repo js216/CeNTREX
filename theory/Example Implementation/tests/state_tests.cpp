@@ -103,4 +103,17 @@ int main()
    if (sup1 * S000001 != 0.0) std::cout << "error";
    if ( std::abs(sup2*a-4.14) > epsilon ) std::cout << "error";
    if ( std::abs(sup3*a-1.0) > epsilon ) std::cout << "error";
+
+   // test compound assignment
+   sup1 += a;
+   if (sup1 * a != 3.0) std::cout << "error";
+   sup1 -= a;
+   if (sup1 * a != 2.0) std::cout << "error";
+   sup1 -= a;
+   sup1 *= 2.71828;
+   if (sup1 * a != 2.71828) std::cout << "error";
+   sup1 += S000100;
+   if (sup1 * a != 2.71828) std::cout << "error";
+   sup1 /= 2.71828;
+   if (sup1 * a != 1.0) std::cout << "error";
 }

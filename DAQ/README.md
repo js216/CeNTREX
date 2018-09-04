@@ -40,12 +40,13 @@ The drivers are Python modules stored in software/drivers.
 - **MKS 1179C:** Python interface for all the control lines of the MKS 1179C
   General Purpose Mass-Flo® Controller, as controlled by a NI USB-6008
   Multifunction I/O Device.
-- **Hornet IGM402:** Python wrapper for all the RS485 serial commands (using the ASCII protocol) supported by the Hot Cathode Ionization Vacuum Gauge With Dual Convection IGM402 Module, The Hornet.
+- **Hornet IGM402:** Python wrapper for all the RS485 serial commands (using the
+  ASCII protocol) supported by the Hot Cathode Ionization Vacuum Gauge With Dual
+  Convection IGM402 Module, The Hornet.
 
 #### Todo
 
 - Vacuum pumps
-- Pressure gauges
 
 ## User Interface
 

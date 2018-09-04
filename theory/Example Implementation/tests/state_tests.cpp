@@ -3,7 +3,7 @@
 #include <limits>
 #include "../states/State.h"
 #include "../states/BasisState.h"
-#include "../states/DecoupledBasis.h"
+#include "../bases/DecoupledBasis.h"
 
 const double epsilon = 10 * std::numeric_limits<double>::epsilon();
 

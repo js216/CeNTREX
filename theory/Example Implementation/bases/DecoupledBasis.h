@@ -1,7 +1,7 @@
 #ifndef DECOUPLEDBASIS_H
 #define DECOUPLEDBASIS_H
 
-#include "BasisState.h"
+#include "../states/BasisState.h"
 
 class DecoupledBasis : public BasisState {
    public:

@@ -72,7 +72,7 @@ int main()
    if (S010000 != S010000) std::cout << "error 36\n";
    if (S100000 != S100000) std::cout << "error 37\n";
 
-   // check inner products
+   // check inner products between States
    if (S000000 * S000000 != 9.8596) std::cout << "error 38\n";
    if (S000001 * S000001 != 9.8596) std::cout << "error 39\n";
    if (S000010 * S000010 != 9.8596) std::cout << "error 40\n";
@@ -89,6 +89,36 @@ int main()
    if (S000000 * S010000 != 0.0) std::cout << "error 51\n";
    if (S000000 * S100000 != 0.0) std::cout << "error 52\n";
    if (a * S000000 != 3.14) std::cout << "error 53\n";
+
+   // check inner products between States and BasisStates
+   if (s000000 * S000000 != 3.14) std::cout << "error 66\n";
+   if (s000001 * S000001 != 3.14) std::cout << "error 67\n";
+   if (s000010 * S000010 != 3.14) std::cout << "error 68\n";
+   if (s000100 * S000100 != 3.14) std::cout << "error 69\n";
+   if (s001000 * S001000 != 3.14) std::cout << "error 70\n";
+   if (s010000 * S010000 != 3.14) std::cout << "error 71\n";
+   if (s100000 * S100000 != 3.14) std::cout << "error 72\n";
+   if (s000000 * S000001 != 0.0) std::cout << "error 73\n";
+   if (s000000 * S000010 != 0.0) std::cout << "error 74\n";
+   if (s000000 * S000100 != 0.0) std::cout << "error 75\n";
+   if (s000000 * S001000 != 0.0) std::cout << "error 76\n";
+   if (s000000 * S010000 != 0.0) std::cout << "error 77\n";
+   if (s000000 * S100000 != 0.0) std::cout << "error 78\n";
+
+   // check inner products between BasisStates and States
+   if (S000000 * s000000 != 3.14) std::cout << "error 79\n";
+   if (S000001 * s000001 != 3.14) std::cout << "error 80\n";
+   if (S000010 * s000010 != 3.14) std::cout << "error 81\n";
+   if (S000100 * s000100 != 3.14) std::cout << "error 82\n";
+   if (S001000 * s001000 != 3.14) std::cout << "error 83\n";
+   if (S010000 * s010000 != 3.14) std::cout << "error 84\n";
+   if (S100000 * s100000 != 3.14) std::cout << "error 85\n";
+   if (S000000 * s000001 != 0.0) std::cout << "error 86\n";
+   if (S000000 * s000010 != 0.0) std::cout << "error 87\n";
+   if (S000000 * s000100 != 0.0) std::cout << "error 88\n";
+   if (S000000 * s001000 != 0.0) std::cout << "error 89\n";
+   if (S000000 * s010000 != 0.0) std::cout << "error 90\n";
+   if (S000000 * s100000 != 0.0) std::cout << "error 91\n";
 
    // check scalar products
    if ((3.14*a) * S000000 != 9.8596) std::cout << "error 54\n";

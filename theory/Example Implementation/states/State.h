@@ -52,12 +52,6 @@ class State {
          return this->data.end();
       }
 
-      // access to amplitudes of components
-      complex operator[](const B& ket)
-      {
-         return this->data[ket];
-      }
-
    private:
       std::unordered_map<B,complex,BasisState_hash> data;
 };
@@ -78,7 +72,7 @@ template<typename B> const bool operator!=(const State<B>& lhs, const State<B>& 
 
 
 /*
- * INNER PRODUCT
+ * INNER PRODUCTS
  */
 
 template<typename B> complex operator*(const State<B>& lhs, const State<B>& rhs)
@@ -92,6 +86,17 @@ template<typename B> complex operator*(const State<B>& lhs, const State<B>& rhs)
 
    return result;
 }
+
+template<typename B> complex operator*(const State<B>& lhs, const B& rhs)
+{
+   return lhs * State(rhs, 1.0);
+}
+
+template<typename B> complex operator*(const B& lhs, const State<B>& rhs)
+{
+   return State(lhs, 1.0) * rhs;
+}
+
 
 /*
  * SCALAR MULTIPLICATION

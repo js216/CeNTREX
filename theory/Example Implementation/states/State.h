@@ -20,7 +20,7 @@ class State {
       // compound assignment
       State<B> operator+=(const State<B>& other)
       {
-         for (const auto & [ket, amp] : other.data)
+         for (const auto & [ket, amp] : other)
             (this->data)[ket] += amp;
          return *this;
       }
@@ -39,7 +39,26 @@ class State {
          return *this *= (1.0/a);
       }
 
+      // comparison
       template<typename B2> friend const bool operator==(const State<B2>&, const State<B2>&);
+
+      // iterator functions
+      typename std::unordered_map<B,complex,BasisState_hash>::const_iterator begin() const
+      {
+         return this->data.begin();
+      }
+      typename std::unordered_map<B,complex,BasisState_hash>::const_iterator end() const
+      {
+         return this->data.end();
+      }
+
+      // access to amplitudes of components
+      complex operator[](const B& ket)
+      {
+         return this->data[ket];
+      }
+
+   private:
       std::unordered_map<B,complex,BasisState_hash> data;
 };
 
@@ -66,8 +85,8 @@ template<typename B> complex operator*(const State<B>& lhs, const State<B>& rhs)
 {
    complex result = 0;
 
-   for (const auto & [ket1, amp1] : lhs.data)
-      for (const auto & [ket2, amp2] : rhs.data)
+   for (const auto & [ket1, amp1] : lhs)
+      for (const auto & [ket2, amp2] : rhs)
          if (ket1 == ket2)
             result += amp1 * amp2;
 
@@ -78,14 +97,9 @@ template<typename B> complex operator*(const State<B>& lhs, const State<B>& rhs)
  * SCALAR MULTIPLICATION
  */
 
-template<typename B> State<B> operator*(complex a, const State<B>& phi)
+template<typename B> State<B> operator*(complex a, State<B> phi)
 {
-   State<B> result = State<B>();
-
-   for (auto ket_amp : phi.data)
-      result += State<B>(ket_amp.first, a * ket_amp.second);
-
-   return result;
+   return phi *= a;
 }
 
 template<typename B> State<B> operator*(const State<B>& phi, complex a)
@@ -102,19 +116,14 @@ template<typename B> State<B> operator/(const State<B>& phi, complex a)
  * SUPERPOSITION
  */
 
-template<typename B> State<B> operator+(const State<B>& lhs, const State<B>& rhs)
+template<typename B> State<B> operator+(State<B> lhs, const State<B>& rhs)
 {
-   State<B> result = lhs;
-
-   for (const auto & [ket, amp] : rhs.data)
-      (result.data)[ket] += amp;
-
-   return result;
+   return lhs += rhs;
 }
 
-template<typename B> State<B> operator-(const State<B>& lhs, const State<B>& rhs)
+template<typename B> State<B> operator-(State<B> lhs, const State<B>& rhs)
 {
-   return lhs + (-1)*lhs;
+   return lhs -= lhs;
 }
 
 /*

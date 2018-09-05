@@ -9,7 +9,7 @@ const State<DecoupledBasis> J2(const State<DecoupledBasis>& psi)
 {
    State<DecoupledBasis> result = State<DecoupledBasis>();
 
-   for (const auto & [ket, amp] : psi.data) {
+   for (const auto & [ket, amp] : psi.data) {.
       result += State(ket, ket.J()*(ket.J()+1)*amp);
    }
 

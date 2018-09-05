@@ -17,16 +17,16 @@ int main()
    DecoupledBasis s120000 {1,2,0,0,0,0};
 
    // create superposition States
-   State<DecoupledBasis> S000000 {s000000, 3.14};
-   State<DecoupledBasis> S000001 {s000001, 3.14};
-   State<DecoupledBasis> S000010 {s000010, 3.14};
-   State<DecoupledBasis> S000100 {s000100, 3.14};
-   State<DecoupledBasis> S001000 {s001000, 3.14};
-   State<DecoupledBasis> S010000 {s010000, 3.14};
-   State<DecoupledBasis> S100000 {s100000, 3.14};
-   State<DecoupledBasis> S120000 {s120000, 2.71};
+   State<DecoupledBasis> S000000 {s000000, 1.0};
+   State<DecoupledBasis> S000001 {s000001, 1.0};
+   State<DecoupledBasis> S000010 {s000010, 1.0};
+   State<DecoupledBasis> S000100 {s000100, 1.0};
+   State<DecoupledBasis> S001000 {s001000, 1.0};
+   State<DecoupledBasis> S010000 {s010000, 1.0};
+   State<DecoupledBasis> S100000 {s100000, 1.0};
+   State<DecoupledBasis> S120000 {s120000, 1.0};
 
-   // test J2
+   // test J2 using BasisState as input
    if (J2(s000000) * s000000 != 0.0) return 1;
    if (J2(s000000) * s000010 != 0.0) return 2;
    if (J2(s000000) * s000100 != 0.0) return 3;
@@ -75,4 +75,54 @@ int main()
    if (J2(s100000) * s001000 != 0.0) return 40;
    if (J2(s100000) * s010000 != 0.0) return 41;
    if (J2(s100000) * s100000 != 2.0) return 42;
+
+   // test J2 using State input
+   if (J2(S000000) * s000000 != 0.0) return 111;
+   if (J2(S000000) * s000010 != 0.0) return 112;
+   if (J2(S000000) * s000100 != 0.0) return 113;
+   if (J2(S000000) * s001000 != 0.0) return 114;
+   if (J2(S000000) * s010000 != 0.0) return 115;
+   if (J2(S000000) * s100000 != 0.0) return 116;
+   //
+   if (J2(S000001) * s000000 != 0.0) return 117;
+   if (J2(S000001) * s000010 != 0.0) return 118;
+   if (J2(S000001) * s000100 != 0.0) return 119;
+   if (J2(S000001) * s001000 != 0.0) return 1110;
+   if (J2(S000001) * s010000 != 0.0) return 1111;
+   if (J2(S000001) * s100000 != 0.0) return 1112;
+   //
+   if (J2(S000010) * s000000 != 0.0) return 1113;
+   if (J2(S000010) * s000010 != 0.0) return 1114;
+   if (J2(S000010) * s000100 != 0.0) return 1115;
+   if (J2(S000010) * s001000 != 0.0) return 1116;
+   if (J2(S000010) * s010000 != 0.0) return 1117;
+   if (J2(S000010) * s100000 != 0.0) return 1118;
+   //
+   if (J2(S000100) * s000000 != 0.0) return 1119;
+   if (J2(S000100) * s000010 != 0.0) return 1120;
+   if (J2(S000100) * s000100 != 0.0) return 1121;
+   if (J2(S000100) * s001000 != 0.0) return 1122;
+   if (J2(S000100) * s010000 != 0.0) return 1123;
+   if (J2(S000100) * s100000 != 0.0) return 1124;
+   //
+   if (J2(S001000) * s000000 != 0.0) return 1125;
+   if (J2(S001000) * s000010 != 0.0) return 1126;
+   if (J2(S001000) * s000100 != 0.0) return 1127;
+   if (J2(S001000) * s001000 != 0.0) return 1128;
+   if (J2(S001000) * s010000 != 0.0) return 1129;
+   if (J2(S001000) * s100000 != 0.0) return 1130;
+   //
+   if (J2(S010000) * s000000 != 0.0) return 1131;
+   if (J2(S010000) * s000010 != 0.0) return 1132;
+   if (J2(S010000) * s000100 != 0.0) return 1133;
+   if (J2(S010000) * s001000 != 0.0) return 1134;
+   if (J2(S010000) * s010000 != 0.0) return 1135;
+   if (J2(S010000) * s100000 != 0.0) return 1136;
+   //
+   if (J2(S100000) * s000000 != 0.0) return 1137;
+   if (J2(S100000) * s000010 != 0.0) return 1138;
+   if (J2(S100000) * s000100 != 0.0) return 1139;
+   if (J2(S100000) * s001000 != 0.0) return 1140;
+   if (J2(S100000) * s010000 != 0.0) return 1141;
+   if (J2(S100000) * s100000 != 2.0) return 1142;
 }

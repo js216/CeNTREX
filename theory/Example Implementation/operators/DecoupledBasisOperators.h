@@ -145,4 +145,38 @@ State<DecoupledBasis> R1p(const DecoupledBasis& psi)
     return State(ket1,amp1) + State(ket2,amp2);
 }
 
+/*
+ * UGLINESS ITSELF: BJARNE, SORRY
+ * (code to overload the above functions to accept a State<>& input, not just DecoupledBasis&)
+ * (there has to be some prettier way to do this!)
+ */
+
+State<DecoupledBasis> op( State<DecoupledBasis> (*f)(const DecoupledBasis&), const State<DecoupledBasis>& psi )
+{
+   State<DecoupledBasis> result;
+   for (const auto & [ket, amp] : psi)
+      result += amp * (*f)(ket);
+   return result;
+}
+
+State<DecoupledBasis>  J2(const State<DecoupledBasis>& psi) {return op( J2, psi);}
+State<DecoupledBasis>  Jz(const State<DecoupledBasis>& psi) {return op( Jz, psi);}
+State<DecoupledBasis> I1z(const State<DecoupledBasis>& psi) {return op(I1z, psi);}
+State<DecoupledBasis> I2z(const State<DecoupledBasis>& psi) {return op(I2z, psi);}
+State<DecoupledBasis>  Jp(const State<DecoupledBasis>& psi) {return op( Jp, psi);}
+State<DecoupledBasis>  Jm(const State<DecoupledBasis>& psi) {return op( Jm, psi);}
+State<DecoupledBasis> I1p(const State<DecoupledBasis>& psi) {return op(I1p, psi);}
+State<DecoupledBasis> I1m(const State<DecoupledBasis>& psi) {return op(I1m, psi);}
+State<DecoupledBasis> I2p(const State<DecoupledBasis>& psi) {return op(I2p, psi);}
+State<DecoupledBasis> I2m(const State<DecoupledBasis>& psi) {return op(I2m, psi);}
+State<DecoupledBasis>  Jx(const State<DecoupledBasis>& psi) {return op( Jx, psi);}
+State<DecoupledBasis>  Jy(const State<DecoupledBasis>& psi) {return op( Jy, psi);}
+State<DecoupledBasis> I1x(const State<DecoupledBasis>& psi) {return op(I1x, psi);}
+State<DecoupledBasis> I1y(const State<DecoupledBasis>& psi) {return op(I1y, psi);}
+State<DecoupledBasis> I2x(const State<DecoupledBasis>& psi) {return op(I2x, psi);}
+State<DecoupledBasis> I2y(const State<DecoupledBasis>& psi) {return op(I2y, psi);}
+State<DecoupledBasis> R10(const State<DecoupledBasis>& psi) {return op(R10, psi);}
+State<DecoupledBasis> R1m(const State<DecoupledBasis>& psi) {return op(R1m, psi);}
+State<DecoupledBasis> R1p(const State<DecoupledBasis>& psi) {return op(R1p, psi);}
+
 #endif

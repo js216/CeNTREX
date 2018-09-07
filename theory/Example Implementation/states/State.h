@@ -13,6 +13,7 @@ class State {
    public:
       // constructors
       State()                            : data(std::unordered_map<B,complex,BasisState_hash>{}) { }
+      State(B ket)                       : data(std::unordered_map<B,complex,BasisState_hash> {{ket,1.0}}) { }
       State(B ket, complex amp)          : data(std::unordered_map<B,complex,BasisState_hash> {{ket,amp}}) { }
       State(std::pair<B,complex> data)   : data(std::unordered_map<B,complex,BasisState_hash> {data}) { } 
       State(std::unordered_map<B,complex,BasisState_hash>& data) : data(data) { } 

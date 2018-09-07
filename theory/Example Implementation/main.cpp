@@ -1,18 +1,16 @@
 #include <iostream>
-#include "states/State.h"
-#include "states/BasisState.h"
-#include "bases/DecoupledBasis.h"
-#include "operators/DecoupledBasisOperators.h"
+#include <vector>
+#include "operators/TlF_operators.h"
 
 int main()
 {
-   DecoupledBasis b {1,2,3,4,5,6};
-   DecoupledBasis b2 {1,2,9,4,5,6};
-   State<DecoupledBasis> s {b,3.45};
-   State<DecoupledBasis> s2 {b2,1.93};
+   const double Jmax = 6;
 
-   for (const auto & [ket, amp] : s+s2)
-      std::cout << amp << std::endl;
-
-   //State<DecoupledBasis> result = J2(s);
+   std::vector<double> QN;
+   for (double J = 0; J <= Jmax; ++J)
+      for (double mJ = -J; mJ <= J; ++mJ)
+         for (double m1 = -I_Tl; m1 <= I_Tl; ++m1)
+               for (double m2 = -I_F; m2 <= I_F; ++m2)
+                  QN.push_back(0);
+   std::cout << QN.size();
 }

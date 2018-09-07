@@ -128,7 +128,7 @@ template<typename B> State<B> operator+(State<B> lhs, const State<B>& rhs)
 
 template<typename B> State<B> operator-(State<B> lhs, const State<B>& rhs)
 {
-   return lhs -= lhs;
+   return lhs -= rhs;
 }
 
 /*
@@ -137,7 +137,7 @@ template<typename B> State<B> operator-(State<B> lhs, const State<B>& rhs)
 
 template<typename B> const State<B> operator-(const State<B>& psi)
 {
-   return (-1) * psi;
+   return (-1.0) * psi;
 }
 
 #endif

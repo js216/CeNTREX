@@ -2,6 +2,7 @@ CC = g++
 CFLAGS = -Wall -std=c++17 -Wfatal-errors
 DEPS = ../bases/DecoupledBasis.h \
        ../operators/DecoupledBasisOperators.h \
+       ../operators/TlF_operators.h \
        ../states/BasisState.h \
        ../states/Hash.h \
        ../states/State.h

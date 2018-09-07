@@ -1,128 +1,114 @@
 #include <iostream>
 #include <limits>
+#include <vector>
+#include <cmath>
 #include "../operators/DecoupledBasisOperators.h"
+#include "../operators/TlF_operators.h"
 
 const double epsilon = 10 * std::numeric_limits<double>::epsilon();
 
 int main()
 {
-   // create basis states
-   DecoupledBasis s000000 {0,0,0,0,0,0};
-   DecoupledBasis s000001 {0,0,0,0,0,1};
-   DecoupledBasis s000010 {0,0,0,0,1,0};
-   DecoupledBasis s000100 {0,0,0,1,0,0};
-   DecoupledBasis s001000 {0,0,1,0,0,0};
-   DecoupledBasis s010000 {0,1,0,0,0,0};
-   DecoupledBasis s100000 {1,0,0,0,0,0};
-   DecoupledBasis s120000 {1,2,0,0,0,0};
+   const double Jmax = 6.0;
 
-   // create superposition States
-   State<DecoupledBasis> S000000 {s000000, 1.0};
-   State<DecoupledBasis> S000001 {s000001, 1.0};
-   State<DecoupledBasis> S000010 {s000010, 1.0};
-   State<DecoupledBasis> S000100 {s000100, 1.0};
-   State<DecoupledBasis> S001000 {s001000, 1.0};
-   State<DecoupledBasis> S010000 {s010000, 1.0};
-   State<DecoupledBasis> S100000 {s100000, 1.0};
-   State<DecoupledBasis> S120000 {s120000, 1.0};
+   // write basis as vector of DecoupledBasis components:
+   std::vector<DecoupledBasis> QN;
+   for (double J = 0; J <= Jmax; ++J)
+      for (double mJ = -J; mJ <= J; ++mJ)
+         for (double m1 = -I_Tl; m1 <= I_Tl; ++m1)
+               for (double m2 = -I_F; m2 <= I_F; ++m2)
+                  QN.push_back(DecoupledBasis(J,mJ,I_Tl,m1,I_F,m2));
 
-   // test J2 using BasisState as input
-   if (J2(s000000) * s000000 != 0.0) return 1;
-   if (J2(s000000) * s000010 != 0.0) return 2;
-   if (J2(s000000) * s000100 != 0.0) return 3;
-   if (J2(s000000) * s001000 != 0.0) return 4;
-   if (J2(s000000) * s010000 != 0.0) return 5;
-   if (J2(s000000) * s100000 != 0.0) return 6;
-   //
-   if (J2(s000001) * s000000 != 0.0) return 7;
-   if (J2(s000001) * s000010 != 0.0) return 8;
-   if (J2(s000001) * s000100 != 0.0) return 9;
-   if (J2(s000001) * s001000 != 0.0) return 10;
-   if (J2(s000001) * s010000 != 0.0) return 11;
-   if (J2(s000001) * s100000 != 0.0) return 12;
-   //
-   if (J2(s000010) * s000000 != 0.0) return 13;
-   if (J2(s000010) * s000010 != 0.0) return 14;
-   if (J2(s000010) * s000100 != 0.0) return 15;
-   if (J2(s000010) * s001000 != 0.0) return 16;
-   if (J2(s000010) * s010000 != 0.0) return 17;
-   if (J2(s000010) * s100000 != 0.0) return 18;
-   //
-   if (J2(s000100) * s000000 != 0.0) return 19;
-   if (J2(s000100) * s000010 != 0.0) return 20;
-   if (J2(s000100) * s000100 != 0.0) return 21;
-   if (J2(s000100) * s001000 != 0.0) return 22;
-   if (J2(s000100) * s010000 != 0.0) return 23;
-   if (J2(s000100) * s100000 != 0.0) return 24;
-   //
-   if (J2(s001000) * s000000 != 0.0) return 25;
-   if (J2(s001000) * s000010 != 0.0) return 26;
-   if (J2(s001000) * s000100 != 0.0) return 27;
-   if (J2(s001000) * s001000 != 0.0) return 28;
-   if (J2(s001000) * s010000 != 0.0) return 29;
-   if (J2(s001000) * s100000 != 0.0) return 30;
-   //
-   if (J2(s010000) * s000000 != 0.0) return 31;
-   if (J2(s010000) * s000010 != 0.0) return 32;
-   if (J2(s010000) * s000100 != 0.0) return 33;
-   if (J2(s010000) * s001000 != 0.0) return 34;
-   if (J2(s010000) * s010000 != 0.0) return 35;
-   if (J2(s010000) * s100000 != 0.0) return 36;
-   //
-   if (J2(s100000) * s000000 != 0.0) return 37;
-   if (J2(s100000) * s000010 != 0.0) return 38;
-   if (J2(s100000) * s000100 != 0.0) return 39;
-   if (J2(s100000) * s001000 != 0.0) return 40;
-   if (J2(s100000) * s010000 != 0.0) return 41;
-   if (J2(s100000) * s100000 != 2.0) return 42;
+   // test Hrot
+   for (size_t i = 0; i<QN.size(); ++i)
+      for (size_t j = 0; j<QN.size(); ++j)
+         if (i != j)
+            if (std::abs(QN[i]*Hrot(QN[j])) != 0)
+               return 1;
+   for (double J = 0; J <= Jmax; ++J) {
+      auto a = DecoupledBasis(J,0,0,0,0,0);
+      if (std::abs(a*Hrot(a))/Brot != J*(J+1))
+         return 2;
+   }
 
-   // test J2 using State input
-   if (J2(S000000) * s000000 != 0.0) return 111;
-   if (J2(S000000) * s000010 != 0.0) return 112;
-   if (J2(S000000) * s000100 != 0.0) return 113;
-   if (J2(S000000) * s001000 != 0.0) return 114;
-   if (J2(S000000) * s010000 != 0.0) return 115;
-   if (J2(S000000) * s100000 != 0.0) return 116;
-   //
-   if (J2(S000001) * s000000 != 0.0) return 117;
-   if (J2(S000001) * s000010 != 0.0) return 118;
-   if (J2(S000001) * s000100 != 0.0) return 119;
-   if (J2(S000001) * s001000 != 0.0) return 1110;
-   if (J2(S000001) * s010000 != 0.0) return 1111;
-   if (J2(S000001) * s100000 != 0.0) return 1112;
-   //
-   if (J2(S000010) * s000000 != 0.0) return 1113;
-   if (J2(S000010) * s000010 != 0.0) return 1114;
-   if (J2(S000010) * s000100 != 0.0) return 1115;
-   if (J2(S000010) * s001000 != 0.0) return 1116;
-   if (J2(S000010) * s010000 != 0.0) return 1117;
-   if (J2(S000010) * s100000 != 0.0) return 1118;
-   //
-   if (J2(S000100) * s000000 != 0.0) return 1119;
-   if (J2(S000100) * s000010 != 0.0) return 1120;
-   if (J2(S000100) * s000100 != 0.0) return 1121;
-   if (J2(S000100) * s001000 != 0.0) return 1122;
-   if (J2(S000100) * s010000 != 0.0) return 1123;
-   if (J2(S000100) * s100000 != 0.0) return 1124;
-   //
-   if (J2(S001000) * s000000 != 0.0) return 1125;
-   if (J2(S001000) * s000010 != 0.0) return 1126;
-   if (J2(S001000) * s000100 != 0.0) return 1127;
-   if (J2(S001000) * s001000 != 0.0) return 1128;
-   if (J2(S001000) * s010000 != 0.0) return 1129;
-   if (J2(S001000) * s100000 != 0.0) return 1130;
-   //
-   if (J2(S010000) * s000000 != 0.0) return 1131;
-   if (J2(S010000) * s000010 != 0.0) return 1132;
-   if (J2(S010000) * s000100 != 0.0) return 1133;
-   if (J2(S010000) * s001000 != 0.0) return 1134;
-   if (J2(S010000) * s010000 != 0.0) return 1135;
-   if (J2(S010000) * s100000 != 0.0) return 1136;
-   //
-   if (J2(S100000) * s000000 != 0.0) return 1137;
-   if (J2(S100000) * s000010 != 0.0) return 1138;
-   if (J2(S100000) * s000100 != 0.0) return 1139;
-   if (J2(S100000) * s001000 != 0.0) return 1140;
-   if (J2(S100000) * s010000 != 0.0) return 1141;
-   if (J2(S100000) * s100000 != 2.0) return 1142;
+   // test Jp and Jm
+   for (size_t i = 0; i<QN.size(); ++i)
+      for (size_t j = 0; j<QN.size(); ++j) {
+         auto a = QN[i];
+         auto b = QN[j];
+         if (a.mJ() == b.mJ()) {
+            if (std::abs(a*Jp(b))/Brot != 0.0)
+               return 3;
+            if (std::abs(a*Jm(b))/Brot != 0.0)
+               return 6;
+         }
+         if ((a.mJ() == b.mJ()+1) && (a.J() == b.J()) && (a.m1() == b.m1()) && (a.m2() == b.m2()))
+            if (std::abs(a*Jp(b))/Brot < epsilon)
+               return 4;
+         if ((a.mJ() == b.mJ()-1) && (a.J() == b.J()) && (a.m1() == b.m1()) && (a.m2() == b.m2()))
+            if (std::abs(a*Jm(b))/Brot < epsilon)
+               return 5;
+      }
+
+   // test Jx
+   for (size_t i = 0; i<QN.size(); ++i)
+      for (size_t j = 0; j<QN.size(); ++j) {
+         auto a = QN[i];
+         auto b = QN[j];
+         if (a.mJ() == b.mJ())
+            if (std::abs(a*Jx(b)) != 0.0)
+               return 7;
+         if ((a.mJ() == b.mJ()+1) && (a.J() == b.J()) && (a.m1() == b.m1()) && (a.m2() == b.m2()))
+            if (std::abs(a*Jx(b))/Brot < epsilon)
+               return 8;
+         if ((a.mJ() == b.mJ()-1) && (a.J() == b.J()) && (a.m1() == b.m1()) && (a.m2() == b.m2()))
+            if (std::abs(a*Jx(b))/Brot < epsilon)
+               return 9;
+      }
+
+   /*
+   // define states
+   DecoupledBasis a {1,-1,0.5,-0.5,0.5,-0.5};
+   DecoupledBasis b {1,0,0.5,-0.5,0.5,-0.5};
+   auto c = Jm(b) - State(DecoupledBasis(1,-1,0.5,-0.5,0.5,-0.5), 1.0);
+   // print out quantum numbers
+   std::cout << a.J() << a.mJ() << a.m1() << a.m2() << std::endl;
+   std::cout << b.J() << b.mJ() << b.m1() << b.m2() << std::endl;
+   for (const auto & [ket, amp] : c) {
+      std::cout << amp << std::endl;
+      std::cout << ket.J() << ket.mJ() << ket.m1() << ket.m2() << std::endl;
+   }
+   // check inner product
+   if (std::abs(a*c) < epsilon) {
+      return 15;
+   }
+   */
+
+   // test HZx
+   for (size_t i = 0; i<QN.size(); ++i)
+      for (size_t j = 0; j<QN.size(); ++j) {
+         auto a = QN[i];
+         auto b = QN[j];
+         if (a.mJ() == b.mJ())
+            if (std::abs(a*Jx(b)) != 0.0)
+               return 10;
+         if ((a.mJ() == b.mJ()+1) && (a.J() == b.J()) && (a.m1() == b.m1()) && (a.m2() == b.m2()))
+            if (std::abs(a*HZx(b))/Brot < epsilon)
+               return 11;
+         if ((a.mJ() == b.mJ()-1) && (a.J() == b.J()) && (a.m1() == b.m1()) && (a.m2() == b.m2())) {
+            if (a.J() != 0.0) {
+               if (std::abs(a*HZx(b)) < epsilon) {
+                  std::cout << a.J() << a.mJ() << a.m1() << a.m2() << std::endl;
+                  std::cout << b.J() << b.mJ() << b.m1() << b.m2() << std::endl;
+                  for (const auto & [ket, amp] : HZx(b)) {
+                     std::cout << amp << std::endl;
+                     std::cout << ket.J() << ket.mJ() << ket.m1() << ket.m2() << std::endl;
+                  }
+                  return 12;
+               }
+            } else {
+               return 13;
+            }
+         }
+      }
 }

@@ -10,7 +10,8 @@ const double epsilon = 10 * std::numeric_limits<double>::epsilon();
 int main()
 {
    // create basis states
-   DecoupledBasis s000000 {0,0,0,0,0,0};
+   DecoupledBasis s000000 {0.0,0,0,0,0,0};
+   DecoupledBasis sm00000 {-0.0,0,0,0,0,0};
    DecoupledBasis s000001 {0,0,0,0,0,1};
    DecoupledBasis s000010 {0,0,0,0,1,0};
    DecoupledBasis s000100 {0,0,0,1,0,0};
@@ -19,6 +20,7 @@ int main()
    DecoupledBasis s100000 {1,0,0,0,0,0};
 
    // check comparisons
+   if (s000000 != sm00000) std::cout << "error 111\n";
    if (s000000 == s000001) std::cout << "error 1\n";
    if (s000000 == s000010) std::cout << "error 2\n";
    if (s000000 == s000100) std::cout << "error 3\n";

@@ -21,7 +21,7 @@ class Hornet:
         self.instr.write(cmd)
         # all responses are 13 characters long
         # (see manual, page 68)
-        return self.instr.read_bytes(17).decode('ASCII')
+        return self.instr.read_bytes(13).decode('ASCII')
 
     #################################################################
     ##########           SERIAL COMMANDS                   ##########

@@ -16,22 +16,22 @@ using namespace std::complex_literals;
 
 State<DecoupledBasis> J2(const DecoupledBasis& ket)
 {
-   return State(ket, ket.J()*(ket.J()+1));
+   return ket.J()*(ket.J()+1) * ket;
 }
 
 State<DecoupledBasis> Jz(const DecoupledBasis& ket)
 {
-   return State(ket, ket.mJ());
+   return ket.mJ() * ket;
 }
 
 State<DecoupledBasis> I1z(const DecoupledBasis& ket)
 {
-   return State(ket, ket.m1());
+   return ket.m1() * ket;
 }
 
 State<DecoupledBasis> I2z(const DecoupledBasis& ket)
 {
-   return State(ket, ket.m2());
+   return ket.m2() * ket;
 }
 
 /*

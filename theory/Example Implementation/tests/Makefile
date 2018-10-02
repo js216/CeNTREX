@@ -7,7 +7,12 @@ DEPS = ../bases/DecoupledBasis.h \
        ../states/Hash.h \
        ../states/State.h
 
-all: operators_tests.o state_tests.o bases_tests.o
+all: implicit_conversions.o operators_tests.o state_tests.o bases_tests.o
+
+implicit_conversions.o: implicit_conversions.cpp $(DEPS)
+	$(CC) $(CFLAGS) implicit_conversions.cpp -o implicit_conversions.o
+	./implicit_conversions.o
+	rm implicit_conversions.o
 
 state_tests.o: state_tests.cpp $(DEPS)
 	$(CC) $(CFLAGS) state_tests.cpp -o state_tests.o

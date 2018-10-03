@@ -1,8 +1,8 @@
 import visa
 
 class CFR200:
-    def __init__(self, resource_manager, resource_name):
-        self.rm = resource_manager
+    def __init__(self, rm, resource_name):
+        self.rm = rm
         self.instr = self.rm.open_resource(resource_name)
         self.instr.parity = visa.constants.Parity.none
         self.instr.data_bits = 8

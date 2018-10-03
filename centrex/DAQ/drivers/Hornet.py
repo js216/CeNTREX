@@ -1,9 +1,9 @@
 import visa
 
 class Hornet:
-    def __init__(self, resource_name, address='01'):
+    def __init__(self, rm, resource_name, address='01'):
         self.address = address # Factory default address=1
-        self.rm = visa.ResourceManager()
+        self.rm = rm
         self.instr = self.rm.open_resource(resource_name)
         self.instr.baud_rate = 19200
         self.instr.data_bits = 8

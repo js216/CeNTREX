@@ -1,8 +1,8 @@
 import visa
 
 class LakeShore218:
-    def __init__(self, resource_name):
-        self.rm = visa.ResourceManager()
+    def __init__(self, rm, resource_name):
+        self.rm = rm
         self.instr = self.rm.open_resource(resource_name)
         self.instr.parity = visa.constants.Parity.odd
         self.instr.data_bits = 7
@@ -12,7 +12,6 @@ class LakeShore218:
     
     def __exit__(self, *exc):
         self.instr.close()
-        self.rm.close()
     
     #################################################################
     ##########           IEEE-488/SERIAL COMMANDS          ##########

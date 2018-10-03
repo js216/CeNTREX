@@ -1,8 +1,8 @@
 import visa
 
 class LakeShore330:
-    def __init__(self, resource_name):
-        self.rm = visa.ResourceManager()
+    def __init__(self, rm, resource_name):
+        self.rm = rm
         self.instr = self.rm.open_resource(resource_name)
 
     def __enter__(self):
@@ -10,7 +10,6 @@ class LakeShore330:
     
     def __exit__(self, *exc):
         self.instr.close()
-        self.rm.close()
     
     #################################################################
     ##########              COMMON COMMANDS                ##########

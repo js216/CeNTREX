@@ -6,6 +6,8 @@ class LakeShore218:
         self.instr = self.rm.open_resource(resource_name)
         self.instr.parity = visa.constants.Parity.odd
         self.instr.data_bits = 7
+        self.instr.baud_rate = 9600
+        self.instr.term_char = '\r'
 
     def __enter__(self):
         return self
@@ -615,7 +617,8 @@ class LakeShore218:
         Or if all inputs are queried:
         <Input 1 Kelvin Value>,<Input 2 Kelvin Value>,<Input 3 Kelvin Value>,<Input 4 Kelvin Value>,<Input 5 Kelvin Value>,<Input 6 Kelvin Value>,<Input 7 Kelvin Value>,<Input 8 Kelvin Value>. Format: +nn.nnn,+nn.nnn,+nn.nnn,+nn.nnn,+nn.nnn,+nn.nnn,+nn.nnn,+nn.nnn
         """
-        return self.instr.query("KRDG? "+str(inputs))
+        res = self.instr.query("KRDG? "+str(inputs))
+        return [float(x) for x in res.split(",")]
                          
     def ConfigureInputLinearEquationParameters(self, params):
         """Configures the linear equation for an input.

@@ -290,7 +290,7 @@ class LakeShore330:
         
         Returns: +/-000.00
         """
-        return self.instr.query("CDAT?")
+        return float(self.instr.query("CDAT?"))
     
     def SetControlChannelUnits(self, units):
         """Set control channel units: K = kelvin, C = Celsius,
@@ -349,7 +349,7 @@ class LakeShore330:
         
         Returns: +/-000.00
         """
-        return self.instr.query("SDAT?")
+        return float(self.instr.query("SDAT?"))
     
     def SetSampleChannelUnits(self, channel):
         """Set Sample Channel to A or B.

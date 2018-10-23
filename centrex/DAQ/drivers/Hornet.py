@@ -35,7 +35,7 @@ class Hornet:
         +/- and pp = the exponent.  (e.g., *01_1.53E-06<CR>)
         When IG is off: *01_9.90E+09
         """
-        self.query("#" + self.address + "RD")
+        return self.query("#" + self.address + "RD")
 
     def ReadSystemPressure(self):
         """Read the current IG pressure and CG pressure (IG+CG1 combined).
@@ -44,7 +44,7 @@ class Hornet:
         *xx_y.yyEzyy<CR> (e.g., *01_1.53E-06<CR>)
         When IG is off: CG only
         """
-        self.query("#" + self.address + "RDS")
+        return float(self.query("#" + self.address + "RDS")[4:])
 
     def ReadCGnPressure(self, n):
         """Read the current pressure for CGn.
@@ -53,7 +53,7 @@ class Hornet:
         *xx_ y.yyEzyy <CR> (e.g., *01_7.60E+02<CR>)
         When CG is over-ranged or not plugged in: *01_1.01E+03<CR>
         """
-        self.query("#" + self.address + "RDCG" + str(n))
+        return self.query("#" + self.address + "RDCG" + str(n))
 
     def SetAddrOffset(self, uu):
         """Set the communications (RS485) address offset (upper nibble).
@@ -61,7 +61,7 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR>
         """
-        self.query("#" + self.address + "SA" + str(uu))
+        return self.query("#" + self.address + "SA" + str(uu))
 
     def TurnIGOn(self):
         """Power up the filament and start reading pressure.
@@ -71,7 +71,7 @@ class Hornet:
         When CG controlled: ?01_INVALID_<CR>
         When IG error exists: ?01_INVALID_<CR>
         """
-        self.query("#" + self.address + "IG1")
+        return self.query("#" + self.address + "IG1")
 
     def TurnIGOff(self):
         """Turns power OFF to the filament.
@@ -79,7 +79,7 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR> (clears any errors)
         """
-        self.query("#" + self.address + "IG0")
+        return self.query("#" + self.address + "IG0")
 
     def ReadIGStatus(self):
         """Find out if filament is powered up and gauge is reading.
@@ -88,7 +88,7 @@ class Hornet:
         *xx_0_IG_OFF<CR>
         *xx_1_IG_ON_<CR>
         """
-        self.query("#" + self.address + "IGS")
+        return self.query("#" + self.address + "IGS")
 
     def TurnDegasOn(self):
         """Start a degas cycle.
@@ -98,7 +98,7 @@ class Hornet:
         When IG off: ?01_INVALID_<CR>
         When P > 5e-5: ?01_INVALID_<CR>
         """
-        self.query("#" + self.address + "DG1")
+        return self.query("#" + self.address + "DG1")
 
     def TurnDegasOff(self):
         """Stop a degas cycle.
@@ -106,7 +106,7 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR>
         """
-        self.query("#" + self.address + "DG0")
+        return self.query("#" + self.address + "DG0")
 
     def ReadDegasStatus(self):
         """Find out if the module is currently degassing.
@@ -115,7 +115,7 @@ class Hornet:
         *xx_0_DG_OFF<CR>
         *xx_1_DG_ON_<CR>
         """
-        self.query("#" + self.address + "DGS")
+        return self.query("#" + self.address + "DGS")
 
     def ReadEmissionCurrentStatus(self):
         """Read emission current setting.
@@ -124,7 +124,7 @@ class Hornet:
         *xx_0.1MA_EM<CR>
         *xx_4.0MA_EM<CR>
         """
-        self.query("#" + self.address + "SES")
+        return self.query("#" + self.address + "SES")
 
     def SetEmissionCurrent(self, y):
         """Choose emission current of 4 mA or 100 muA.
@@ -134,7 +134,7 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR>
         """
-        self.query("#" + self.address + "SE" + y)
+        return self.query("#" + self.address + "SE" + y)
 
     def SetFilament(self, y):
         """Choose Filament 1 or 2.
@@ -142,7 +142,7 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR>
         """
-        self.query("#" + self.address + "SF" + y)
+        return self.query("#" + self.address + "SF" + y)
 
     def SetTripPointRelayI(self, val):
         """Set the 'turns on below' (+) pressure point for RLY I and set the
@@ -157,7 +157,7 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR>
         """
-        self.query("#" + self.address + "SL" + val)
+        return self.query("#" + self.address + "SL" + val)
 
     def SetTripPointRelayA(self, val):
         """Set the 'turns on below' (+) pressure point for RLY A and set the
@@ -178,7 +178,7 @@ class Hornet:
         the 'turns on below' (+) setpoint, a syntax error of ?01 SYNTX ER<CR>
         will result.
         """
-        self.query("#" + self.address + "SLA" + val)
+        return self.query("#" + self.address + "SLA" + val)
 
     def SetTripPointRelayB(self, val):
         """Set the 'turns on below' (+) pressure point for RLY B and set the
@@ -197,7 +197,7 @@ class Hornet:
         the 'turns on below' (+) setpoint, a syntax error of ?01 SYNTX ER<CR>
         will result.
         """
-        self.query("#" + self.address + "SLB" + val)
+        return self.query("#" + self.address + "SLB" + val)
 
     def ReadTripPointRelayI(self, z):
         """Read the 'turns on below' (+) pressure point for relay I and read the
@@ -211,7 +211,7 @@ class Hornet:
         (e.g., *01+7.60E+02<CR>
         (e.g., *01-7.60E+02<CR>)
         """
-        self.query("#" + self.address + "RL" + z)
+        return self.query("#" + self.address + "RL" + z)
 
 
     def ReadTripPointRelayA(self, z):
@@ -226,7 +226,7 @@ class Hornet:
         (e.g., *01+5.60E+02<CR>)
         (e.g., *01-7.60E+02<CR>)
         """
-        self.query("#" + self.address + "RLA" + z)
+        return self.query("#" + self.address + "RLA" + z)
 
 
     def ReadTripPointRelayB(self, z):
@@ -241,7 +241,7 @@ class Hornet:
         (e.g., *01+5.60E+02<CR>)
         (e.g., *01-7.60E+02<CR>)
         """
-        self.query("#" + self.address + "RLB" + z)
+        return self.query("#" + self.address + "RLB" + z)
 
     def ReadIGStatus(self):
         """Finds out the cause of the ion gauge (IG) shutdown.
@@ -253,7 +253,7 @@ class Hornet:
         *xx_08_POWER<CR>
         *xx_20_ION_C<CR>
         """
-        self.query("#" + self.address + "RS")
+        return self.query("#" + self.address + "RS")
 
     def SetCGnZero(self, n, val):
         """Set the zero or vacuum calibration point for CGn where n=1=A (as
@@ -274,7 +274,7 @@ class Hornet:
         When requested P > 100mT: ?01_INVALID_<CR>
         When requested gauge number <1 or >2: ?01_SYNTX_ER <CR>.
         """
-        self.query("#" + self.address + "TZ" + n + " " + val)
+        return self.query("#" + self.address + "TZ" + n + " " + val)
 
     def SetCGnSpan(self, n, val):
         """Set the span or atmosphere calibration point for CGn.
@@ -286,7 +286,7 @@ class Hornet:
         When requested P > 1000mT: ?01_INVALID_<CR>
         When requested gauge number <1 or >2: ?01_SYNTX_ER <CR>
         """
-        self.query("#" + self.address + "TS" + n + " " + val)
+        return self.query("#" + self.address + "TS" + n + " " + val)
 
     def ReadSWVersion(self):
         """Read the revision number of the installed software.
@@ -295,7 +295,7 @@ class Hornet:
         *xx_mmmm-vv<CR>
         e.g., *01_1769-103<CR>
         """
-        self.query("#" + self.address + "VER")
+        return self.query("#" + self.address + "VER")
 
     def SetFactoryDefaults(self):
         """Force unit to return ALL settings back to the way the factory
@@ -304,7 +304,7 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR>
         """
-        self.query("#" + self.address + "FAC")
+        return self.query("#" + self.address + "FAC")
 
     def SetBaudRate(self, val):
         """Set the communications baud rate for RS485.
@@ -312,7 +312,7 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR>
         """
-        self.query("#" + self.address + "SB" + val)
+        return self.query("#" + self.address + "SB" + val)
 
     def SetParity(self, val):
         """Set the communications to NO parity, 8 bits; ODD parity, 7 bits; EVEN
@@ -321,7 +321,7 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR>
         """
-        self.query("#" + self.address + "SP" + val)
+        return self.query("#" + self.address + "SP" + val)
 
     def UnlockCommProgramming(self):
         """If the UNL command is enabled by the TLU command, the UNL command
@@ -334,7 +334,7 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR>
         """
-        self.query("#" + self.address + "UNL")
+        return self.query("#" + self.address + "UNL")
 
     def ToggleUNLFunction(self):
         """The TLU command will toggle the state of the UNL function. When the
@@ -346,7 +346,7 @@ class Hornet:
         *xx_1_UL_ON_<CR>
         *xx_0_UL_OFF<CR>
         """
-        self.query("#" + self.address + "TLU")
+        return self.query("#" + self.address + "TLU")
 
     def Reset(self):
         """Reset the device as if power was cycled (Required to complete some of
@@ -355,7 +355,7 @@ class Hornet:
         Returns:
         No response.
         """
-        self.query("#" + self.address + "RST")
+        return self.query("#" + self.address + "RST")
 
     #################################################################
     ##########           NEW COMMANDS                      ##########
@@ -370,7 +370,7 @@ class Hornet:
         *xx_MBAR____<CR>
         *xx_PASCAL__<CR>
         """
-        self.query("#" + self.address + "RU")
+        return self.query("#" + self.address + "RU")
 
     def SetPressureUnit(self, val):
         """Set Pressure unit for display and RD response.
@@ -380,7 +380,7 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR>
         """
-        self.query("#" + self.address + "SU" + val)
+        return self.query("#" + self.address + "SU" + val)
 
     def ReadIGIonCurrent(self):
         """Read the current IG ion current in amps.
@@ -390,7 +390,7 @@ class Hornet:
         (eg: *01_1.53E-06<CR>)
         When sensor is off: indicate offset voltage.
         """
-        self.query("#" + self.address + "RDIGC")
+        return self.query("#" + self.address + "RDIGC")
 
     def ReadIGEmissionCurrent(self):
         """Read the actual IG emission current being measured by the gauge in
@@ -401,7 +401,7 @@ class Hornet:
         (eg: *01_1.00E-04<CR>)
         When sensor is off: 0.00E-00
         """
-        self.query("#" + self.address + "RDIGE")
+        return self.query("#" + self.address + "RDIGE")
 
     def ReadIGFilamentVoltage(self):
         """Read the current IG filament voltage in volts.
@@ -411,7 +411,7 @@ class Hornet:
         (eg: *01_1.20E-00<CR>)
         When sensor is off: 0.00E-00
         """
-        self.query("#" + self.address + "RDIGV")
+        return self.query("#" + self.address + "RDIGV")
 
     def ReadIGFilamentCurrent(self):
         """Read the current IG filament current in amps.
@@ -421,4 +421,4 @@ class Hornet:
         (eg: *01_2.20E-00<CR>)
         When sensor is off: 0.00E-00
         """
-        self.query("#" + self.address + "RDIGI")
+        return self.query("#" + self.address + "RDIGI")

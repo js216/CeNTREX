@@ -15,12 +15,16 @@ contains examples; `testing` has random stuff I'm working on.
    > connections; you have only to want to find them.
    > [Umberto Ecco: Foucault's Pendulum] 
 
-Let's store data in HDF5 files.
+Let's store data in HDF5 files. The dataset contains the following groups:
 
-- Event Log
-- Parameter Log
-- Error handling
-- Time synchronization
+     /beam_source/pressure
+                  thermal
+                  gas
+                  lasers
+                  events
+
+The datasets are rows of datapoints, where the first column is always the UNIX
+time of when the data was taken, offset by 1540324934.
 
 ## Drivers
 

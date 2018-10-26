@@ -6,6 +6,8 @@
 import pyvisa
 import time
 import numpy as np
+import csv
+import logging
 
 # suppress weird h5py warnings
 import warnings
@@ -24,8 +26,11 @@ from drivers import LakeShore330
 ### DEFINE FUNCTIONS ###
 ########################
 
-def create_database(fname):
+def create_database(fname, length):
+    """Create a new HDF5 file, defining the data structure."""
+
     f = h5py.File(fname, 'w-')
+
     # groups
     root     = f.create_group("beam_source")
     pressure = root.create_group("pressure")
@@ -33,43 +38,43 @@ def create_database(fname):
     gas      = root.create_group("gas")
     lasers   = root.create_group("lasers")
     events   = root.create_group("events")
+
     # datasets
-    length = 24*3600
+    length = length
     ig_dset = pressure.create_dataset("IG", (length,2), dtype='f', maxshape=(None,2))
     ig_dset.set_fill_value = np.nan
     t_dset = thermal.create_dataset("cryo", (length,13), dtype='f', maxshape=(None,13))
     t_dset.set_fill_value = np.nan
 
-######################
-### SET PARAMETERS ###
-######################
+def timestamp():
+    return time.time() - 1540324934
 
-fname = "C:/Users/CENTREX/Documents/data/cooldown2.h5"
-create_database(fname)
+def run_recording(temp_dir, N, dt):
+    """Record N datapoints every dt seconds to CSV files in temp_dir."""
 
-##################################
-### THE MAIN RECORDING PROGRAM ###
-##################################
+    # open files and devices
+    rm = pyvisa.ResourceManager()
+    with open(temp_dir+"/beam_source/pressure/IG.csv",'a',1) as ig_f,\
+         open(temp_dir+"/beam_source/thermal/cryo.csv",'a',1) as cryo_f,\
+         Hornet(rm, 'COM4')            as ig,\
+         LakeShore218(rm, 'COM1')      as therm1,\
+         LakeShore330(rm, 'GPIB0::16') as therm2:
 
-rm = pyvisa.ResourceManager()
+        # create csv writers
+        ig_dset = csv.writer(ig_f)
+        cryo_dset = csv.writer(cryo_f)
 
-with h5py.File(fname, 'r+') as f,\
- Hornet(rm, 'COM4') as ig,\
- LakeShore218(rm, 'COM1') as therm1,\
- LakeShore330(rm, 'GPIB0::16') as therm2:
+        # main recording loop
+        for i in range(N):
+            ig_dset.writerow( [timestamp(), ig.ReadSystemPressure()] )
+            cryo_dset.writerow( [timestamp()] + therm1.QueryKelvinReading() +
+                [therm2.ControlSensorDataQuery(), therm2.SampleSensorDataQuery()] )
+            time.sleep(dt)
 
-     # open datasets
-     ig_dset = f['beam_source/pressure/IG']
-     cryo_dset = f['beam_source/thermal/cryo']
+#######################
+### RUN THE PROGRAM ###
+#######################
 
-     # main recording loop
-     for i in range(2*360):
-         timestamp = time.time() - 1540324934
-         ig_dset[i,0] = timestamp
-         ig_dset[i,1] = ig.ReadSystemPressure()
-         cryo_dset[i,0] = timestamp
-         cryo_dset[i,1:9] = therm1.QueryKelvinReading()
-         cryo_dset[i,9] = therm2.ControlSensorDataQuery()
-         cryo_dset[i,11] = therm2.SampleSensorDataQuery()
-
-         time.sleep(10)
+temp_dir = "C:/Users/CENTREX/Documents/data/temp_run_dir"
+logging.basicConfig(filename=temp_dir+'ParameterMonitor.log')
+run_recording(temp_dir, 12*3600, 1)

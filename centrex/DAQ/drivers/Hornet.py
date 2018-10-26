@@ -1,4 +1,5 @@
-import visa
+import pyvisa
+import numpy as np
 
 class Hornet:
     def __init__(self, rm, resource_name, address='01'):
@@ -7,8 +8,8 @@ class Hornet:
         self.instr = self.rm.open_resource(resource_name)
         self.instr.baud_rate = 19200
         self.instr.data_bits = 8
-        self.instr.parity = visa.constants.Parity.none
-        self.instr.stop_bits = visa.constants.StopBits.one
+        self.instr.parity = pyvisa.constants.Parity.none
+        self.instr.stop_bits = pyvisa.constants.StopBits.one
 
     def __enter__(self):
         return self
@@ -44,7 +45,10 @@ class Hornet:
         *xx_y.yyEzyy<CR> (e.g., *01_1.53E-06<CR>)
         When IG is off: CG only
         """
-        return float(self.query("#" + self.address + "RDS")[4:])
+        try:
+            return float(self.query("#" + self.address + "RDS")[4:])
+        except pyvisa.errors.VisaIOError:
+            return np.nan
 
     def ReadCGnPressure(self, n):
         """Read the current pressure for CGn.

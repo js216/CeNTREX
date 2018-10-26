@@ -5,6 +5,7 @@
 # import normal Python packages
 import pyvisa
 import time
+import numpy as np
 
 # suppress weird h5py warnings
 import warnings
@@ -34,19 +35,21 @@ def create_database(fname):
     events   = root.create_group("events")
     # datasets
     length = 24*3600
-    pressure.create_dataset("IG", (length,2), dtype='f', maxshape=(None,2))
-    thermal.create_dataset("cryo", (length,13), dtype='f', maxshape=(None,13))
+    ig_dset = pressure.create_dataset("IG", (length,2), dtype='f', maxshape=(None,2))
+    ig_dset.set_fill_value = np.nan
+    t_dset = thermal.create_dataset("cryo", (length,13), dtype='f', maxshape=(None,13))
+    t_dset.set_fill_value = np.nan
 
 ######################
 ### SET PARAMETERS ###
 ######################
 
-fname = "C:/Users/CENTREX/Documents/data/pumpdown.h5"
+fname = "C:/Users/CENTREX/Documents/data/cooldown2.h5"
 create_database(fname)
 
-###############################
-### THE MAIN RECORDING LOOP ###
-###############################
+##################################
+### THE MAIN RECORDING PROGRAM ###
+##################################
 
 rm = pyvisa.ResourceManager()
 
@@ -57,15 +60,16 @@ with h5py.File(fname, 'r+') as f,\
 
      # open datasets
      ig_dset = f['beam_source/pressure/IG']
-     therm_dset = f['beam_source/thermal/cryo']
+     cryo_dset = f['beam_source/thermal/cryo']
 
-     for i in range(12*3600):
+     # main recording loop
+     for i in range(2*360):
          timestamp = time.time() - 1540324934
          ig_dset[i,0] = timestamp
          ig_dset[i,1] = ig.ReadSystemPressure()
-         therm_dset[i,0] = timestamp
-         therm_dset[i,1:9] = therm1.QueryKelvinReading()
-         therm_dset[i,9] = therm2.ControlSensorDataQuery()
-         therm_dset[i,10] = therm2.SampleSensorDataQuery()
+         cryo_dset[i,0] = timestamp
+         cryo_dset[i,1:9] = therm1.QueryKelvinReading()
+         cryo_dset[i,9] = therm2.ControlSensorDataQuery()
+         cryo_dset[i,11] = therm2.SampleSensorDataQuery()
 
-         time.sleep(1)
+         time.sleep(10)

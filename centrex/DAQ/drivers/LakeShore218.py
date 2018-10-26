@@ -617,7 +617,10 @@ class LakeShore218:
         Or if all inputs are queried:
         <Input 1 Kelvin Value>,<Input 2 Kelvin Value>,<Input 3 Kelvin Value>,<Input 4 Kelvin Value>,<Input 5 Kelvin Value>,<Input 6 Kelvin Value>,<Input 7 Kelvin Value>,<Input 8 Kelvin Value>. Format: +nn.nnn,+nn.nnn,+nn.nnn,+nn.nnn,+nn.nnn,+nn.nnn,+nn.nnn,+nn.nnn
         """
-        res = self.instr.query("KRDG? "+str(inputs))
+        try:
+            res = self.instr.query("KRDG? "+str(inputs))
+        except pyvisa.errors.VisaIOError:
+            return np.nan
         return [float(x) for x in res.split(",")]
                          
     def ConfigureInputLinearEquationParameters(self, params):

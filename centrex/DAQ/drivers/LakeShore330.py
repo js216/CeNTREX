@@ -290,7 +290,10 @@ class LakeShore330:
         
         Returns: +/-000.00
         """
-        return float(self.instr.query("CDAT?"))
+        try:
+            return float(self.instr.query("CDAT?"))
+        except pyvisa.errors.VisaIOError:
+            return np.nan
     
     def SetControlChannelUnits(self, units):
         """Set control channel units: K = kelvin, C = Celsius,
@@ -349,7 +352,10 @@ class LakeShore330:
         
         Returns: +/-000.00
         """
-        return float(self.instr.query("SDAT?"))
+        try:
+            return float(self.instr.query("SDAT?"))
+        except pyvisa.errors.VisaIOError:
+            return np.nan
     
     def SetSampleChannelUnits(self, channel):
         """Set Sample Channel to A or B.

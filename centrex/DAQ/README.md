@@ -2,7 +2,8 @@
 
 This repository has a very simple structure: `drivers` contains raw `.py` files
 which define the classes that access devices through NI-VISA; `examples`
-contains examples; `testing` has random stuff I'm working on.
+contains examples of using these drivers; `testing` has random stuff I'm working
+on.
 
 ## Recording
 
@@ -15,7 +16,9 @@ contains examples; `testing` has random stuff I'm working on.
    > connections; you have only to want to find them.
    > [Umberto Ecco: Foucault's Pendulum] 
 
-Let's store data in HDF5 files. The dataset contains the following groups:
+Let's store data in HDF5 files, each file for a different stage of the
+experiment (e.g. initial pumpdown, testing the pulse tube cooling / heaters,
+etc.). Each file contains the following groups:
 
      /beam_source/pressure
                   thermal
@@ -28,7 +31,7 @@ time of when the data was taken, offset by 1540324934.
 
 ## Drivers
 
-The drivers are Python modules stored in software/drivers.
+The drivers are Python modules stored in `software/drivers`.
 
 - **Lakeshore 330 temperature controller:** Python wrapper for all the
   IEEE-488/serial commands supported by the Lake Shore Model 330 Autotuning

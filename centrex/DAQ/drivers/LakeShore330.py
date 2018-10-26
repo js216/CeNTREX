@@ -1,4 +1,6 @@
-import visa
+import pyvisa
+import time
+import logging
 
 class LakeShore330:
     def __init__(self, rm, resource_name):
@@ -293,6 +295,7 @@ class LakeShore330:
         try:
             return float(self.instr.query("CDAT?"))
         except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
     
     def SetControlChannelUnits(self, units):

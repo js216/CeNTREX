@@ -1,10 +1,12 @@
-import visa
+import pyvisa
+import time
+import logging
 
 class LakeShore218:
     def __init__(self, rm, resource_name):
         self.rm = rm
         self.instr = self.rm.open_resource(resource_name)
-        self.instr.parity = visa.constants.Parity.odd
+        self.instr.parity = pyvisa.constants.Parity.odd
         self.instr.data_bits = 7
         self.instr.baud_rate = 9600
         self.instr.term_char = '\r'
@@ -620,6 +622,7 @@ class LakeShore218:
         try:
             res = self.instr.query("KRDG? "+str(inputs))
         except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
         return [float(x) for x in res.split(",")]
                          

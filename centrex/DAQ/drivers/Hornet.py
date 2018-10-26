@@ -1,5 +1,7 @@
 import pyvisa
 import numpy as np
+import time
+import logging
 
 class Hornet:
     def __init__(self, rm, resource_name, address='01'):
@@ -48,6 +50,7 @@ class Hornet:
         try:
             return float(self.query("#" + self.address + "RDS")[4:])
         except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
 
     def ReadCGnPressure(self, n):

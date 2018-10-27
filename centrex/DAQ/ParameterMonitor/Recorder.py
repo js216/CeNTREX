@@ -57,4 +57,4 @@ def run_recording(temp_dir, N, dt):
 
 temp_dir = "C:/Users/CENTREX/Documents/data/temp_run_dir"
 logging.basicConfig(filename=temp_dir+'ParameterMonitor.log')
-run_recording(temp_dir, 12*3600, 1)
+run_recording(temp_dir, 5*24*3600, 1)

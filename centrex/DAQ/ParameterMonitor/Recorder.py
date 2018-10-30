@@ -9,12 +9,6 @@ import numpy as np
 import csv
 import logging
 
-# suppress weird h5py warnings
-import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
-import h5py
-warnings.resetwarnings()
-
 # import my device drivers
 import sys
 sys.path.append('..')
@@ -26,11 +20,15 @@ from drivers import LakeShore330
 ### DEFINE FUNCTIONS ###
 ########################
 
-def timestamp():
-    return time.time() - 1540324934
-
 def run_recording(temp_dir, N, dt):
     """Record N datapoints every dt seconds to CSV files in temp_dir."""
+
+    # select and record the time offset
+    time_offset = time.time()
+    with open(temp_dir+"time_offset",'w') as to_f:
+        to_f.write(str(time_offset))
+    def timestamp():
+        return time.time() - time_offset
 
     # open files and devices
     rm = pyvisa.ResourceManager()
@@ -56,5 +54,5 @@ def run_recording(temp_dir, N, dt):
 #######################
 
 temp_dir = "C:/Users/CENTREX/Documents/data/temp_run_dir"
-logging.basicConfig(filename=temp_dir+'ParameterMonitor.log')
+logging.basicConfig(filename=temp_dir+'/ParameterMonitor.log')
 run_recording(temp_dir, 5*24*3600, 1)

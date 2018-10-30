@@ -41,22 +41,28 @@ def CSV_into_HDF5(CSV_dir, HDF_fname, run_name):
 
     # read CSV files
     ig_CSV = np.loadtxt(CSV_dir+"/beam_source/pressure/IG.csv", delimiter=',')
+    ig_params_CSV = np.loadtxt(CSV_dir+"/beam_source/pressure/IG_params.csv", delimiter=',')
     cryo_CSV = np.loadtxt(CSV_dir+"/beam_source/thermal/cryo.csv", delimiter=',')
+    cryo_params_CSV = np.loadtxt(CSV_dir+"/beam_source/thermal/cryo_params.csv", delimiter=',')
 
     # write HDF datasets
     ig_dset = pressure.create_dataset("IG", data=ig_CSV, dtype='f')
     cryo_dset = thermal.create_dataset("cryo", data=cryo_CSV, dtype='f')
 
-    # write attributes
-    ig_dset.attrs["units"] = asc(["s", "torr"])
-    ig_dset.attrs["column_names"] = asc(["time", "IG pressure"])
-    cryo_dset.attrs["units"] = asc(["s", "K", "K", "K", "K", "K", "K", "K", "K", "K", "K"])
-    cryo_dset.attrs["column_names"] = asc(["time", "cell back snorkel", "4K shield top",
-            "40K shield top", "40K PT cold head", "cell top plate", "4K shield bottom",
-            "40K shield bottom", "16K PT cold head", "cell input nozzle", "4K PT warm stage"])
+    # write attributes to HDF
+    for col in cryo_params_CSV:
+        if len(col) == 2:
+            cryo_dset.attrs[col[0]] = col[1]
+        else:
+            cryo_dset.attrs[col[0]] = col[1:]
+    for col in ig_params_CSV:
+        if len(col) == 2:
+            ig_dset.attrs[col[0]] = col[1]
+        else:
+            ig_dset.attrs[col[0]] = col[1:]
 
     # record the arbitrary time offset
-    with open(CSV_dir+"time_offset",'r') as to_f:
+    with open(CSV_dir+"/time_offset",'r') as to_f:
         ig_dset.attrs['time_offset']   = to_f.read()
         cryo_dset.attrs['time_offset'] = to_f.read()
 
@@ -64,7 +70,7 @@ def CSV_into_HDF5(CSV_dir, HDF_fname, run_name):
 ### USE FUNCTIONS (for testing) ###
 ###################################
 
-temp_dir = "C:/Users/CENTREX/Documents/data/temp_run_dir"
-HDF_fname = "C:/Users/CENTREX/Documents/data/slow_data.h5"
+temp_dir = "C:/Users/CENTREX/Documents/data/current_run_dir"
+HDF_fname = "C:/Users/CENTREX/Documents/data/slow_data_test.h5"
 run_name = str(int(time.time())) + " cooldown and warming"
 CSV_into_HDF5(temp_dir, HDF_fname, run_name)

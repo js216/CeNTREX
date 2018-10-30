@@ -74,49 +74,77 @@ class CFR200:
         
         Returns: XXXXXXX  -.--
         """
-        return self.query('X')
+        try:
+            return self.query('X')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadDateOfSoftwareReview(self):
         """Date of Software review (date/month/year).
         
         Returns: --/--/--       
         """
-        return self.query('DAT')
+        try:
+            return self.query('DAT')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
         
     def ReadCoolingGroupTempC(self):
         """Reads cooling group Temp ( C).
         
         Returns: temp. CG -- d  
         """
-        return self.query('CG')
+        try:
+            return self.query('CG')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadCoolingGroupTempF(self):
         """Reads cooling group Temp ( F).
         
         Returns: temp. CG --- F 
         """
-        return self.query('CGF')
+        try:
+            return self.query('CGF')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadDispType(self):
         """Reads type of display ( C or  F).
         
         Returns: option TP  :  -
         """
-        return self.query('NTP')
+        try:
+            return self.query('NTP')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadCurrentConfig(self):
         """Read the current configuration.
         
         Returns: configuration -
         """
-        return self.query('CFF')
+        try:
+            return self.query('CFF')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadTimeCounter(self):
         """Time counter (When switch ON hhhh= number hours and mm=minutes).
         
         Returns: ct time hhhh:mm
         """
-        return self.query('T')
+        try:
+            return self.query('T')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadShutterState(self):
         """Reads shutter state.
@@ -124,35 +152,55 @@ class CFR200:
         Returns: shutter closed 
                  shutter opened 
         """
-        return self.query('R')
+        try:
+            return self.query('R')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadShutterAtRun(self):
         """Reads open or close the shutter at run.
         
         Returns: shutt. at run -
         """
-        return self.query('ROF')
+        try:
+            return self.query('ROF')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadRackType(self):
         """The type of rack.
         
         Returns: option MPS :  -
         """
-        return self.query('NPS')
+        try:
+            return self.query('NPS')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadCapacitorType(self):
         """The type of capacitor.
         
         Returns: option CAP :  - 
         """
-        return self.query('NCA')
+        try:
+            return self.query('NCA')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadLaserType(self):
         """Read the type of laser (15 = version CFR).
         
         Returns: option B2K : 15
         """
-        return self.query('NOP')
+        try:
+            return self.query('NOP')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     #################################################################
     ##########  Configuration parameters (Programming)     ##########
@@ -165,7 +213,11 @@ class CFR200:
         
         Returns: configuration 1
         """
-        return self.query('CFG'+str(config))
+        try:
+            return self.query('CFG'+str(config))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def SaveCurrentConfig(self, config):
         """Saving the current configuration.
@@ -174,7 +226,11 @@ class CFR200:
         
         Returns: Save config.  2
         """
-        return self.query('SAV'+str(config))
+        try:
+            return self.query('SAV'+str(config))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def SetTempDispF(self, config):
         """Sets temperature display in  F.
@@ -183,7 +239,11 @@ class CFR200:
         
         Returns: option TP  :  1
         """
-        return self.query('NTP'+str(config))
+        try:
+            return self.query('NTP'+str(config))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def SetShutterOpen(self, config):
         """Sets opened or closed the shutter.
@@ -192,7 +252,11 @@ class CFR200:
         
         Returns: shutter opened 
         """
-        return self.query('R'+str(config))
+        try:
+            return self.query('R'+str(config))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def OpenShutterAtRun(self, config):
         """Open or close the shutter at run.
@@ -201,7 +265,11 @@ class CFR200:
         
         Returns: shutt. at run 1
         """
-        return self.query('ROF'+str(config))
+        try:
+            return self.query('ROF'+str(config))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
  
     def LaserStatus(self):
         """Status of laser.
@@ -210,14 +278,22 @@ class CFR200:
 
         Returns: I a F b S c Q d 
         """
-        return self.query('WOR')
+        try:
+            return self.query('WOR')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def LampQSStatus(self):
         """Reads the status of the lamp & QS operating mode.
         
         See manual for details (no idea which part of it!).
         """
-        return self.query('')
+        try:
+            return self.query('')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     #################################################################
     ##########  Flashlamp parameters (Reading)             ##########
@@ -228,35 +304,55 @@ class CFR200:
         
         Returns: voltage  ---- V
         """
-        return self.query('V')
+        try:
+            return self.query('V')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadFlashlampTriggerMode(self):
         """Trigger Flashlamp mode.
         
         Returns: LP synch :  -  
         """
-        return self.query('LPM')
+        try:
+            return self.query('LPM')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadFlashlampRepRate(self):
         """Pre-set repetition rate (Hz).
         
         Returns: freq.  --.-- Hz
         """
-        return self.query('F')
+        try:
+            return self.query('F')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadFlashlampShotCounter(self):
         """Lamp shot counter (9 digits).
         
         Returns: ct LP ---------
         """
-        return self.query('C')
+        try:
+            return self.query('C')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadFlashlampUsersShotCounter(self):
         """Lamp User's shot counter (9 digits)
         
         Returns: cu LP ---------
         """
-        return self.query('UC')
+        try:
+            return self.query('UC')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     #################################################################
     ##########  Flashlamp parameters (Programming)         ##########
@@ -269,7 +365,11 @@ class CFR200:
         
         Returns: LP synch :  0  
         """
-        return self.query('LPM'+str(config))
+        try:
+            return self.query('LPM'+str(config))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetFlashlampVoltage(self, config):
         """Flashlamp voltage (V).
@@ -278,7 +378,11 @@ class CFR200:
         
         Returns: voltage  0920 V
         """
-        return self.query('V'+str(config))
+        try:
+            return self.query('V'+str(config))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def SetFlashlampRepRate(self, config):
         """Sets repetition rate (Hz).
@@ -287,7 +391,11 @@ class CFR200:
         
         Returns: freq.  12.25 Hz
         """
-        return self.query('F'+str(config))
+        try:
+            return self.query('F'+str(config))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ResetUsersLampShotCounter(self):
         """Reset Lamp User's shot counter.
@@ -296,7 +404,11 @@ class CFR200:
         
         Returns: cu LP 000000000
         """
-        return self.query('UC0')
+        try:
+            return self.query('UC0')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     #################################################################
     ##########  Flashlamp activation/deactivation          ##########
@@ -308,21 +420,33 @@ class CFR200:
         
         See manual (page 53) for details.
         """
-        return self.query('A')
+        try:
+            return self.query('A')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def StopFlashlampAutoFire(self):
         """Stops automatic internal or external lamp firing.
         
         See manual (page 53) for details.
         """
-        return self.query('S')
+        try:
+            return self.query('S')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def SetFlashlampSimmer(self):
         """Set the lamp on Simmer in the preselected operating mode.
         
         See manual (page 53) for details.
         """
-        return self.query('S')
+        try:
+            return self.query('S')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     #################################################################
     ##########  Q-switch parameters (Reading)              ##########
@@ -333,56 +457,88 @@ class CFR200:
         
         Returns: QS mode  :   -  
         """
-        return self.query('QSM')
+        try:
+            return self.query('QSM')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadQSAutoFn(self):
         """Read Q-S F/n in auto mode.
         
         Returns: cycle rate F/-- 
         """
-        return self.query('QSF')
+        try:
+            return self.query('QSF')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadQSNumPulsesBurstMode(self):
         """Read Q-S the number of pulses in burst mode.
         
         Returns: burst QS    ---
         """
-        return self.query('QSP')
+        try:
+            return self.query('QSP')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadTurnQSOnOff(self):
         """Turns Q-Switch ON or OFF.
         
         Returns: QS at run     -
         """
-        return self.query('QOF')
+        try:
+            return self.query('QOF')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadQSCount(self):
         """Q-Switch shot counter (9 digits).
         
         Returns: ct QS --------- 
         """
-        return self.query('CQ')
+        try:
+            return self.query('CQ')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadQSUsersCount(self):
         """Q-Switch User's shot counter (9 digits).
         
         Returns: cu QS --------- 
         """
-        return self.query('UCQ')
+        try:
+            return self.query('UCQ')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadQSFlashlampDelay(self):
         """Delay between flashlamp & Q-S.
         
         Returns: delay    --- uS
         """
-        return self.query('W')
+        try:
+            return self.query('W')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadDelayQS1QS2(self):
         """Delay between Q-S1 & Q-S2. Only option double pulse.
         
         Returns: QS1-QS2  --- uS
         """
-        return self.query('WD')
+        try:
+            return self.query('WD')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadVariableQSSynchroOut(self):
         """Variable QS synchro out (ns).
@@ -391,7 +547,11 @@ class CFR200:
         
         Returns: var. QS +/- --- nS
         """
-        return self.query('VQ')
+        try:
+            return self.query('VQ')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     #################################################################
     ##########  Q-switch parameters (Reading)              ##########
@@ -402,7 +562,11 @@ class CFR200:
         
         Returns: QS mode  :   1  
         """
-        return self.query('QSM'+str(config))
+        try:
+            return self.query('QSM'+str(config))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def SetQSF10(self, config):
         """Set Q-S F/10.
@@ -411,7 +575,11 @@ class CFR200:
         
         Returns: cycle rate F/10
         """
-        return self.query('QSF'+str(config))
+        try:
+            return self.query('QSF'+str(config))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def SetQS50Bursts(self, config):
         """Sets Q-S 50 bursts.
@@ -420,7 +588,11 @@ class CFR200:
         
         Returns: burst QS    050
         """
-        return self.query('QSP'+str(config))
+        try:
+            return self.query('QSP'+str(config))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def TurnQSOn(self, config):
         """Turns Q-Switch ON.
@@ -429,14 +601,22 @@ class CFR200:
         
         Returns: QS at run     1
         """
-        return self.query('QOF'+str(config))
+        try:
+            return self.query('QOF'+str(config))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ResetQSUserCounter(self):
         """Reset Q-Switch User's shot counter.
 
         Returns: cu QS 000000000
         """
-        return self.query('UCQ0')
+        try:
+            return self.query('UCQ0')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def SetQSFlashlampDelay(self, config):
         """Sets QS-Flash delay in us.
@@ -445,7 +625,11 @@ class CFR200:
         
         Returns: delay    225 uS
         """
-        return self.query('W'+str(config))
+        try:
+            return self.query('W'+str(config))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def SetQS1QS2Delay(self, config):
         """Sets delay between Q-S1 & Q-S2.
@@ -456,7 +640,11 @@ class CFR200:
         
         Returns: QS1-QS2  100 uS
         """
-        return self.query('WD'+str(config))
+        try:
+            return self.query('WD'+str(config))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def SetVariableQSSynchroOut(self, config):
         """Sets Variable QS synchro out (ns).
@@ -465,21 +653,33 @@ class CFR200:
         
         Returns: var. QS +250 nS
         """
-        return self.query('VQ+'+str(config))
+        try:
+            return self.query('VQ+'+str(config))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadMinDelayQS(self):
         """Below limit delay QS.
         
         Returns: dly QS m --- uS 
         """
-        return self.query('WMN')
+        try:
+            return self.query('WMN')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadMaxDelayQS(self):
         """Above limit delay QS.
         
         Returns: dly QS M --- uS 
         """
-        return self.query('WMX')
+        try:
+            return self.query('WMX')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadNumPulsesWaitBeforeQS(self):
         """Number of pulses to wait after starting the lamp before
@@ -487,7 +687,11 @@ class CFR200:
         
         Returns: QS wait :  ---
         """
-        return self.query('QSW')
+        try:
+            return self.query('QSW')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadRamp(self):
         """Ramp in number of pulse Q-S.
@@ -496,21 +700,33 @@ class CFR200:
         
         Returns: QS ramp :  ---
         """
-        return self.query('QSR')
+        try:
+            return self.query('QSR')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadRampStep(self):
         """Step of ramp Q-S in uS.
 
         Returns: tp QS min --d 
         """
-        return self.query('TQN')
+        try:
+            return self.query('TQN')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def MinTempQS(self):
         """Low limit temperature ( C) for QS.
 
         Returns: QS step : --uS 
         """
-        return self.query('QSS')
+        try:
+            return self.query('QSS')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     #################################################################
     ##########  Q-switch activation/deactivation           ##########
@@ -521,14 +737,22 @@ class CFR200:
         
         See manual (page 54) for details.
         """
-        return self.query('PQ')
+        try:
+            return self.query('PQ')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def StopQS(self):
         """Stop Q-Switch laser emission.
         
         See manual (page 54) for details.
         """
-        return self.query('SQ')
+        try:
+            return self.query('SQ')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def SinglePulseQS(self):
         """Single pulse Q-S laser emission in the preselected
@@ -536,7 +760,11 @@ class CFR200:
         
         See manual (page 55) for details.
         """
-        return self.query('OQ')
+        try:
+            return self.query('OQ')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     #################################################################
     ##########  Safety devices                             ##########
@@ -547,14 +775,22 @@ class CFR200:
         
         See manual (page 55) for details.
         """
-        return self.query('IF')
+        try:
+            return self.query('IF')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def TestQSSafetyInterlock(self):
         """Test Q-Switch safety devices.
         
         See manual (page 55) for details.
         """
-        return self.query('IQ')
+        try:
+            return self.query('IQ')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     #################################################################
     ##########  Function time out (reading)                ##########
@@ -565,7 +801,11 @@ class CFR200:
         
         Returns: time out      -
         """
-        return self.query('L')
+        try:
+            return self.query('L')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadHarmonicGeneratorToTemp(self):
         """Harmonic Generator to temp.
@@ -574,49 +814,77 @@ class CFR200:
         
         Returns: IHG           a
         """
-        return self.query('IHG')
+        try:
+            return self.query('IHG')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadSimmerCounterOrder(self):
         """Simmer counter order.
         
         Returns: con SIM = --:--
         """
-        return self.query('CLS')
+        try:
+            return self.query('CLS')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadFiringCounterOrder(self):
         """Firing counter order.
         
         Returns: con LF  = --:--
         """
-        return self.query('CLC')
+        try:
+            return self.query('CLC')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadQSCounterOrder(self):
         """Q-Switch counter order.
         
         Returns: con QS  = --:--
         """
-        return self.query('CLQ')
+        try:
+            return self.query('CLQ')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadSimmerCounter(self):
         """Reading current simmer counter.
         
         Returns: cpt SIM = --:--
         """
-        return self.query('LS')
+        try:
+            return self.query('LS')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadRepRateCounter(self):
         """Reading current rep. rate counter.
         
         Returns: cpt LF = --:--
         """
-        return self.query('LC')
+        try:
+            return self.query('LC')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def ReadSimmerCounter(self):
         """Reading current Q-Switch counter.
         
         Returns: cpt QS = --:--
         """
-        return self.query('LQ')
+        try:
+            return self.query('LQ')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     #################################################################
     ##########  Function time out (programming)            ##########
@@ -629,7 +897,11 @@ class CFR200:
         
         Returns: time out      1
         """
-        return self.query('L'+str(config))
+        try:
+            return self.query('L'+str(config))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def SetSimmerCounterOrder(self, config):
         """Sets simmer counter order.
@@ -639,7 +911,11 @@ class CFR200:
         
         Returns: con SIM = 60:00
         """
-        return self.query('CLS'+str(config))
+        try:
+            return self.query('CLS'+str(config))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def SetFiringCounterOrder(self, config):
         """Sets firing counter order.
@@ -649,7 +925,11 @@ class CFR200:
         
         Returns: con LF  = 01:00
         """
-        return self.query('CLC'+str(config))
+        try:
+            return self.query('CLC'+str(config))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
     
     def SetQSCounterOrder(self, config):
         """Sets Q-Switch counter order.
@@ -659,4 +939,8 @@ class CFR200:
         
         Returns: con QS  = 01:00
         """
-        return self.query('CLQ'+str(config))
+        try:
+            return self.query('CLQ'+str(config))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan

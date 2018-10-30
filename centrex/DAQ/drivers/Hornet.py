@@ -38,7 +38,11 @@ class Hornet:
         +/- and pp = the exponent.  (e.g., *01_1.53E-06<CR>)
         When IG is off: *01_9.90E+09
         """
-        return self.query("#" + self.address + "RD")
+        try:
+            return self.query("#" + self.address + "RD")
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def ReadSystemPressure(self):
         """Read the current IG pressure and CG pressure (IG+CG1 combined).
@@ -60,7 +64,11 @@ class Hornet:
         *xx_ y.yyEzyy <CR> (e.g., *01_7.60E+02<CR>)
         When CG is over-ranged or not plugged in: *01_1.01E+03<CR>
         """
-        return self.query("#" + self.address + "RDCG" + str(n))
+        try:
+            return self.query("#" + self.address + "RDCG" + str(n))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetAddrOffset(self, uu):
         """Set the communications (RS485) address offset (upper nibble).
@@ -68,7 +76,11 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR>
         """
-        return self.query("#" + self.address + "SA" + str(uu))
+        try:
+            return self.query("#" + self.address + "SA" + str(uu))
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def TurnIGOn(self):
         """Power up the filament and start reading pressure.
@@ -78,7 +90,11 @@ class Hornet:
         When CG controlled: ?01_INVALID_<CR>
         When IG error exists: ?01_INVALID_<CR>
         """
-        return self.query("#" + self.address + "IG1")
+        try:
+            return self.query("#" + self.address + "IG1")
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def TurnIGOff(self):
         """Turns power OFF to the filament.
@@ -86,7 +102,11 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR> (clears any errors)
         """
-        return self.query("#" + self.address + "IG0")
+        try:
+            return self.query("#" + self.address + "IG0")
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def ReadIGStatus(self):
         """Find out if filament is powered up and gauge is reading.
@@ -95,7 +115,11 @@ class Hornet:
         *xx_0_IG_OFF<CR>
         *xx_1_IG_ON_<CR>
         """
-        return self.query("#" + self.address + "IGS")
+        try:
+            return self.query("#" + self.address + "IGS")
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def TurnDegasOn(self):
         """Start a degas cycle.
@@ -105,7 +129,11 @@ class Hornet:
         When IG off: ?01_INVALID_<CR>
         When P > 5e-5: ?01_INVALID_<CR>
         """
-        return self.query("#" + self.address + "DG1")
+        try:
+            return self.query("#" + self.address + "DG1")
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def TurnDegasOff(self):
         """Stop a degas cycle.
@@ -113,7 +141,11 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR>
         """
-        return self.query("#" + self.address + "DG0")
+        try:
+            return self.query("#" + self.address + "DG0")
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def ReadDegasStatus(self):
         """Find out if the module is currently degassing.
@@ -122,7 +154,11 @@ class Hornet:
         *xx_0_DG_OFF<CR>
         *xx_1_DG_ON_<CR>
         """
-        return self.query("#" + self.address + "DGS")
+        try:
+            return self.query("#" + self.address + "DGS")
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def ReadEmissionCurrentStatus(self):
         """Read emission current setting.
@@ -131,7 +167,11 @@ class Hornet:
         *xx_0.1MA_EM<CR>
         *xx_4.0MA_EM<CR>
         """
-        return self.query("#" + self.address + "SES")
+        try:
+            return self.query("#" + self.address + "SES")
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetEmissionCurrent(self, y):
         """Choose emission current of 4 mA or 100 muA.
@@ -141,7 +181,11 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR>
         """
-        return self.query("#" + self.address + "SE" + y)
+        try:
+            return self.query("#" + self.address + "SE" + y)
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetFilament(self, y):
         """Choose Filament 1 or 2.
@@ -149,7 +193,11 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR>
         """
-        return self.query("#" + self.address + "SF" + y)
+        try:
+            return self.query("#" + self.address + "SF" + y)
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetTripPointRelayI(self, val):
         """Set the 'turns on below' (+) pressure point for RLY I and set the
@@ -164,7 +212,11 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR>
         """
-        return self.query("#" + self.address + "SL" + val)
+        try:
+            return self.query("#" + self.address + "SL" + val)
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetTripPointRelayA(self, val):
         """Set the 'turns on below' (+) pressure point for RLY A and set the
@@ -185,7 +237,11 @@ class Hornet:
         the 'turns on below' (+) setpoint, a syntax error of ?01 SYNTX ER<CR>
         will result.
         """
-        return self.query("#" + self.address + "SLA" + val)
+        try:
+            return self.query("#" + self.address + "SLA" + val)
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetTripPointRelayB(self, val):
         """Set the 'turns on below' (+) pressure point for RLY B and set the
@@ -204,7 +260,11 @@ class Hornet:
         the 'turns on below' (+) setpoint, a syntax error of ?01 SYNTX ER<CR>
         will result.
         """
-        return self.query("#" + self.address + "SLB" + val)
+        try:
+            return self.query("#" + self.address + "SLB" + val)
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def ReadTripPointRelayI(self, z):
         """Read the 'turns on below' (+) pressure point for relay I and read the
@@ -218,7 +278,11 @@ class Hornet:
         (e.g., *01+7.60E+02<CR>
         (e.g., *01-7.60E+02<CR>)
         """
-        return self.query("#" + self.address + "RL" + z)
+        try:
+            return self.query("#" + self.address + "RL" + z)
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
 
     def ReadTripPointRelayA(self, z):
@@ -233,7 +297,11 @@ class Hornet:
         (e.g., *01+5.60E+02<CR>)
         (e.g., *01-7.60E+02<CR>)
         """
-        return self.query("#" + self.address + "RLA" + z)
+        try:
+            return self.query("#" + self.address + "RLA" + z)
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
 
     def ReadTripPointRelayB(self, z):
@@ -248,7 +316,11 @@ class Hornet:
         (e.g., *01+5.60E+02<CR>)
         (e.g., *01-7.60E+02<CR>)
         """
-        return self.query("#" + self.address + "RLB" + z)
+        try:
+            return self.query("#" + self.address + "RLB" + z)
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def ReadIGStatus(self):
         """Finds out the cause of the ion gauge (IG) shutdown.
@@ -260,7 +332,11 @@ class Hornet:
         *xx_08_POWER<CR>
         *xx_20_ION_C<CR>
         """
-        return self.query("#" + self.address + "RS")
+        try:
+            return self.query("#" + self.address + "RS")
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetCGnZero(self, n, val):
         """Set the zero or vacuum calibration point for CGn where n=1=A (as
@@ -281,7 +357,11 @@ class Hornet:
         When requested P > 100mT: ?01_INVALID_<CR>
         When requested gauge number <1 or >2: ?01_SYNTX_ER <CR>.
         """
-        return self.query("#" + self.address + "TZ" + n + " " + val)
+        try:
+            return self.query("#" + self.address + "TZ" + n + " " + val)
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetCGnSpan(self, n, val):
         """Set the span or atmosphere calibration point for CGn.
@@ -293,7 +373,11 @@ class Hornet:
         When requested P > 1000mT: ?01_INVALID_<CR>
         When requested gauge number <1 or >2: ?01_SYNTX_ER <CR>
         """
-        return self.query("#" + self.address + "TS" + n + " " + val)
+        try:
+            return self.query("#" + self.address + "TS" + n + " " + val)
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def ReadSWVersion(self):
         """Read the revision number of the installed software.
@@ -302,7 +386,11 @@ class Hornet:
         *xx_mmmm-vv<CR>
         e.g., *01_1769-103<CR>
         """
-        return self.query("#" + self.address + "VER")
+        try:
+            return self.query("#" + self.address + "VER")
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetFactoryDefaults(self):
         """Force unit to return ALL settings back to the way the factory
@@ -311,7 +399,11 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR>
         """
-        return self.query("#" + self.address + "FAC")
+        try:
+            return self.query("#" + self.address + "FAC")
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetBaudRate(self, val):
         """Set the communications baud rate for RS485.
@@ -319,7 +411,11 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR>
         """
-        return self.query("#" + self.address + "SB" + val)
+        try:
+            return self.query("#" + self.address + "SB" + val)
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetParity(self, val):
         """Set the communications to NO parity, 8 bits; ODD parity, 7 bits; EVEN
@@ -328,7 +424,11 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR>
         """
-        return self.query("#" + self.address + "SP" + val)
+        try:
+            return self.query("#" + self.address + "SP" + val)
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def UnlockCommProgramming(self):
         """If the UNL command is enabled by the TLU command, the UNL command
@@ -341,7 +441,11 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR>
         """
-        return self.query("#" + self.address + "UNL")
+        try:
+            return self.query("#" + self.address + "UNL")
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def ToggleUNLFunction(self):
         """The TLU command will toggle the state of the UNL function. When the
@@ -353,7 +457,11 @@ class Hornet:
         *xx_1_UL_ON_<CR>
         *xx_0_UL_OFF<CR>
         """
-        return self.query("#" + self.address + "TLU")
+        try:
+            return self.query("#" + self.address + "TLU")
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def Reset(self):
         """Reset the device as if power was cycled (Required to complete some of
@@ -362,7 +470,11 @@ class Hornet:
         Returns:
         No response.
         """
-        return self.query("#" + self.address + "RST")
+        try:
+            return self.query("#" + self.address + "RST")
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     #################################################################
     ##########           NEW COMMANDS                      ##########
@@ -377,7 +489,11 @@ class Hornet:
         *xx_MBAR____<CR>
         *xx_PASCAL__<CR>
         """
-        return self.query("#" + self.address + "RU")
+        try:
+            return self.query("#" + self.address + "RU")
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetPressureUnit(self, val):
         """Set Pressure unit for display and RD response.
@@ -387,7 +503,11 @@ class Hornet:
         Returns:
         *xx_PROGM_OK<CR>
         """
-        return self.query("#" + self.address + "SU" + val)
+        try:
+            return self.query("#" + self.address + "SU" + val)
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def ReadIGIonCurrent(self):
         """Read the current IG ion current in amps.
@@ -397,7 +517,11 @@ class Hornet:
         (eg: *01_1.53E-06<CR>)
         When sensor is off: indicate offset voltage.
         """
-        return self.query("#" + self.address + "RDIGC")
+        try:
+            return self.query("#" + self.address + "RDIGC")
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def ReadIGEmissionCurrent(self):
         """Read the actual IG emission current being measured by the gauge in
@@ -408,7 +532,11 @@ class Hornet:
         (eg: *01_1.00E-04<CR>)
         When sensor is off: 0.00E-00
         """
-        return self.query("#" + self.address + "RDIGE")
+        try:
+            return self.query("#" + self.address + "RDIGE")
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def ReadIGFilamentVoltage(self):
         """Read the current IG filament voltage in volts.
@@ -418,7 +546,11 @@ class Hornet:
         (eg: *01_1.20E-00<CR>)
         When sensor is off: 0.00E-00
         """
-        return self.query("#" + self.address + "RDIGV")
+        try:
+            return self.query("#" + self.address + "RDIGV")
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def ReadIGFilamentCurrent(self):
         """Read the current IG filament current in amps.
@@ -428,4 +560,8 @@ class Hornet:
         (eg: *01_2.20E-00<CR>)
         When sensor is off: 0.00E-00
         """
-        return self.query("#" + self.address + "RDIGI")
+        try:
+            return self.query("#" + self.address + "RDIGI")
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan

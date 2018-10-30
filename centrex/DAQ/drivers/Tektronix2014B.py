@@ -23,7 +23,7 @@
 # Vertical Commands
 # Waveform Commands
 
-import visa
+import pyvisa
 import numpy as np
 
 class Tektronix2014B:
@@ -57,10 +57,14 @@ class Tektronix2014B:
         self.instr.write('data:stop 2500')
 
         # read a part of the waveform preamble
-        [_, _, _, _, _, _, wfid, _,
-         xincr, pt_off, xzero, xunit,
-         ymult, yzero, yoff, yunit] = \
-            self.instr.query('WFMPre?').split(';')
+        try:
+            [_, _, _, _, _, _, wfid, _,
+             xincr, pt_off, xzero, xunit,
+             ymult, yzero, yoff, yunit] = \
+                self.instr.query('WFMPre?').split(';')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
         # transfer waveform data
         self.instr.write('curv?')
@@ -89,15 +93,27 @@ class Tektronix2014B:
 
     def AllMeasParams(self):
         """Return all measurement parameters."""
-        return self.instr.query('measurement?')
+        try:
+            return self.instr.query('measurement?')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def ImmedMeasParams(self):
         """Return immediate measurement parameters."""
-        return self.instr.query('measurement:immed?')
+        try:
+            return self.instr.query('measurement:immed?')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def QueryImmedMeasChan(self):
         """Query the channel for immediate measurement."""
-        return self.instr.query('measurement:immed:source1?')
+        try:
+            return self.instr.query('measurement:immed:source1?')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetImmedMeasChan(self, chan):
         """Set the channel for immediate measurement."""
@@ -106,7 +122,11 @@ class Tektronix2014B:
     def QueryImmedMeas2Chan(self):
         """Set or query the channel for two-source immediate measurements
            (TPS2000 with Power Analysis Module only)."""
-        return self.instr.query('measurement:immed:source2?')
+        try:
+            return self.instr.query('measurement:immed:source2?')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetImmedMeasChan(self, chan):
         """Set the channel for two-source immediate measurements
@@ -115,7 +135,11 @@ class Tektronix2014B:
 
     def QueryImmedMeasType(self):
         """Query the immediate measurement to be taken."""
-        return self.instr.query('measurement:immed:type?')
+        try:
+            return self.instr.query('measurement:immed:type?')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetImmedMeasType(self, meas_type):
         """Set the immediate measurement to be taken.
@@ -205,19 +229,35 @@ class Tektronix2014B:
 
     def QueryImmedMeasUnits(self):
         """Return the immediate measurement units."""
-        return self.instr.query('measurement:immed:units?')
+        try:
+            return self.instr.query('measurement:immed:units?')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def QueryImmedMeasValue(self):
         """Return the immediate measurement result."""
-        return float( self.instr.query('measurement:immed:value?').strip('\n') )
+        try:
+            return float( self.instr.query('measurement:immed:value?').strip('\n') )
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def QueryPerMeasParams(self, meas):
         """Return parameters on the periodic measurement."""
-        return self.instr.query('measurement:meas'+str(meas)+'?')
+        try:
+            return self.instr.query('measurement:meas'+str(meas)+'?')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def QueryPerMeasChan(self, meas):
         """Query the channel to take the periodic measurement from."""
-        return self.instr.query('measurement:meas'+str(meas)+':source?')
+        try:
+            return self.instr.query('measurement:meas'+str(meas)+':source?')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetPerMeasChan(self, meas, chan):
         """Set the channel to take the periodic measurement from."""
@@ -225,7 +265,11 @@ class Tektronix2014B:
 
     def QueryPerMeasType(self, meas):
         """Query the type of periodic measurement to be taken."""
-        return self.instr.query('measurement:meas'+str(meas)+':type?')
+        try:
+            return self.instr.query('measurement:meas'+str(meas)+':type?')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetPerMeasChan(self, meas, meas_type):
         """Set the type of periodic measurement to be taken."""
@@ -233,11 +277,19 @@ class Tektronix2014B:
 
     def QueryPerMeasUnits(self, meas):
         """Return the units for periodic measurement."""
-        return self.instr.query('measurement:meas'+str(meas)+':units?')
+        try:
+            return self.instr.query('measurement:meas'+str(meas)+':units?')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def QueryPerMeasValue(self, meas):
         """Return periodic measurement results."""
-        return self.instr.query('measurement:meas'+str(meas)+':value?')
+        try:
+            return self.instr.query('measurement:meas'+str(meas)+':value?')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     #################################################################
     ##########  Acquisition functions                      ##########
@@ -251,11 +303,19 @@ class Tektronix2014B:
 
     def QueryAcqParams(self):
         """Return acquisition parameters."""
-        return self.instr.query('acquire?')
+        try:
+            return self.instr.query('acquire?')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def QueryAcqMode(self):
         """Query the acquisition mode."""
-        return self.instr.query('acquire:mode?')
+        try:
+            return self.instr.query('acquire:mode?')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetAcqMode(self, meas_mode):
         """Set the acquisition mode.
@@ -284,11 +344,19 @@ class Tektronix2014B:
 
     def QueryAcqNumAcq(self):
         """Return the # of acquisitions obtained."""
-        return self.instr.query('acquire:numacq?')
+        try:
+            return self.instr.query('acquire:numacq?')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def QueryAcqNumAvg(self):
         """Query the number of acquisitions for average."""
-        return self.instr.query('acquire:numavg?')
+        try:
+            return self.instr.query('acquire:numavg?')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetAcqNumAvg(self, num):
         """Set the number of acquisitions for average.
@@ -302,7 +370,11 @@ class Tektronix2014B:
 
     def QueryAcqState(self):
         """Query the start/stop state of the acquisitions system."""
-        return self.instr.query('acquire:state?')
+        try:
+            return self.instr.query('acquire:state?')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetAcqState(self, state):
         """Start or stop the acquisition system.
@@ -328,7 +400,11 @@ class Tektronix2014B:
 
     def QueryAcqCtrl(self):
         """Query the acquisition control."""
-        return self.instr.query('acquire:stopafter?')
+        try:
+            return self.instr.query('acquire:stopafter?')
+        except pyvisa.errors.VisaIOError:
+            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
 
     def SetAcqCtrl(self, ctrl):
         """Tells the oscilloscope when to stop taking acquisitions.

@@ -43,10 +43,12 @@ def CSV_into_HDF5(CSV_dir, HDF_fname, run_name):
     # read CSV files
     ig_CSV = np.loadtxt(CSV_dir+"/beam_source/pressure/IG.csv", delimiter=',')
     cryo_CSV = np.loadtxt(CSV_dir+"/beam_source/thermal/cryo.csv", delimiter=',')
+    bc_CSV = np.loadtxt(CSV_dir+"/beam_source/thermal/bottom_compressor.csv", delimiter=',')
 
     # write HDF datasets
     ig_dset = pressure.create_dataset("IG", data=ig_CSV, dtype='f')
     cryo_dset = thermal.create_dataset("cryo", data=cryo_CSV, dtype='f')
+    bc_dset = thermal.create_dataset("bottom_compressor", data=bc_CSV, dtype='f')
 
     # write attributes to HDF
     with open(CSV_dir+"/beam_source/pressure/IG_params.csv", 'r', newline='\n') as ig_params_f,\
@@ -69,6 +71,7 @@ def CSV_into_HDF5(CSV_dir, HDF_fname, run_name):
         time_offset = to_f.read()
         ig_dset.attrs['time_offset']   = time_offset
         cryo_dset.attrs['time_offset'] = time_offset
+        bc_dset.attrs['time_offset'] = time_offset
 
 ###################################
 ### USE FUNCTIONS (for testing) ###
@@ -76,5 +79,5 @@ def CSV_into_HDF5(CSV_dir, HDF_fname, run_name):
 
 temp_dir = "C:/Users/CENTREX/Documents/data/current_run_dir"
 HDF_fname = "C:/Users/CENTREX/Documents/data/slow_data_test.h5"
-run_name = str(int(time.time())) + " cooldown and warming"
+run_name = str(int(time.time())) + " " + "cooling water stability"
 CSV_into_HDF5(temp_dir, HDF_fname, run_name)

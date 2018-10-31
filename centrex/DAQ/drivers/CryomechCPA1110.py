@@ -19,6 +19,10 @@ a slave device's registers. A register address or register reference is always
 in the context of the slave's registers.
 [[source]](https://www.csimn.com/CSI_pages/Modbus101.html)
 
+To speed things up, I provide one command for reading out all the registers at
+once; most of the other functions merely decode the registers into
+human-readable data.
+
 There are various kinds of registers defined by the Modbus standard, but the
 CPA1110 only uses two kinds, namely Input and Holding Registers. The registers
 used are the following [CPAxxxx Digital Panel User Manual]:
@@ -54,74 +58,78 @@ and the rest of the input registers are in 32bit floating point format."
 [CPAxxxx Digital Panel User Manual]
 """
 
-import pymodbus
+from pymodbus.client.sync import ModbusSerialClient
+import struct
+
+# utility functions (see manual pp 21-22)
+def to_float(b12, b34):
+    return struct.unpack('f', struct.pack('H', b12)+struct.pack('H', b34))
+
+def to_int(b12, b34):
+    return struct.unpack('i', struct.pack('H', b12)+struct.pack('H', b34))
+
 
 class CPA1110:
     def __init__(self, resource_name):
-        self.client = client.sync.ModbusSerialClient(
-            method='rtu', port='COM4')
+        self.client = ModbusSerialClient(method='rtu', port=resource_name,
+                stopbits = 1, bytesize = 8, parity = 'E', baudrate = 9600)
 
     def __enter__(self):
         return self
-    
+
     def __exit__(self, *exc):
         self.client.close()
         pass
-    
-    # TODO: implement the correct data conversions.
-    
-    def read_float32(self, count):
-        return self.client.read_input_registers(ref, count=count)
-    
-    def read_integer32(self, count):
-        return self.client.read_input_registers(ref, count=count)
-    
+
     #################################################################
     ##########              CONTROL COMMANDS               ##########
     #################################################################
-    
+
     def EnableCompressor(self):
-        self.client.write_register(40001, 0x00FF)
-    
+        self.client.write_register(1, 0x00FF)
+
     def DisableCompressor(self):
-        self.client.write_register(40001, 0x00FF)
-    
+        self.client.write_register(1, 0x00FF)
+
     #################################################################
     ##########              READ COMMANDS                  ##########
     #################################################################
-    
-    def CompressorEnabled(self):
-        """
-        0x00FF - Turn the compressor OFF 
-        0x0001 - Turn the compressor ON 
-        """
-        return self.client.read_holding_registers(40001)
-    
+
+    def ReadRegisters(self):
+        self.rr = self.client.read_input_registers(1, count=33, unit=16)
+
     def OperatingState(self):
-        """
-        0: Idling - ready to start 
-        2: Starting 
-        3: Running 
-        5: Stopping 
-        6: Error Lockout 
-        7: Error 
-        8: Helium Cool Down 
-        9: Power related Error 
-        15: Recovered from Error 
-        """
-        return self.client.read_input_registers(30001)
-    
+        state = to_int(self.rr.registers[0], 0)
+        if state == 0:
+            return "Idling - ready to start"
+        elif state == 2:
+            return "Starting"
+        elif state == 3:
+            return "Running"
+        elif state == 5:
+            return "Stopping"
+        elif state == 6:
+            return "Error Lockout"
+        elif state == 7:
+            return "Error"
+        elif state == 8:
+            return "Helium Cool Down"
+        elif state == 9:
+            return "Power related Error"
+        elif state == 15:
+            return "Recovered from Error"
+
     def CompressorEnergized(self):
-        """
-        0: Off
-        1: On
-        """
-        return self.client.read_input_registers(30002)
-    
+        state = to_int(self.rr.registers[1], 0)
+        if state == 0:
+            return "Off"
+        elif state == 1:
+            return "On"
+
     def Warnings(self):
         """
         0: No warnings 
-        
+
         1: Coolant IN running High 
         2: Coolant IN running Low 
         4: Coolant OUT running High 
@@ -144,9 +152,11 @@ class CPA1110:
         262144: Static Pressure running Low 
 
         524288: Cold head motor Stall
+
+        TODO: make this work
         """
-        return self.read_integer32(40003)
-        
+        return to_int(self.rr.registers[3], self.rr.registers[2])
+
     def Errors(self):
         """
         0: No Errors 
@@ -176,63 +186,62 @@ class CPA1110:
         131072: Static Pressure High 
         262144: Static Pressure Low
         """
-        return self.read_integer32(40004)
-    
-    def AlarmState(self):
-        return self.read_float32(40005)
-    
+        return to_int(self.rr.registers[3], 0)
+
     def CoolantInTemp(self):
-        return self.read_float32(40007)
-    
+        return to_float(self.rr.registers[6], self.rr.registers[7])[0]
+
     def CoolantOutTemp(self):
-        return self.read_float32(40009)
-    
+        return to_float(self.rr.registers[8], self.rr.registers[9])[0]
+
     def OilTemp(self):
-        return self.read_float32(40011)
-    
+        return to_float(self.rr.registers[10], self.rr.registers[11])[0]
+
     def HeliumTemp(self):
-        return self.read_float32(40013)
-    
+        return to_float(self.rr.registers[12], self.rr.registers[13])[0]
+
     def LowPressure(self):
-        return self.read_float32(40015)
-    
+        return to_float(self.rr.registers[14], self.rr.registers[15])[0]
+
     def LowPressureAverage(self):
-        return self.read_float32(40017)
-    
+        return to_float(self.rr.registers[16], self.rr.registers[17])[0]
+
     def HighPressure(self):
-        return self.read_float32(40019)
-    
+        return to_float(self.rr.registers[18], self.rr.registers[19])[0]
+
     def HighPressureAverage(self):
-        return self.read_float32(40021)
-    
+        return to_float(self.rr.registers[20], self.rr.registers[21])[0]
+
     def DeltaPressureAverage(self):
-        return self.read_float32(40023)
-    
+        return to_float(self.rr.registers[22], self.rr.registers[23])[0]
+
     def MotorCurrent(self):
-        return self.read_float32(40025)
-    
+        return to_float(self.rr.registers[24], self.rr.registers[25])[0]
+
     def HoursOfOperation(self):
-        return self.read_float32(40027)
-    
+        return to_float(self.rr.registers[26], self.rr.registers[27])[0]
+
     def PressureUnits(self):
-        """
-        0: PSI
-        1: Bar
-        2: KPA
-        """
-        return self.read_integer32(40029)
-    
+        state = to_int(self.rr.registers[28], 0)
+        if state == 0:
+            return "PSI"
+        elif state == 1:
+            return "Bar"
+        elif state == 2:
+            return "KPA"
+
     def TemperatureUnits(self):
-        """
-        0: Fahrenheit
-        1: Celsius
-        2: Kelvin
-        """
-        return self.read_integer32(40030)
-    
+        state = to_int(self.rr.registers[29], 0)
+        if state == 0:
+            return "F"
+        elif state == 1:
+            return "C"
+        elif state == 2:
+            return "K"
+
     def PanelSerialNumber(self):
-        return self.read_integer32(40031)
-    
+        return to_int(self.rr.registers[30], 0)
+
     def ModelNumber(self):
         """
         The upper 8 bits contain the Major model number and
@@ -262,7 +271,7 @@ class CPA1110:
         Example:  A 289C compressor will give a Major of 5
         and a Minor of 18.
         """
-        return self.read_integer32(40032)
+        return to_int(self.rr.registers[31], 0)
 
     def SoftwareRev(self):
-        return self.read_integer32(40033)
+        return to_int(self.rr.registers[32], 0)

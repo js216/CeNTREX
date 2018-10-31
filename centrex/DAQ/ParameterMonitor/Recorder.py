@@ -25,7 +25,7 @@ def run_recording(temp_dir, N, dt):
 
     # select and record the time offset
     time_offset = time.time()
-    with open(temp_dir+"time_offset",'w') as to_f:
+    with open(temp_dir+"/time_offset",'w') as to_f:
         to_f.write(str(time_offset))
     def timestamp():
         return time.time() - time_offset
@@ -47,10 +47,7 @@ def run_recording(temp_dir, N, dt):
         cryo_params = csv.writer(cryo_params_f)
 
         # record operating parameters
-        if ig.ReadIGFilamentCurrent() != np.nan:
-            ig_params.writerow( ["IG filament current", filament_current, "amps"] )
-        else:
-            raise pyvisa.errors.VisaIOError("cannot read IG filament current")
+        ig_params.writerow( ["IG filament current", "100", "microamps"] )
         ig_params.writerow( ["units", "s", "torr"] )
         ig_params.writerow( ["column_names", "time", "IG pressure"] )
         cryo_params.writerow( ["units", "s", "K", "K", "K", "K", "K", "K", "K", "K", "K", "K"] )
@@ -69,6 +66,6 @@ def run_recording(temp_dir, N, dt):
 ### RUN THE PROGRAM ###
 #######################
 
-temp_dir = "C:/Users/CENTREX/Documents/data/temp_run_dir"
+temp_dir = "C:/Users/CENTREX/Documents/data/current_run_dir"
 logging.basicConfig(filename=temp_dir+'/ParameterMonitor.log')
 run_recording(temp_dir, 5*24*3600*5, 0.2)

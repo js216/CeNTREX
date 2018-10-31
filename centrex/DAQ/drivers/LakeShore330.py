@@ -1,6 +1,7 @@
 import pyvisa
 import time
 import logging
+import numpy as np
 
 class LakeShore330:
     def __init__(self, rm, resource_name):

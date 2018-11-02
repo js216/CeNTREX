@@ -17,9 +17,9 @@ experiment.
    > connections; you have only to want to find them.
    > [Umberto Ecco: Foucault's Pendulum] 
 
-Let's store data in HDF5 files, each file for a different stage of the
-experiment (e.g. initial pumpdown, testing the pulse tube cooling / heaters,
-etc.). Each file contains the following groups:
+Let's store data in a HDF5 files. Each experimental run (e.g. initial pumpdown,
+testing the pulse tube cooling / heaters, etc.) is its own group. Each of these
+groups in turn contains the following subgroups:
 
      /beam_source/pressure
                   thermal
@@ -27,8 +27,18 @@ etc.). Each file contains the following groups:
                   lasers
                   events
 
-The datasets are rows of datapoints, where the first column is always the UNIX
-time of when the data was taken, offset by 1540324934.
+The datasets in these groups are rows of datapoints, where the first column is
+always the UNIX time of when the data was taken, offset by the time the run was
+begun. This allows us to store the data as single-precision (i.e. 4-byte)
+floating-point values. These have ~7.2 decimal digits of precision; if we want
+timestamps to be specified down to 1 second of precision, a single run can be
+recorded for up to ~115 days if the first value. (Using double-precision floats
+would eliminate the need for the time offset, but would require twice as much
+storage space.)
+
+The time offset is recorded as the `time_offset` attribute of each dataset;
+other attributes provide column names, units, and other additional information
+(e.g., ion gauge emission current setting).
 
 ## Drivers
 

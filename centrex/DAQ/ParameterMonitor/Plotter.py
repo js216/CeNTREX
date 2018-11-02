@@ -3,7 +3,7 @@ import time
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-temp_dir = "C:/Users/CENTREX/Documents/data/temp_run_dir"
+temp_dir = "C:/Users/CENTREX/Documents/data/current_run_dir"
 ig_f = open(temp_dir+"/beam_source/pressure/IG.csv", 'r+', newline='\n')
 ig_f.seek(0,2) # go to the end of file
 

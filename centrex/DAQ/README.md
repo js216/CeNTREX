@@ -2,8 +2,9 @@
 
 This repository has a very simple structure: `drivers` contains raw `.py` files
 which define the classes that access devices through NI-VISA; `examples`
-contains examples of using these drivers; `testing` has random stuff I'm working
-on.
+contains examples of using these drivers; `testing` has random stuff I'm
+working on. `ParameterMonitor` contains the software that uses the drivers to
+control and record parameters of the Centrex experiment.
 
 ## Recording
 

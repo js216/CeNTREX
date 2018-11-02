@@ -24,7 +24,10 @@ class Hornet:
         self.instr.write(cmd)
         # all responses are 13 characters long
         # (see manual, page 68)
-        return self.instr.read_bytes(13).decode('ASCII')
+        try:
+            return self.instr.read_bytes(13).decode('ASCII')
+        except UnicodeDecodeError:
+            return np.nan
 
     #################################################################
     ##########           SERIAL COMMANDS                   ##########

@@ -95,6 +95,7 @@ def CSV_into_HDF5(CSV_dir, HDF_fname, run_name):
 ###################################
 
 temp_dir = "C:/Users/CENTREX/Documents/data/current_run_dir"
-HDF_fname = "C:/Users/CENTREX/Documents/data/slow_data_test.h5"
-run_name = str(int(time.time())) + " " + "compressor coolant temperature tests"
+#HDF_fname = "C:/Users/CENTREX/Documents/data/slow_data_test.h5"
+HDF_fname = "C:/Users/CENTREX/Documents/data/slow_data.h5"
+run_name = str(int(time.time())) + " " + "heater control 10K to 16K, and then 18K, test"
 CSV_into_HDF5(temp_dir, HDF_fname, run_name)

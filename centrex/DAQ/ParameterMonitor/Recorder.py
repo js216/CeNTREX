@@ -77,7 +77,7 @@ def run_recording(temp_dir, N, dt):
         cryo_params.writerow( ["units", "s", "K", "K", "K", "K", "K", "K", "K", "K", "K", "K"] )
         cryo_params.writerow( ["column_names", "time", "cell back snorkel", "4K shield top",
                 "40K shield top", "40K PT cold head", "cell top plate", "4K shield bottom",
-                "40K shield bottom", "16K PT cold head", "cell input nozzle", "4K PT warm stage"] )
+                "40K shield bottom", "16K PT cold head", "4K PT warm stage", "cell top plate, target side"] )
         tc_params.writerow( ["column_names", "time", "CoolantInTemp",
             "CoolantOutTemp", "OilTemp", "HeliumTemp", "LowPressure",
             "LowPressureAverage", "HighPressure", "HighPressureAverage",
@@ -95,7 +95,7 @@ def run_recording(temp_dir, N, dt):
         for i in range(N):
             ig_dset.writerow( [timestamp(), ig.ReadSystemPressure()] )
             cryo_dset.writerow( [timestamp()] + therm1.QueryKelvinReading() +
-                [therm2.ControlSensorDataQuery(), therm2.SampleSensorDataQuery()] )
+                [therm2.SampleSensorDataQuery(), therm2.ControlSensorDataQuery()] )
             top_compressor.ReadRegisters()
             tc_dset.writerow( [timestamp(), top_compressor.CoolantInTemp(),
                 top_compressor.CoolantOutTemp(), top_compressor.OilTemp(),

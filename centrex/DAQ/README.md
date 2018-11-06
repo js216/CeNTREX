@@ -17,7 +17,7 @@ experiment.
    > connections; you have only to want to find them.
    > [Umberto Ecco: Foucault's Pendulum] 
 
-Let's store data in a HDF5 files. Each experimental run (e.g. initial pumpdown,
+Let's store data in an HDF5 file. Each experimental run (e.g. initial pumpdown,
 testing the pulse tube cooling / heaters, etc.) is its own group. Each of these
 groups in turn contains the following subgroups:
 
@@ -32,9 +32,8 @@ always the UNIX time of when the data was taken, offset by the time the run was
 begun. This allows us to store the data as single-precision (i.e. 4-byte)
 floating-point values. These have ~7.2 decimal digits of precision; if we want
 timestamps to be specified down to 1 second of precision, a single run can be
-recorded for up to ~115 days if the first value. (Using double-precision floats
-would eliminate the need for the time offset, but would require twice as much
-storage space.)
+recorded for up to ~115 days. (Using double-precision floats would eliminate the
+need for the time offset, but would require twice as much storage space.)
 
 The time offset is recorded as the `time_offset` attribute of each dataset;
 other attributes provide column names, units, and other additional information
@@ -84,6 +83,8 @@ The drivers are Python modules stored in `software/drivers`.
 - Synchronisation of date & time. Check with some online time source, and the Rb
   clock and GPS.
 - Available disk space; current size of dataset.
+- Separate threads for recording each device.
+- deal with excessive number of np.nan returns
 
 ### Thermal
 
@@ -112,3 +113,4 @@ A schematic like the one on the compressor package,
 
 - Access from smartphones (Android) and everywhere around the world would be
   nice.
+- Make a small-screen version of the GUI.

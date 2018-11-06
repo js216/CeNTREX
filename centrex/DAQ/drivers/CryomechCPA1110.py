@@ -70,7 +70,7 @@ def to_int(b12, b34):
 
 
 class CPA1110:
-    def __init__(self, resource_name):
+    def __init__(self, rm, resource_name):
         self.client = ModbusSerialClient(method='rtu', port=resource_name,
                 stopbits = 1, bytesize = 8, parity = 'E', baudrate = 9600)
 
@@ -81,11 +81,13 @@ class CPA1110:
         self.client.close()
         pass
 
-    def ReadValue():
+    def ReadValue(self):
         self.ReadRegisters()
         return [ self.CoolantInTemp(),
-                 self.CoolantOutTemp(), top_compressor.OilTemp(),
-                 self.HeliumTemp(), top_compressor.LowPressure(),
+                 self.CoolantOutTemp(),
+                 self.OilTemp(),
+                 self.HeliumTemp(),
+                 self.LowPressure(),
                  self.LowPressureAverage(),
                  self.HighPressure(),
                  self.HighPressureAverage(),

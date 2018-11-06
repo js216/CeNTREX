@@ -14,8 +14,8 @@ class LakeShore330:
     def __exit__(self, *exc):
         self.instr.close()
 
-    def ReadValue():
-        return [self.SampleSensorDataQuery(), self.ControlSensorDataQuery()] )
+    def ReadValue(self):
+        return [self.SampleSensorDataQuery(), self.ControlSensorDataQuery()]
 
     #################################################################
     ##########              COMMON COMMANDS                ##########

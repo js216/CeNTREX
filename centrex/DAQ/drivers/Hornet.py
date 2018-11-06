@@ -29,7 +29,7 @@ class Hornet:
         except UnicodeDecodeError:
             return np.nan
 
-    def ReadValue():
+    def ReadValue(self):
         return [self.ReadSystemPressure()]
 
     #################################################################

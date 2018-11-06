@@ -18,7 +18,7 @@ class LakeShore218:
     def __exit__(self, *exc):
         self.instr.close()
 
-    def ReadValue():
+    def ReadValue(self):
         return self.QueryKelvinReading()
 
     #################################################################

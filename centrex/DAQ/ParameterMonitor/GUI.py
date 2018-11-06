@@ -5,6 +5,7 @@ import os
 import glob
 import pyvisa
 import sys
+import configparser
 
 from Recorder import Recorder
 sys.path.append('..')
@@ -14,7 +15,7 @@ from drivers import LakeShore330
 from drivers import CPA1110
 
 class Device:
-    def __init__(self, path, driver, COM_port, name, dt, attrs):
+    def __init__(self, path, driver, COM_port, name, dt, attrs={}):
         self.path = path
         self.driver = driver
         self.COM_port = COM_port
@@ -23,51 +24,44 @@ class Device:
         self.attrs = attrs
         self.enabled = True
 
-# Defaults for the devices
-devices = {
-        "IG" : Device("beam_source/pressure", Hornet, 'COM4', 'IG', 1, 
-            {"IG filament current" : "100 microamps",
-             "units" : ["s", "torr"],
-             "column_names" : ["time", "IG pressure"] }),
-        "L218" : Device("beam_source/thermal", LakeShore218, 'COM1', 'L218', 0.25, 
-            {"units" : ["s", "K", "K", "K", "K", "K", "K", "K", "K", "K", "K"],
-             "column_names" : ["time", "cell back snorkel", "4K shield top",
-                "40K shield top", "40K PT cold head", "cell top plate", "4K shield bottom",
-                "40K shield bottom", "16K PT cold head"] }),
-         "L330" : Device("beam_source/thermal", LakeShore330, 'GPIB0::16', 'L330', 0.25, 
-            {"units" : ["s", "K", "K"],
-             "column_names" : ["time", "4K PT warm stage", "cell top plate, target side"] }),
-        "top_compressor" : Device("beam_source/thermal", CPA1110, 'COM10', 'top_compressor', 1.00, 
-            {"column_names" : ["time", "CoolantInTemp",
-             "CoolantOutTemp", "OilTemp", "HeliumTemp", "LowPressure",
-             "LowPressureAverage", "HighPressure", "HighPressureAverage",
-             "DeltaPressureAverage", "MotorCurrent"],
-             "units" : ["s", "F", "F", "F", "F", "psi", "psi",
-             "psi", "psi", "psi", "amps"] }),
-         "bottom_compressor" : Device("beam_source/thermal", CPA1110, 'COM11', 'bottom_compressor', 1.00, 
-            {"column_names" : ["time", "CoolantInTemp",
-             "CoolantOutTemp", "OilTemp", "HeliumTemp", "LowPressure",
-             "LowPressureAverage", "HighPressure", "HighPressureAverage",
-             "DeltaPressureAverage", "MotorCurrent"],
-             "units" : ["s", "F", "F", "F", "F", "psi", "psi",
-             "psi", "psi", "psi", "amps"] }),
-    }
-
 class CentrexGUI:
     def __init__(self, root):
         self.root = root
-        self.config = {"run_name"          : tkinter.StringVar(),
-                       "current_run_dir"   : tkinter.StringVar(),
-                       "HDF_fname"         : tkinter.StringVar(),
-                       "devices"           : devices}
+        self.ReadConfig()
         self.status = tkinter.StringVar()
+        self.status.set("                " + "Ready to record")
 
-        # set defaults
-        self.config["current_run_dir"].set("C:/Users/CENTREX/Documents/data/current_run_dir")
-        self.status.set("                Ready to record")
-
-        # display the GUI
         self.RecorderGUI()
+
+    def ReadConfig(self):
+        # read program settings
+        self.config = {}
+        settings = configparser.ConfigParser()
+        settings.read("config/settings.ini")
+        for sect in settings.sections():
+            for key in settings[sect]:
+                self.config[key] = tkinter.StringVar()
+                self.config[key].set(settings[sect][key])
+                print(key)
+
+        # read list of devices
+        self.devices = {}
+        devices = configparser.ConfigParser()
+        devices.read("config/devices.ini")
+        for d in devices.sections():
+            self.devices[d] = Device(
+                        path = devices[d]["path"],
+                        driver = eval(devices[d]["driver"]),
+                        COM_port = devices[d]["COM_port"],
+                        name = d,
+                        dt = devices[d].getfloat("dt")
+                    )
+
+        # parse device attributes
+        attrs = configparser.ConfigParser()
+        attrs.read("config/device_attributes.ini")
+        for d in attrs.sections():
+            self.devices[d].attrs = {key : attrs[d][key] for key in attrs[d]}
 
     def open_file(self, prop):
         self.config[prop].set(filedialog.asksaveasfilename(
@@ -149,10 +143,10 @@ class CentrexGUI:
         tkinter.Label(files_frame, text="HDF file:")\
                 .grid(row=1, column=0, sticky=tkinter.E)
         HDF_file_entry = tkinter.Entry(files_frame, width=30,
-                textvariable=self.config["HDF_fname"])\
+                textvariable=self.config["hdf_fname"])\
                 .grid(row=1, column=1, sticky=tkinter.W)
         run_dir_button = tkinter.Button(files_frame, text="Open...",
-                command = lambda: self.open_file("HDF_fname"))\
+                command = lambda: self.open_file("hdf_fname"))\
                 .grid(row=1, column=2, sticky=tkinter.W)
         run_dir_button = tkinter.Button(files_frame,
                 text="Archive current run...", width=20)\

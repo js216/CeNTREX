@@ -81,6 +81,17 @@ class CPA1110:
         self.client.close()
         pass
 
+    def ReadValue():
+        self.ReadRegisters()
+        return [ self.CoolantInTemp(),
+                 self.CoolantOutTemp(), top_compressor.OilTemp(),
+                 self.HeliumTemp(), top_compressor.LowPressure(),
+                 self.LowPressureAverage(),
+                 self.HighPressure(),
+                 self.HighPressureAverage(),
+                 self.DeltaPressureAverage(),
+                 self.MotorCurrent() ]
+
     #################################################################
     ##########              CONTROL COMMANDS               ##########
     #################################################################

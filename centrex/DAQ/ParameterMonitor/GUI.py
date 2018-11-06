@@ -3,6 +3,35 @@ import time
 import tkinter
 from tkinter import filedialog
 
+class Recorder:
+    def __init__(self, current_run_dir, path, device, dev_name, dt, attrs):
+        self.dir = current_run_dir + path
+        self.device = device
+        self.dev_name = dev_name
+        self.dt = dt
+        self.attrs = attrs
+
+        # select and record time offset
+        self.time_offset = time.time()
+        with open(self.dir+"/"+self.dev_name+"_time_offset.csv",'w') as to_f:
+            to_f.write(str(time_offset))
+
+        # record operating parameters
+        with open(self.dir+"/"+self.dev_name+"_params.csv",'w') as params_f,\
+            dev_params = csv.writer(params_f)
+            for param in self.attrs:
+                dev_params.writerow(param)
+
+    def timestamp():
+        return time.time() - self.time_offset
+
+    def run_recording():
+        with open(self.dir+"/"+self.dev_name+".csv",'a',1) as CSV_f:
+            dev_params = csv.writer(params_f)
+            while 1:
+                ig_dset.writerow( [self.timestamp(), self.device.ReadValue()] )
+                time.sleep(dt)
+
 class CentrexGUI:
     def __init__(self, root):
         self.root = root

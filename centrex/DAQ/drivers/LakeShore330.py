@@ -10,10 +10,13 @@ class LakeShore330:
 
     def __enter__(self):
         return self
-    
+
     def __exit__(self, *exc):
         self.instr.close()
-    
+
+    def ReadValue():
+        return [self.SampleSensorDataQuery(), self.ControlSensorDataQuery()] )
+
     #################################################################
     ##########              COMMON COMMANDS                ##########
     #################################################################

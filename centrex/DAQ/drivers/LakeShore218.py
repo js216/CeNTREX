@@ -17,7 +17,10 @@ class LakeShore218:
     
     def __exit__(self, *exc):
         self.instr.close()
-    
+
+    def ReadValue():
+        return self.QueryKelvinReading()
+
     #################################################################
     ##########           IEEE-488/SERIAL COMMANDS          ##########
     #################################################################

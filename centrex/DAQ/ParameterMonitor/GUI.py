@@ -109,20 +109,11 @@ class RecorderGUI(tk.Frame):
         # make the GUI elements and their variables for the list of devices
         self.device_GUI_list = {}
         for d in self.parent.devices:
-            en_var = tk.IntVar()
-            en_var.set(self.parent.devices[d]["enabled"])
-            dt_var = tk.StringVar()
-            dt_var.set(self.parent.devices[d]["dt"])
-            COM_var = tk.StringVar()
-            COM_var.set(self.parent.devices[d]["COM_port"])
             self.device_GUI_list[d] = {
-                "en_var"   : en_var,
-                "enable_b" : tk.Checkbutton(devices_frame, variable=en_var),
+                "enable_b" : tk.Checkbutton(devices_frame, variable=self.parent.devices[d]["enabled"]),
                 "label"    : tk.Label(devices_frame, text=self.parent.devices[d]["label"]),
-                "dt_var"   : dt_var,
-                "dt"       : tk.Entry(devices_frame, textvariable=dt_var, width=5),
-                "COM_var"  : COM_var,
-                "COM_menu" : tk.OptionMenu(devices_frame, COM_var, *rl),
+                "dt"       : tk.Entry(devices_frame, textvariable=self.parent.devices[d]["dt"], width=5),
+                "COM_menu" : tk.OptionMenu(devices_frame, self.parent.devices[d]["COM_port"], *rl),
                 "attrs"    : tk.Button(devices_frame, text="Attrs..."),
             }
 
@@ -191,6 +182,11 @@ class RecorderGUI(tk.Frame):
             return False
 
     def delete_current_run(self):
+        # check we're not currently recording
+        if self.status == "recording":
+            messagebox.showerror("Delete error", "Error: cannot delete while recording.")
+            return
+
         # check the user really wants to delete
         confirm_delete = False
         if self.status != "writtenToHDF":
@@ -217,24 +213,26 @@ class RecorderGUI(tk.Frame):
         current_run_dir = self.parent.config["current_run_dir"].get()
         if not self.directory_empty(current_run_dir):
             messagebox.showerror("Run_dir not empty", "Error: run_dir not empty. Please delete current run data.")
+            self.status_message.set("Error: run_dir not empty")
             return
 
         # connect to devices and check they respond correctly
         for key in self.parent.devices:
             d = self.parent.devices[key]
-            if d["enabled"]:
+            if d["enabled"].get():
                 d["recorder"] = Recorder(current_run_dir, d["path"],
-                                         d["driver"], d["COM_port"], d["name"],
-                                         d["dt"], d["attrs"])
+                                         d["driver"], d["COM_port"].get(), d["name"],
+                                         float(d['dt'].get()), d["attrs"])
                 if d["recorder"].verify != d["correct_response"]:
                     messagebox.showerror("Device error",
                             "Error: " + d["label"] + " not responding correctly.")
+                    self.status_message.set("Device configuration error")
                     return
                 d["recorder"].active.set()
 
         # start all recorders
         for key in self.parent.devices:
-            if self.parent.devices[key]["enabled"]:
+            if self.parent.devices[key]["enabled"].get():
                 self.parent.devices[key]["recorder"].start()
 
         # update status
@@ -305,12 +303,15 @@ class CentrexGUI(tk.Frame):
                         "label"             : devices[d]["label"],
                         "path"              : devices[d]["path"],
                         "driver"            : eval(devices[d]["driver"]),
-                        "COM_port"          : devices[d]["COM_port"],
+                        "COM_port"          : tk.StringVar(),
                         "name"              : d,
-                        "dt"                : devices[d].getfloat("dt"),
-                        "enabled"           : devices[d].getboolean("enabled"),
+                        "dt"                : tk.StringVar(),
+                        "enabled"           : tk.IntVar(),
                         "correct_response"  : devices[d]["correct_response"],
                     }
+            self.devices[d]["enabled"].set(devices[d].getboolean("enabled"),)
+            self.devices[d]["dt"].set(devices[d].getfloat("dt"),)
+            self.devices[d]["COM_port"].set(devices[d]["COM_port"],)
 
         # parse device attributes
         attrs = configparser.ConfigParser()
@@ -341,9 +342,9 @@ class CentrexGUI(tk.Frame):
                         "label"             : self.devices[d]["label"],
                         "path"              : self.devices[d]["path"],
                         "driver"            : self.devices[d]["driver"].__name__,
-                        "COM_port"          : self.devices[d]["COM_port"],
-                        "dt"                : self.devices[d]["dt"],
-                        "enabled"           : self.devices[d]["enabled"],
+                        "COM_port"          : self.devices[d]["COM_port"].get(),
+                        "dt"                : self.devices[d]["dt"].get(),
+                        "enabled"           : self.devices[d]["enabled"].get(),
                         "correct_response"  : self.devices[d]["correct_response"],
                     }
             dev.write(dev_f)

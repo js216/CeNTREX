@@ -6,6 +6,15 @@ import glob
 import pyvisa
 import sys
 import configparser
+import time
+import numpy as np
+import csv
+
+# suppress weird h5py warnings
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+import h5py
+warnings.resetwarnings()
 
 from Recorder import Recorder
 sys.path.append('..')
@@ -80,7 +89,7 @@ class RecorderGUI(tk.Frame):
         run_name_entry = tk.Entry(files_frame, width=30,
                 textvariable=self.parent.config["run_name"])\
                 .grid(row=2, column=1, sticky=tk.W)
-        run_dir_button = tk.Button(files_frame,
+        HDF_write_button = tk.Button(files_frame, command=self.write_to_HDF,
                 text="Write to HDF", width=20)\
                 .grid(row=2, column=3, sticky=tk.W)
 
@@ -169,6 +178,35 @@ class RecorderGUI(tk.Frame):
             self.parent.devices[key]["recorder"].active.clear()
         self.status = "stopped"
         self.status_message.set("                Recording finished")
+
+    def write_to_HDF(self):
+        if self.status == "writtenToHDF":
+            return
+
+        # open HDF file and create groups
+        with h5py.File(self.parent.config["hdf_fname"].get(), 'a') as f:
+            root = f.create_group(str(int(time.time())) + " " + self.parent.config["run_name"].get())
+            for key in self.parent.devices:
+                d = self.parent.devices[key]
+                grp = root.require_group(d["path"])
+
+                # read CSV and write to HDF
+                dev_CSV = np.loadtxt(self.parent.config["current_run_dir"].get() + "/" +
+                                        d["path"] + "/" + d["name"] + ".csv", delimiter=',')
+                dev_dset = grp.create_dataset(d["name"], data=dev_CSV, dtype='f')
+
+                # write attributes to HDF
+                with open(self.parent.config["current_run_dir"].get() + "/" + d["path"] + "/" + d["name"] +
+                                        "_params.csv", 'r', newline='\n') as dev_params_f:
+                    dev_params_CSV = csv.reader(dev_params_f, delimiter=',')
+                    for col in dev_params_CSV:
+                        if len(col) == 2:
+                            dev_dset.attrs[col[0]] = col[1]
+                        else:
+                            dev_dset.attrs[col[0]] = asc(col[1:])
+
+        self.status = "writtenToHDF"
+        self.status_message.set("                Written to HDF.")
 
 class CentrexGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):

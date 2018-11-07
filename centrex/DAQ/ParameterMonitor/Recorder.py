@@ -15,15 +15,12 @@ class Recorder(threading.Thread):
         self.COM_port = COM_port
         self.dev_name = dev_name
         self.dt = dt
+        self.time_offset = time.time()
         with open(self.dir+"/"+self.dev_name+"_params.csv",'w') as params_f:
             dev_params = csv.writer(params_f)
+            dev_params.writerow(["time_offset", self.time_offset])
             for key in attrs:
                 dev_params.writerow([key, attrs[key]])
-
-        # select and record time offset
-        self.time_offset = time.time()
-        with open(self.dir+"/"+self.dev_name+"_time_offset.csv",'w') as to_f:
-            to_f.write(str(self.time_offset))
 
     # main recording loop
     def run(self):
@@ -31,6 +28,5 @@ class Recorder(threading.Thread):
                 self.driver(self.rm, self.COM_port) as device: 
             dev_dset = csv.writer(CSV_f)
             while self.active.is_set():
-                dev_dset.writerow([ time.time() - self.time_offset,
-                                    device.ReadValue() ])
+                dev_dset.writerow([ time.time() - self.time_offset] + device.ReadValue() )
                 time.sleep(self.dt)

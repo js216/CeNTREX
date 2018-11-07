@@ -21,18 +21,18 @@ groups in turn contains subgroups:
                   thermal
                   ...
 
-The datasets in these groups are rows of datapoints, where the first column is
-always the UNIX time of when the data was taken, offset by the time the run was
-begun.
+The datasets in these groups are rows of single-precision (i.e. 4-byte)
+floating-point datapoints, where the first column is always the UNIX time of
+when the data was taken, offset by the time the run was begun.
 
-Ofsetting the time allows us to store the data as single-precision (i.e. 4-byte)
-floating-point values. These have ~7.2 decimal digits of precision; if we want
-timestamps to be specified down to 1 second of precision, a single run can be
-recorded for up to ~115 days. (Using double-precision floats would eliminate the
-need for the time offset, but would require twice as much storage space.) The
-time offset is recorded as the `time_offset` attribute of each dataset; other
-attributes provide column names, units, and other additional information (e.g.,
-ion gauge emission current setting).
+Ofsetting the time allows us to store the data as single-precision floats. These
+have ~7.2 decimal digits of precision; if we want timestamps to be specified
+down to 1 second of precision, a single run can be recorded for up to ~115 days.
+(Using double-precision floats would eliminate the need for the time offset, but
+would require twice as much storage space.) The time offset is recorded as the
+`time_offset` attribute of each dataset; other attributes provide column names,
+units, and other additional information (e.g., ion gauge emission current
+setting).
 
 ## Drivers
 

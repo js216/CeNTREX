@@ -23,15 +23,16 @@ groups in turn contains subgroups:
 
 The datasets in these groups are rows of datapoints, where the first column is
 always the UNIX time of when the data was taken, offset by the time the run was
-begun. This allows us to store the data as single-precision (i.e. 4-byte)
+begun.
+
+Ofsetting the time allows us to store the data as single-precision (i.e. 4-byte)
 floating-point values. These have ~7.2 decimal digits of precision; if we want
 timestamps to be specified down to 1 second of precision, a single run can be
 recorded for up to ~115 days. (Using double-precision floats would eliminate the
-need for the time offset, but would require twice as much storage space.)
-
-The time offset is recorded as the `time_offset` attribute of each dataset;
-other attributes provide column names, units, and other additional information
-(e.g., ion gauge emission current setting).
+need for the time offset, but would require twice as much storage space.) The
+time offset is recorded as the `time_offset` attribute of each dataset; other
+attributes provide column names, units, and other additional information (e.g.,
+ion gauge emission current setting).
 
 ## Drivers
 
@@ -57,10 +58,6 @@ The drivers are Python modules stored in `drivers`.
 
 ## Todo
 
-- drivers
-   - Vacuum pumps
-   - counter for the atomic clock
-   - Room temperature & humidity for main lab and compressor cabinet.
 - recording
    - Available disk space; current size of dataset.
    - deal with excessive number of np.nan returns
@@ -68,6 +65,10 @@ The drivers are Python modules stored in `drivers`.
    - hoover tooltip for the dt Entry
    - make resizing work correctly
    - make tabs
+- more drivers
+   - Vacuum pumps
+   - counter for the atomic clock
+   - Room temperature & humidity for main lab and compressor cabinet.
 - overview tab
    - Status of recording controls.
    - Graphical presentation of temperatures.

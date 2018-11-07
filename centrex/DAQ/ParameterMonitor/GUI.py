@@ -250,6 +250,7 @@ class RecorderGUI(tk.Frame):
 class CentrexGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
+        self.winfo_toplevel().title("CENTREX Slow DAQ")
         self.parent = parent
 
         # read program settings

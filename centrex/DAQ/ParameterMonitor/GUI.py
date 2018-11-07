@@ -36,10 +36,10 @@ class RecorderGUI(tk.Frame):
         control_frame.grid(row=0, padx=10, pady=10, sticky="nsew")
 
         record_button = tk.Button(control_frame,
-                text="Start recording", command = self.start_recording)\
+                text="\u26ab Start recording", command = self.start_recording)\
                 .grid(row=0, column=0)
         stop_button = tk.Button(control_frame,
-                text="Stop recording", command = self.stop_recording)\
+                text="\u2b1b Stop recording", command = self.stop_recording)\
                 .grid(row=0, column=1)
 
         self.status = "stopped"

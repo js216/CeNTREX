@@ -178,26 +178,37 @@ class RecorderGUI(tk.Frame):
                 messagebox.showerror("Delete error", "Error: cannot delete.")
 
     def start_recording(self):
+        # check we're not recording already
         if self.status == "recording":
             return
 
-        rm = pyvisa.ResourceManager()
+        # check run_dir empty
         current_run_dir = self.parent.config["current_run_dir"].get()
-
-        if self.directory_empty(current_run_dir):
-            for key in self.parent.devices:
-                d = self.parent.devices[key]
-                if d["enabled"]:
-                    d["recorder"] = Recorder(rm, current_run_dir, d["path"],
-                                             d["driver"], d["COM_port"], d["name"],
-                                             d["dt"], d["attrs"])
-                    d["recorder"].active.set()
-                    d["recorder"].start()
-            self.status = "recording"
-            self.status_message.set("Recording")
-
-        else:
+        if not self.directory_empty(current_run_dir):
             messagebox.showerror("Run_dir not empty", "Error: run_dir not empty. Please delete current run data.")
+            return
+
+        # connect to devices and check they respond correctly
+        for key in self.parent.devices:
+            d = self.parent.devices[key]
+            if d["enabled"]:
+                d["recorder"] = Recorder(current_run_dir, d["path"],
+                                         d["driver"], d["COM_port"], d["name"],
+                                         d["dt"], d["attrs"])
+                if d["recorder"].verify_operation() != d["correct_response"]:
+                    messagebox.showerror("Device error",
+                            "Error: " + d["label"] + " not responding correctly.")
+                    return
+                d["recorder"].active.set()
+
+        # start all recorders
+        for key in self.parent.devices:
+            if self.parent.devices[key]["enabled"]:
+                self.parent.devices[key]["recorder"].start()
+
+        # update status
+        self.status = "recording"
+        self.status_message.set("Recording")
 
     def stop_recording(self):
         if self.status == "stopped":
@@ -256,13 +267,14 @@ class CentrexGUI(tk.Frame):
         devices.read("config/devices.ini")
         for d in devices.sections():
             self.devices[d] = {
-                        "label"    : devices[d]["label"],
-                        "path"     : devices[d]["path"],
-                        "driver"   : eval(devices[d]["driver"]),
-                        "COM_port" : devices[d]["COM_port"],
-                        "name"     : d,
-                        "dt"       : devices[d].getfloat("dt"),
-                        "enabled"  : devices[d].getboolean("enabled"),
+                        "label"             : devices[d]["label"],
+                        "path"              : devices[d]["path"],
+                        "driver"            : eval(devices[d]["driver"]),
+                        "COM_port"          : devices[d]["COM_port"],
+                        "name"              : d,
+                        "dt"                : devices[d].getfloat("dt"),
+                        "enabled"           : devices[d].getboolean("enabled"),
+                        "correct_response"  : devices[d]["correct_response"],
                     }
 
         # parse device attributes

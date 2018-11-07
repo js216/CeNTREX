@@ -21,6 +21,9 @@ class LakeShore218:
     def ReadValue(self):
         return self.QueryKelvinReading()
 
+    def VerifyOperation(self):
+        return self.QueryIdentification()
+
     #################################################################
     ##########           IEEE-488/SERIAL COMMANDS          ##########
     #################################################################
@@ -85,7 +88,7 @@ class LakeShore218:
         Format: LSCI,MODEL218,aaaaaa,nnnnnn[term]
         """
         try:
-            return self.instr.query("*IDN?")
+            return self.instr.query("*IDN?")[0:-2]
         except pyvisa.errors.VisaIOError:
             logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan

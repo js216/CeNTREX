@@ -32,6 +32,9 @@ class Hornet:
     def ReadValue(self):
         return [self.ReadSystemPressure()]
 
+    def VerifyOperation(self):
+        return str(self.ReadSystemPressure() != np.nan)
+
     #################################################################
     ##########           SERIAL COMMANDS                   ##########
     #################################################################

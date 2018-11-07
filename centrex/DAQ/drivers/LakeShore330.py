@@ -17,6 +17,9 @@ class LakeShore330:
     def ReadValue(self):
         return [self.SampleSensorDataQuery(), self.ControlSensorDataQuery()]
 
+    def VerifyOperation(self):
+        return self.QueryIdentification()
+
     #################################################################
     ##########              COMMON COMMANDS                ##########
     #################################################################
@@ -87,7 +90,7 @@ class LakeShore330:
         Format: LSCI,MODEL330,aaaaaa,nnnnnn[term]
         """
         try:
-            return self.instr.query("*IDN?")
+            return self.instr.query("*IDN?")[0:-5]
         except pyvisa.errors.VisaIOError:
             logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan

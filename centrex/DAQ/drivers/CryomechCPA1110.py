@@ -94,6 +94,10 @@ class CPA1110:
                  self.DeltaPressureAverage(),
                  self.MotorCurrent() ]
 
+    def VerifyOperation(self):
+        self.ReadRegisters()
+        return str(self.PanelSerialNumber()[0])
+
     #################################################################
     ##########              CONTROL COMMANDS               ##########
     #################################################################

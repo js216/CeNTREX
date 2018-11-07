@@ -71,7 +71,8 @@ def to_int(b12, b34):
 
 class CPA1110:
     def __init__(self, rm, resource_name):
-        self.client = ModbusSerialClient(method='rtu', port=resource_name,
+        COM_port = rm.resource_info(resource_name).alias
+        self.client = ModbusSerialClient(method='rtu', port=COM_port,
                 stopbits = 1, bytesize = 8, parity = 'E', baudrate = 9600)
 
     def __enter__(self):

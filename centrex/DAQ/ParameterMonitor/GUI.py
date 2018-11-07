@@ -105,27 +105,33 @@ class RecorderGUI(tk.Frame):
         # make the list of VISA resources
         rl = pyvisa.ResourceManager().list_resources()
 
-        # make the GUI elements for the list of devices
+        # make the GUI elements and their variables for the list of devices
         self.device_GUI_list = {}
         for d in self.parent.devices:
+            en_var = tk.IntVar()
+            en_var.set(self.parent.devices[d]["enabled"])
+            dt_var = tk.StringVar()
+            dt_var.set(self.parent.devices[d]["dt"])
             COM_var = tk.StringVar()
-            COM_var.set("COM?")
-            self.device_GUI_list[d] = [
-                tk.Checkbutton(devices_frame),
-                tk.Label(devices_frame, text=self.parent.devices[d]["label"]),
-                tk.Entry(devices_frame, text="dt?", width=5),
-                COM_var,
-                tk.OptionMenu(devices_frame, COM_var, *rl),
-                tk.Button(devices_frame, text="Attrs..."),
-            ]
+            COM_var.set(self.parent.devices[d]["COM_port"])
+            self.device_GUI_list[d] = {
+                "en_var"   : en_var,
+                "enable_b" : tk.Checkbutton(devices_frame, variable=en_var),
+                "label"    : tk.Label(devices_frame, text=self.parent.devices[d]["label"]),
+                "dt_var"   : dt_var,
+                "dt"       : tk.Entry(devices_frame, textvariable=dt_var, width=5),
+                "COM_var"  : COM_var,
+                "COM_menu" : tk.OptionMenu(devices_frame, COM_var, *rl),
+                "attrs"    : tk.Button(devices_frame, text="Attrs..."),
+            }
 
         # place the device list GUI elements in a grid
         for i,d in enumerate(self.device_GUI_list):
-            self.device_GUI_list[d][0].grid(row=i, column=0, sticky=tk.E)
-            self.device_GUI_list[d][1].grid(row=i, column=1, sticky=tk.W)
-            self.device_GUI_list[d][2].grid(row=i, column=2, sticky=tk.W)
-            self.device_GUI_list[d][4].grid(row=i, column=3, sticky='ew', padx=10)
-            self.device_GUI_list[d][5].grid(row=i, column=4, sticky=tk.W)
+            self.device_GUI_list[d]["enable_b"].grid(row=i, column=0, sticky=tk.E)
+            self.device_GUI_list[d]["label"].grid(row=i, column=1, sticky=tk.W)
+            self.device_GUI_list[d]["dt"].grid(row=i, column=2, sticky=tk.W)
+            self.device_GUI_list[d]["COM_menu"].grid(row=i, column=3, sticky='ew', padx=10)
+            self.device_GUI_list[d]["attrs"].grid(row=i, column=4, sticky=tk.W)
 
         # button to refresh the list of COM ports
         tk.Button(devices_frame, text="Refresh COM ports",
@@ -150,8 +156,8 @@ class RecorderGUI(tk.Frame):
     def refresh_COM_ports(self):
         rl = pyvisa.ResourceManager().list_resources()
         for d in self.device_GUI_list:
-            menu = self.device_GUI_list[d][4]["menu"]
-            COM_var = self.device_GUI_list[d][3]
+            menu = self.device_GUI_list[d]["COM_menu"]["menu"]
+            COM_var = self.device_GUI_list["COM_var"][3]
             menu.delete(0, "end")
             for string in rl:
                 menu.add_command(label=string,
@@ -238,7 +244,9 @@ class RecorderGUI(tk.Frame):
         if self.status == "stopped":
             return
         for key in self.parent.devices:
-            self.parent.devices[key]["recorder"].active.clear()
+            recorder = self.parent.devices[key].get("recorder")
+            if recorder:
+                recorder.active.clear()
         self.status = "stopped"
         self.status_message.set("Recording finished")
 

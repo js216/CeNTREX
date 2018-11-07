@@ -9,6 +9,7 @@ import configparser
 import time
 import numpy as np
 import csv
+import shutil, errno
 
 # suppress weird h5py warnings
 import warnings
@@ -81,8 +82,8 @@ class RecorderGUI(tk.Frame):
         run_dir_button = tk.Button(files_frame, text="Open...",
                 command = lambda: self.open_file("hdf_fname"))\
                 .grid(row=1, column=2, sticky=tk.W)
-        run_dir_button = tk.Button(files_frame,
-                text="Archive current run...", width=20)\
+        run_dir_button = tk.Button(files_frame, command=self.backup_current_run,
+                text="Backup current run...", width=20)\
                 .grid(row=1, column=3, sticky=tk.W)
 
         tk.Label(files_frame, text="Run name:")\
@@ -131,6 +132,21 @@ class RecorderGUI(tk.Frame):
                 command=self.refresh_COM_ports)\
                         .grid(row=len(self.device_GUI_list), column=3, sticky='ew')
 
+    def backup_current_run(self):
+        current_run_dir = self.parent.config["current_run_dir"].get()
+        backup_dir = filedialog.askdirectory(
+                initialdir = "C:/Users/CENTREX/Documents/data",
+                title = "Select directory to save current CSV files")
+        if not backup_dir:
+            return
+        try:
+            shutil.copytree(current_run_dir, backup_dir+"/"+str(int(time.time()))+"_CSV_backup")
+            messagebox.showinfo("Backup done", "Backup successful.")
+        except OSError as exc:
+            if exc.errno == errno.ENOTDIR:
+                shutil.copy(src, dst)
+            else: raise
+
     def refresh_COM_ports(self):
         rl = pyvisa.ResourceManager().list_resources()
         for d in self.device_GUI_list:
@@ -142,15 +158,23 @@ class RecorderGUI(tk.Frame):
                         command=lambda value=string: COM_var.set(value))
 
     def open_file(self, prop):
-        self.parent.config[prop].set(filedialog.asksaveasfilename(
+        fname = filedialog.asksaveasfilename(
                 initialdir = "C:/Users/CENTREX/Documents/data",
                 title = "Select file",
-                filetypes = (("HDF files","*.h5"),("all files","*.*"))))
+                filetypes = (("HDF files","*.h5"),("all files","*.*")))
+        if not fname:
+            return
+        else:
+            self.parent.config[prop].set(fname)
 
     def open_dir(self, prop):
-        self.parent.config[prop].set(filedialog.askdirectory(
+        fname = filedialog.askdirectory(
                 initialdir = "C:/Users/CENTREX/Documents/data",
-                title = "Select directory"))
+                title = "Select directory")
+        if not fname:
+            return
+        else:
+            self.parent.config[prop].set(fname)
 
     def directory_empty(self, dir):
         files = glob.glob(dir+"/*/*/*")

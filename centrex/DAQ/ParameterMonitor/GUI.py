@@ -100,14 +100,20 @@ class RecorderGUI(tk.Frame):
         devices_frame = tk.LabelFrame(self.parent, text="Devices")
         devices_frame.grid(row=2, padx=10, pady=10, sticky='nsew')
 
+        # make the list of VISA resources
+        rl = pyvisa.ResourceManager().list_resources()
+
         # make the GUI elements for the list of devices
         self.device_GUI_list = {}
         for d in self.parent.devices:
+            COM_var = tk.StringVar()
+            COM_var.set("COM?")
             self.device_GUI_list[d] = [
                 tk.Checkbutton(devices_frame),
                 tk.Label(devices_frame, text=self.parent.devices[d]["label"]),
                 tk.Entry(devices_frame, width=5),
-                tk.Entry(devices_frame, width=10),
+                COM_var,
+                tk.OptionMenu(devices_frame, COM_var, *rl),
                 tk.Button(devices_frame, text="Attrs..."),
             ]
 
@@ -116,8 +122,23 @@ class RecorderGUI(tk.Frame):
             self.device_GUI_list[d][0].grid(row=i, column=0, sticky=tk.E)
             self.device_GUI_list[d][1].grid(row=i, column=1, sticky=tk.W)
             self.device_GUI_list[d][2].grid(row=i, column=2, sticky=tk.W)
-            self.device_GUI_list[d][3].grid(row=i, column=3, sticky=tk.W, padx=10)
-            self.device_GUI_list[d][4].grid(row=i, column=4, sticky=tk.W)
+            self.device_GUI_list[d][4].grid(row=i, column=3, sticky='ew', padx=10)
+            self.device_GUI_list[d][5].grid(row=i, column=4, sticky=tk.W)
+
+        # button to refresh the list of COM ports
+        tk.Button(devices_frame, text="Refresh COM ports",
+                command=self.refresh_COM_ports)\
+                        .grid(row=len(self.device_GUI_list), column=3, sticky='ew')
+
+    def refresh_COM_ports(self):
+        rl = pyvisa.ResourceManager().list_resources()
+        for d in self.device_GUI_list:
+            menu = self.device_GUI_list[d][4]["menu"]
+            COM_var = self.device_GUI_list[d][3]
+            menu.delete(0, "end")
+            for string in rl:
+                menu.add_command(label=string,
+                        command=lambda value=string: COM_var.set(value))
 
     def open_file(self, prop):
         self.parent.config[prop].set(filedialog.asksaveasfilename(

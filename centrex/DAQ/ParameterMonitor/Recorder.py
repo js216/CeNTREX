@@ -7,7 +7,6 @@ class Recorder(threading.Thread):
         # thread control
         threading.Thread.__init__(self)
         self.active = threading.Event()
-        self.active.set()
 
         # record operating parameters
         self.rm = rm

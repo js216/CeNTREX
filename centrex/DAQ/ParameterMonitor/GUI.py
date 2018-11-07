@@ -33,9 +33,13 @@ class RecorderGUI(tk.Frame):
                 text="Stop recording", command = self.stop_recording)\
                 .grid(row=0, column=1)
 
-        self.status = tk.StringVar()
-        self.status.set("                " + "Ready to record")
-        self.status_label = tk.Label(control_frame, textvariable=self.status,
+        self.status = "stopped"
+        self.status_message = tk.StringVar()
+        if self.directory_empty(self.parent.config["current_run_dir"].get()):
+            self.status_message.set("                " + "Ready to record")
+        else:
+            self.status_message.set("                " + "Recording finished.")
+        self.status_label = tk.Label(control_frame, textvariable=self.status_message,
                 font=("Helvetica", 16),anchor='e')\
                 .grid(row=0, column=2, sticky='nsew')
 
@@ -106,7 +110,6 @@ class RecorderGUI(tk.Frame):
             self.device_GUI_list[d][3].grid(row=i, column=3, sticky=tk.W, padx=10)
             self.device_GUI_list[d][4].grid(row=i, column=4, sticky=tk.W)
 
-
     def open_file(self, prop):
         self.parent.config[prop].set(filedialog.asksaveasfilename(
                 initialdir = "C:/Users/CENTREX/Documents/data",
@@ -118,6 +121,13 @@ class RecorderGUI(tk.Frame):
                 initialdir = "C:/Users/CENTREX/Documents/data",
                 title = "Select directory"))
 
+    def directory_empty(self, dir):
+        files = glob.glob(dir+"/*/*/*")
+        if len(files) == 0:
+            return True
+        else:
+            return False
+
     def delete_current_run(self):
         if messagebox.askyesno("Delete current files",
                 "Are you sure you want to delete the current run?"):
@@ -126,24 +136,39 @@ class RecorderGUI(tk.Frame):
                 files = glob.glob(current_run_dir+"/beam_source/*/*")
                 for f in files:
                     os.remove(f)
+                self.status_message.set("                Ready to record")
             except OSError:
-                messagebox.showerror( "Error: cannot delete.")
+                messagebox.showerror("Delete error", "Error: cannot delete.")
 
     def start_recording(self):
+        if self.status == "recording":
+            return
+
         rm = pyvisa.ResourceManager()
         current_run_dir = self.parent.config["current_run_dir"].get()
-        for key in self.parent.config["devices"]:
-            d = self.parent.config["devices"][key]
-            if d.enabled:
-                d.recorder = Recorder(rm, current_run_dir, d.path, d.driver,
-                        d.COM_port, d.name, d.dt, d.attrs)
-                d.recorder.start()
-        self.status.set("                      Recording")
+
+        if self.directory_empty(current_run_dir):
+            for key in self.parent.devices:
+                d = self.parent.devices[key]
+                if d["enabled"]:
+                    d["recorder"] = Recorder(rm, current_run_dir, d["path"],
+                                             d["driver"], d["COM_port"], d["name"],
+                                             d["dt"], d["attrs"])
+                    d["recorder"].active.set()
+                    d["recorder"].start()
+            self.status = "recording"
+            self.status_message.set("                      Recording")
+
+        else:
+            messagebox.showerror("Run_dir not empty", "Error: run_dir not empty. Please delete current run data.")
 
     def stop_recording(self):
-        for key in self.parent.config["devices"]:
-            self.parent.config["devices"][key].recorder.active.clear()
-        self.status.set("                Ready to record")
+        if self.status == "stopped":
+            return
+        for key in self.parent.devices:
+            self.parent.devices[key]["recorder"].active.clear()
+        self.status = "stopped"
+        self.status_message.set("                Recording finished")
 
 class CentrexGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -170,7 +195,8 @@ class CentrexGUI(tk.Frame):
                         "driver"   : eval(devices[d]["driver"]),
                         "COM_port" : devices[d]["COM_port"],
                         "name"     : d,
-                        "dt"       : devices[d].getfloat("dt")
+                        "dt"       : devices[d].getfloat("dt"),
+                        "enabled"  : devices[d].getboolean("enabled"),
                     }
 
         # parse device attributes

@@ -11,6 +11,7 @@ import numpy as np
 import csv
 import shutil, errno
 import atexit
+import threading
 
 # suppress weird h5py warnings
 import warnings
@@ -18,12 +19,44 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 import h5py
 warnings.resetwarnings()
 
-from Recorder import Recorder
-sys.path.append('..')
 from drivers import Hornet 
 from drivers import LakeShore218 
 from drivers import LakeShore330 
 from drivers import CPA1110
+
+class Recorder(threading.Thread):
+    def __init__(self, current_run_dir, path, driver, COM_port, dev_name, dt, attrs):
+        # thread control
+        threading.Thread.__init__(self)
+        self.active = threading.Event()
+
+        # record operating parameters
+        self.dir = current_run_dir + "/" + path
+        self.driver = driver
+        self.COM_port = COM_port
+        self.dev_name = dev_name
+        self.dt = dt
+        self.time_offset = time.time()
+        with open(self.dir+"/"+self.dev_name+"_params.csv",'w') as params_f:
+            dev_params = csv.writer(params_f)
+            dev_params.writerow(["time_offset", self.time_offset])
+            for key in attrs:
+                dev_params.writerow([key, attrs[key]])
+
+        # verify the device responds correctly
+        rm = pyvisa.ResourceManager()
+        with self.driver(rm, self.COM_port) as device: 
+            self.verify = device.VerifyOperation()
+
+    # main recording loop
+    def run(self):
+        rm = pyvisa.ResourceManager()
+        with open(self.dir+"/"+self.dev_name+".csv",'a',1) as CSV_f,\
+                self.driver(rm, self.COM_port) as device: 
+            dev_dset = csv.writer(CSV_f)
+            while self.active.is_set():
+                dev_dset.writerow([ time.time() - self.time_offset] + device.ReadValue() )
+                time.sleep(self.dt)
 
 class RecorderGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):

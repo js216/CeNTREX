@@ -1,13 +1,5 @@
 # CeNTREX slow DAQ software
 
-This repository has a very simple structure: `drivers` contains `.py` files
-which define the classes that access devices through NI-VISA; `examples`
-contains examples of using these drivers; `ParameterMonitor` contains the
-software that uses the drivers to control and record parameters of the Centrex
-experiment.
-
-## Recording
-
    > "Still, I was accumulating experience and information,
    > and I never threw anything away. I kept files on
    > everything. [...] I had a strict rule, which I think
@@ -17,15 +9,17 @@ experiment.
    > connections; you have only to want to find them.
    > [Umberto Ecco: Foucault's Pendulum] 
 
+This is the software to control and record parameters of the Centrex experiment.
+
+## Data structure
+
 Let's store data in an HDF5 file. Each experimental run (e.g. initial pumpdown,
 testing the pulse tube cooling / heaters, etc.) is its own group. Each of these
-groups in turn contains the following subgroups:
+groups in turn contains subgroups:
 
      /beam_source/pressure
                   thermal
-                  gas
-                  lasers
-                  events
+                  ...
 
 The datasets in these groups are rows of datapoints, where the first column is
 always the UNIX time of when the data was taken, offset by the time the run was
@@ -41,7 +35,7 @@ other attributes provide column names, units, and other additional information
 
 ## Drivers
 
-The drivers are Python modules stored in `software/drivers`.
+The drivers are Python modules stored in `drivers`.
 
 - **Lakeshore 330 temperature controller:** Python wrapper for all the
   IEEE-488/serial commands supported by the Lake Shore Model 330 Autotuning
@@ -61,56 +55,28 @@ The drivers are Python modules stored in `software/drivers`.
   ASCII protocol) supported by the Hot Cathode Ionization Vacuum Gauge With Dual
   Convection IGM402 Module, The Hornet.
 
-#### Todo
+## Todo
 
-- Vacuum pumps
-
-## User Interface
-
-### Overview
-
-- Status of recording controls.
-- Graphical presentation of temperatures.
-- Status of lasers.
-- Vacuum chamber pressure.
-
-### Recording
-
-- Whether to record data, and what to record.
-- Where to store data (filename or filename pattern).
-- How to break long datasets amongst multiple files.
-- Default sampling and display refresh rates.
-- Synchronisation of date & time. Check with some online time source, and the Rb
-  clock and GPS.
-- Available disk space; current size of dataset.
-- Separate threads for recording each device.
-- deal with excessive number of np.nan returns
-
-### Thermal
-
-- Full control of Lakeshore 218 and 330.
-- Plots of all temperatures vs time (easy to change axes to look up past data).
-- Heater selection module.
-
-### Control of pulse tubes
-
-A schematic like the one on the compressor package,
-
-### Pressure
-
-- Full control of pumps and pressure gauges.
-
-### Lasers
-
-- Ablation laser parameters.
-- Maximize laser power with respect to flashlamp-QS delay.
-
-### Environment
-
-- Room temperature & humidity for main lab and compressor cabinet.
-
-### Remote access
-
-- Access from smartphones (Android) and everywhere around the world would be
-  nice.
-- Make a small-screen version of the GUI.
+- drivers
+   - Vacuum pumps
+   - counter for the atomic clock
+   - Room temperature & humidity for main lab and compressor cabinet.
+- recording
+   - Available disk space; current size of dataset.
+   - deal with excessive number of np.nan returns
+   - make the attributes dialog box
+   - hoover tooltip for the dt Entry
+   - make resizing work correctly
+   - make tabs
+- overview tab
+   - Status of recording controls.
+   - Graphical presentation of temperatures.
+   - Status of lasers.
+   - Vacuum chamber pressure.
+- control tab
+   - Full control of Lakeshore 218 and 330.
+   - Plots of all temperatures vs time (easy to change axes to look up past data).
+   - Heater selection module.
+   - A schematic like the one on the PT compressor package
+   - Full control of pumps and pressure gauges.
+   - Ablation laser parameters.

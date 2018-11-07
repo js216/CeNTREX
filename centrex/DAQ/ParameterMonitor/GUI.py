@@ -10,6 +10,7 @@ import time
 import numpy as np
 import csv
 import shutil, errno
+import atexit
 
 # suppress weird h5py warnings
 import warnings
@@ -284,6 +285,7 @@ class CentrexGUI(tk.Frame):
         tk.Frame.__init__(self, parent, *args, **kwargs)
         self.winfo_toplevel().title("CENTREX Slow DAQ")
         self.parent = parent
+        atexit.register(self.save_config)
 
         # read program settings
         self.config = {}
@@ -319,6 +321,39 @@ class CentrexGUI(tk.Frame):
         # GUI elements
         self.recordergui = RecorderGUI(self, *args, **kwargs)
         self.recordergui.grid(row=0, column=0)
+
+    def save_config(self):
+        # write program settings to disk
+        with open("config/settings.ini", 'w') as settings_f:
+            settings = configparser.ConfigParser()
+            settings['files'] = {
+                    'current_run_dir' : self.config['current_run_dir'].get(),
+                    'hdf_fname'       : self.config['hdf_fname'].get(),
+                    'run_name'        : self.config['run_name'].get(),
+                }
+            settings.write(settings_f)
+
+        # write device configuration to disk
+        with open("config/devices.ini", 'w') as dev_f:
+            dev = configparser.ConfigParser()
+            for d in self.devices:
+                dev[d] = {
+                        "label"             : self.devices[d]["label"],
+                        "path"              : self.devices[d]["path"],
+                        "driver"            : self.devices[d]["driver"].__name__,
+                        "COM_port"          : self.devices[d]["COM_port"],
+                        "dt"                : self.devices[d]["dt"],
+                        "enabled"           : self.devices[d]["enabled"],
+                        "correct_response"  : self.devices[d]["correct_response"],
+                    }
+            dev.write(dev_f)
+
+        # write device attributes to disk
+        with open("config/device_attributes.ini", 'w') as dev_attr_f:
+            dev_attr = configparser.ConfigParser()
+            for d in self.devices:
+                dev_attr[d] = self.devices[d]["attrs"]
+            dev_attr.write(dev_attr_f)
 
 if __name__ == "__main__":
     root = tk.Tk()

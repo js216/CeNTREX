@@ -111,7 +111,7 @@ class RecorderGUI(tk.Frame):
             self.device_GUI_list[d] = [
                 tk.Checkbutton(devices_frame),
                 tk.Label(devices_frame, text=self.parent.devices[d]["label"]),
-                tk.Entry(devices_frame, width=5),
+                tk.Entry(devices_frame, text="dt?", width=5),
                 COM_var,
                 tk.OptionMenu(devices_frame, COM_var, *rl),
                 tk.Button(devices_frame, text="Attrs..."),
@@ -159,8 +159,14 @@ class RecorderGUI(tk.Frame):
             return False
 
     def delete_current_run(self):
-        if messagebox.askyesno("Delete current files",
-                "Are you sure you want to delete the current run?"):
+        # check the user really wants to delete
+        confirm_delete = False
+        if self.status != "writtenToHDF":
+            confirm_delete = messagebox.askyesno("Delete current files",
+                    "Are you sure you want to delete the current run?")
+
+        # delete if already written to HDF, or if user confirmed deletion
+        if confirm_delete or self.status == "writtenToHDF":
             current_run_dir = self.parent.config["current_run_dir"].get()
             try:
                 files = glob.glob(current_run_dir+"/beam_source/*/*")

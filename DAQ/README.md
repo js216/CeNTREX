@@ -31,8 +31,8 @@ down to 1 second of precision, a single run can be recorded for up to ~115 days.
 (Using double-precision floats would eliminate the need for the time offset, but
 would require twice as much storage space.) The time offset is recorded as the
 `time_offset` attribute of each dataset; other attributes provide column names,
-units, and other additional information (e.g., ion gauge emission current
-setting).
+units, and other additional information as relevant (e.g., ion gauge emission
+current setting).
 
 ## Drivers
 
@@ -55,6 +55,17 @@ The drivers are Python modules stored in `drivers`.
 - **Hornet IGM402:** Python wrapper for all the RS485 serial commands (using the
   ASCII protocol) supported by the Hot Cathode Ionization Vacuum Gauge With Dual
   Convection IGM402 Module, The Hornet.
+
+Each driver, in addition to implementing all or some of the features of the
+remote interface of the instrument, also defines the following functions:
+
+- `__init__()`: the constructor for the driver
+- `__enter__()` and `__exit()__`: functions required to enable use of the Python
+  `with` statement
+- `ReadValue()`: defines the default measurement parameter (e.g., for the
+  LakeShore monitors, `ReadValue()` returns all the measured temperatures)
+- `VerifyOperation()`: returns a string characteristic of the instrument, used
+  to verify the instrument is connected correctly
 
 ## Todo
 

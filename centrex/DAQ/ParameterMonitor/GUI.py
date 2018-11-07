@@ -149,13 +149,7 @@ class CentrexGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
-        self.ReadConfig()
 
-        # GUI elements
-        self.recordergui = RecorderGUI(self, *args, **kwargs)
-        self.recordergui.grid(row=0, column=0)
-
-    def ReadConfig(self):
         # read program settings
         self.config = {}
         settings = configparser.ConfigParser()
@@ -184,6 +178,10 @@ class CentrexGUI(tk.Frame):
         attrs.read("config/device_attributes.ini")
         for d in attrs.sections():
             self.devices[d]["attrs"] = {key : attrs[d][key] for key in attrs[d]}
+
+        # GUI elements
+        self.recordergui = RecorderGUI(self, *args, **kwargs)
+        self.recordergui.grid(row=0, column=0)
 
 if __name__ == "__main__":
     root = tk.Tk()

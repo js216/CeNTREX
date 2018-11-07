@@ -22,10 +22,10 @@ class Recorder(threading.Thread):
             for key in attrs:
                 dev_params.writerow([key, attrs[key]])
 
-    def verify_operation(self):
+        # verify the device responds correctly
         rm = pyvisa.ResourceManager()
         with self.driver(rm, self.COM_port) as device: 
-            return device.VerifyOperation()
+            self.verify = device.VerifyOperation()
 
     # main recording loop
     def run(self):

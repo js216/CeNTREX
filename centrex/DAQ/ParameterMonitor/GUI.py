@@ -219,7 +219,7 @@ class RecorderGUI(tk.Frame):
                 d["recorder"] = Recorder(current_run_dir, d["path"],
                                          d["driver"], d["COM_port"], d["name"],
                                          d["dt"], d["attrs"])
-                if d["recorder"].verify_operation() != d["correct_response"]:
+                if d["recorder"].verify != d["correct_response"]:
                     messagebox.showerror("Device error",
                             "Error: " + d["label"] + " not responding correctly.")
                     return

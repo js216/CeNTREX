@@ -34,6 +34,7 @@ class RecorderGUI(tk.Frame):
 
         control_frame = tk.LabelFrame(self.parent)
         control_frame.grid(row=0, padx=10, pady=10, sticky="nsew")
+        control_frame.grid_columnconfigure(index=2, weight=1)
 
         record_button = tk.Button(control_frame,
                 text="\u26ab Start recording", command = self.start_recording)\
@@ -45,9 +46,9 @@ class RecorderGUI(tk.Frame):
         self.status = "stopped"
         self.status_message = tk.StringVar()
         if self.directory_empty(self.parent.config["current_run_dir"].get()):
-            self.status_message.set("                " + "Ready to record")
+            self.status_message.set("Ready to record")
         else:
-            self.status_message.set("                " + "Recording finished.")
+            self.status_message.set("Recording finished")
         self.status_label = tk.Label(control_frame, textvariable=self.status_message,
                 font=("Helvetica", 16),anchor='e')\
                 .grid(row=0, column=2, sticky='nsew')
@@ -172,7 +173,7 @@ class RecorderGUI(tk.Frame):
                 files = glob.glob(current_run_dir+"/beam_source/*/*")
                 for f in files:
                     os.remove(f)
-                self.status_message.set("                Ready to record")
+                self.status_message.set("Ready to record")
             except OSError:
                 messagebox.showerror("Delete error", "Error: cannot delete.")
 
@@ -193,7 +194,7 @@ class RecorderGUI(tk.Frame):
                     d["recorder"].active.set()
                     d["recorder"].start()
             self.status = "recording"
-            self.status_message.set("                      Recording")
+            self.status_message.set("Recording")
 
         else:
             messagebox.showerror("Run_dir not empty", "Error: run_dir not empty. Please delete current run data.")
@@ -204,7 +205,7 @@ class RecorderGUI(tk.Frame):
         for key in self.parent.devices:
             self.parent.devices[key]["recorder"].active.clear()
         self.status = "stopped"
-        self.status_message.set("                Recording finished")
+        self.status_message.set("Recording finished")
 
     def write_to_HDF(self):
         if self.status == "writtenToHDF":
@@ -233,7 +234,7 @@ class RecorderGUI(tk.Frame):
                             dev_dset.attrs[col[0]] = asc(col[1:])
 
         self.status = "writtenToHDF"
-        self.status_message.set("                Written to HDF.")
+        self.status_message.set("Written to HDF")
 
 class CentrexGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):

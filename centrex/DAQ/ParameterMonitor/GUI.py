@@ -1,4 +1,4 @@
-import tkinter
+import tkinter as tk
 from tkinter import filedialog
 from tkinter import messagebox
 import os
@@ -14,23 +14,12 @@ from drivers import LakeShore218
 from drivers import LakeShore330 
 from drivers import CPA1110
 
-class Device:
-    def __init__(self, path, driver, COM_port, name, dt, attrs={}):
-        self.path = path
-        self.driver = driver
-        self.COM_port = COM_port
-        self.name = name
-        self.dt = dt
-        self.attrs = attrs
-        self.enabled = True
-
 class CentrexGUI:
     def __init__(self, root):
         self.root = root
         self.ReadConfig()
-        self.status = tkinter.StringVar()
+        self.status = tk.StringVar()
         self.status.set("                " + "Ready to record")
-
         self.RecorderGUI()
 
     def ReadConfig(self):
@@ -40,28 +29,28 @@ class CentrexGUI:
         settings.read("config/settings.ini")
         for sect in settings.sections():
             for key in settings[sect]:
-                self.config[key] = tkinter.StringVar()
+                self.config[key] = tk.StringVar()
                 self.config[key].set(settings[sect][key])
-                print(key)
 
         # read list of devices
         self.devices = {}
         devices = configparser.ConfigParser()
         devices.read("config/devices.ini")
         for d in devices.sections():
-            self.devices[d] = Device(
-                        path = devices[d]["path"],
-                        driver = eval(devices[d]["driver"]),
-                        COM_port = devices[d]["COM_port"],
-                        name = d,
-                        dt = devices[d].getfloat("dt")
-                    )
+            self.devices[d] = {
+                        "label"    : devices[d]["label"],
+                        "path"     : devices[d]["path"],
+                        "driver"   : eval(devices[d]["driver"]),
+                        "COM_port" : devices[d]["COM_port"],
+                        "name"     : d,
+                        "dt"       : devices[d].getfloat("dt")
+                    }
 
         # parse device attributes
         attrs = configparser.ConfigParser()
         attrs.read("config/device_attributes.ini")
         for d in attrs.sections():
-            self.devices[d].attrs = {key : attrs[d][key] for key in attrs[d]}
+            self.devices[d]["attrs"] = {key : attrs[d][key] for key in attrs[d]}
 
     def open_file(self, prop):
         self.config[prop].set(filedialog.asksaveasfilename(
@@ -106,17 +95,17 @@ class CentrexGUI:
         # recording control and status
         ########################################
 
-        control_frame = tkinter.LabelFrame(self.root)
+        control_frame = tk.LabelFrame(self.root)
         control_frame.grid(row=0, padx=10, pady=10, sticky="nsew")
 
-        record_button = tkinter.Button(control_frame,
+        record_button = tk.Button(control_frame,
                 text="Start recording", command = self.start_recording)\
                 .grid(row=0, column=0)
-        stop_button = tkinter.Button(control_frame,
+        stop_button = tk.Button(control_frame,
                 text="Stop recording", command = self.stop_recording)\
                 .grid(row=0, column=1)
 
-        self.status_label = tkinter.Label(control_frame, textvariable=self.status,
+        self.status_label = tk.Label(control_frame, textvariable=self.status,
                 font=("Helvetica", 16),anchor='e')\
                 .grid(row=0, column=2, sticky='nsew')
 
@@ -124,94 +113,69 @@ class CentrexGUI:
         # files
         ########################################
 
-        files_frame = tkinter.LabelFrame(self.root, text="Files")
-        files_frame.grid(row=1, padx=10, pady=10, sticky=tkinter.W)
+        files_frame = tk.LabelFrame(self.root, text="Files")
+        files_frame.grid(row=1, padx=10, pady=10, sticky=tk.W)
 
-        tkinter.Label(files_frame, text="Current run directory:")\
-                .grid(row=0, column=0, sticky=tkinter.E)
-        run_dir_entry = tkinter.Entry(files_frame, width=30,
+        tk.Label(files_frame, text="Current run directory:")\
+                .grid(row=0, column=0, sticky=tk.E)
+        run_dir_entry = tk.Entry(files_frame, width=30,
                 textvariable=self.config["current_run_dir"])\
-                .grid(row=0, column=1, sticky=tkinter.W)
-        run_dir_button = tkinter.Button(files_frame, text="Open...",
+                .grid(row=0, column=1, sticky=tk.W)
+        run_dir_button = tk.Button(files_frame, text="Open...",
                 command = lambda: self.open_dir("current_run_dir"))\
-                .grid(row=0, column=2, sticky=tkinter.W)
-        run_dir_button = tkinter.Button(files_frame,
+                .grid(row=0, column=2, sticky=tk.W)
+        run_dir_button = tk.Button(files_frame,
                 text="Delete current run data", width=20,
                 command = self.delete_current_run)\
-                .grid(row=0, column=3, sticky=tkinter.W)
+                .grid(row=0, column=3, sticky=tk.W)
 
-        tkinter.Label(files_frame, text="HDF file:")\
-                .grid(row=1, column=0, sticky=tkinter.E)
-        HDF_file_entry = tkinter.Entry(files_frame, width=30,
+        tk.Label(files_frame, text="HDF file:")\
+                .grid(row=1, column=0, sticky=tk.E)
+        HDF_file_entry = tk.Entry(files_frame, width=30,
                 textvariable=self.config["hdf_fname"])\
-                .grid(row=1, column=1, sticky=tkinter.W)
-        run_dir_button = tkinter.Button(files_frame, text="Open...",
+                .grid(row=1, column=1, sticky=tk.W)
+        run_dir_button = tk.Button(files_frame, text="Open...",
                 command = lambda: self.open_file("hdf_fname"))\
-                .grid(row=1, column=2, sticky=tkinter.W)
-        run_dir_button = tkinter.Button(files_frame,
+                .grid(row=1, column=2, sticky=tk.W)
+        run_dir_button = tk.Button(files_frame,
                 text="Archive current run...", width=20)\
-                .grid(row=1, column=3, sticky=tkinter.W)
+                .grid(row=1, column=3, sticky=tk.W)
 
-        tkinter.Label(files_frame, text="Run name:")\
-                .grid(row=2, column=0, sticky=tkinter.E)
-        run_name_entry = tkinter.Entry(files_frame, width=30,
+        tk.Label(files_frame, text="Run name:")\
+                .grid(row=2, column=0, sticky=tk.E)
+        run_name_entry = tk.Entry(files_frame, width=30,
                 textvariable=self.config["run_name"])\
-                .grid(row=2, column=1, sticky=tkinter.W)
-        run_dir_button = tkinter.Button(files_frame,
+                .grid(row=2, column=1, sticky=tk.W)
+        run_dir_button = tk.Button(files_frame,
                 text="Write to HDF", width=20)\
-                .grid(row=2, column=3, sticky=tkinter.W)
+                .grid(row=2, column=3, sticky=tk.W)
 
         ########################################
         # devices
         ########################################
 
-        devices_frame = tkinter.LabelFrame(self.root, text="Devices")
+        devices_frame = tk.LabelFrame(self.root, text="Devices")
         devices_frame.grid(row=2, padx=10, pady=10, sticky='nsew')
 
-        L218_ch = tkinter.Checkbutton(devices_frame)\
-                .grid(row=0, column=0, sticky=tkinter.E)
-        tkinter.Label(devices_frame, text="LakeShore 218")\
-                .grid(row=0, column=1, sticky=tkinter.W)
-        L218_delay_entry = tkinter.Entry(devices_frame,width=5)\
-                .grid(row=0, column=2, sticky=tkinter.W)
-        L218_COM_entry = tkinter.Entry(devices_frame,width=10)\
-                .grid(row=0, column=3, sticky=tkinter.W,padx=10)
-        L218_attrs_button = tkinter.Button(devices_frame, text="Attrs...")\
-                .grid(row=0, column=4, sticky=tkinter.W)
+        # make the GUI elements for the list of devices
+        self.device_GUI_list = {}
+        for d in self.devices:
+            self.device_GUI_list[d] = [
+                tk.Checkbutton(devices_frame),
+                tk.Label(devices_frame, text=self.devices[d]["label"]),
+                tk.Entry(devices_frame, width=5),
+                tk.Entry(devices_frame, width=10),
+                tk.Button(devices_frame, text="Attrs..."),
+            ]
 
-        L330_ch = tkinter.Checkbutton(devices_frame)\
-                .grid(row=1, column=0, sticky=tkinter.E)
-        tkinter.Label(devices_frame, text="LakeShore 330")\
-                .grid(row=1, column=1, sticky=tkinter.W)
-        L330_delay_entry = tkinter.Entry(devices_frame,width=5)\
-                .grid(row=1, column=2, sticky=tkinter.W)
-        L330_COM_entry = tkinter.Entry(devices_frame,width=10)\
-                .grid(row=1, column=3, sticky=tkinter.W,padx=10)
-        L330_attrs_button = tkinter.Button(devices_frame, text="Attrs...")\
-                .grid(row=1, column=4, sticky=tkinter.W)
+        # place the device list GUI elements in a grid
+        for i,d in enumerate(self.device_GUI_list):
+            self.device_GUI_list[d][0].grid(row=i, column=0, sticky=tk.E)
+            self.device_GUI_list[d][1].grid(row=i, column=1, sticky=tk.W)
+            self.device_GUI_list[d][2].grid(row=i, column=2, sticky=tk.W)
+            self.device_GUI_list[d][3].grid(row=i, column=3, sticky=tk.W, padx=10)
+            self.device_GUI_list[d][4].grid(row=i, column=4, sticky=tk.W)
 
-        CPA1110_ch = tkinter.Checkbutton(devices_frame)\
-                .grid(row=2, column=0, sticky=tkinter.E)
-        tkinter.Label(devices_frame, text="CPA1110")\
-                .grid(row=2, column=1, sticky=tkinter.W)
-        CPA1110_delay_entry = tkinter.Entry(devices_frame,width=5)\
-                .grid(row=2, column=2, sticky=tkinter.W)
-        CPA1110_COM_entry = tkinter.Entry(devices_frame,width=10)\
-                .grid(row=2, column=3, sticky=tkinter.W,padx=10)
-        CPA1110_attrs_button = tkinter.Button(devices_frame, text="Attrs...")\
-                .grid(row=2, column=4, sticky=tkinter.W)
-
-        Hornet_ch = tkinter.Checkbutton(devices_frame)\
-                .grid(row=3, column=0, sticky=tkinter.E)
-        tkinter.Label(devices_frame, text="Hornet")\
-                .grid(row=3, column=1, sticky=tkinter.W)
-        Hornet_delay_entry = tkinter.Entry(devices_frame,width=5)\
-                .grid(row=3, column=2, sticky=tkinter.W)
-        Hornet_COM_entry = tkinter.Entry(devices_frame,width=10)\
-                .grid(row=3, column=3, sticky=tkinter.W,padx=10)
-        Hornet_attrs_button = tkinter.Button(devices_frame, text="Attrs...")\
-                .grid(row=3, column=4, sticky=tkinter.W)
-
-root = tkinter.Tk()
+root = tk.Tk()
 CentrexGUI(root)
 root.mainloop()

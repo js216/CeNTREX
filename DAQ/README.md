@@ -25,7 +25,7 @@ The datasets in these groups are rows of single-precision (i.e. 4-byte)
 floating-point datapoints, where the first column is always the UNIX time of
 when the data was taken, offset by the time the run was begun.
 
-Ofsetting the time allows us to store the data as single-precision floats. These
+Offsetting the time allows us to store the data as single-precision floats. These
 have ~7.2 decimal digits of precision; if we want timestamps to be specified
 down to 1 second of precision, a single run can be recorded for up to ~115 days.
 (Using double-precision floats would eliminate the need for the time offset, but
@@ -69,13 +69,16 @@ remote interface of the instrument, also defines the following functions:
 
 ## Todo
 
+- general
+   - describe Program Organization in the readme
+   - make tabs
 - recording
    - Available disk space; current size of dataset.
+   - refresh COM ports after starting the program, not before
    - deal with excessive number of np.nan returns
    - make the attributes dialog box
    - hoover tooltip for the dt Entry
    - make resizing work correctly
-   - make tabs
 - more drivers
    - Vacuum pumps
    - counter for the atomic clock

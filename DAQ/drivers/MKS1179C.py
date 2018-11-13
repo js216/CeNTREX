@@ -24,7 +24,7 @@ some way to the 9-pin D-sub connector of the MKS 1179C, the constructor of the
 which one on the mass-flow controller. We do this by passing a list of names of
 DAQ inputs connected to pins 1, 2, and 6 of the 1179C.
 
-Note that the control commands are executed hierarhcically. For example, " if
+Note that the control commands are executed hierarhcically. For example, "if
 the flow controller is operating under Set Point Control, you can send a Valve
 Open command to force the valve to the full open position." [[1179A
 manual]](https://www.mksinst.com/docs/r/1179A-2179A-179Aman.pdf)

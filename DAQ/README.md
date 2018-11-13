@@ -9,13 +9,61 @@
    > connections; you have only to want to find them.
    > [Umberto Ecco: Foucault's Pendulum] 
 
-This is the software to control and record parameters of the Centrex experiment.
+This is the software to control and record the parameters of the Centrex experiment.
+
+## Configuration files
+
+Upon starting, the program reads the general configuration file
+`config/settings.ini` that defines general program settings; the values are read
+into the `config` dictionary.
+
+Device configurations are read from `.ini` files in the `config/devices`
+directory. These files have the structure:
+
+    [device]
+    name = bottom_compressor   # name of device as used internally by the program
+    label = Bottom compressor  # name of the device as displayed by the program
+    path = beam_source/thermal # where to store the numerical CSV/HDF data
+    driver = CPA1110           # name of the driver class
+    correct_response = 50306   # for connection testing
+
+    [attributes]               # attributes to be stored with the HDF dataset
+    units = s, F, F, F, F, psi, psi, psi, psi, psi, amps
+    ...
+
+    [enabled]
+    type = Checkbutton
+    value = 1
+
+    [dt]                       # loop delay
+    type = Entry
+    value = 1.0
+
+    [...]                      # any number of further controls for the device
+    ...
+
+The information in these files is passed as a dictionary to the constructor of
+`Device` objects:
+
+    dev_config = {
+                "name"              : params["device"]["name"],
+                "label"             : params["device"]["label"],
+                "path"              : params["device"]["path"],
+                "correct_response"  : params["device"]["correct_response"],
+                "driver"            : eval(paramsdevice[]["driver"]),
+                "attributes"        : params["attributes"],
+                "controls"          : {},
+            }
+
+Most elements here are already explained above. The `controls` dictionary is to
+contain everything related to the control of the device: the GUI elements, the
+related variables, etc.
 
 ## Data structure
 
-Let's store data in an HDF5 file. Each experimental run (e.g. initial pumpdown,
-testing the pulse tube cooling / heaters, etc.) is its own group. Each of these
-groups in turn contains subgroups:
+The data is to be stored in an HDF5 file. Each experimental run (e.g. initial
+pumpdown, testing the pulse tube cooling / heaters, etc.) is its own group. Each
+of these groups in turn contains subgroups:
 
      /beam_source/pressure
                   thermal
@@ -76,6 +124,7 @@ remote interface of the instrument, also defines the following functions:
    - Available disk space; current size of dataset.
    - refresh COM ports after starting the program, not before
    - deal with excessive number of np.nan returns
+   - `write_to_HDF()` should only write the enabled devices
    - make the attributes dialog box
    - hoover tooltip for the dt Entry
    - make resizing work correctly

@@ -726,7 +726,7 @@ class LakeShore218:
             res = self.instr.query("KRDG? "+str(inputs))
         except pyvisa.errors.VisaIOError:
             logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
-            return np.nan
+            return [np.nan]
         return [float(x) for x in res.split(",")]
                          
     def ConfigureInputLinearEquationParameters(self, params):

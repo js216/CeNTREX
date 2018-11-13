@@ -104,10 +104,10 @@ class CPA1110:
     #################################################################
 
     def EnableCompressor(self):
-        self.client.write_register(1, 0x00FF)
+        self.client.write_register(1, 0x0001, unit=16)
 
     def DisableCompressor(self):
-        self.client.write_register(1, 0x00FF)
+        self.client.write_register(1, 0x00FF, unit=16)
 
     #################################################################
     ##########              READ COMMANDS                  ##########

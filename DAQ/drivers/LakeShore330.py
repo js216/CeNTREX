@@ -575,11 +575,16 @@ class LakeShore330:
     def SetHeaterStatus(self, status):
         """Sets heater status: 0 = off, 1 = low, 2 = medium, 3 = high. 
         
-        XX.X is the ramp rate in Kelvin per minute between 0 and 99.9. 
-        
         Returns: Nothing.
         """
-        self.instr.write("RANG"+str(status))
+        if status == "off":
+            self.instr.write("RANG 0")
+        elif status == "low":
+            self.instr.write("RANG 1")
+        elif status == "medium":
+            self.instr.write("RANG 2")
+        elif status == "high":
+            self.instr.write("RANG 3")
 
     def HeaterStatusQuery(self):
         """Returns current heater status: 0 = off, 1 = low, 2 = medium,

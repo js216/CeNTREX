@@ -119,6 +119,7 @@ remote interface of the instrument, also defines the following functions:
 
 - general
    - describe Program Organization in the readme
+   - commands should be recorded in the event log
    - make tabs
 - recording
    - Available disk space; current size of dataset.

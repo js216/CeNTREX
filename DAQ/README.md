@@ -118,8 +118,11 @@ remote interface of the instrument, also defines the following functions:
 ## Todo
 
 - general
+   - make the "refresh COM port" button work
+   - Hornet IG control should be buttons
+   - LakeShore330 setpoint control
    - describe Program Organization in the readme
-   - commands should be recorded in the event log
+   - commands and errors should be recorded in the event log
    - make tabs
 - recording
    - Available disk space; current size of dataset.

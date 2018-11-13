@@ -68,6 +68,8 @@ class Device(threading.Thread):
                     # send control commands, if any, to the device
                     for c in self.commands:
                         eval("device." + c)
+                        print(self.config["name"])
+                        print("device." + c)
                     self.commands = []
 
                     # loop delay

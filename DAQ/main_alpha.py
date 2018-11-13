@@ -149,57 +149,42 @@ class ControlGUI(tk.Frame):
         # devices
         ########################################
 
-        # get the list of VISA resources
-        rl = pyvisa.ResourceManager().list_resources()
+        fr = tk.LabelFrame(self.parent, text="Devices")
+        fr.grid(row=2, padx=10, pady=10, sticky='nsew')
 
         # make GUI elements for all devices
-        for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
-            ctrls = dev.config["controls"]
+        for dev_name, dev in self.parent.devices.items():
+            fd = tk.LabelFrame(fr, text=dev.config["label"])
+            fd.grid(padx=10, pady=10, row=dev.config["row"], column=dev.config["column"])
 
-            # standard GUI elements
-            ctrls["LabelFrame"] = tk.LabelFrame(self.parent, text=dev.config["label"])
-            ctrls["LabelFrame"].grid(row=i+2, padx=10, pady=10, sticky='nsew')
-            ctrls["enabled"]["Label"] = tk.Label(ctrls["LabelFrame"], text="Enabled")
-            ctrls["enabled"]["Label"].grid(row=0, column=0)
-            ctrls["enabled"]["Checkbutton"] =\
-                tk.Checkbutton(ctrls["LabelFrame"], variable=ctrls["enabled"]["var"])
-            ctrls["enabled"]["Checkbutton"].grid(row=0, column=1, padx=10, pady=10, sticky='nsew')
-            ctrls["dt"]["Label"] = tk.Label(ctrls["LabelFrame"], text="Loop delay")
-            ctrls["dt"]["Label"].grid(row=0, column=2)
-            ctrls["dt"]["entry"] =\
-                tk.Entry(ctrls["LabelFrame"], textvariable=ctrls["dt"]["var"], width=5)
-            ctrls["dt"]["entry"].grid(row=0, column=3, padx=10, pady=10, sticky='nsew')
-            ctrls["COM_port"]["Label"] = tk.Label(ctrls["LabelFrame"], text="COM port")
-            ctrls["COM_port"]["Label"].grid(row=0, column=4)
-            ctrls["COM_port"]["OptionMenu"] =\
-                tk.OptionMenu(ctrls["LabelFrame"], ctrls["COM_port"]["var"], *rl)
-            ctrls["COM_port"]["OptionMenu"].grid(row=0, column=5, padx=10, pady=10, sticky='nsew')
-
-            # device-specific GUI elements and their labels
-            for i, (c_name, c) in enumerate(ctrls.items()):
-                # check it's not a standard element
-                if c_name in ("LabelFrame", "enabled", "dt", "COM_port"):
+            for i, (c_name, c) in enumerate(dev.config["controls"].items()):
+                if c_name == "LabelFrame":
                     continue
 
                 # place Checkbuttons
                 if c["type"] == "Checkbutton":
-                    c["Checkbutton"] = tk.Checkbutton(ctrls["LabelFrame"], variable=c["var"])
-                    c["Checkbutton"].grid(row=i+1, column=1)
-                    c["Label"] = tk.Label(ctrls["LabelFrame"], text=c["label"])
+                    c["Checkbutton"] = tk.Checkbutton(fd, variable=c["var"])
+                    c["Checkbutton"].grid(row=i+1, column=1, sticky=tk.W)
+                    c["Label"] = tk.Label(fd, text=c["label"])
                     c["Label"].grid(row=i+1, column=0)
+
+                # place Buttons
+                if c["type"] == "Button":
+                    c["Button"] = tk.Button(fd, text=c["label"])
+                    c["Button"].grid(row=i+1+c["row_offset"], column=c["column"], sticky=tk.W)
 
                 # place Entries
                 elif c["type"] == "Entry":
-                    c["Entry"] = tk.Entry(ctrls["LabelFrame"], textvariable=c["var"])
-                    c["Entry"].grid(row=i+1, column=1)
-                    c["Label"] = tk.Label(ctrls["LabelFrame"], text=c["label"])
+                    c["Entry"] = tk.Entry(fd, textvariable=c["var"])
+                    c["Entry"].grid(row=i+1, column=1, sticky=tk.W)
+                    c["Label"] = tk.Label(fd, text=c["label"])
                     c["Label"].grid(row=i+1, column=0)
 
                 # place OptionMenus
                 elif c["type"] == "OptionMenu":
-                    c["OptionMenu"] = tk.OptionMenu(ctrls["LabelFrame"], c["var"], *c["options"])
-                    c["OptionMenu"].grid(row=i+1, column=1)
-                    c["Label"] = tk.Label(ctrls["LabelFrame"], text=c["label"])
+                    c["OptionMenu"] = tk.OptionMenu(fd, c["var"], *c["options"])
+                    c["OptionMenu"].grid(row=i+1, column=1, sticky=tk.W)
+                    c["Label"] = tk.Label(fd, text=c["label"])
                     c["Label"].grid(row=i+1, column=0)
 
 
@@ -383,6 +368,8 @@ class CentrexGUI(tk.Frame):
                         "label"             : params["device"]["label"],
                         "path"              : params["device"]["path"],
                         "correct_response"  : params["device"]["correct_response"],
+                        "row"               : params["device"]["row"],
+                        "column"            : params["device"]["column"],
                         "driver"            : eval(params["device"]["driver"]),
                         "attributes"        : params["attributes"],
                         "controls"          : {},
@@ -394,22 +381,28 @@ class CentrexGUI(tk.Frame):
                 if params[c].get("type") == "Checkbutton":
                     ctrls[c] = {}
                     ctrls[c]["label"] = params[c]["label"]
-                    ctrls[c]["type"] = params[c]["type"]
-                    ctrls[c]["var"] = tk.BooleanVar()
+                    ctrls[c]["type"]  = params[c]["type"]
+                    ctrls[c]["var"]   = tk.BooleanVar()
                     ctrls[c]["var"].set(params[c]["value"])
+                if params[c].get("type") == "Button":
+                    ctrls[c] = {}
+                    ctrls[c]["label"]  = params[c]["label"]
+                    ctrls[c]["type"]   = params[c]["type"]
+                    ctrls[c]["row_offset"] = int(params[c]["row_offset"])
+                    ctrls[c]["column"] = int(params[c]["column"])
                 elif params[c].get("type") == "Entry":
                     ctrls[c] = {}
                     ctrls[c]["label"] = params[c]["label"]
-                    ctrls[c]["type"] = params[c]["type"]
-                    ctrls[c]["var"] = tk.StringVar()
+                    ctrls[c]["type"]  = params[c]["type"]
+                    ctrls[c]["var"]   = tk.StringVar()
                     ctrls[c]["var"].set(params[c]["value"])
                 elif params[c].get("type") == "OptionMenu":
                     ctrls[c] = {}
-                    ctrls[c]["label"] = params[c]["label"]
-                    ctrls[c]["type"] = params[c]["type"]
-                    ctrls[c]["var"] = tk.StringVar()
-                    ctrls[c]["var"].set(params[c]["value"])
+                    ctrls[c]["label"]   = params[c]["label"]
+                    ctrls[c]["type"]    = params[c]["type"]
                     ctrls[c]["options"] = params[c]["options"].split(",")
+                    ctrls[c]["var"]     = tk.StringVar()
+                    ctrls[c]["var"].set(params[c]["value"])
 
             # make a Device object
             self.devices[params["device"]["name"]] = Device(dev_config)

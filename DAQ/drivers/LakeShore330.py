@@ -648,7 +648,7 @@ class LakeShore330:
         
         Returns: Nothing.
         """
-        self.instr.write("SETP"+str(setpoint))
+        self.instr.write("SETP "+str(setpoint))
         
     def SetpointStatusQuery(self):
         """Returns current set point setting, a 7-digit value (a sign,

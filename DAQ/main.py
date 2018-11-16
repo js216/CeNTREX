@@ -12,81 +12,104 @@ import csv
 import shutil, errno
 import atexit
 import threading
-
-# suppress weird h5py warnings
-import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
 import h5py
-warnings.resetwarnings()
 
 from drivers import Hornet 
 from drivers import LakeShore218 
 from drivers import LakeShore330 
 from drivers import CPA1110
 
-class Recorder(threading.Thread):
-    def __init__(self, current_run_dir, path, driver, COM_port, dev_name, dt, attrs):
-        # thread control
-        threading.Thread.__init__(self)
+class Device(threading.Thread):
+    def __init__(self, config):
         self.active = threading.Event()
+        self.active.clear()
+        self.config = config
+        self.commands = []
 
-        # record operating parameters
-        self.dir = current_run_dir + "/" + path
-        self.driver = driver
-        self.COM_port = COM_port
-        self.dev_name = dev_name
+    def setup_connection(self, dt):
+        threading.Thread.__init__(self)
         self.dt = dt
-        self.time_offset = time.time()
-        with open(self.dir+"/"+self.dev_name+"_params.csv",'w') as params_f:
+        self.rm = pyvisa.ResourceManager()
+
+        # record the device operating parameters
+        self.config["time_offset"] = time.time()
+        CSV_fname = self.config["current_run_dir"]+"/"+self.config["path"]+"/"+self.config["name"]+"_params.csv"
+        with open(CSV_fname,'w') as params_f:
             dev_params = csv.writer(params_f)
-            dev_params.writerow(["time_offset", self.time_offset])
-            for key in attrs:
-                dev_params.writerow([key, attrs[key]])
+            dev_params.writerow(["time_offset", self.config["time_offset"]])
+            for attr_name, attr in self.config["attributes"].items():
+                dev_params.writerow([attr_name, attr])
 
         # verify the device responds correctly
-        rm = pyvisa.ResourceManager()
-        with self.driver(rm, self.COM_port) as device: 
-            self.verify = device.VerifyOperation()
+        COM_port = self.config["controls"]["COM_port"]["var"].get()
+        with self.config["driver"](self.rm, COM_port) as dev: 
+            self.operational = dev.VerifyOperation() == self.config["correct_response"]
 
-    # main recording loop
+        self.rm.close()
+
     def run(self):
-        rm = pyvisa.ResourceManager()
-        with open(self.dir+"/"+self.dev_name+".csv",'a',1) as CSV_f,\
-                self.driver(rm, self.COM_port) as device: 
-            dev_dset = csv.writer(CSV_f)
-            while self.active.is_set():
-                dev_dset.writerow([ time.time() - self.time_offset] + device.ReadValue() )
-                time.sleep(self.dt)
+        # check connection to the device was successful
+        if not self.operational:
+            return
 
-class RecorderGUI(tk.Frame):
+        # open CSV file
+        CSV_fname = self.config["current_run_dir"]+"/"+self.config["path"]+"/"+self.config["name"]+".csv"
+        with open(CSV_fname,'a',1) as CSV_f:
+            dev_dset = csv.writer(CSV_f)
+            COM_port = self.config["controls"]["COM_port"]["var"].get()
+
+            # main control loop
+            self.rm = pyvisa.ResourceManager()
+            with self.config["driver"](self.rm, COM_port) as device: 
+                while self.active.is_set():
+                    # record numerical values
+                    dev_dset.writerow([ time.time() - self.config["time_offset"]] + device.ReadValue() )
+
+                    # send control commands, if any, to the device
+                    for c in self.commands:
+                        eval("device." + c)
+                    self.commands = []
+
+                    # loop delay
+                    time.sleep(self.dt)
+
+class ControlGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
+        self.place_GUI_elements()
 
+    def place_GUI_elements(self):
         ########################################
-        # recording control and status
+        # control and status
         ########################################
 
         control_frame = tk.LabelFrame(self.parent)
         control_frame.grid(row=0, padx=10, pady=10, sticky="nsew")
         control_frame.grid_columnconfigure(index=2, weight=1)
 
-        record_button = tk.Button(control_frame,
-                text="\u26ab Start recording", command = self.start_recording)\
+        # control start/stop buttons
+        control_button = tk.Button(control_frame,
+                text="\u26ab Start control", command = self.start_control)\
                 .grid(row=0, column=0)
         stop_button = tk.Button(control_frame,
-                text="\u2b1b Stop recording", command = self.stop_recording)\
+                text="\u2b1b Stop control", command = self.stop_control)\
                 .grid(row=0, column=1)
 
+        # button to refresh the list of COM ports
+        tk.Button(control_frame, text="Refresh COM ports", command=self.refresh_COM_ports)\
+                        .grid(row=1, column=0, sticky='ew')
+
+        # the status label
         self.status = "stopped"
         self.status_message = tk.StringVar()
         if self.directory_empty(self.parent.config["current_run_dir"].get()):
-            self.status_message.set("Ready to record")
+            self.status_message.set("Ready to start")
         else:
             self.status_message.set("Recording finished")
         self.status_label = tk.Label(control_frame, textvariable=self.status_message,
                 font=("Helvetica", 16),anchor='e')\
-                .grid(row=0, column=2, sticky='nsew')
+                .grid(row=0, column=3, sticky='nsew')
 
         ########################################
         # files
@@ -133,35 +156,57 @@ class RecorderGUI(tk.Frame):
         # devices
         ########################################
 
-        devices_frame = tk.LabelFrame(self.parent, text="Devices")
-        devices_frame.grid(row=2, padx=10, pady=10, sticky='nsew')
+        fr = tk.LabelFrame(self.parent, text="Devices")
+        fr.grid(row=2, padx=10, pady=10, sticky='nsew')
 
-        # make the list of VISA resources
-        rl = pyvisa.ResourceManager().list_resources()
+        # make GUI elements for all devices
+        for dev_name, dev in self.parent.devices.items():
+            fd = tk.LabelFrame(fr, text=dev.config["label"])
+            fd.grid(padx=10, pady=10, sticky="w", row=dev.config["row"], column=dev.config["column"])
 
-        # make the GUI elements and their variables for the list of devices
-        self.device_GUI_list = {}
-        for d in self.parent.devices:
-            self.device_GUI_list[d] = {
-                "enable_b" : tk.Checkbutton(devices_frame, variable=self.parent.devices[d]["enabled"]),
-                "label"    : tk.Label(devices_frame, text=self.parent.devices[d]["label"]),
-                "dt"       : tk.Entry(devices_frame, textvariable=self.parent.devices[d]["dt"], width=5),
-                "COM_menu" : tk.OptionMenu(devices_frame, self.parent.devices[d]["COM_port"], *rl),
-                "attrs"    : tk.Button(devices_frame, text="Attrs..."),
-            }
+            for i, (c_name, c) in enumerate(dev.config["controls"].items()):
+                if c_name == "LabelFrame":
+                    continue
 
-        # place the device list GUI elements in a grid
-        for i,d in enumerate(self.device_GUI_list):
-            self.device_GUI_list[d]["enable_b"].grid(row=i, column=0, sticky=tk.E)
-            self.device_GUI_list[d]["label"].grid(row=i, column=1, sticky=tk.W)
-            self.device_GUI_list[d]["dt"].grid(row=i, column=2, sticky=tk.W)
-            self.device_GUI_list[d]["COM_menu"].grid(row=i, column=3, sticky='ew', padx=10)
-            self.device_GUI_list[d]["attrs"].grid(row=i, column=4, sticky=tk.W)
+                # place Checkbuttons
+                if c["type"] == "Checkbutton":
+                    c["Checkbutton"] = tk.Checkbutton(fd, variable=c["var"])
+                    c["Checkbutton"].grid(row=i+1, column=1, sticky=tk.W)
+                    c["Label"] = tk.Label(fd, text=c["label"])
+                    c["Label"].grid(row=i+1, column=0)
 
-        # button to refresh the list of COM ports
-        tk.Button(devices_frame, text="Refresh COM ports",
-                command=self.refresh_COM_ports)\
-                        .grid(row=len(self.device_GUI_list), column=3, sticky='ew')
+                # place Buttons
+                if c["type"] == "Button":
+                    if c["argument"] == "":
+                        c["Button"] = tk.Button(fd, text=c["label"],
+                                command= lambda dev=dev, cmd=c["command"]+"()": self.queue_command(dev, cmd))
+                    else:
+                        c["Button"] = tk.Button(fd, text=c["label"], command= lambda dev=dev,
+                                cmd=c["command"], arg=dev.config["controls"][c["argument"]]["var"]:
+                                    self.queue_command(dev, cmd+"("+arg.get()+")"))
+                    c["Button"].grid(row=i+1+c["row_offset"], column=c["column"], sticky=tk.W)
+
+                # place Entries
+                elif c["type"] == "Entry":
+                    c["Entry"] = tk.Entry(fd, textvariable=c["var"])
+                    c["Entry"].grid(row=i+1, column=1, sticky="nsew")
+                    c["Label"] = tk.Label(fd, text=c["label"])
+                    c["Label"].grid(row=i+1, column=0)
+
+                # place OptionMenus
+                elif c["type"] == "OptionMenu":
+                    if c["command"] == "":
+                        c["OptionMenu"] = tk.OptionMenu(fd, c["var"], *c["options"])
+                    else:
+                        c["OptionMenu"] = tk.OptionMenu(fd, c["var"], *c["options"],
+                                command= lambda x, dev=dev, cmd=c["command"]:
+                                    self.queue_command(dev, cmd+"('"+x.strip()+"')"))
+                    c["OptionMenu"].grid(row=i+1, column=1, sticky=tk.W)
+                    c["Label"] = tk.Label(fd, text=c["label"])
+                    c["Label"].grid(row=i+1, column=0)
+
+    def queue_command(self, dev, command):
+        dev.commands.append(command)
 
     def backup_current_run(self):
         current_run_dir = self.parent.config["current_run_dir"].get()
@@ -190,7 +235,7 @@ class RecorderGUI(tk.Frame):
 
     def open_file(self, prop):
         fname = filedialog.asksaveasfilename(
-                initialdir = "C:/Users/CENTREX/Documents/data",
+                initialdir = self.parent.config[prop].get(),
                 title = "Select file",
                 filetypes = (("HDF files","*.h5"),("all files","*.*")))
         if not fname:
@@ -200,7 +245,7 @@ class RecorderGUI(tk.Frame):
 
     def open_dir(self, prop):
         fname = filedialog.askdirectory(
-                initialdir = "C:/Users/CENTREX/Documents/data",
+                initialdir = self.parent.config[prop].get(),
                 title = "Select directory")
         if not fname:
             return
@@ -215,9 +260,9 @@ class RecorderGUI(tk.Frame):
             return False
 
     def delete_current_run(self):
-        # check we're not currently recording
-        if self.status == "recording":
-            messagebox.showerror("Delete error", "Error: cannot delete while recording.")
+        # check we're not currently running control
+        if self.status == "running":
+            messagebox.showerror("Delete error", "Error: cannot delete while running.")
             return
 
         # check the user really wants to delete
@@ -233,13 +278,13 @@ class RecorderGUI(tk.Frame):
                 files = glob.glob(current_run_dir+"/beam_source/*/*")
                 for f in files:
                     os.remove(f)
-                self.status_message.set("Ready to record")
+                self.status_message.set("Ready to start")
             except OSError:
                 messagebox.showerror("Delete error", "Error: cannot delete.")
 
-    def start_recording(self):
-        # check we're not recording already
-        if self.status == "recording":
+    def start_control(self):
+        # check we're not running already
+        if self.status == "running":
             return
 
         # check run_dir empty
@@ -249,36 +294,32 @@ class RecorderGUI(tk.Frame):
             self.status_message.set("Error: run_dir not empty")
             return
 
-        # connect to devices and check they respond correctly
-        for key in self.parent.devices:
-            d = self.parent.devices[key]
-            if d["enabled"].get():
-                d["recorder"] = Recorder(current_run_dir, d["path"],
-                                         d["driver"], d["COM_port"].get(), d["name"],
-                                         float(d['dt'].get()), d["attrs"])
-                if d["recorder"].verify != d["correct_response"]:
+        # check device connections and start control
+        for dev_name, dev in self.parent.devices.items():
+            if dev.config["controls"]["enabled"]["var"].get():
+                dev.setup_connection(float(dev.config["controls"]["dt"]["var"].get()))
+                if not dev.operational:
                     messagebox.showerror("Device error",
-                            "Error: " + d["label"] + " not responding correctly.")
+                            "Error: " + dev.config["label"] + " not responding correctly.")
                     self.status_message.set("Device configuration error")
                     return
-                d["recorder"].active.set()
+                else:
+                    dev.active.set()
+                    dev.start()
 
-        # start all recorders
-        for key in self.parent.devices:
-            if self.parent.devices[key]["enabled"].get():
-                self.parent.devices[key]["recorder"].start()
+        # update program status
+        self.status = "running"
+        self.status_message.set("Running")
 
-        # update status
-        self.status = "recording"
-        self.status_message.set("Recording")
-
-    def stop_recording(self):
+    def stop_control(self):
+        # check we're not stopped already
         if self.status == "stopped":
             return
-        for key in self.parent.devices:
-            recorder = self.parent.devices[key].get("recorder")
-            if recorder:
-                recorder.active.clear()
+
+        for dev_name, dev in self.parent.devices.items():
+            if dev.active.is_set():
+                dev.active.clear()
+
         self.status = "stopped"
         self.status_message.set("Recording finished")
 
@@ -291,15 +332,15 @@ class RecorderGUI(tk.Frame):
             root = f.create_group(str(int(time.time())) + " " + self.parent.config["run_name"].get())
             for key in self.parent.devices:
                 d = self.parent.devices[key]
-                grp = root.require_group(d["path"])
+                grp = root.require_group(d.config["path"])
 
                 # read CSV and write to HDF
                 dev_CSV = np.loadtxt(self.parent.config["current_run_dir"].get() + "/" +
-                                        d["path"] + "/" + d["name"] + ".csv", delimiter=',')
-                dev_dset = grp.create_dataset(d["name"], data=dev_CSV, dtype='f')
+                                        d.config["path"] + "/" + d.config["name"] + ".csv", delimiter=',')
+                dev_dset = grp.create_dataset(d.config["name"], data=dev_CSV, dtype='f')
 
                 # write attributes to HDF
-                with open(self.parent.config["current_run_dir"].get() + "/" + d["path"] + "/" + d["name"] +
+                with open(self.parent.config["current_run_dir"].get() + "/" + d.config["path"] + "/" + d.config["name"] +
                                         "_params.csv", 'r', newline='\n') as dev_params_f:
                     dev_params_CSV = csv.reader(dev_params_f, delimiter=',')
                     for col in dev_params_CSV:
@@ -317,77 +358,78 @@ class CentrexGUI(tk.Frame):
         self.winfo_toplevel().title("CENTREX Slow DAQ")
         self.parent = parent
         atexit.register(self.save_config)
+        self.read_config()
 
+        # GUI elements
+        ControlGUI(self, *args, **kwargs).grid(row=0, column=0)
+
+    def read_config(self):
         # read program settings
         self.config = {}
         settings = configparser.ConfigParser()
         settings.read("config/settings.ini")
-        for sect in settings.sections():
-            for key in settings[sect]:
-                self.config[key] = tk.StringVar()
-                self.config[key].set(settings[sect][key])
+        for key in settings["files"]:
+            self.config[key] = tk.StringVar()
+            self.config[key].set(settings["files"][key])
 
-        # read list of devices
+        # read device settings
         self.devices = {}
-        devices = configparser.ConfigParser()
-        devices.read("config/devices.ini")
-        for d in devices.sections():
-            self.devices[d] = {
-                        "label"             : devices[d]["label"],
-                        "path"              : devices[d]["path"],
-                        "driver"            : eval(devices[d]["driver"]),
-                        "COM_port"          : tk.StringVar(),
-                        "name"              : d,
-                        "dt"                : tk.StringVar(),
-                        "enabled"           : tk.IntVar(),
-                        "correct_response"  : devices[d]["correct_response"],
+        for f in glob.glob("config/devices/*"):
+            params = configparser.ConfigParser()
+            params.read(f)
+
+            # read general device options
+            dev_config = {
+                        "name"              : params["device"]["name"],
+                        "label"             : params["device"]["label"],
+                        "current_run_dir"   : self.config["current_run_dir"].get(),
+                        "path"              : params["device"]["path"],
+                        "correct_response"  : params["device"]["correct_response"],
+                        "row"               : params["device"]["row"],
+                        "column"            : params["device"]["column"],
+                        "driver"            : eval(params["device"]["driver"]),
+                        "attributes"        : params["attributes"],
+                        "controls"          : {},
                     }
-            self.devices[d]["enabled"].set(devices[d].getboolean("enabled"),)
-            self.devices[d]["dt"].set(devices[d].getfloat("dt"),)
-            self.devices[d]["COM_port"].set(devices[d]["COM_port"],)
 
-        # parse device attributes
-        attrs = configparser.ConfigParser()
-        attrs.read("config/device_attributes.ini")
-        for d in attrs.sections():
-            self.devices[d]["attrs"] = {key : attrs[d][key] for key in attrs[d]}
+            # populate the list of device controls
+            ctrls = dev_config["controls"]
+            for c in params.sections():
+                if params[c].get("type") == "Checkbutton":
+                    ctrls[c] = {}
+                    ctrls[c]["label"] = params[c]["label"]
+                    ctrls[c]["type"]  = params[c]["type"]
+                    ctrls[c]["var"]   = tk.BooleanVar()
+                    ctrls[c]["var"].set(params[c]["value"])
+                elif params[c].get("type") == "Button":
+                    ctrls[c] = {}
+                    ctrls[c]["label"]      = params[c]["label"]
+                    ctrls[c]["type"]       = params[c]["type"]
+                    ctrls[c]["command"]    = params[c]["command"]
+                    ctrls[c]["argument"]   = params[c]["argument"]
+                    ctrls[c]["row_offset"] = int(params[c]["row_offset"])
+                    ctrls[c]["column"]     = int(params[c]["column"])
+                elif params[c].get("type") == "Entry":
+                    ctrls[c] = {}
+                    ctrls[c]["label"] = params[c]["label"]
+                    ctrls[c]["type"]  = params[c]["type"]
+                    ctrls[c]["var"]   = tk.StringVar()
+                    ctrls[c]["var"].set(params[c]["value"])
+                elif params[c].get("type") == "OptionMenu":
+                    ctrls[c] = {}
+                    ctrls[c]["label"]   = params[c]["label"]
+                    ctrls[c]["type"]    = params[c]["type"]
+                    ctrls[c]["command"] = params[c]["command"]
+                    ctrls[c]["options"] = params[c]["options"].split(",")
+                    ctrls[c]["var"]     = tk.StringVar()
+                    ctrls[c]["var"].set(params[c]["value"])
 
-        # GUI elements
-        self.recordergui = RecorderGUI(self, *args, **kwargs)
-        self.recordergui.grid(row=0, column=0)
+            # make a Device object
+            self.devices[params["device"]["name"]] = Device(dev_config)
 
     def save_config(self):
-        # write program settings to disk
-        with open("config/settings.ini", 'w') as settings_f:
-            settings = configparser.ConfigParser()
-            settings['files'] = {
-                    'current_run_dir' : self.config['current_run_dir'].get(),
-                    'hdf_fname'       : self.config['hdf_fname'].get(),
-                    'run_name'        : self.config['run_name'].get(),
-                }
-            settings.write(settings_f)
-
-        # write device configuration to disk
-        with open("config/devices.ini", 'w') as dev_f:
-            dev = configparser.ConfigParser()
-            for d in self.devices:
-                dev[d] = {
-                        "label"             : self.devices[d]["label"],
-                        "path"              : self.devices[d]["path"],
-                        "driver"            : self.devices[d]["driver"].__name__,
-                        "COM_port"          : self.devices[d]["COM_port"].get(),
-                        "dt"                : self.devices[d]["dt"].get(),
-                        "enabled"           : self.devices[d]["enabled"].get(),
-                        "correct_response"  : self.devices[d]["correct_response"],
-                    }
-            dev.write(dev_f)
-
-        # write device attributes to disk
-        with open("config/device_attributes.ini", 'w') as dev_attr_f:
-            dev_attr = configparser.ConfigParser()
-            for d in self.devices:
-                dev_attr[d] = self.devices[d]["attrs"]
-            dev_attr.write(dev_attr_f)
+        # TODO
+        pass
 
 if __name__ == "__main__":
     root = tk.Tk()

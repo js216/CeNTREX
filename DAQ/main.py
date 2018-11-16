@@ -26,9 +26,8 @@ class Device(threading.Thread):
         self.config = config
         self.commands = []
 
-    def setup_connection(self, dt):
+    def setup_connection(self):
         threading.Thread.__init__(self)
-        self.dt = dt
         self.rm = pyvisa.ResourceManager()
 
         # record the device operating parameters
@@ -71,7 +70,10 @@ class Device(threading.Thread):
                     self.commands = []
 
                     # loop delay
-                    time.sleep(self.dt)
+                    try:
+                        time.sleep(float(self.config["controls"]["dt"]["var"].get()))
+                    except ValueError:
+                        time.sleep(1)
 
 class ControlGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -303,7 +305,7 @@ class ControlGUI(tk.Frame):
         # check device connections and start control
         for dev_name, dev in self.parent.devices.items():
             if dev.config["controls"]["enabled"]["var"].get():
-                dev.setup_connection(float(dev.config["controls"]["dt"]["var"].get()))
+                dev.setup_connection()
                 if not dev.operational:
                     messagebox.showerror("Device error",
                             "Error: " + dev.config["label"] + " not responding correctly.")

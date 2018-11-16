@@ -281,6 +281,12 @@ class ControlGUI(tk.Frame):
                 self.status_message.set("Ready to start")
             except OSError:
                 messagebox.showerror("Delete error", "Error: cannot delete.")
+                return
+
+        # check run_dir is now really empty
+        current_run_dir = self.parent.config["current_run_dir"].get()
+        if not self.directory_empty(current_run_dir):
+            messagebox.showerror("Delete error", "Error: cannot delete.")
 
     def start_control(self):
         # check we're not running already

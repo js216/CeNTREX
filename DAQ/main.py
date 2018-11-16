@@ -91,14 +91,14 @@ class ControlGUI(tk.Frame):
         # control start/stop buttons
         control_button = tk.Button(control_frame,
                 text="\u26ab Start control", command = self.start_control)\
-                .grid(row=0, column=0)
+                .grid(row=0, column=0, sticky="nsew")
         stop_button = tk.Button(control_frame,
                 text="\u2b1b Stop control", command = self.stop_control)\
-                .grid(row=0, column=1)
+                .grid(row=0, column=1, sticky="nsew")
 
         # button to refresh the list of COM ports
         tk.Button(control_frame, text="Refresh COM ports", command=self.refresh_COM_ports)\
-                        .grid(row=1, column=0, sticky='ew')
+                        .grid(row=1, column=0, sticky='nsew')
 
         # the status label
         self.status = "stopped"
@@ -225,9 +225,9 @@ class ControlGUI(tk.Frame):
 
     def refresh_COM_ports(self):
         rl = pyvisa.ResourceManager().list_resources()
-        for d in self.device_GUI_list:
-            menu = self.device_GUI_list[d]["COM_menu"]["menu"]
-            COM_var = self.device_GUI_list["COM_var"][3]
+        for dev_name, dev in self.parent.devices.items():
+            menu = dev.config["controls"]["COM_port"]["OptionMenu"]["menu"]
+            COM_var = dev.config["controls"]["COM_port"]["var"]
             menu.delete(0, "end")
             for string in rl:
                 menu.add_command(label=string,

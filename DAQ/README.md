@@ -61,8 +61,8 @@ Four kinds of controls are supported: `Checkbutton`, `Entry`, `OptionMenu`, and
 button, for other controls, the label will appear to the left of the control), a
 type, and the `row`/`col` where they are to appear in the list of controls for a
 given device. Some controls require other options (e.g., `Button`s need the
-function that is called when the button is pressed); see configuration files in
-`config/devices` for examples.
+device driver function that is called when the button is pressed); see
+configuration files in `config/devices` for examples.
 
 The information in these files is passed as a dictionary (named `config`) to the
 constructor of `Device` objects:
@@ -70,6 +70,7 @@ constructor of `Device` objects:
     config = {
        "name"              : ...,
        "label"             : ...,
+       "config_fname"      : ....,  # name of the device config file
        "current_run_dir"   : ...,   # where the CSV files are to be stored
        "path"              : ...,
        "correct_response"  : ...,
@@ -148,27 +149,16 @@ remote interface of the instrument, also defines the following functions:
 ## Todo
 
 - general
-   - feedback for control commands
+   - log commands and their return values
    - save config on program exit
-- recording
-   - Available disk space; current size of dataset.
-   - make the attributes dialog box
-   - hoover tooltip for the dt Entry
-   - make resizing work correctly
 - more drivers
    - flood control and MKS control
    - Vacuum pumps
    - counter for the atomic clock
    - Room temperature & humidity for main lab and compressor cabinet.
-- overview tab
+- status tab
    - Status of recording controls.
    - Graphical presentation of temperatures.
    - Status of lasers.
    - Vacuum chamber pressure.
-- control tab
-   - Full control of Lakeshore 218 and 330.
    - Plots of all temperatures vs time (easy to change axes to look up past data).
-   - Heater selection module.
-   - A schematic like the one on the PT compressor package
-   - Full control of pumps and pressure gauges.
-   - Ablation laser parameters.

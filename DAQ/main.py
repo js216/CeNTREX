@@ -164,7 +164,12 @@ class ControlGUI(tk.Frame):
         # make GUI elements for all devices
         for dev_name, dev in self.parent.devices.items():
             fd = tk.LabelFrame(fr, text=dev.config["label"])
-            fd.grid(padx=10, pady=10, sticky="w", row=dev.config["row"], column=dev.config["column"])
+            fd.grid(padx=10, pady=10, sticky="nsew",
+                    row=dev.config["row"], column=dev.config["column"])
+
+            # the button to reload attributes
+            attr_b = tk.Button(fd, text="Attrs", command=lambda dev=dev: self.reload_attrs(dev))
+            attr_b.grid(row=0, column=2, sticky="nsew")
 
             for c_name, c in dev.config["controls"].items():
                 if c_name == "LabelFrame":
@@ -212,6 +217,15 @@ class ControlGUI(tk.Frame):
 
     def queue_command(self, dev, command):
         dev.commands.append(command)
+
+    def reload_attrs(self, dev):
+        params = configparser.ConfigParser()
+        params.read(dev.config["config_fname"])
+        dev.config["attributes"] = params["attributes"]
+        attrs = ""
+        for attr_name,attr in dev.config["attributes"].items():
+            attrs += attr_name + ": " + str(attr) + "\n\n"
+        messagebox.showinfo("Device attributes", attrs)
 
     def backup_current_run(self):
         current_run_dir = self.parent.config["current_run_dir"].get()
@@ -395,6 +409,7 @@ class CentrexGUI(tk.Frame):
             dev_config = {
                         "name"              : params["device"]["name"],
                         "label"             : params["device"]["label"],
+                        "config_fname"      : f,
                         "current_run_dir"   : self.config["current_run_dir"].get(),
                         "path"              : params["device"]["path"],
                         "correct_response"  : params["device"]["correct_response"],

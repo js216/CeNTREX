@@ -175,7 +175,7 @@ class ControlGUI(tk.Frame):
                     c["Checkbutton"] = tk.Checkbutton(fd, variable=c["var"])
                     c["Checkbutton"].grid(row=c["row"], column=c["col"], sticky=tk.W)
                     c["Label"] = tk.Label(fd, text=c["label"])
-                    c["Label"].grid(row=c["row"], column=c["col"]-1)
+                    c["Label"].grid(row=c["row"], column=c["col"]-1, sticky=tk.E)
 
                 # place Buttons
                 if c["type"] == "Button":
@@ -186,14 +186,17 @@ class ControlGUI(tk.Frame):
                         c["Button"] = tk.Button(fd, text=c["label"], command= lambda dev=dev,
                                 cmd=c["command"], arg=dev.config["controls"][c["argument"]]["var"]:
                                     self.queue_command(dev, cmd+"("+arg.get()+")"))
-                    c["Button"].grid(row=c["row"], column=c["col"], sticky=tk.W)
+                    if c.get("align") == None:
+                        c["Button"].grid(row=c["row"], column=c["col"], sticky=tk.W)
+                    else:
+                        c["Button"].grid(row=c["row"], column=c["col"], sticky=c["align"])
 
                 # place Entries
                 elif c["type"] == "Entry":
                     c["Entry"] = tk.Entry(fd, textvariable=c["var"])
                     c["Entry"].grid(row=c["row"], column=c["col"],sticky="nsew")
                     c["Label"] = tk.Label(fd, text=c["label"])
-                    c["Label"].grid(row=c["row"], column=c["col"]-1)
+                    c["Label"].grid(row=c["row"], column=c["col"]-1, sticky=tk.E)
 
                 # place OptionMenus
                 elif c["type"] == "OptionMenu":
@@ -205,7 +208,7 @@ class ControlGUI(tk.Frame):
                                     self.queue_command(dev, cmd+"('"+x.strip()+"')"))
                     c["OptionMenu"].grid(row=c["row"], column=c["col"], sticky=tk.W)
                     c["Label"] = tk.Label(fd, text=c["label"])
-                    c["Label"].grid(row=c["row"], column=c["col"]-1)
+                    c["Label"].grid(row=c["row"], column=c["col"]-1, sticky=tk.E)
 
     def queue_command(self, dev, command):
         dev.commands.append(command)
@@ -419,6 +422,7 @@ class CentrexGUI(tk.Frame):
                     ctrls[c]["col"]        = int(params[c]["col"])
                     ctrls[c]["command"]    = params[c]["command"]
                     ctrls[c]["argument"]   = params[c]["argument"]
+                    ctrls[c]["align"]      = params[c].get("align")
                 elif params[c].get("type") == "Entry":
                     ctrls[c] = {}
                     ctrls[c]["label"]      = params[c]["label"]

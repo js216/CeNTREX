@@ -166,16 +166,16 @@ class ControlGUI(tk.Frame):
             fd = tk.LabelFrame(fr, text=dev.config["label"])
             fd.grid(padx=10, pady=10, sticky="w", row=dev.config["row"], column=dev.config["column"])
 
-            for i, (c_name, c) in enumerate(dev.config["controls"].items()):
+            for c_name, c in dev.config["controls"].items():
                 if c_name == "LabelFrame":
                     continue
 
                 # place Checkbuttons
                 if c["type"] == "Checkbutton":
                     c["Checkbutton"] = tk.Checkbutton(fd, variable=c["var"])
-                    c["Checkbutton"].grid(row=i+1, column=1, sticky=tk.W)
+                    c["Checkbutton"].grid(row=c["row"], column=c["col"], sticky=tk.W)
                     c["Label"] = tk.Label(fd, text=c["label"])
-                    c["Label"].grid(row=i+1, column=0)
+                    c["Label"].grid(row=c["row"], column=c["col"]-1)
 
                 # place Buttons
                 if c["type"] == "Button":
@@ -186,14 +186,14 @@ class ControlGUI(tk.Frame):
                         c["Button"] = tk.Button(fd, text=c["label"], command= lambda dev=dev,
                                 cmd=c["command"], arg=dev.config["controls"][c["argument"]]["var"]:
                                     self.queue_command(dev, cmd+"("+arg.get()+")"))
-                    c["Button"].grid(row=i+1+c["row_offset"], column=c["column"], sticky=tk.W)
+                    c["Button"].grid(row=c["row"], column=c["col"], sticky=tk.W)
 
                 # place Entries
                 elif c["type"] == "Entry":
                     c["Entry"] = tk.Entry(fd, textvariable=c["var"])
-                    c["Entry"].grid(row=i+1, column=1, sticky="nsew")
+                    c["Entry"].grid(row=c["row"], column=c["col"],sticky="nsew")
                     c["Label"] = tk.Label(fd, text=c["label"])
-                    c["Label"].grid(row=i+1, column=0)
+                    c["Label"].grid(row=c["row"], column=c["col"]-1)
 
                 # place OptionMenus
                 elif c["type"] == "OptionMenu":
@@ -203,9 +203,9 @@ class ControlGUI(tk.Frame):
                         c["OptionMenu"] = tk.OptionMenu(fd, c["var"], *c["options"],
                                 command= lambda x, dev=dev, cmd=c["command"]:
                                     self.queue_command(dev, cmd+"('"+x.strip()+"')"))
-                    c["OptionMenu"].grid(row=i+1, column=1, sticky=tk.W)
+                    c["OptionMenu"].grid(row=c["row"], column=c["col"], sticky=tk.W)
                     c["Label"] = tk.Label(fd, text=c["label"])
-                    c["Label"].grid(row=i+1, column=0)
+                    c["Label"].grid(row=c["row"], column=c["col"]-1)
 
     def queue_command(self, dev, command):
         dev.commands.append(command)
@@ -405,31 +405,37 @@ class CentrexGUI(tk.Frame):
             for c in params.sections():
                 if params[c].get("type") == "Checkbutton":
                     ctrls[c] = {}
-                    ctrls[c]["label"] = params[c]["label"]
-                    ctrls[c]["type"]  = params[c]["type"]
-                    ctrls[c]["var"]   = tk.BooleanVar()
+                    ctrls[c]["label"]      = params[c]["label"]
+                    ctrls[c]["type"]       = params[c]["type"]
+                    ctrls[c]["row"]        = int(params[c]["row"])
+                    ctrls[c]["col"]        = int(params[c]["col"])
+                    ctrls[c]["var"]        = tk.BooleanVar()
                     ctrls[c]["var"].set(params[c]["value"])
                 elif params[c].get("type") == "Button":
                     ctrls[c] = {}
                     ctrls[c]["label"]      = params[c]["label"]
                     ctrls[c]["type"]       = params[c]["type"]
+                    ctrls[c]["row"]        = int(params[c]["row"])
+                    ctrls[c]["col"]        = int(params[c]["col"])
                     ctrls[c]["command"]    = params[c]["command"]
                     ctrls[c]["argument"]   = params[c]["argument"]
-                    ctrls[c]["row_offset"] = int(params[c]["row_offset"])
-                    ctrls[c]["column"]     = int(params[c]["column"])
                 elif params[c].get("type") == "Entry":
                     ctrls[c] = {}
-                    ctrls[c]["label"] = params[c]["label"]
-                    ctrls[c]["type"]  = params[c]["type"]
-                    ctrls[c]["var"]   = tk.StringVar()
+                    ctrls[c]["label"]      = params[c]["label"]
+                    ctrls[c]["type"]       = params[c]["type"]
+                    ctrls[c]["row"]        = int(params[c]["row"])
+                    ctrls[c]["col"]        = int(params[c]["col"])
+                    ctrls[c]["var"]        = tk.StringVar()
                     ctrls[c]["var"].set(params[c]["value"])
                 elif params[c].get("type") == "OptionMenu":
                     ctrls[c] = {}
-                    ctrls[c]["label"]   = params[c]["label"]
-                    ctrls[c]["type"]    = params[c]["type"]
-                    ctrls[c]["command"] = params[c]["command"]
-                    ctrls[c]["options"] = params[c]["options"].split(",")
-                    ctrls[c]["var"]     = tk.StringVar()
+                    ctrls[c]["label"]      = params[c]["label"]
+                    ctrls[c]["type"]       = params[c]["type"]
+                    ctrls[c]["row"]        = int(params[c]["row"])
+                    ctrls[c]["col"]        = int(params[c]["col"])
+                    ctrls[c]["command"]    = params[c]["command"]
+                    ctrls[c]["options"]    = params[c]["options"].split(",")
+                    ctrls[c]["var"]        = tk.StringVar()
                     ctrls[c]["var"].set(params[c]["value"])
 
             # make a Device object

@@ -118,8 +118,6 @@ remote interface of the instrument, also defines the following functions:
 ## Todo
 
 - general
-   - make the loop delay changable while running
-   - don't depend on dictionary to be ordered: have row/column for each control
    - Hornet IG control should be buttons
    - LakeShore330 setpoint control
    - describe Program Organization in the readme

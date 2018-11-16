@@ -11,6 +11,27 @@
 
 This is the software to control and record the parameters of the Centrex experiment.
 
+## Program organization
+
+The main program is an object of the `CentrexGUI` class. It reads the
+configuration files when it starts (through the `read_config()` function), then
+instantiates the classes that draw the graphical user interface. When the
+program exits, it saves its configuration back to the config files (through the
+`save_config()` function, to be implemented).
+
+So far, the only implemented GUI class is `ControlGUI`, which is a canvas for
+control of recording and external devices such as temperature controllers and
+pulse tube compressors. As detailed in the next section, the information in
+device config files is automatically read and translated into usable controls
+that appear in the GUI.
+
+However, the controls in `ControlGUI` do not access the drivers, let alone the
+devices, directly. Instead, `ControlGUI` instantiates `Device` objects that in
+communicate with the drivers to record parameters and pass commands to the
+external devices. This enables thread-based parallelism; each `Device` instance
+runs in a separate thread for quasi-synchronous control of devices.
+
+
 ## Configuration files
 
 Upon starting, the program reads the general configuration file
@@ -21,39 +42,44 @@ Device configurations are read from `.ini` files in the `config/devices`
 directory. These files have the structure:
 
     [device]
-    name = bottom_compressor   # name of device as used internally by the program
-    label = Bottom compressor  # name of the device as displayed by the program
-    path = beam_source/thermal # where to store the numerical CSV/HDF data
-    driver = CPA1110           # name of the driver class
-    correct_response = 50306   # for connection testing
-
-    [attributes]               # attributes to be stored with the HDF dataset
-    units = s, F, F, F, F, psi, psi, psi, psi, psi, amps
+    name = Hornet               # name of device as used internally by the program
+    label = Hornet              # name of the device as displayed by the program
+    path = beam_source/pressure # where to store the numerical CSV/HDF data
+    driver = Hornet             # name of the driver class
+    correct_response = True     # for connection testing
+    row = 0                     # row in the main program to place the controls in
+    column = 0                  # column for the same
+    
+    [attributes]                # attributes to be stored with the HDF dataset
+    column_names = time, IG pressure
+    units = s, torr
     ...
-
-    [enabled]
-    type = Checkbutton
-    value = 1
-
-    [dt]                       # loop delay
-    type = Entry
-    value = 1.0
 
     [...]                      # any number of further controls for the device
-    ...
 
-The information in these files is passed as a dictionary to the constructor of
-`Device` objects:
+Four kinds of controls are supported: `Checkbutton`, `Entry`, `OptionMenu`, and
+`Button`. All controls require a label (for `Button`s, it gets placed on the
+button, for other controls, the label will appear to the left of the control), a
+type, and the `row`/`col` where they are to appear in the list of controls for a
+given device. Some controls require other options (e.g., `Button`s need the
+function that is called when the button is pressed); see configuration files in
+`config/devices` for examples.
 
-    dev_config = {
-                "name"              : params["device"]["name"],
-                "label"             : params["device"]["label"],
-                "path"              : params["device"]["path"],
-                "correct_response"  : params["device"]["correct_response"],
-                "driver"            : eval(paramsdevice[]["driver"]),
-                "attributes"        : params["attributes"],
-                "controls"          : {},
-            }
+The information in these files is passed as a dictionary (named `config`) to the
+constructor of `Device` objects:
+
+    config = {
+       "name"              : ...,
+       "label"             : ...,
+       "current_run_dir"   : ...,   # where the CSV files are to be stored
+       "path"              : ...,
+       "correct_response"  : ...,
+       "row"               : ...,
+       "column"            : ...,
+       "driver"            : ...,
+       "attributes"        : ...,   # dictionary of above-listed attributes
+       "controls"          : ...,
+   }
 
 Most elements here are already explained above. The `controls` dictionary is to
 contain everything related to the control of the device: the GUI elements, the
@@ -118,10 +144,10 @@ remote interface of the instrument, also defines the following functions:
 ## Todo
 
 - general
-   - describe Program Organization in the readme
    - commands and errors should be recorded in the event log
    - feedback for control commands
    - make tabs
+   - save config on program exit
 - recording
    - Available disk space; current size of dataset.
    - refresh COM ports after starting the program, not before

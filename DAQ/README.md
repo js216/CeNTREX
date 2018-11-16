@@ -31,7 +31,6 @@ communicate with the drivers to record parameters and pass commands to the
 external devices. This enables thread-based parallelism; each `Device` instance
 runs in a separate thread for quasi-synchronous control of devices.
 
-
 ## Configuration files
 
 Upon starting, the program reads the general configuration file
@@ -87,9 +86,14 @@ related variables, etc.
 
 ## Data structure
 
-The data is to be stored in an HDF5 file. Each experimental run (e.g. initial
-pumpdown, testing the pulse tube cooling / heaters, etc.) is its own group. Each
-of these groups in turn contains subgroups:
+The data from each run is initially stored in a series of CSV files for
+robustness and ease of monitoring. When the trial is completed, the user is
+encouraged to push the data to a HDF5 file by pressing the "Write to HDF"
+button, or invoking the `write_to_HDF()` function.
+
+In the HDF file, each experimental run (e.g. initial pumpdown, testing the pulse
+tube cooling / heaters, etc.) is its own group. Each of these groups in turn
+contains subgroups:
 
      /beam_source/pressure
                   thermal
@@ -144,19 +148,15 @@ remote interface of the instrument, also defines the following functions:
 ## Todo
 
 - general
-   - commands and errors should be recorded in the event log
    - feedback for control commands
-   - make tabs
    - save config on program exit
 - recording
    - Available disk space; current size of dataset.
-   - refresh COM ports after starting the program, not before
-   - deal with excessive number of np.nan returns
-   - `write_to_HDF()` should only write the enabled devices
    - make the attributes dialog box
    - hoover tooltip for the dt Entry
    - make resizing work correctly
 - more drivers
+   - flood control and MKS control
    - Vacuum pumps
    - counter for the atomic clock
    - Room temperature & humidity for main lab and compressor cabinet.

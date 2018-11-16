@@ -341,18 +341,20 @@ class ControlGUI(tk.Frame):
         # open HDF file and create groups
         with h5py.File(self.parent.config["hdf_fname"].get(), 'a') as f:
             root = f.create_group(str(int(time.time())) + " " + self.parent.config["run_name"].get())
-            for key in self.parent.devices:
-                d = self.parent.devices[key]
-                grp = root.require_group(d.config["path"])
+            for dev_name, dev in self.parent.devices.items():
+                if not dev.config["controls"]["enabled"]["var"].get():
+                    continue
+                grp = root.require_group(dev.config["path"])
 
                 # read CSV and write to HDF
                 dev_CSV = np.loadtxt(self.parent.config["current_run_dir"].get() + "/" +
-                                        d.config["path"] + "/" + d.config["name"] + ".csv", delimiter=',')
-                dev_dset = grp.create_dataset(d.config["name"], data=dev_CSV, dtype='f')
+                                        dev.config["path"] + "/" + dev.config["name"] + ".csv", delimiter=',')
+                dev_dset = grp.create_dataset(dev.config["name"], data=dev_CSV, dtype='f')
 
                 # write attributes to HDF
-                with open(self.parent.config["current_run_dir"].get() + "/" + d.config["path"] + "/" + d.config["name"] +
-                                        "_params.csv", 'r', newline='\n') as dev_params_f:
+                with open(self.parent.config["current_run_dir"].get() + "/" +
+                        dev.config["path"] + "/" + dev.config["name"] +
+                        "_params.csv", 'r', newline='\n') as dev_params_f:
                     dev_params_CSV = csv.reader(dev_params_f, delimiter=',')
                     for col in dev_params_CSV:
                         if len(col) == 2:

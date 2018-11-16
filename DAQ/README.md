@@ -79,7 +79,7 @@ constructor of `Device` objects:
        "driver"            : ...,
        "attributes"        : ...,   # dictionary of above-listed attributes
        "controls"          : ...,
-   }
+    }
 
 Most elements here are already explained above. The `controls` dictionary is to
 contain everything related to the control of the device: the GUI elements, the
@@ -157,8 +157,5 @@ remote interface of the instrument, also defines the following functions:
    - counter for the atomic clock
    - Room temperature & humidity for main lab and compressor cabinet.
 - status tab
-   - Status of recording controls.
-   - Graphical presentation of temperatures.
-   - Status of lasers.
-   - Vacuum chamber pressure.
-   - Plots of all temperatures vs time (easy to change axes to look up past data).
+   - current values of all parameters
+   - adjustable plots of an arbitrary number of parameters

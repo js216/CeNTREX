@@ -30,14 +30,11 @@ class Device(threading.Thread):
         threading.Thread.__init__(self)
         self.rm = pyvisa.ResourceManager()
 
-        # record the device operating parameters
+        # select and record the time offset
         self.config["time_offset"] = time.time()
-        CSV_fname = self.config["current_run_dir"]+"/"+self.config["path"]+"/"+self.config["name"]+"_params.csv"
-        with open(CSV_fname,'w') as params_f:
-            dev_params = csv.writer(params_f)
-            dev_params.writerow(["time_offset", self.config["time_offset"]])
-            for attr_name, attr in self.config["attributes"].items():
-                dev_params.writerow([attr_name, attr])
+        to_fname = self.config["current_run_dir"]+"/"+self.config["path"]+"/"+self.config["name"]+"_time_offset.csv"
+        with open(to_fname,'w') as to_f:
+            to_f.write(str(self.config["time_offset"]))
 
         # verify the device responds correctly
         COM_port = self.config["controls"]["COM_port"]["var"].get()
@@ -67,10 +64,11 @@ class Device(threading.Thread):
                     # record numerical values
                     dev_dset.writerow( [time.time() - self.config["time_offset"]] + device.ReadValue() )
 
-                    # send control commands, if any, to the device
+                    # send control commands, if any, to the device, and record return values
                     for c in self.commands:
                         ret_val = eval("device." + c)
-                        events_dset.writerow([ time.time()-self.config["time_offset"], ret_val ])
+                        ret_val = "None" if not ret_val else ret_val
+                        events_dset.writerow([ time.time()-self.config["time_offset"], c, ret_val ])
                     self.commands = []
 
                     # loop delay
@@ -373,21 +371,26 @@ class ControlGUI(tk.Frame):
                 dev_dset = grp.create_dataset(dev.config["name"], data=dev_CSV, dtype='f')
 
                 # write command events, if any, to HDF
-                events_CSV = np.loadtxt(self.parent.config["current_run_dir"].get() + "/" +
-                        dev.config["path"] + "/" + dev.config["name"] + "_events.csv", delimiter=',')
-                events_dset = grp.create_dataset(dev.config["name"],
-                        data=events_CSV, dtype=h5py.special_dtype(vlen=str))
+                events_fname = self.parent.config["current_run_dir"].get() + "/" + dev.config["path"] + "/" + dev.config["name"] + "_events.csv"
+                if os.stat(events_fname).st_size != 0:
+
+                    # read events as a list of lists of ascii strings
+                    with open(events_fname,'r',newline='\n') as events_f:
+                        events_list = []
+                        for row in csv.reader(events_f, delimiter=','):
+                            events_list.append([x.encode("ascii") for x in row])
+
+                    events_dset = grp.create_dataset(dev.config["name"] + " events",
+                            data=events_list, dtype=h5py.special_dtype(vlen=bytes))
+
+                # write time offset to HDF
+                to_fname = dev.config["current_run_dir"] + "/" + dev.config["path"] + "/" + dev_name + "_time_offset.csv"
+                with open(to_fname,'r') as to_f:
+                    dev_dset.attrs["time_offset"] = float(to_f.read())
 
                 # write attributes to HDF
-                with open(self.parent.config["current_run_dir"].get() + "/" +
-                        dev.config["path"] + "/" + dev.config["name"] +
-                        "_params.csv", 'r', newline='\n') as dev_params_f:
-                    dev_params_CSV = csv.reader(dev_params_f, delimiter=',')
-                    for col in dev_params_CSV:
-                        if len(col) == 2:
-                            dev_dset.attrs[col[0]] = col[1]
-                        else:
-                            dev_dset.attrs[col[0]] = asc(col[1:])
+                for attr_name, attr in dev.config["attributes"].items():
+                    dev_dset.attrs[attr_name] = attr
 
         self.status = "writtenToHDF"
         self.status_message.set("Written to HDF")

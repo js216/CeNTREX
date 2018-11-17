@@ -51,10 +51,13 @@ class Device(threading.Thread):
         if not self.operational:
             return
 
-        # open CSV file
+        # open CSV files
         CSV_fname = self.config["current_run_dir"]+"/"+self.config["path"]+"/"+self.config["name"]+".csv"
-        with open(CSV_fname,'a',1) as CSV_f:
+        events_fname = self.config["current_run_dir"]+"/"+self.config["path"]+"/"+self.config["name"]+"_events.csv"
+        with open(CSV_fname,'a',1) as CSV_f,\
+             open(events_fname,'a',1) as events_f:
             dev_dset = csv.writer(CSV_f)
+            events_dset = csv.writer(events_f)
             COM_port = self.config["controls"]["COM_port"]["var"].get()
 
             # main control loop
@@ -62,11 +65,12 @@ class Device(threading.Thread):
             with self.config["driver"](self.rm, COM_port) as device: 
                 while self.active.is_set():
                     # record numerical values
-                    dev_dset.writerow([ time.time() - self.config["time_offset"]] + device.ReadValue() )
+                    dev_dset.writerow( [time.time() - self.config["time_offset"]] + device.ReadValue() )
 
                     # send control commands, if any, to the device
                     for c in self.commands:
-                        eval("device." + c)
+                        ret_val = eval("device." + c)
+                        events_dset.writerow([ time.time()-self.config["time_offset"], ret_val ])
                     self.commands = []
 
                     # loop delay
@@ -118,13 +122,13 @@ class ControlGUI(tk.Frame):
         ########################################
 
         files_frame = tk.LabelFrame(self.parent, text="Files")
-        files_frame.grid(row=1, padx=10, pady=10, sticky=tk.W)
+        files_frame.grid(row=1, padx=10, pady=10, sticky="nsew")
 
         tk.Label(files_frame, text="Current run directory:")\
                 .grid(row=0, column=0, sticky=tk.E)
-        run_dir_entry = tk.Entry(files_frame, width=30,
+        run_dir_entry = tk.Entry(files_frame, width=43,
                 textvariable=self.parent.config["current_run_dir"])\
-                .grid(row=0, column=1, sticky=tk.W)
+                .grid(row=0, column=1, sticky="nsew")
         run_dir_button = tk.Button(files_frame, text="Open...",
                 command = lambda: self.open_dir("current_run_dir"))\
                 .grid(row=0, column=2, sticky=tk.W)
@@ -135,9 +139,9 @@ class ControlGUI(tk.Frame):
 
         tk.Label(files_frame, text="HDF file:")\
                 .grid(row=1, column=0, sticky=tk.E)
-        HDF_file_entry = tk.Entry(files_frame, width=30,
+        HDF_file_entry = tk.Entry(files_frame,
                 textvariable=self.parent.config["hdf_fname"])\
-                .grid(row=1, column=1, sticky=tk.W)
+                .grid(row=1, column=1, sticky="nsew")
         run_dir_button = tk.Button(files_frame, text="Open...",
                 command = lambda: self.open_file("hdf_fname"))\
                 .grid(row=1, column=2, sticky=tk.W)
@@ -147,9 +151,9 @@ class ControlGUI(tk.Frame):
 
         tk.Label(files_frame, text="Run name:")\
                 .grid(row=2, column=0, sticky=tk.E)
-        run_name_entry = tk.Entry(files_frame, width=30,
+        run_name_entry = tk.Entry(files_frame,
                 textvariable=self.parent.config["run_name"])\
-                .grid(row=2, column=1, sticky=tk.W)
+                .grid(row=2, column=1, sticky="nsew")
         HDF_write_button = tk.Button(files_frame, command=self.write_to_HDF,
                 text="Write to HDF", width=20)\
                 .grid(row=2, column=3, sticky=tk.W)
@@ -355,15 +359,24 @@ class ControlGUI(tk.Frame):
         # open HDF file and create groups
         with h5py.File(self.parent.config["hdf_fname"].get(), 'a') as f:
             root = f.create_group(str(int(time.time())) + " " + self.parent.config["run_name"].get())
+
             for dev_name, dev in self.parent.devices.items():
+                # check the device is enabled
                 if not dev.config["controls"]["enabled"]["var"].get():
                     continue
+
                 grp = root.require_group(dev.config["path"])
 
                 # read CSV and write to HDF
                 dev_CSV = np.loadtxt(self.parent.config["current_run_dir"].get() + "/" +
                                         dev.config["path"] + "/" + dev.config["name"] + ".csv", delimiter=',')
                 dev_dset = grp.create_dataset(dev.config["name"], data=dev_CSV, dtype='f')
+
+                # write command events, if any, to HDF
+                events_CSV = np.loadtxt(self.parent.config["current_run_dir"].get() + "/" +
+                        dev.config["path"] + "/" + dev.config["name"] + "_events.csv", delimiter=',')
+                events_dset = grp.create_dataset(dev.config["name"],
+                        data=events_CSV, dtype=h5py.special_dtype(vlen=str))
 
                 # write attributes to HDF
                 with open(self.parent.config["current_run_dir"].get() + "/" +

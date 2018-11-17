@@ -149,7 +149,7 @@ remote interface of the instrument, also defines the following functions:
 ## Todo
 
 - general
-   - log commands and their return values
+   - don't write attributes to CSV
    - save config on program exit
 - more drivers
    - flood control and MKS control

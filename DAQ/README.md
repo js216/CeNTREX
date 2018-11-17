@@ -15,9 +15,8 @@ This is the software to control and record the parameters of the Centrex experim
 
 The main program is an object of the `CentrexGUI` class. It reads the
 configuration files when it starts (through the `read_config()` function), then
-instantiates the classes that draw the graphical user interface. When the
-program exits, it saves its configuration back to the config files (through the
-`save_config()` function, to be implemented).
+instantiates the classes that draw the graphical user interface. Note that the
+program does not write to the configuration files.
 
 So far, the only implemented GUI class is `ControlGUI`, which is a canvas for
 control of recording and external devices such as temperature controllers and
@@ -148,13 +147,9 @@ remote interface of the instrument, also defines the following functions:
 
 ## Todo
 
-- general
-   - don't write attributes to CSV
-   - save config on program exit
 - more drivers
    - flood control and MKS control
    - Vacuum pumps
-   - counter for the atomic clock
    - Room temperature & humidity for main lab and compressor cabinet.
 - status tab
    - current values of all parameters

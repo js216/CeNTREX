@@ -10,7 +10,6 @@ import time
 import numpy as np
 import csv
 import shutil, errno
-import atexit
 import threading
 import h5py
 
@@ -400,7 +399,6 @@ class CentrexGUI(tk.Frame):
         tk.Frame.__init__(self, parent, *args, **kwargs)
         self.winfo_toplevel().title("CENTREX Slow DAQ")
         self.parent = parent
-        atexit.register(self.save_config)
         self.read_config()
 
         # GUI elements
@@ -477,10 +475,6 @@ class CentrexGUI(tk.Frame):
 
             # make a Device object
             self.devices[params["device"]["name"]] = Device(dev_config)
-
-    def save_config(self):
-        # TODO
-        pass
 
 if __name__ == "__main__":
     root = tk.Tk()

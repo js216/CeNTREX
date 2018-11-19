@@ -44,7 +44,7 @@ class USB6008:
             task.ReadAnalogScalarF64(1.0, PyDAQmx.byref(flow), None)
         return float(str(flow)[9:-1])
 
-    def FloodCheck(self):
+    def CheckFlood(self):
         """Check for flooding of the compressor cabinet.
 
         Flood sensor is a relay that is closed in normal operation and open when
@@ -76,9 +76,8 @@ class USB6008:
 
                 # check that the read value matches the written value
             if test_val != data[0]:
-                print("FLOOD!!!")
-                return False
-            return True
+                return "flooding"
+            return "no flood"
 
     #################################################################
     ##########              CONTROL COMMANDS               ##########

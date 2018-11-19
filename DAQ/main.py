@@ -186,13 +186,15 @@ class ControlGUI(tk.Frame):
 
                 # place Buttons
                 if c["type"] == "Button":
+                    # determine the button command
                     if c["argument"] == "":
-                        c["Button"] = tk.Button(fd, text=c["label"],
-                                command= lambda dev=dev, cmd=c["command"]+"()": self.queue_command(dev, cmd))
+                        command = lambda dev=dev, cmd=c["command"]+"()": self.queue_command(dev, cmd)
                     else:
-                        c["Button"] = tk.Button(fd, text=c["label"], command= lambda dev=dev,
-                                cmd=c["command"], arg=dev.config["controls"][c["argument"]]["var"]:
-                                    self.queue_command(dev, cmd+"("+arg.get()+")"))
+                        command = lambda dev=dev, cmd=c["command"],\
+                                    arg=dev.config["controls"][c["argument"]]["var"]:\
+                                    self.queue_command(dev, cmd+"("+arg.get()+")")
+                    # place the button
+                    c["Button"] = tk.Button(fd, text=c["label"], command=command)
                     if c.get("align") == None:
                         c["Button"].grid(row=c["row"], column=c["col"], sticky=tk.W)
                     else:
@@ -453,7 +455,7 @@ class CentrexGUI(tk.Frame):
                     ctrls[c]["type"]       = params[c]["type"]
                     ctrls[c]["row"]        = int(params[c]["row"])
                     ctrls[c]["col"]        = int(params[c]["col"])
-                    ctrls[c]["command"]    = params[c]["command"]
+                    ctrls[c]["command"]    = params[c].get("command")
                     ctrls[c]["argument"]   = params[c]["argument"]
                     ctrls[c]["align"]      = params[c].get("align")
                 elif params[c].get("type") == "Entry":

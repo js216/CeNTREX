@@ -149,7 +149,6 @@ remote interface of the instrument, also defines the following functions:
 ## Todo
 
 - more drivers
-   - flood control and MKS control
    - Vacuum pumps
    - Room temperature & humidity for main lab and compressor cabinet.
 - status tab

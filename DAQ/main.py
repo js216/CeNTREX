@@ -17,6 +17,7 @@ from drivers import Hornet
 from drivers import LakeShore218 
 from drivers import LakeShore330 
 from drivers import CPA1110
+from drivers import USB6008
 
 class Device(threading.Thread):
     def __init__(self, config):
@@ -36,8 +37,8 @@ class Device(threading.Thread):
             to_f.write(str(self.config["time_offset"]))
 
         # verify the device responds correctly
-        COM_port = self.config["controls"]["COM_port"]["var"].get()
-        with self.config["driver"](self.rm, COM_port) as dev: 
+        constr_params = [self.config["controls"][cp]["var"].get() for cp in self.config["constr_params"]]
+        with self.config["driver"](self.rm, *constr_params) as dev: 
             self.operational = dev.VerifyOperation() == self.config["correct_response"]
 
         self.rm.close()
@@ -54,11 +55,11 @@ class Device(threading.Thread):
              open(events_fname,'a',1) as events_f:
             dev_dset = csv.writer(CSV_f)
             events_dset = csv.writer(events_f)
-            COM_port = self.config["controls"]["COM_port"]["var"].get()
+            constr_params = [self.config["controls"][cp]["var"].get() for cp in self.config["constr_params"]]
 
             # main control loop
             self.rm = pyvisa.ResourceManager()
-            with self.config["driver"](self.rm, COM_port) as device: 
+            with self.config["driver"](self.rm, *constr_params) as device: 
                 while self.active.is_set():
                     # record numerical values
                     dev_dset.writerow( [time.time() - self.config["time_offset"]] + device.ReadValue() )
@@ -430,6 +431,7 @@ class CentrexGUI(tk.Frame):
                         "row"               : params["device"]["row"],
                         "column"            : params["device"]["column"],
                         "driver"            : eval(params["device"]["driver"]),
+                        "constr_params"     : [x.strip() for x in params["device"]["constr_params"].split(",")],
                         "attributes"        : params["attributes"],
                         "controls"          : {},
                     }

@@ -44,6 +44,7 @@ directory. These files have the structure:
     label = Hornet              # name of the device as displayed by the program
     path = beam_source/pressure # where to store the numerical CSV/HDF data
     driver = Hornet             # name of the driver class
+    constr_params = COM_port    # parameters to be passed to the driver constructor
     correct_response = True     # for connection testing
     row = 0                     # row in the main program to place the controls in
     column = 0                  # column for the same
@@ -55,13 +56,13 @@ directory. These files have the structure:
 
     [...]                      # any number of further controls for the device
 
-Four kinds of controls are supported: `Checkbutton`, `Entry`, `OptionMenu`, and
+Four types of controls are supported: `Checkbutton`, `Entry`, `OptionMenu`, and
 `Button`. All controls require a label (for `Button`s, it gets placed on the
-button, for other controls, the label will appear to the left of the control), a
-type, and the `row`/`col` where they are to appear in the list of controls for a
-given device. Some controls require other options (e.g., `Button`s need the
-device driver function that is called when the button is pressed); see
-configuration files in `config/devices` for examples.
+button, for other controls, the label will appear to the left of the control),
+the control type, and the `row`/`col` where they are to appear in the list of
+controls for a given device. Some controls require other options (e.g.,
+`Button`s need the device driver function that is called when the button is
+pressed); see configuration files in `config/devices` for examples.
 
 The information in these files is passed as a dictionary (named `config`) to the
 constructor of `Device` objects:

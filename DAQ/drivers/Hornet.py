@@ -100,9 +100,13 @@ class Hornet:
         When IG error exists: ?01_INVALID_<CR>
         """
         try:
-            return self.query("#" + self.address + "IG1")
+            ret_val = self.query("#" + self.address + "IG1").strip()
         except pyvisa.errors.VisaIOError:
             logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
+        if ret_val == "*" + str(self.address) + " PROGM OK":
+            return ret_val
+        else:
             return np.nan
 
     def TurnIGOff(self):
@@ -112,9 +116,13 @@ class Hornet:
         *xx_PROGM_OK<CR> (clears any errors)
         """
         try:
-            return self.query("#" + self.address + "IG0")
+            ret_val = self.query("#" + self.address + "IG0").strip()
         except pyvisa.errors.VisaIOError:
             logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
+            return np.nan
+        if ret_val == "*" + str(self.address) + " PROGM OK":
+            return ret_val
+        else:
             return np.nan
 
     def ReadIGStatus(self):

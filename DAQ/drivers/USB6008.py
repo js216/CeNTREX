@@ -23,7 +23,7 @@ class USB6008:
         pass
 
     def ReadValue(self):
-        return [self.ReadFlowSignal(), self.setpoint]
+        return [self.ReadFlowSignal(), self.setpoint_sccm]
 
     def VerifyOperation(self):
         try:
@@ -94,9 +94,10 @@ class USB6008:
     ##########              CONTROL COMMANDS               ##########
     #################################################################
 
-    def SetPointControl(self, setpoint):
+    def SetPointControl(self, setpoint_sccm):
         # calculate the setpoint voltage from sccm
-        self.setpoint = setpoint / 100 * 5
+        self.setpoint_sccm = setpoint_sccm
+        self.setpoint_V = self.setpoint_sccm / 100 * 5
 
         # check for too high a setpoint
         if self.setpoint > 100:
@@ -108,4 +109,4 @@ class USB6008:
                 PyDAQmx.DAQmx_Val_Volts,None)
             task.SetSampTimingType(PyDAQmx.DAQmx_Val_OnDemand)
             task.StartTask()
-            task.WriteAnalogScalarF64(True, 1.0, self.setpoint, None)
+            task.WriteAnalogScalarF64(True, 1.0, self.setpoint_V, None)

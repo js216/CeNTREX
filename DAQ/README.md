@@ -145,12 +145,3 @@ remote interface of the instrument, also defines the following functions:
   LakeShore monitors, `ReadValue()` returns all the measured temperatures)
 - `VerifyOperation()`: returns a string characteristic of the instrument, used
   to verify the instrument is connected correctly
-
-## Todo
-
-- more drivers
-   - Vacuum pumps
-   - Room temperature & humidity for main lab and compressor cabinet.
-- status tab
-   - current values of all parameters
-   - adjustable plots of an arbitrary number of parameters

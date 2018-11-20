@@ -13,6 +13,9 @@ class USB6008:
         self.flood_in        = flood_in
         self.flood_out       = flood_out
 
+        self.setpoint        = 0.0
+        self.SetPointControl(self.setpoint)
+
     def __enter__(self):
         return self
 
@@ -20,7 +23,7 @@ class USB6008:
         pass
 
     def ReadValue(self):
-        return [self.ReadFlowSignal()]
+        return [self.ReadFlowSignal(), self.setpoint]
 
     def VerifyOperation(self):
         try:
@@ -36,9 +39,14 @@ class USB6008:
     def ReadFlowSignal(self):
         flow = PyDAQmx.float64()
         with PyDAQmx.Task() as task:
-            task.CreateAIVoltageChan(self.flow_signal_out,"",
-                PyDAQmx.DAQmx_Val_Cfg_Default, 0.0, 5.0,
-                PyDAQmx.DAQmx_Val_Volts,None)
+            task.CreateAIVoltageChan(
+                    physicalChannel       = "/Dev1/ai0",
+                    nameToAssignToChannel = "",
+                    terminalConfig        = PyDAQmx.DAQmx_Val_RSE,
+                    minVal                = 0.0,
+                    maxVal                = 1.0,
+                    units                 = PyDAQmx.DAQmx_Val_Volts,
+                    customScaleName       = None)
             task.SetSampTimingType(PyDAQmx.DAQmx_Val_OnDemand)
             task.StartTask()
             task.ReadAnalogScalarF64(1.0, PyDAQmx.byref(flow), None)
@@ -84,6 +92,7 @@ class USB6008:
     #################################################################
 
     def SetPointControl(self, setpoint):
+        self.setpoint = setpoint
         """Set setpoint in volts (5 volts max)."""
         if setpoint > 5:
             raise ValueError("Setpoint too high.")

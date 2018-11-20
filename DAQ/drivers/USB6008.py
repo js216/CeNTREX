@@ -50,7 +50,10 @@ class USB6008:
             task.SetSampTimingType(PyDAQmx.DAQmx_Val_OnDemand)
             task.StartTask()
             task.ReadAnalogScalarF64(1.0, PyDAQmx.byref(flow), None)
-        return float(str(flow)[9:-1])
+
+        # calculate the flow rate from voltage
+        flow_signal = float(str(flow)[9:-1])
+        return flow_signal / 5 * 100
 
     def CheckFlood(self):
         """Check for flooding of the compressor cabinet.

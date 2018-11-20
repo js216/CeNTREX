@@ -92,13 +92,17 @@ class USB6008:
     #################################################################
 
     def SetPointControl(self, setpoint):
-        self.setpoint = setpoint
-        """Set setpoint in volts (5 volts max)."""
-        if setpoint > 5:
+        # calculate the setpoint voltage from sccm
+        self.setpoint = setpoint / 100 * 5
+
+        # check for too high a setpoint
+        if self.setpoint > 100:
             raise ValueError("Setpoint too high.")
+
+        # set setpoint
         with PyDAQmx.Task() as task:
             task.CreateAOVoltageChan(self.setpoint_in, "", 0.0, 5.0,
                 PyDAQmx.DAQmx_Val_Volts,None)
             task.SetSampTimingType(PyDAQmx.DAQmx_Val_OnDemand)
             task.StartTask()
-            task.WriteAnalogScalarF64(True, 1.0, setpoint, None)
+            task.WriteAnalogScalarF64(True, 1.0, self.setpoint, None)

@@ -30,9 +30,18 @@ class Device(threading.Thread):
         threading.Thread.__init__(self)
         self.rm = pyvisa.ResourceManager()
 
+        # check the directory for CSV files exists, else create it
+        self.CSV_dir = self.config["current_run_dir"]+"/"+self.config["path"]
+        if not os.path.isdir(self.CSV_dir):
+            try:
+                os.mkdir(self.CSV_dir)
+            except OSError:
+                self.operational = False
+                return
+
         # select and record the time offset
         self.config["time_offset"] = time.time()
-        to_fname = self.config["current_run_dir"]+"/"+self.config["path"]+"/"+self.config["name"]+"_time_offset.csv"
+        to_fname = self.CSV_dir+"/"+self.config["name"]+"_time_offset.csv"
         with open(to_fname,'w') as to_f:
             to_f.write(str(self.config["time_offset"]))
 
@@ -49,8 +58,8 @@ class Device(threading.Thread):
             return
 
         # open CSV files
-        CSV_fname = self.config["current_run_dir"]+"/"+self.config["path"]+"/"+self.config["name"]+".csv"
-        events_fname = self.config["current_run_dir"]+"/"+self.config["path"]+"/"+self.config["name"]+"_events.csv"
+        CSV_fname = self.CSV_dir+"/"+self.config["name"]+".csv"
+        events_fname = self.CSV_dir+"/"+self.config["name"]+"_events.csv"
         with open(CSV_fname,'a',1) as CSV_f,\
              open(events_fname,'a',1) as events_f:
             dev_dset = csv.writer(CSV_f)
@@ -329,7 +338,7 @@ class ControlGUI(tk.Frame):
                 dev.setup_connection()
                 if not dev.operational:
                     messagebox.showerror("Device error",
-                            "Error: " + dev.config["label"] + " not responding correctly.")
+                            "Error: " + dev.config["label"] + " not responding correctly, or cannot access the directory for data storage.")
                     self.status_message.set("Device configuration error")
                     return
                 else:

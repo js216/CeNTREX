@@ -243,7 +243,7 @@ class ControlGUI(tk.Frame):
     def backup_current_run(self):
         current_run_dir = self.parent.config["current_run_dir"].get()
         backup_dir = filedialog.askdirectory(
-                initialdir = "C:/Users/CENTREX/Documents/data",
+                initialdir = self.parent.config["backup_dir"],
                 title = "Select directory to save current CSV files")
         if not backup_dir:
             return

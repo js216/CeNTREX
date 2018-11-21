@@ -218,6 +218,10 @@ class ControlGUI(tk.Frame):
                     c["Entry"].grid(row=c["row"], column=c["col"],sticky="nsew")
                     c["Label"] = tk.Label(fd, text=c["label"])
                     c["Label"].grid(row=c["row"], column=c["col"]-1, sticky=tk.E)
+                    if c["enter_cmd"]:
+                        command = lambda dev=dev, cmd=c["enter_cmd"], arg=c["var"]:\
+                                    self.queue_command(dev, cmd+"("+arg.get()+")")
+                        c["Entry"].bind("<Return>", command)
 
                 # place OptionMenus
                 elif c["type"] == "OptionMenu":
@@ -476,6 +480,7 @@ class CentrexGUI(tk.Frame):
                     ctrls[c]["type"]       = params[c]["type"]
                     ctrls[c]["row"]        = int(params[c]["row"])
                     ctrls[c]["col"]        = int(params[c]["col"])
+                    ctrls[c]["enter_cmd"]  = params[c].get("enter_command")
                     ctrls[c]["var"]        = tk.StringVar()
                     ctrls[c]["var"].set(params[c]["value"])
                 elif params[c].get("type") == "OptionMenu":

@@ -75,7 +75,10 @@ class Device(threading.Thread):
 
                     # send control commands, if any, to the device, and record return values
                     for c in self.commands:
-                        ret_val = eval("device." + c)
+                        try:
+                            ret_val = eval("device." + c)
+                        except ValueError as err:
+                            ret_val = str(err)
                         ret_val = "None" if not ret_val else ret_val
                         events_dset.writerow([ time.time()-self.config["time_offset"], c, ret_val ])
                     self.commands = []

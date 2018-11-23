@@ -61,10 +61,13 @@ class Hornet:
         When IG is off: CG only
         """
         try:
-            return float(self.query("#" + self.address + "RDS")[4:])
+            pressure = float(self.query("#" + self.address + "RDS")[4:])
         except pyvisa.errors.VisaIOError:
             logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
+        if pressure > 1e-3:
+            TurnIGOff()
+        return pressure
 
     def ReadCGnPressure(self, n):
         """Read the current pressure for CGn.

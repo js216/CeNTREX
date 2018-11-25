@@ -20,6 +20,50 @@ from drivers import LakeShore330
 from drivers import CPA1110
 from drivers import USB6008
 
+class VerticalScrolledFrame(tk.Frame):
+    """A pure Tkinter scrollable frame that actually works!
+    * Use the 'interior' attribute to place widgets inside the scrollable frame
+    * Construct and pack/place/grid normally
+    * This frame only allows vertical scrolling
+    (https://stackoverflow.com/questions/16188420/python-tkinter-scrollbar-for-frame)
+    """
+    def __init__(self, parent, *args, **kw):
+        tk.Frame.__init__(self, parent, *args, **kw)
+
+        # create a canvas object and a vertical scrollbar for scrolling it
+        vscrollbar = tk.Scrollbar(self, orient=tk.VERTICAL)
+        vscrollbar.pack(fill=tk.Y, side=tk.RIGHT, expand=tk.FALSE)
+        canvas = tk.Canvas(self, bd=0, highlightthickness=0,
+                yscrollcommand=vscrollbar.set)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=tk.TRUE)
+        vscrollbar.config(command=canvas.yview)
+
+        # reset the view
+        canvas.xview_moveto(0)
+        canvas.yview_moveto(0)
+
+        # create a frame inside the canvas which will be scrolled with it
+        self.interior = interior = tk.Frame(canvas)
+        interior_id = canvas.create_window(0, 0, window=interior,
+                anchor=tk.NW)
+
+        # track changes to the canvas and frame width and sync them,
+        # also updating the scrollbar
+        def _configure_interior(event):
+            # update the scrollbars to match the size of the inner frame
+            size = (interior.winfo_reqwidth(), interior.winfo_reqheight())
+            canvas.config(scrollregion="0 0 %s %s" % size)
+            if interior.winfo_reqwidth() != canvas.winfo_width():
+                # update the canvas's width to fit the inner frame
+                canvas.config(width=interior.winfo_reqwidth())
+        interior.bind('<Configure>', _configure_interior)
+
+        def _configure_canvas(event):
+            if interior.winfo_reqwidth() != canvas.winfo_width():
+                # update the inner frame's width to fill the canvas
+                canvas.itemconfigure(interior_id, width=canvas.winfo_width())
+        canvas.bind('<Configure>', _configure_canvas)
+
 class Device(threading.Thread):
     def __init__(self, config):
         self.active = threading.Event()
@@ -105,13 +149,18 @@ class ControlGUI(tk.Frame):
         self.place_GUI_elements()
 
     def place_GUI_elements(self):
+        # main frame for all ControlGUI elements
+        cgf = tk.LabelFrame(self.parent)
+        cgf.grid(row=0, column=0, sticky='nsew')
+        self.parent.rowconfigure(0, weight=1)
+        cgf.rowconfigure(2, weight=1)
+
         ########################################
         # control and status
         ########################################
 
-        control_frame = tk.LabelFrame(self.parent)
-        control_frame.grid(row=0, padx=10, pady=10, sticky="nsew")
-        control_frame.grid_columnconfigure(index=2, weight=1)
+        control_frame = tk.LabelFrame(cgf)
+        control_frame.grid(row=0, padx=10, pady=10, sticky="ew")
 
         # control start/stop buttons
         control_button = tk.Button(control_frame,
@@ -140,8 +189,8 @@ class ControlGUI(tk.Frame):
         # files
         ########################################
 
-        files_frame = tk.LabelFrame(self.parent, text="Files")
-        files_frame.grid(row=1, padx=10, pady=10, sticky="nsew")
+        files_frame = tk.LabelFrame(cgf, text="Files")
+        files_frame.grid(row=1, padx=10, pady=10, sticky="ew")
 
         tk.Label(files_frame, text="Current run directory:")\
                 .grid(row=0, column=0, sticky=tk.E)
@@ -181,8 +230,10 @@ class ControlGUI(tk.Frame):
         # devices
         ########################################
 
-        fr = tk.LabelFrame(self.parent, text="Devices")
-        fr.grid(row=2, padx=10, pady=10, sticky='nsew')
+        #fr = tk.LabelFrame(cgf, text="Devices")
+        fr_object = VerticalScrolledFrame(cgf)
+        fr = fr_object.interior
+        fr_object.grid(row=2, padx=10, pady=10, sticky='nsew')
 
         # the control to send a custom command to a specified device
         fc = tk.LabelFrame(fr, text="Send a custom command", padx=10, pady=10)

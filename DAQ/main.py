@@ -317,7 +317,6 @@ class ControlGUI(tk.Frame):
                 files = glob.glob(current_run_dir+"/beam_source/*/*")
                 for f in files:
                     os.remove(f)
-                self.status_message.set("Ready to start")
             except OSError:
                 messagebox.showerror("Delete error", "Error: cannot delete.")
                 return
@@ -325,7 +324,10 @@ class ControlGUI(tk.Frame):
         # check run_dir is now really empty
         current_run_dir = self.parent.config["current_run_dir"].get()
         if not self.directory_empty(current_run_dir):
-            messagebox.showerror("Delete error", "Error: cannot delete.")
+            messagebox.showerror("Delete error", "Deleting failed.")
+            self.status_message.set("Error: delete failed")
+        else:
+            self.status_message.set("Ready to start")
 
     def start_control(self):
         # check we're not running already

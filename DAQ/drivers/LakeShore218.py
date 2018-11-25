@@ -6,7 +6,12 @@ import numpy as np
 class LakeShore218:
     def __init__(self, rm, resource_name):
         self.rm = rm
-        self.instr = self.rm.open_resource(resource_name)
+        try:
+            self.instr = self.rm.open_resource(resource_name)
+        except pyvisa.errors.VisaIOError:
+            self.verification_string = "False"
+            self.instr = False
+            return
         self.instr.parity = pyvisa.constants.Parity.odd
         self.instr.data_bits = 7
         self.instr.baud_rate = 9600
@@ -17,7 +22,8 @@ class LakeShore218:
         return self
     
     def __exit__(self, *exc):
-        self.instr.close()
+        if self.instr:
+            self.instr.close()
 
     def ReadValue(self):
         return self.QueryKelvinReading()

@@ -7,7 +7,12 @@ class Hornet:
     def __init__(self, rm, resource_name, address='01'):
         self.address = address # Factory default address=1
         self.rm = rm
-        self.instr = self.rm.open_resource(resource_name)
+        try:
+            self.instr = self.rm.open_resource(resource_name)
+        except pyvisa.errors.VisaIOError:
+            self.verification_string = "False"
+            self.instr = False
+            return
         self.instr.baud_rate = 19200
         self.instr.data_bits = 8
         self.instr.parity = pyvisa.constants.Parity.none
@@ -18,8 +23,9 @@ class Hornet:
         return self
 
     def __exit__(self, *exc):
-        self.instr.close()
-        self.rm.close()
+        if self.instr:
+            self.instr.close()
+            self.rm.close()
 
     def query(self, cmd):
         self.instr.write(cmd)
@@ -36,7 +42,7 @@ class Hornet:
     def VerifyOperation(self):
         try:
             self.IG_status = self.ReadIGStatus()
-        except VisaIOError:
+        except pyvisa.errors.VisaIOError:
             return "False"
         return str(self.IG_status != np.nan)
 

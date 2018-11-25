@@ -50,6 +50,8 @@ class Device(threading.Thread):
         with self.config["driver"](self.rm, *constr_params) as dev: 
             if dev.verification_string == self.config["correct_response"]:
                 self.operational = True
+            else:
+                self.operational = False
 
         self.rm.close()
 
@@ -320,7 +322,7 @@ class ControlGUI(tk.Frame):
         if confirm_delete or self.status == "writtenToHDF":
             current_run_dir = self.parent.config["current_run_dir"].get()
             try:
-                files = glob.glob(current_run_dir+"/beam_source/*/*")
+                files = glob.glob(current_run_dir+"/*/*/*")
                 for f in files:
                     os.remove(f)
             except OSError:
@@ -347,7 +349,7 @@ class ControlGUI(tk.Frame):
             self.status_message.set("Error: run_dir not empty")
             return
 
-        # check device connections and start control
+        # check device connections
         for dev_name, dev in self.parent.devices.items():
             if dev.config["controls"]["enabled"]["var"].get():
                 dev.setup_connection()
@@ -356,9 +358,12 @@ class ControlGUI(tk.Frame):
                             "Error: " + dev.config["label"] + " not responding correctly, or cannot access the directory for data storage.")
                     self.status_message.set("Device configuration error")
                     return
-                else:
-                    dev.active.set()
-                    dev.start()
+
+        # start control
+        for dev_name, dev in self.parent.devices.items():
+            if dev.config["controls"]["enabled"]["var"].get():
+                dev.active.set()
+                dev.start()
 
         # update program status
         self.status = "running"

@@ -72,16 +72,21 @@ def to_int(b12, b34):
 class CPA1110:
     def __init__(self, rm, resource_name):
         COM_port = rm.resource_info(resource_name).alias
-        self.client = ModbusSerialClient(method='rtu', port=COM_port,
-                stopbits = 1, bytesize = 8, parity = 'E', baudrate = 9600)
+        try:
+            self.client = ModbusSerialClient(method='rtu', port=COM_port,
+                    stopbits = 1, bytesize = 8, parity = 'E', baudrate = 9600)
+        except:
+            self.verification_string = "False"
+            self.client = False
+            return
         self.verification_string = self.VerifyOperation()
 
     def __enter__(self):
         return self
 
     def __exit__(self, *exc):
-        self.client.close()
-        pass
+        if self.client:
+            self.client.close()
 
     def ReadValue(self):
         self.ReadRegisters()

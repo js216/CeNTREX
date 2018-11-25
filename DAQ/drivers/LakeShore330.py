@@ -6,14 +6,20 @@ import numpy as np
 class LakeShore330:
     def __init__(self, rm, resource_name):
         self.rm = rm
-        self.instr = self.rm.open_resource(resource_name)
+        try:
+            self.instr = self.rm.open_resource(resource_name)
+        except pyvisa.errors.VisaIOError:
+            self.verification_string = "False"
+            self.instr = False
+            return
         self.verification_string = self.VerifyOperation()
 
     def __enter__(self):
         return self
 
     def __exit__(self, *exc):
-        self.instr.close()
+        if self.instr:
+            self.instr.close()
 
     def ReadValue(self):
         return [self.SampleSensorDataQuery(), self.ControlSensorDataQuery()]

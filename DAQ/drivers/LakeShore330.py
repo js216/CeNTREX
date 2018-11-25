@@ -7,6 +7,7 @@ class LakeShore330:
     def __init__(self, rm, resource_name):
         self.rm = rm
         self.instr = self.rm.open_resource(resource_name)
+        self.verification_string = self.VerifyOperation()
 
     def __enter__(self):
         return self

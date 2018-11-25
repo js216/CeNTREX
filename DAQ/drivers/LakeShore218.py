@@ -11,6 +11,7 @@ class LakeShore218:
         self.instr.data_bits = 7
         self.instr.baud_rate = 9600
         self.instr.term_char = '\r'
+        self.verification_string = self.VerifyOperation()
 
     def __enter__(self):
         return self

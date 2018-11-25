@@ -12,6 +12,7 @@ class Hornet:
         self.instr.data_bits = 8
         self.instr.parity = pyvisa.constants.Parity.none
         self.instr.stop_bits = pyvisa.constants.StopBits.one
+        self.verification_string = self.VerifyOperation()
 
     def __enter__(self):
         return self
@@ -33,7 +34,11 @@ class Hornet:
         return [self.ReadSystemPressure()]
 
     def VerifyOperation(self):
-        return str(self.ReadSystemPressure() != np.nan)
+        try:
+            self.IG_status = self.ReadIGStatus()
+        except VisaIOError:
+            return "False"
+        return str(self.IG_status != np.nan)
 
     #################################################################
     ##########           SERIAL COMMANDS                   ##########
@@ -65,8 +70,9 @@ class Hornet:
         except pyvisa.errors.VisaIOError:
             logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
-        if pressure > 1e-3:
-            TurnIGOff()
+        if (self.IG_status == "*"+self.address+" 1 IG ON") and (pressure > 1e-3):
+            self.TurnIGOff()
+            raise ValueError("Pressure too high; turning IG off.")
         return pressure
 
     def ReadCGnPressure(self, n):
@@ -107,8 +113,16 @@ class Hornet:
         except pyvisa.errors.VisaIOError:
             logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
+
+        # wait until IG is turned on, then report status (10 sec max)
         if ret_val == "*" + str(self.address) + " PROGM OK":
-            return ret_val
+            for i in range(10):
+                self.IG_status = self.ReadIGStatus()
+                if self.IG_status != "*"+self.address+" 1 IG ON":
+                    time.sleep(1)
+                else:
+                    break
+            return self.IG_status
         else:
             return np.nan
 
@@ -123,8 +137,16 @@ class Hornet:
         except pyvisa.errors.VisaIOError:
             logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
+
+        # wait until IG is turned off, then report status (10 sec max)
         if ret_val == "*" + str(self.address) + " PROGM OK":
-            return ret_val
+            for i in range(10):
+                self.IG_status = self.ReadIGStatus()
+                if self.IG_status != "*"+self.address+" 0 IG OFF":
+                    time.sleep(1)
+                else:
+                    break
+            return self.IG_status
         else:
             return np.nan
 
@@ -136,7 +158,7 @@ class Hornet:
         *xx_1_IG_ON_<CR>
         """
         try:
-            return self.query("#" + self.address + "IGS")
+            return self.query("#" + self.address + "IGS").strip()
         except pyvisa.errors.VisaIOError:
             logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
@@ -342,7 +364,7 @@ class Hornet:
             logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
 
-    def ReadIGStatus(self):
+    def ReadIGShutdownStatus(self):
         """Finds out the cause of the ion gauge (IG) shutdown.
 
         Returns:

@@ -16,6 +16,8 @@ class USB6008:
         self.setpoint        = 0.0
         self.SetPointControl(self.setpoint)
 
+        self.verification_string = self.VerifyOperation()
+
     def __enter__(self):
         return self
 

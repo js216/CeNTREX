@@ -48,7 +48,8 @@ class Device(threading.Thread):
         # verify the device responds correctly
         constr_params = [self.config["controls"][cp]["var"].get() for cp in self.config["constr_params"]]
         with self.config["driver"](self.rm, *constr_params) as dev: 
-            self.operational = dev.VerifyOperation() == self.config["correct_response"]
+            if dev.verification_string == self.config["correct_response"]:
+                self.operational = True
 
         self.rm.close()
 
@@ -71,7 +72,12 @@ class Device(threading.Thread):
             with self.config["driver"](self.rm, *constr_params) as device: 
                 while self.active.is_set():
                     # record numerical values
-                    dev_dset.writerow( [time.time() - self.config["time_offset"]] + device.ReadValue() )
+                    try:
+                        dev_dset.writerow( [time.time() - self.config["time_offset"]] + device.ReadValue() )
+                    except ValueError as err:
+                        ret_val = str(err)
+                        ret_val = "None" if not ret_val else ret_val
+                        events_dset.writerow([ time.time()-self.config["time_offset"], ret_val ])
 
                     # send control commands, if any, to the device, and record return values
                     for c in self.commands:
@@ -122,7 +128,7 @@ class ControlGUI(tk.Frame):
         if self.directory_empty(self.parent.config["current_run_dir"].get()):
             self.status_message.set("Ready to start")
         else:
-            self.status_message.set("Recording finished")
+            self.status_message.set("Note: run_dir not empty")
         self.status_label = tk.Label(control_frame, textvariable=self.status_message,
                 font=("Helvetica", 16),anchor='e')\
                 .grid(row=0, column=3, sticky='nsew')
@@ -363,6 +369,7 @@ class ControlGUI(tk.Frame):
         if self.status == "stopped":
             return
 
+        # stop devices, waiting for threads to finish
         for dev_name, dev in self.parent.devices.items():
             if dev.active.is_set():
                 dev.active.clear()

@@ -74,6 +74,7 @@ class CPA1110:
         COM_port = rm.resource_info(resource_name).alias
         self.client = ModbusSerialClient(method='rtu', port=COM_port,
                 stopbits = 1, bytesize = 8, parity = 'E', baudrate = 9600)
+        self.verification_string = self.VerifyOperation()
 
     def __enter__(self):
         return self

@@ -185,10 +185,10 @@ class ControlGUI(tk.Frame):
         fr.grid(row=2, padx=10, pady=10, sticky='nsew')
 
         # the control to send a custom command to a specified device
-        fc = tk.LabelFrame(fr)
-        fc.grid(row=0, padx=10, pady=10, sticky='nsew')
+        fc = tk.LabelFrame(fr, text="Send a custom command", padx=10, pady=10)
+        fc.grid(row=0, padx=10, pady=10, columnspan=2)
         custom_command = tk.StringVar(fc, value='Enter command ...')
-        cmd_entry = tk.Entry(fc, textvariable=custom_command)
+        cmd_entry = tk.Entry(fc, textvariable=custom_command, width=30)
         cmd_entry.grid(row=0, column=0, sticky='nsew')
         custom_dev = tk.StringVar(fc, value='Select device ...')
         dev_list = [dev_name for dev_name in self.parent.devices]

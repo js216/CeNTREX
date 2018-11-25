@@ -13,6 +13,7 @@ import sys
 import pyvisa
 import os
 import configparser
+from decimal import Decimal
 
 from drivers import Hornet 
 from drivers import LakeShore218 
@@ -24,11 +25,19 @@ from extra_widgets import VerticalScrolledFrame
 
 class Device(threading.Thread):
     def __init__(self, config):
+        self.config = config
         self.active = threading.Event()
         self.active.clear()
-        self.config = config
-        self.commands = []
         self.operational = False
+
+        # for sending commands to the device
+        self.commands = []
+
+        # for monitoring
+        self.last_data  = tk.StringVar()
+        self.last_data.set("(no data)")
+        self.last_event = tk.StringVar()
+        self.last_event.set("(no event)")
 
     def setup_connection(self):
         threading.Thread.__init__(self)
@@ -78,7 +87,9 @@ class Device(threading.Thread):
                 while self.active.is_set():
                     # record numerical values
                     try:
-                        dev_dset.writerow( [time.time() - self.config["time_offset"]] + device.ReadValue() )
+                        last_data = [time.time() - self.config["time_offset"]] + device.ReadValue()
+                        dev_dset.writerow(last_data)
+                        self.last_data.set( ''.join([str('%.2E'%Decimal(x))+"\n" for x in last_data[1:]]) )
                     except ValueError as err:
                         ret_val = str(err)
                         ret_val = "None" if not ret_val else ret_val
@@ -91,7 +102,9 @@ class Device(threading.Thread):
                         except (ValueError, AttributeError) as err:
                             ret_val = str(err)
                         ret_val = "None" if not ret_val else ret_val
-                        events_dset.writerow([ time.time()-self.config["time_offset"], c, ret_val ])
+                        last_event = [ time.time()-self.config["time_offset"], c, ret_val ]
+                        self.last_event.set([round(last_event[0],3)]+last_event[1:])
+                        events_dset.writerow(last_event)
                     self.commands = []
 
                     # loop delay
@@ -99,91 +112,6 @@ class Device(threading.Thread):
                         time.sleep(float(self.config["controls"]["dt"]["var"].get()))
                     except ValueError:
                         time.sleep(1)
-
-class CentrexGUI(tk.Frame):
-    def __init__(self, parent, *args, **kwargs):
-        tk.Frame.__init__(self, parent, *args, **kwargs)
-        self.winfo_toplevel().title("CENTREX Slow DAQ")
-        self.parent = parent
-        self.read_config()
-
-        # GUI elements
-        ControlGUI(self, *args, **kwargs).grid(row=0, column=0)
-
-    def read_config(self):
-        # read program settings
-        self.config = {}
-        settings = configparser.ConfigParser()
-        settings.read("config/settings.ini")
-        for key in settings["files"]:
-            self.config[key] = tk.StringVar()
-            self.config[key].set(settings["files"][key])
-
-        # read device settings
-        self.devices = {}
-        for f in glob.glob("config/devices/*"):
-            params = configparser.ConfigParser()
-            params.read(f)
-
-            # read general device options
-            dev_config = {
-                        "name"              : params["device"]["name"],
-                        "label"             : params["device"]["label"],
-                        "config_fname"      : f,
-                        "current_run_dir"   : self.config["current_run_dir"].get(),
-                        "path"              : params["device"]["path"],
-                        "correct_response"  : params["device"]["correct_response"],
-                        "row"               : params["device"]["row"],
-                        "column"            : params["device"]["column"],
-                        "driver"            : eval(params["device"]["driver"]),
-                        "constr_params"     : [x.strip() for x in params["device"]["constr_params"].split(",")],
-                        "attributes"        : params["attributes"],
-                        "controls"          : {},
-                    }
-
-            # populate the list of device controls
-            ctrls = dev_config["controls"]
-            for c in params.sections():
-                if params[c].get("type") == "Checkbutton":
-                    ctrls[c] = {}
-                    ctrls[c]["label"]      = params[c]["label"]
-                    ctrls[c]["type"]       = params[c]["type"]
-                    ctrls[c]["row"]        = int(params[c]["row"])
-                    ctrls[c]["col"]        = int(params[c]["col"])
-                    ctrls[c]["var"]        = tk.BooleanVar()
-                    ctrls[c]["var"].set(params[c]["value"])
-                elif params[c].get("type") == "Button":
-                    ctrls[c] = {}
-                    ctrls[c]["label"]      = params[c]["label"]
-                    ctrls[c]["type"]       = params[c]["type"]
-                    ctrls[c]["row"]        = int(params[c]["row"])
-                    ctrls[c]["col"]        = int(params[c]["col"])
-                    ctrls[c]["command"]    = params[c].get("command")
-                    ctrls[c]["argument"]   = params[c]["argument"]
-                    ctrls[c]["align"]      = params[c].get("align")
-                elif params[c].get("type") == "Entry":
-                    ctrls[c] = {}
-                    ctrls[c]["label"]      = params[c]["label"]
-                    ctrls[c]["type"]       = params[c]["type"]
-                    ctrls[c]["row"]        = int(params[c]["row"])
-                    ctrls[c]["col"]        = int(params[c]["col"])
-                    ctrls[c]["enter_cmd"]  = params[c].get("enter_command")
-                    ctrls[c]["var"]        = tk.StringVar()
-                    ctrls[c]["var"].set(params[c]["value"])
-                elif params[c].get("type") == "OptionMenu":
-                    ctrls[c] = {}
-                    ctrls[c]["label"]      = params[c]["label"]
-                    ctrls[c]["type"]       = params[c]["type"]
-                    ctrls[c]["row"]        = int(params[c]["row"])
-                    ctrls[c]["col"]        = int(params[c]["col"])
-                    ctrls[c]["command"]    = params[c]["command"]
-                    ctrls[c]["options"]    = params[c]["options"].split(",")
-                    ctrls[c]["var"]        = tk.StringVar()
-                    ctrls[c]["var"].set(params[c]["value"])
-
-            # make a Device object
-            self.devices[params["device"]["name"]] = Device(dev_config)
-
 
 class ControlGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -193,7 +121,7 @@ class ControlGUI(tk.Frame):
 
     def place_GUI_elements(self):
         # main frame for all ControlGUI elements
-        cgf = tk.LabelFrame(self.parent)
+        cgf = tk.Frame(self.parent)
         cgf.grid(row=0, column=0, sticky='nsew')
         self.parent.rowconfigure(0, weight=1)
         cgf.rowconfigure(2, weight=1)
@@ -203,7 +131,8 @@ class ControlGUI(tk.Frame):
         ########################################
 
         control_frame = tk.LabelFrame(cgf)
-        control_frame.grid(row=0, padx=10, pady=10, sticky="ew")
+        control_frame.grid(row=0, padx=10, pady=10, sticky="nsew")
+        control_frame.grid_columnconfigure(index=2, weight=1)
 
         # control start/stop buttons
         control_button = tk.Button(control_frame,
@@ -558,6 +487,111 @@ class ControlGUI(tk.Frame):
 
         self.status = "writtenToHDF"
         self.status_message.set("Written to HDF")
+
+class MonitoringGUI(tk.Frame):
+    def __init__(self, parent, *args, **kwargs):
+        tk.Frame.__init__(self, parent, *args, **kwargs)
+        self.parent = parent
+        self.place_GUI_elements()
+
+    def place_GUI_elements(self):
+        # main frame for all MonitoringGUI elements
+        mgf = tk.LabelFrame(self.parent, text="Device status")
+        mgf.grid(row=0, column=1, padx=10, pady=10, sticky='new')
+
+        # entries for each device
+        for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
+            tk.Label(mgf, text=dev_name, anchor='nw')\
+                    .grid(row=i, column=0, sticky='nsew')
+            tk.Message(mgf, textvariable=dev.last_data, anchor='nw', width=100)\
+                    .grid(row=i, column=1, sticky='nsew')
+            tk.Message(mgf, textvariable=dev.last_event, anchor='nw', width=150).\
+                    grid(row=i, column=2, sticky='nsew')
+
+class CentrexGUI(tk.Frame):
+    def __init__(self, parent, *args, **kwargs):
+        tk.Frame.__init__(self, parent, *args, **kwargs)
+        self.winfo_toplevel().title("CENTREX Slow DAQ")
+        self.parent = parent
+        self.read_config()
+
+        # GUI elements
+        ControlGUI(self, *args, **kwargs).grid(row=0, column=0)
+        MonitoringGUI(self, *args, **kwargs).grid(row=0, column=1)
+
+    def read_config(self):
+        # read program settings
+        self.config = {}
+        settings = configparser.ConfigParser()
+        settings.read("config/settings.ini")
+        for key in settings["files"]:
+            self.config[key] = tk.StringVar()
+            self.config[key].set(settings["files"][key])
+
+        # read device settings
+        self.devices = {}
+        for f in glob.glob("config/devices/*"):
+            params = configparser.ConfigParser()
+            params.read(f)
+
+            # read general device options
+            dev_config = {
+                        "name"              : params["device"]["name"],
+                        "label"             : params["device"]["label"],
+                        "config_fname"      : f,
+                        "current_run_dir"   : self.config["current_run_dir"].get(),
+                        "path"              : params["device"]["path"],
+                        "correct_response"  : params["device"]["correct_response"],
+                        "row"               : params["device"]["row"],
+                        "column"            : params["device"]["column"],
+                        "driver"            : eval(params["device"]["driver"]),
+                        "constr_params"     : [x.strip() for x in params["device"]["constr_params"].split(",")],
+                        "attributes"        : params["attributes"],
+                        "controls"          : {},
+                    }
+
+            # populate the list of device controls
+            ctrls = dev_config["controls"]
+            for c in params.sections():
+                if params[c].get("type") == "Checkbutton":
+                    ctrls[c] = {}
+                    ctrls[c]["label"]      = params[c]["label"]
+                    ctrls[c]["type"]       = params[c]["type"]
+                    ctrls[c]["row"]        = int(params[c]["row"])
+                    ctrls[c]["col"]        = int(params[c]["col"])
+                    ctrls[c]["var"]        = tk.BooleanVar()
+                    ctrls[c]["var"].set(params[c]["value"])
+                elif params[c].get("type") == "Button":
+                    ctrls[c] = {}
+                    ctrls[c]["label"]      = params[c]["label"]
+                    ctrls[c]["type"]       = params[c]["type"]
+                    ctrls[c]["row"]        = int(params[c]["row"])
+                    ctrls[c]["col"]        = int(params[c]["col"])
+                    ctrls[c]["command"]    = params[c].get("command")
+                    ctrls[c]["argument"]   = params[c]["argument"]
+                    ctrls[c]["align"]      = params[c].get("align")
+                elif params[c].get("type") == "Entry":
+                    ctrls[c] = {}
+                    ctrls[c]["label"]      = params[c]["label"]
+                    ctrls[c]["type"]       = params[c]["type"]
+                    ctrls[c]["row"]        = int(params[c]["row"])
+                    ctrls[c]["col"]        = int(params[c]["col"])
+                    ctrls[c]["enter_cmd"]  = params[c].get("enter_command")
+                    ctrls[c]["var"]        = tk.StringVar()
+                    ctrls[c]["var"].set(params[c]["value"])
+                elif params[c].get("type") == "OptionMenu":
+                    ctrls[c] = {}
+                    ctrls[c]["label"]      = params[c]["label"]
+                    ctrls[c]["type"]       = params[c]["type"]
+                    ctrls[c]["row"]        = int(params[c]["row"])
+                    ctrls[c]["col"]        = int(params[c]["col"])
+                    ctrls[c]["command"]    = params[c]["command"]
+                    ctrls[c]["options"]    = params[c]["options"].split(",")
+                    ctrls[c]["var"]        = tk.StringVar()
+                    ctrls[c]["var"].set(params[c]["value"])
+
+            # make a Device object
+            self.devices[params["device"]["name"]] = Device(dev_config)
 
 if __name__ == "__main__":
     root = tk.Tk()

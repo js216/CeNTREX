@@ -12,6 +12,7 @@ import csv
 import shutil, errno
 import threading
 import h5py
+import re
 
 from drivers import Hornet 
 from drivers import LakeShore218 
@@ -25,6 +26,7 @@ class Device(threading.Thread):
         self.active.clear()
         self.config = config
         self.commands = []
+        self.operational = False
 
     def setup_connection(self):
         threading.Thread.__init__(self)
@@ -36,7 +38,6 @@ class Device(threading.Thread):
             try:
                 os.mkdir(self.CSV_dir)
             except OSError:
-                self.operational = False
                 return
 
         # select and record the time offset
@@ -85,7 +86,7 @@ class Device(threading.Thread):
                     for c in self.commands:
                         try:
                             ret_val = eval("device." + c)
-                        except ValueError as err:
+                        except (ValueError, AttributeError) as err:
                             ret_val = str(err)
                         ret_val = "None" if not ret_val else ret_val
                         events_dset.writerow([ time.time()-self.config["time_offset"], c, ret_val ])
@@ -183,6 +184,20 @@ class ControlGUI(tk.Frame):
         fr = tk.LabelFrame(self.parent, text="Devices")
         fr.grid(row=2, padx=10, pady=10, sticky='nsew')
 
+        # the control to send a custom command to a specified device
+        fc = tk.LabelFrame(fr)
+        fc.grid(row=0, padx=10, pady=10, sticky='nsew')
+        custom_command = tk.StringVar(fc, value='Enter command ...')
+        cmd_entry = tk.Entry(fc, textvariable=custom_command)
+        cmd_entry.grid(row=0, column=0, sticky='nsew')
+        custom_dev = tk.StringVar(fc, value='Select device ...')
+        dev_list = [dev_name for dev_name in self.parent.devices]
+        dev_selection = tk.OptionMenu(fc, custom_dev, *dev_list)
+        dev_selection.grid(row=0, column=1, sticky="e")
+        custom_button = tk.Button(fc, text="Send",
+                command=lambda: self.queue_custom_command(custom_dev.get(), custom_command.get()))
+        custom_button.grid(row=0, column=2, sticky='e')
+
         # make GUI elements for all devices
         for dev_name, dev in self.parent.devices.items():
             fd = tk.LabelFrame(fr, text=dev.config["label"])
@@ -193,6 +208,7 @@ class ControlGUI(tk.Frame):
             attr_b = tk.Button(fd, text="Attrs", command=lambda dev=dev: self.reload_attrs(dev))
             attr_b.grid(row=0, column=2, sticky="nsew")
 
+            # device-specific controls
             for c_name, c in dev.config["controls"].items():
                 if c_name == "LabelFrame":
                     continue
@@ -242,6 +258,25 @@ class ControlGUI(tk.Frame):
                     c["OptionMenu"].grid(row=c["row"], column=c["col"], sticky=tk.W)
                     c["Label"] = tk.Label(fd, text=c["label"])
                     c["Label"].grid(row=c["row"], column=c["col"]-1, sticky=tk.E)
+
+    def queue_custom_command(self, dev_name, command):
+        # check the command is valid
+        cmd = command.strip()
+        search = re.compile(r'[^A-Za-z0-9()]').search
+        if bool(search(cmd)):
+            messagebox.showerror("Command error", "Invalid command.")
+            return
+
+        # check the device is valid
+        dev = self.parent.devices.get(dev_name)
+        if not dev:
+            messagebox.showerror("Device error", "Device not found.")
+            return
+        if not dev.operational:
+            messagebox.showerror("Device error", "Device not operational.")
+            return
+
+        self.queue_command(dev, cmd)
 
     def queue_command(self, dev, command):
         dev.commands.append(command)

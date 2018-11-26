@@ -6,25 +6,42 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from matplotlib.figure import Figure
 import numpy as np
 
+from extra_widgets import VerticalScrolledFrame
+
 class PlotsGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
-        self.place_GUI_elements()
+        self.num_plots = 0
 
-    def place_GUI_elements(self):
         # main frame for all PlotsGUI elements
-        frame = tk.Frame(self.parent.nb)
-        self.parent.nb.add(frame, text="Plots")
+        self.nb_frame = tk.Frame(self.parent.nb)
+        self.nb_frame.columnconfigure(0, weight=1)
+        self.nb_frame.rowconfigure(0, weight=1)
+        self.parent.nb.add(self.nb_frame, text="Plots")
+
+        # scrolled frame
+        fr_object = VerticalScrolledFrame(self.nb_frame)
+        self.f = fr_object.interior
+        fr_object.grid(row=0, column=0, padx=0, pady=0, sticky='nsew')
 
         # button to add more plots
-        add_b = tk.Button(frame, text="New plot ...")
+        add_b = tk.Button(self.f, text="New plot ...", command=self.add_plot)
         add_b.grid(row=0, column=0, sticky='e', padx=10)
 
-        # place one plot
-        p1_frame = tk.LabelFrame(frame, text="Plot")
-        p1_frame.grid(padx=10, pady=10, sticky="nsew", row=1, column=0)
-        p1 = Plotter(p1_frame, self.parent)
+        # add one plot
+        self.add_plot()
+
+    def add_plot(self):
+        # the plot
+        self.num_plots += 1
+        fr = tk.LabelFrame(self.f, text="Plot")
+        fr.grid(padx=10, pady=10, sticky="nsew", row=self.num_plots, column=0)
+        Plotter(fr, self.parent)
+
+        # button to delete plot
+        del_b = tk.Button(fr, text="\u274c", command=lambda fr=fr: fr.grid_forget())
+        del_b.grid(row=0, column=3, sticky='e', padx=10)
 
 class Plotter(tk.Frame):
     def __init__(self, frame, parent, *args, **kwargs):
@@ -48,10 +65,6 @@ class Plotter(tk.Frame):
         self.param_var.set("Select what to plot ...")
         self.param_select = tk.OptionMenu(self.f, self.param_var, *self.param_list)
         self.param_select.grid(row=0, column=1, sticky='w')
-
-        # button to delete plot
-        del_b = tk.Button(self.f, text="\u274c")
-        del_b.grid(row=0, column=3, sticky='e', padx=10)
 
         # select between a static and dynamic plot
         self.choice = tk.StringVar()
@@ -126,7 +139,7 @@ class Plotter(tk.Frame):
         y = data[:, param_list.index(param)]
 
         # draw plot
-        fig = Figure(figsize=(5,2.5), dpi=100)
+        fig = Figure(figsize=(5.5,2.5), dpi=100)
         ax = fig.add_subplot(111)
         ax.plot(x, y, label=param)
 

@@ -49,7 +49,7 @@ class PlotsGUI(tk.Frame):
 
     def replot_all(self):
         for plot in self.list_of_plots:
-            plot.plot()
+            plot.replot()
 
     def add_plot(self):
         # the plot
@@ -60,8 +60,8 @@ class PlotsGUI(tk.Frame):
         self.list_of_plots.append(plot)
 
         # button to delete plot
-        del_b = tk.Button(fr, text="\u274c", command=lambda plot=plot: self.delete_plot(plot))
-        del_b.grid(row=0, column=3, sticky='e', padx=10)
+        del_b = tk.Button(plot.ctrls_f, text="\u274c", command=lambda plot=plot: self.delete_plot(plot))
+        del_b.grid(row=0, column=7, sticky='e', padx=10)
 
     def delete_plot(self, plot):
         plot.f.destroy()
@@ -71,6 +71,7 @@ class Plotter(tk.Frame):
         tk.Frame.__init__(self, parent, *args, **kwargs)
         self.f = frame
         self.parent = parent
+        self.log = False
         self.plot_drawn = False
 
         # select device
@@ -88,35 +89,57 @@ class Plotter(tk.Frame):
         self.param_select = tk.OptionMenu(self.f, self.param_var, *self.param_list)
         self.param_select.grid(row=0, column=1, sticky='w')
 
-        # select between a static and dynamic plot
-        self.choice = tk.StringVar()
-        self.choice.set("static")
-        st_rb = tk.Radiobutton(self.f, text="Static", variable=self.choice, value="static")
-        st_rb.grid(row=1, column=0, sticky='w')
-        dy_rb = tk.Radiobutton(self.f, text="Dynamic", variable=self.choice, value="dynamic")
-        dy_rb.grid(row=2, column=0, sticky='w')
-
-        # controls for a static plot
+        # plot range controls
         self.from_var = tk.StringVar()
         self.from_var.set("from")
-        from_e = tk.Entry(self.f, textvariable=self.from_var)
-        from_e.grid(row=1, column=1, sticky='w')
+        tk.Entry(self.f, textvariable=self.from_var)\
+                .grid(row=1, column=0, sticky='w', padx=10, pady=10)
         self.to_var = tk.StringVar()
         self.to_var.set("to")
-        to_e = tk.Entry(self.f, textvariable=self.to_var)
-        to_e.grid(row=1, column=2, sticky='w')
-        plot_b = tk.Button(self.f, text="Plot", command=self.plot)
-        plot_b.grid(row=1, column=3, sticky='e', padx=10)
+        tk.Entry(self.f, textvariable=self.to_var)\
+                .grid(row=1, column=1, sticky='w', padx=10, pady=10)
 
-        # controls for a dynamic plot
-        self.dur_var = tk.StringVar()
-        self.dur_var.set("duration")
-        dur_e = tk.Entry(self.f, textvariable=self.dur_var)
-        dur_e.grid(row=2, column=1, sticky='w')
-        self.rate_var = tk.StringVar()
-        self.rate_var.set("refresh rate")
-        rate_e = tk.Entry(self.f, textvariable=self.rate_var)
-        rate_e.grid(row=2, column=2, sticky='w')
+        # control buttons
+        self.ctrls_f = tk.Frame(self.f)
+        self.ctrls_f.grid(row=0, column=2, sticky='nsew', padx=10, pady=10)
+        self.dt_var = tk.StringVar()
+        tk.Entry(self.f, textvariable=self.dt_var)\
+                .grid(row=1, column=2, sticky='w')
+        tk.Button(self.ctrls_f, text="\u25b6", command=self.start_animation)\
+                .grid(row=0, column=0, sticky='e', padx=10)
+        tk.Button(self.ctrls_f, text="\u25a0", command=self.stop_animation)\
+                .grid(row=0, column=1, sticky='e', padx=10)
+        tk.Button(self.ctrls_f, text="Log/Lin", command=self.toggle_log)\
+                .grid(row=0, column=2, sticky='e', padx=10)
+
+    def toggle_log(self):
+        if self.log == True:
+            self.log = False
+        else:
+            self.log = True
+
+        # obtain new data
+        try:
+            x, y, param, unit = self.get_data()
+        except ValueError:
+            return
+
+        # draw plot
+        if self.log:
+            self.ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
+            self.ax.set_yscale('log')
+        else:
+            self.ax.set_yscale('linear')
+
+    def start_animation(self):
+        if not self.plot_drawn:
+            self.new_plot()
+        else:
+            self.ani.event_source.start()
+
+    def stop_animation(self):
+        if self.plot_drawn:
+            self.ani.event_source.stop()
 
     def refresh_parameter_list(self, dev_name):
         self.dev_var.set(dev_name)
@@ -161,22 +184,13 @@ class Plotter(tk.Frame):
         y = data[:, param_list.index(param)]
 
         # cut data
-        if self.choice.get() == "static":
-            try:
-                x1, x2 = float(self.from_var.get()), float(self.to_var.get())
-                i1 = np.argmax(x>x1)
-                i2 = np.argmin(x<x2) if x2<x[-1] else -1
-            except ValueError as err:
-                i1, i2 = 0, -1
-            x, y = x[i1:i2], y[i1:i2]
+        try:
+            i1, i2 = int(self.from_var.get()), int(self.to_var.get())
+        except ValueError as err:
+            i1, i2 = 0, -1
+        x, y = x[i1:i2], y[i1:i2]
 
         return x, y, param, unit
-
-    def plot(self):
-        if not self.plot_drawn:
-            self.new_plot()
-        else:
-            self.replot()
 
     def new_plot(self):
         # obtain new data
@@ -200,12 +214,12 @@ class Plotter(tk.Frame):
 
         # update drawing
         self.canvas = FigureCanvasTkAgg(self.fig, self.f)
-        self.canvas.get_tk_widget().grid(row=4, columnspan=4)
+        self.canvas.get_tk_widget().grid(row=4, columnspan=6)
         self.ani = animation.FuncAnimation(self.fig, self.replot, interval=1000, blit=False)
 
         ## place the plot navigation toolbar
         #t_f = tk.Frame(self.f)
-        #t_f.grid(row=3, columnspan=4)
+        #t_f.grid(row=3, columnspan=5)
         #toolbar = NavigationToolbar2Tk(self.canvas, t_f)
         #toolbar.update()
         #self.canvas._tkcanvas.grid()
@@ -213,8 +227,9 @@ class Plotter(tk.Frame):
         self.plot_drawn = True
 
     def replot(self, i=0):
-        print("replot called at ", time.time())
-        sys.stdout.flush()
+        if not self.plot_drawn:
+            self.new_plot()
+            return
 
         # obtain new data
         try:
@@ -224,7 +239,7 @@ class Plotter(tk.Frame):
 
         # update plot
         self.line.set_data(x, y)
-        self.ax.set_xlim((np.min(x),np.max(x)))
-        self.ax.set_ylim((np.min(y),np.max(y)))
+        self.ax.set_xlim((np.nanmin(x),np.nanmax(x)))
+        self.ax.set_ylim((np.nanmin(y),np.nanmax(y)))
         self.ax.set_xlabel("time [s]")
         self.ax.set_ylabel(param + " [" + unit.strip() + "]")

@@ -4,6 +4,7 @@ import matplotlib
 matplotlib.use("TkAgg")
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
+import matplotlib.animation as animation
 import numpy as np
 
 from extra_widgets import VerticalScrolledFrame
@@ -20,10 +21,14 @@ class PlotsGUI(tk.Frame):
         self.nb_frame.rowconfigure(0, weight=1)
         self.parent.nb.add(self.nb_frame, text="Plots")
 
-        # scrolled frame
-        fr_object = VerticalScrolledFrame(self.nb_frame)
-        self.f = fr_object.interior
-        fr_object.grid(row=0, column=0, padx=0, pady=0, sticky='nsew')
+        ## scrolled frame
+        #fr_object = VerticalScrolledFrame(self.nb_frame)
+        #self.f = fr_object.interior
+        #fr_object.grid(row=0, column=0, padx=0, pady=0, sticky='nsew')
+
+        # non-scrolled frame
+        self.f = tk.Frame(self.nb_frame)
+        self.f.grid(row=0, column=0, sticky='n')
 
         # button to add more plots
         add_b = tk.Button(self.f, text="New plot ...", command=self.add_plot)
@@ -83,8 +88,8 @@ class Plotter(tk.Frame):
         self.to_var.set("to")
         to_e = tk.Entry(self.f, textvariable=self.to_var)
         to_e.grid(row=1, column=2, sticky='w')
-        replot_b = tk.Button(self.f, text="Replot", command=self.replot)
-        replot_b.grid(row=1, column=3, sticky='e', padx=10)
+        plot_b = tk.Button(self.f, text="Plot", command=self.plot)
+        plot_b.grid(row=1, column=3, sticky='e', padx=10)
 
         # controls for a dynamic plot
         self.dur_var = tk.StringVar()
@@ -95,6 +100,19 @@ class Plotter(tk.Frame):
         self.rate_var.set("refresh rate")
         rate_e = tk.Entry(self.f, textvariable=self.rate_var)
         rate_e.grid(row=2, column=2, sticky='w')
+
+        # empty plot
+        self.fig = Figure(figsize=(5.5,2.5), dpi=100)
+        canvas = FigureCanvasTkAgg(self.fig, self.f)
+        canvas.draw()
+        canvas.get_tk_widget().grid(row=4, columnspan=4)
+
+        # place the plot navigation toolbar
+        t_f = tk.Frame(self.f)
+        t_f.grid(row=3, columnspan=4)
+        toolbar = NavigationToolbar2Tk(canvas, t_f)
+        toolbar.update()
+        canvas._tkcanvas.grid()
 
     def refresh_parameter_list(self, dev_name):
         self.dev_var.set(dev_name)
@@ -114,13 +132,13 @@ class Plotter(tk.Frame):
 
         self.param_var.set(param_list[1])
 
-    def replot(self):
+    def get_data(self):
         # check device is valid
         if self.dev_var.get() in self.parent.devices:
             dev = self.parent.devices[self.dev_var.get()]
         else:
             messagebox.showerror("Device error", "Error: invalid device.")
-            return None
+            raise ValueError("invalid device")
 
         # check parameter is valid
         param_list = dev.config["attributes"]["column_names"].split(',')
@@ -129,7 +147,7 @@ class Plotter(tk.Frame):
             unit = dev.config["attributes"]["units"].split(',')[param_list.index(param)]
         else:
             messagebox.showerror("Parameter error", "Error: invalid parameter.")
-            return None
+            raise ValueError("invalid parameter")
 
         # get data
         path = dev.config["current_run_dir"] + "/" + dev.config["path"] + "/"
@@ -148,30 +166,29 @@ class Plotter(tk.Frame):
                 i1, i2 = 0, -1
             x, y = x[i1:i2], y[i1:i2]
 
+        return x, y, param, unit
+
+    def plot(self, i=0):
+        # obtain new data
+        try:
+            x, y, param, unit = self.get_data()
+        except ValueError:
+            return
+
         # draw plot
-        fig = Figure(figsize=(5.5,2.5), dpi=100)
-        ax = fig.add_subplot(111)
-        ax.plot(x, y, label=param)
+        self.fig = Figure(figsize=(5.5,2.5), dpi=100)
+        ax = self.fig.add_subplot(111)
+        self.line, = ax.plot(x, y, label=param)
 
         # labels
         ax.set_xlabel("time [s]")
         ax.set_ylabel(param + " [" + unit.strip() + "]")
 
         # plot layout
-        fig.tight_layout()
+        self.fig.tight_layout()
         ax.grid()
 
-        # place the plot
-        canvas = FigureCanvasTkAgg(fig, self.f)
+        # update drawing
+        canvas = FigureCanvasTkAgg(self.fig, self.f)
         canvas.draw()
         canvas.get_tk_widget().grid(row=4, columnspan=4)
-
-        # place the plot navigation toolbar
-        t_f = tk.Frame(self.f)
-        t_f.grid(row=3, columnspan=4)
-        toolbar = NavigationToolbar2Tk(canvas, t_f)
-        toolbar.update()
-        canvas._tkcanvas.grid()
-
-
-        return fig

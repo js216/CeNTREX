@@ -23,6 +23,7 @@ from drivers import CPA1110
 from drivers import USB6008
 
 from extra_widgets import VerticalScrolledFrame
+from Plotting import PlotsGUI
 
 class Device(threading.Thread):
     def __init__(self, config):
@@ -510,86 +511,6 @@ class MonitoringGUI(tk.Frame):
             tk.Message(fd, textvariable=dev.last_event, anchor='nw', width=150).\
                     grid(row=1, column=0, sticky='nsew')
 
-class PlotsGUI(tk.Frame):
-    def __init__(self, parent, *args, **kwargs):
-        tk.Frame.__init__(self, parent, *args, **kwargs)
-        self.parent = parent
-        self.place_GUI_elements()
-
-    def place_GUI_elements(self):
-        # main frame for all PlotsGUI elements
-        frame = tk.Frame(self.parent.nb)
-        self.parent.nb.add(frame, text="Plots")
-
-        # controls to add more plots
-        ctrls_f = tk.LabelFrame(frame, text="Add more plots")
-        ctrls_f.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
-        self.row = tk.StringVar()
-        self.row.set("row")
-        self.col = tk.StringVar()
-        self.col.set("col")
-        row_e = tk.Entry(ctrls_f, textvariable=self.row, width=10)
-        row_e.grid(row=0, column=0, sticky='w')
-        col_e = tk.Entry(ctrls_f, textvariable=self.col, width=10)
-        col_e.grid(row=0, column=1, sticky='w')
-        add_b = tk.Button(ctrls_f, text="Add plot")
-        add_b.grid(row=0, column=2, sticky='w')
-
-        # place one plot
-        p1f = tk.LabelFrame(frame, text="Plot")
-        p1f.grid(padx=10, pady=10, sticky="nsew", row=1, column=0)
-        self.plotter(p1f)
-
-    def plotter(self, frame):
-        # select device
-        self.dev_list = [dev_name for dev_name in self.parent.devices]
-        self.dev_var = tk.StringVar()
-        self.dev_var.set("Select device ...")
-        dev_select = tk.OptionMenu(frame, self.dev_var, *self.dev_list)
-        dev_select.grid(row=0, column=0)
-
-        # select parameter
-        self.param_list = ["aa", "b"]
-        self.param_var = tk.StringVar()
-        self.param_var.set("Select what to plot ...")
-        param_select = tk.OptionMenu(frame, self.param_var, *self.param_list)
-        param_select.grid(row=0, column=1)
-
-        # button to delete plot
-        del_b = tk.Button(frame, text="Delete plot")
-        del_b.grid(row=0, column=2)
-
-        # select between a static and dynamic plot
-        self.choice = tk.StringVar()
-        self.choice.set("static")
-        st_rb = tk.Radiobutton(frame, text="Static", variable=self.choice, value="static")
-        st_rb.grid(row=1, column=0, sticky='w')
-        dy_rb = tk.Radiobutton(frame, text="Dynamic", variable=self.choice, value="dynamic")
-        dy_rb.grid(row=2, column=0, sticky='w')
-
-        # controls for a static plot
-        self.from_var = tk.StringVar()
-        self.from_var.set("from")
-        from_e = tk.Entry(frame, textvariable=self.from_var)
-        from_e.grid(row=1, column=1, sticky='w')
-        self.to_var = tk.StringVar()
-        self.to_var.set("to")
-        to_e = tk.Entry(frame, textvariable=self.to_var)
-        to_e.grid(row=1, column=2, sticky='w')
-        replot_b = tk.Button(frame, text="Replot")
-        replot_b.grid(row=1, column=3, sticky='w')
-
-        # controls for a dynamic plot
-        self.dur_var = tk.StringVar()
-        self.dur_var.set("duration")
-        dur_e = tk.Entry(frame, textvariable=self.dur_var)
-        dur_e.grid(row=2, column=1, sticky='w')
-        self.rate_var = tk.StringVar()
-        self.rate_var.set("refresh rate")
-        rate_e = tk.Entry(frame, textvariable=self.rate_var)
-        rate_e.grid(row=2, column=2)
-
-
 class CentrexGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
@@ -680,5 +601,5 @@ class CentrexGUI(tk.Frame):
 
 if __name__ == "__main__":
     root = tk.Tk()
-    CentrexGUI(root).pack(side="top", fill="both", expand=True)
+    CentrexGUI(root).grid()
     root.mainloop()

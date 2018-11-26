@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import messagebox
+from tkinter import ttk
 import glob
 import threading
 import h5py
@@ -121,8 +122,8 @@ class ControlGUI(tk.Frame):
 
     def place_GUI_elements(self):
         # main frame for all ControlGUI elements
-        cgf = tk.Frame(self.parent)
-        cgf.grid(row=0, column=0, sticky='nsew')
+        cgf = tk.Frame(self.parent.nb)
+        self.parent.nb.add(cgf, text="Control")
         self.parent.rowconfigure(0, weight=1)
         cgf.rowconfigure(2, weight=1)
 
@@ -496,17 +497,18 @@ class MonitoringGUI(tk.Frame):
 
     def place_GUI_elements(self):
         # main frame for all MonitoringGUI elements
-        mgf = tk.LabelFrame(self.parent, text="Device status")
-        mgf.grid(row=0, column=1, padx=10, pady=10, sticky='new')
+        mgf = tk.LabelFrame(self.parent.nb, text="Device status")
+        self.parent.nb.add(mgf, text="Monitoring")
 
         # entries for each device
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
-            tk.Label(mgf, text=dev_name, anchor='nw')\
-                    .grid(row=i, column=0, sticky='nsew')
-            tk.Message(mgf, textvariable=dev.last_data, anchor='nw', width=100)\
-                    .grid(row=i, column=1, sticky='nsew')
-            tk.Message(mgf, textvariable=dev.last_event, anchor='nw', width=150).\
-                    grid(row=i, column=2, sticky='nsew')
+            fd = tk.LabelFrame(mgf, text=dev.config["label"])
+            fd.grid(padx=10, pady=10, sticky="nsew",
+                    row=dev.config["row"], column=dev.config["column"])
+            tk.Message(fd, textvariable=dev.last_data, anchor='nw', width=100)\
+                    .grid(row=0, column=0, sticky='nsew')
+            tk.Message(fd, textvariable=dev.last_event, anchor='nw', width=150).\
+                    grid(row=1, column=0, sticky='nsew')
 
 class CentrexGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -515,7 +517,9 @@ class CentrexGUI(tk.Frame):
         self.parent = parent
         self.read_config()
 
-        # GUI elements
+        # GUI elements in a tabbed interface
+        self.nb = ttk.Notebook(self)
+        self.nb.grid()
         ControlGUI(self, *args, **kwargs).grid(row=0, column=0)
         MonitoringGUI(self, *args, **kwargs).grid(row=0, column=1)
 

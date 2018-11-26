@@ -138,6 +138,16 @@ class Plotter(tk.Frame):
         x = data[:, 0]
         y = data[:, param_list.index(param)]
 
+        # cut data
+        if self.choice.get() == "static":
+            try:
+                x1, x2 = float(self.from_var.get()), float(self.to_var.get())
+                i1 = np.argmax(x>x1)
+                i2 = np.argmin(x<x2) if x2<x[-1] else -1
+            except ValueError as err:
+                i1, i2 = 0, -1
+            x, y = x[i1:i2], y[i1:i2]
+
         # draw plot
         fig = Figure(figsize=(5.5,2.5), dpi=100)
         ax = fig.add_subplot(111)

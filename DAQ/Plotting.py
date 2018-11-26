@@ -6,6 +6,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from matplotlib.figure import Figure
 import matplotlib.animation as animation
 import numpy as np
+import sys, time
 
 from extra_widgets import VerticalScrolledFrame
 
@@ -13,12 +14,13 @@ class PlotsGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
+
+        # variables to keep track of the plots
         self.num_plots = 0
+        self.list_of_plots = []
 
         # main frame for all PlotsGUI elements
         self.nb_frame = tk.Frame(self.parent.nb)
-        self.nb_frame.columnconfigure(0, weight=1)
-        self.nb_frame.rowconfigure(0, weight=1)
         self.parent.nb.add(self.nb_frame, text="Plots")
 
         ## scrolled frame
@@ -30,32 +32,47 @@ class PlotsGUI(tk.Frame):
         self.f = tk.Frame(self.nb_frame)
         self.f.grid(row=0, column=0, sticky='n')
 
+        # frame for controls
+        ctrls_f = tk.Frame(self.f)
+        ctrls_f.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
+
+        # button to replot all plots
+        plot_b = tk.Button(ctrls_f, text="Replot all", command=self.replot_all)
+        plot_b.grid(row=0, column=0, sticky='e', padx=10)
+
         # button to add more plots
-        add_b = tk.Button(self.f, text="New plot ...", command=self.add_plot)
-        add_b.grid(row=0, column=0, sticky='e', padx=10)
+        add_b = tk.Button(ctrls_f, text="New plot ...", command=self.add_plot)
+        add_b.grid(row=0, column=1, sticky='e', padx=10)
 
         # add one plot
         self.add_plot()
+
+    def replot_all(self):
+        for plot in self.list_of_plots:
+            plot.plot()
 
     def add_plot(self):
         # the plot
         self.num_plots += 1
         fr = tk.LabelFrame(self.f, text="Plot")
         fr.grid(padx=10, pady=10, sticky="nsew", row=self.num_plots, column=0)
-        Plotter(fr, self.parent)
+        plot = Plotter(fr, self.parent)
+        self.list_of_plots.append(plot)
 
         # button to delete plot
-        del_b = tk.Button(fr, text="\u274c", command=lambda fr=fr: fr.grid_forget())
+        del_b = tk.Button(fr, text="\u274c", command=lambda plot=plot: self.delete_plot(plot))
         del_b.grid(row=0, column=3, sticky='e', padx=10)
+
+    def delete_plot(self, plot):
+        plot.f.destroy()
 
 class Plotter(tk.Frame):
     def __init__(self, frame, parent, *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
         self.f = frame
         self.parent = parent
-        self.place_GUI_elements()
+        self.plot_drawn = False
 
-    def place_GUI_elements(self):
         # select device
         self.dev_list = [dev_name for dev_name in self.parent.devices]
         self.dev_var = tk.StringVar()
@@ -100,19 +117,6 @@ class Plotter(tk.Frame):
         self.rate_var.set("refresh rate")
         rate_e = tk.Entry(self.f, textvariable=self.rate_var)
         rate_e.grid(row=2, column=2, sticky='w')
-
-        # empty plot
-        self.fig = Figure(figsize=(5.5,2.5), dpi=100)
-        canvas = FigureCanvasTkAgg(self.fig, self.f)
-        canvas.draw()
-        canvas.get_tk_widget().grid(row=4, columnspan=4)
-
-        # place the plot navigation toolbar
-        t_f = tk.Frame(self.f)
-        t_f.grid(row=3, columnspan=4)
-        toolbar = NavigationToolbar2Tk(canvas, t_f)
-        toolbar.update()
-        canvas._tkcanvas.grid()
 
     def refresh_parameter_list(self, dev_name):
         self.dev_var.set(dev_name)
@@ -168,7 +172,13 @@ class Plotter(tk.Frame):
 
         return x, y, param, unit
 
-    def plot(self, i=0):
+    def plot(self):
+        if not self.plot_drawn:
+            self.new_plot()
+        else:
+            self.replot()
+
+    def new_plot(self):
         # obtain new data
         try:
             x, y, param, unit = self.get_data()
@@ -177,18 +187,44 @@ class Plotter(tk.Frame):
 
         # draw plot
         self.fig = Figure(figsize=(5.5,2.5), dpi=100)
-        ax = self.fig.add_subplot(111)
-        self.line, = ax.plot(x, y, label=param)
+        self.ax = self.fig.add_subplot(111)
+        self.line, = self.ax.plot(x, y)
 
         # labels
-        ax.set_xlabel("time [s]")
-        ax.set_ylabel(param + " [" + unit.strip() + "]")
+        self.ax.set_xlabel("time [s]")
+        self.ax.set_ylabel(param + " [" + unit.strip() + "]")
 
         # plot layout
         self.fig.tight_layout()
-        ax.grid()
+        self.ax.grid()
 
         # update drawing
-        canvas = FigureCanvasTkAgg(self.fig, self.f)
-        canvas.draw()
-        canvas.get_tk_widget().grid(row=4, columnspan=4)
+        self.canvas = FigureCanvasTkAgg(self.fig, self.f)
+        self.canvas.get_tk_widget().grid(row=4, columnspan=4)
+        self.ani = animation.FuncAnimation(self.fig, self.replot, interval=1000, blit=False)
+
+        ## place the plot navigation toolbar
+        #t_f = tk.Frame(self.f)
+        #t_f.grid(row=3, columnspan=4)
+        #toolbar = NavigationToolbar2Tk(self.canvas, t_f)
+        #toolbar.update()
+        #self.canvas._tkcanvas.grid()
+
+        self.plot_drawn = True
+
+    def replot(self, i=0):
+        print("replot called at ", time.time())
+        sys.stdout.flush()
+
+        # obtain new data
+        try:
+            x, y, param, unit = self.get_data()
+        except ValueError:
+            return
+
+        # update plot
+        self.line.set_data(x, y)
+        self.ax.set_xlim((np.min(x),np.max(x)))
+        self.ax.set_ylim((np.min(y),np.max(y)))
+        self.ax.set_xlabel("time [s]")
+        self.ax.set_ylabel(param + " [" + unit.strip() + "]")

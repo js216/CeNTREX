@@ -475,8 +475,9 @@ class ControlGUI(tk.Frame):
                         for row in csv.reader(events_f, delimiter=','):
                             events_list.append([x.encode("ascii") for x in row])
 
+                    events_list = np.array(events_list, dtype=object)
                     events_dset = grp.create_dataset(dev.config["name"] + " events",
-                            data=events_list, dtype=h5py.special_dtype(vlen=bytes))
+                            data=events_list, dtype=h5py.special_dtype(vlen=str))
 
                 # write time offset to HDF
                 to_fname = dev.config["current_run_dir"] + "/" + dev.config["path"] + "/" + dev_name + "_time_offset.csv"

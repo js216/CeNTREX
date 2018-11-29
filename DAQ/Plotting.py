@@ -107,12 +107,14 @@ class Plotter(tk.Frame):
         dt_entry = tk.Entry(self.f, textvariable=self.dt_var)
         dt_entry.grid(row=1, column=2, sticky='w')
         dt_entry.bind("<Return>", self.change_animation_dt)
-        tk.Button(self.ctrls_f, text="\u25b6", command=self.start_animation)\
+        tk.Button(self.ctrls_f, text="Plot", command=self.replot)\
                 .grid(row=0, column=0, sticky='e', padx=10)
-        tk.Button(self.ctrls_f, text="\u25a0", command=self.stop_animation)\
+        tk.Button(self.ctrls_f, text="\u25b6", command=self.start_animation)\
                 .grid(row=0, column=1, sticky='e', padx=10)
-        tk.Button(self.ctrls_f, text="Log/Lin", command=self.toggle_log)\
+        tk.Button(self.ctrls_f, text="\u25a0", command=self.stop_animation)\
                 .grid(row=0, column=2, sticky='e', padx=10)
+        tk.Button(self.ctrls_f, text="Log/Lin", command=self.toggle_log)\
+                .grid(row=0, column=3, sticky='e', padx=10)
 
     def toggle_log(self):
         if self.log == True:
@@ -135,6 +137,7 @@ class Plotter(tk.Frame):
     def start_animation(self):
         if not self.plot_drawn:
             self.new_plot()
+            self.ani.event_source.start()
         else:
             self.ani.event_source.start()
 
@@ -223,6 +226,7 @@ class Plotter(tk.Frame):
         self.canvas = FigureCanvasTkAgg(self.fig, self.f)
         self.canvas.get_tk_widget().grid(row=4, columnspan=6)
         self.ani = animation.FuncAnimation(self.fig, self.replot, interval=self.dt(), blit=False)
+        self.ani.event_source.stop()
 
         ## place the plot navigation toolbar
         t_f = tk.Frame(self.f)

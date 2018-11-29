@@ -103,8 +103,10 @@ class Plotter(tk.Frame):
         self.ctrls_f = tk.Frame(self.f)
         self.ctrls_f.grid(row=0, column=2, sticky='nsew', padx=10, pady=10)
         self.dt_var = tk.StringVar()
-        tk.Entry(self.f, textvariable=self.dt_var)\
-                .grid(row=1, column=2, sticky='w')
+        self.dt_var.set("plot refresh rate [ms]")
+        dt_entry = tk.Entry(self.f, textvariable=self.dt_var)
+        dt_entry.grid(row=1, column=2, sticky='w')
+        dt_entry.bind("<Return>", self.change_animation_dt)
         tk.Button(self.ctrls_f, text="\u25b6", command=self.start_animation)\
                 .grid(row=0, column=0, sticky='e', padx=10)
         tk.Button(self.ctrls_f, text="\u25a0", command=self.stop_animation)\
@@ -135,6 +137,10 @@ class Plotter(tk.Frame):
             self.new_plot()
         else:
             self.ani.event_source.start()
+
+    def change_animation_dt(self, i=0):
+        if self.plot_drawn:
+            self.ani.event_source.interval = self.dt()
 
     def stop_animation(self):
         if self.plot_drawn:
@@ -216,7 +222,7 @@ class Plotter(tk.Frame):
         # update drawing
         self.canvas = FigureCanvasTkAgg(self.fig, self.f)
         self.canvas.get_tk_widget().grid(row=4, columnspan=6)
-        self.ani = animation.FuncAnimation(self.fig, self.replot, interval=1000, blit=False)
+        self.ani = animation.FuncAnimation(self.fig, self.replot, interval=self.dt(), blit=False)
 
         ## place the plot navigation toolbar
         t_f = tk.Frame(self.f)
@@ -227,7 +233,18 @@ class Plotter(tk.Frame):
 
         self.plot_drawn = True
 
+    def dt(self):
+        try:
+            dt = float(self.dt_var.get())
+        except ValueError:
+            dt = 1000
+        if dt < 100:
+            dt = 1000
+        return dt
+
     def replot(self, i=0):
+        print("replot called ",time.time())
+        sys.stdout.flush()
         if not self.plot_drawn:
             self.new_plot()
             return

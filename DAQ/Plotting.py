@@ -76,7 +76,7 @@ class Plotter(tk.Frame):
         self.plot_drawn = False
 
         # select device
-        self.dev_list = [dev_name for dev_name in self.parent.devices]
+        self.dev_list = [dev_name.strip() for dev_name in self.parent.devices]
         self.dev_var = tk.StringVar()
         self.dev_var.set("Select device ...")
         dev_select = tk.OptionMenu(self.f, self.dev_var, *self.dev_list,
@@ -84,7 +84,7 @@ class Plotter(tk.Frame):
         dev_select.grid(row=0, column=0, sticky='w')
 
         # select parameter
-        self.param_list = ["aa", "b"]
+        self.param_list = [""]
         self.param_var = tk.StringVar()
         self.param_var.set("Select what to plot ...")
         self.param_select = tk.OptionMenu(self.f, self.param_var, *self.param_list)
@@ -177,6 +177,7 @@ class Plotter(tk.Frame):
 
         # update the parameter list
         param_list = dev.config["attributes"]["column_names"].split(',')
+        param_list = [x.strip() for x in param_list]
         menu = self.param_select["menu"]
         menu.delete(0, "end")
         for p in param_list:

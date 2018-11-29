@@ -102,31 +102,31 @@ class Plotter(tk.Frame):
         # control buttons
         self.ctrls_f = tk.Frame(self.f)
         self.ctrls_f.grid(row=0, column=2, sticky='nsew', padx=10, pady=10)
+        self.f.columnconfigure(2, weight=1)
+        self.ctrls_f.columnconfigure(7, weight=1)
         self.dt_var = tk.StringVar()
         self.dt_var.set("plot refresh rate [ms]")
         dt_entry = tk.Entry(self.f, textvariable=self.dt_var)
         dt_entry.grid(row=1, column=2, sticky='w')
         dt_entry.bind("<Return>", self.change_animation_dt)
         tk.Button(self.ctrls_f, text="Plot", command=self.replot)\
-                .grid(row=0, column=0, sticky='e', padx=10)
+                .grid(row=0, column=0, sticky='e', padx=2)
         self.play_pause_button = tk.Button(self.ctrls_f, text="\u25b6", command=self.start_animation)
-        self.play_pause_button.grid(row=0, column=1, sticky='e', padx=10)
+        self.play_pause_button.grid(row=0, column=1, sticky='e', padx=2)
         tk.Button(self.ctrls_f, text="Log/Lin", command=self.toggle_log)\
-                .grid(row=0, column=2, sticky='e', padx=10)
+                .grid(row=0, column=2, sticky='e', padx=2)
 
     def toggle_log(self):
+        if not self.plot_drawn:
+            self.new_plot()
+            self.play_pause_button.configure(text="\u23f8", command=self.stop_animation)
+
         if self.log == True:
             self.log = False
         else:
             self.log = True
 
-        # obtain new data
-        try:
-            x, y, param, unit = self.get_data()
-        except ValueError:
-            return
-
-        # draw plot
+        # update plot
         if self.log:
             self.ax.set_yscale('log')
         else:

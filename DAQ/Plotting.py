@@ -121,41 +121,44 @@ class Plotter(tk.Frame):
 
     # whether to draw with just lines or also with points
     def toggle_points(self):
-        if not self.plot_drawn:
-            self.new_plot()
+        if self.new_plot():
             self.play_pause_button.configure(text="\u23f8", command=self.stop_animation)
 
         self.points = False if self.points==True else True
 
-        # update plot
+        # change marker style
         if self.points:
-            self.ax.set_linestyle('.-')
+            self.line.set_marker('.')
         else:
-            self.ax.set_linestyle('-')
+            self.line.set_marker(None)
+
+        # update plot
+        self.canvas.draw()
 
     def toggle_log(self):
-        if not self.plot_drawn:
-            self.new_plot()
+        if self.new_plot():
             self.play_pause_button.configure(text="\u23f8", command=self.stop_animation)
 
-        self.log = False if self.log==True else False
+        self.log = False if self.log==True else True
 
-        # update plot
+        # change log/lin
         if self.log:
             self.ax.set_yscale('log')
         else:
             self.ax.set_yscale('linear')
 
+        # update plot
+        self.canvas.draw()
+
     def start_animation(self):
-        if not self.plot_drawn:
-            self.new_plot()
+        if self.new_plot():
             self.ani.event_source.start()
         else:
             self.ani.event_source.start()
         self.play_pause_button.configure(text="\u23f8", command=self.stop_animation)
 
     def stop_animation(self):
-        if self.plot_drawn:
+        if not self.new_plot():
             self.ani.event_source.stop()
         self.play_pause_button.configure(text="\u25b6", command=self.start_animation)
 
@@ -223,6 +226,9 @@ class Plotter(tk.Frame):
         except ValueError:
             return
 
+        if self.plot_drawn:
+            return False
+
         # draw plot
         self.fig = Figure(figsize=(5.5,2.5), dpi=100)
         self.ax = self.fig.add_subplot(111)
@@ -250,6 +256,7 @@ class Plotter(tk.Frame):
         self.canvas._tkcanvas.grid()
 
         self.plot_drawn = True
+        return True
 
     def dt(self):
         try:

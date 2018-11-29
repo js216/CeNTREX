@@ -126,7 +126,6 @@ class Plotter(tk.Frame):
 
         # draw plot
         if self.log:
-            self.ax.get_yaxis().set_major_formatter(matplotlib.ticker.ScalarFormatter())
             self.ax.set_yscale('log')
         else:
             self.ax.set_yscale('linear')
@@ -183,10 +182,12 @@ class Plotter(tk.Frame):
         x = data[:, 0]
         y = data[:, param_list.index(param)]
 
-        # cut data
+        # range selection
         try:
             i1, i2 = int(self.from_var.get()), int(self.to_var.get())
         except ValueError as err:
+            i1, i2 = 0, -1
+        if i1 >= i2:
             i1, i2 = 0, -1
         x, y = x[i1:i2], y[i1:i2]
 
@@ -218,11 +219,11 @@ class Plotter(tk.Frame):
         self.ani = animation.FuncAnimation(self.fig, self.replot, interval=1000, blit=False)
 
         ## place the plot navigation toolbar
-        #t_f = tk.Frame(self.f)
-        #t_f.grid(row=3, columnspan=5)
-        #toolbar = NavigationToolbar2Tk(self.canvas, t_f)
-        #toolbar.update()
-        #self.canvas._tkcanvas.grid()
+        t_f = tk.Frame(self.f)
+        t_f.grid(row=3, columnspan=5)
+        toolbar = NavigationToolbar2Tk(self.canvas, t_f)
+        toolbar.update()
+        self.canvas._tkcanvas.grid()
 
         self.plot_drawn = True
 

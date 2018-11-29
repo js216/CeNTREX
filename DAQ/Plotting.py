@@ -287,3 +287,4 @@ class Plotter(tk.Frame):
         self.ax.set_ylim((np.nanmin(y),np.nanmax(y)))
         self.ax.set_xlabel("time [s]")
         self.ax.set_ylabel(param + " [" + unit.strip() + "]")
+        self.canvas.draw()

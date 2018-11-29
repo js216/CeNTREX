@@ -72,6 +72,7 @@ class Plotter(tk.Frame):
         self.f = frame
         self.parent = parent
         self.log = False
+        self.points = False
         self.plot_drawn = False
 
         # select device
@@ -115,16 +116,29 @@ class Plotter(tk.Frame):
         self.play_pause_button.grid(row=0, column=1, sticky='e', padx=2)
         tk.Button(self.ctrls_f, text="Log/Lin", command=self.toggle_log)\
                 .grid(row=0, column=2, sticky='e', padx=2)
+        tk.Button(self.ctrls_f, text="\u26ab / \u2014", command=self.toggle_points)\
+                .grid(row=0, column=3, sticky='e', padx=2)
+
+    # whether to draw with just lines or also with points
+    def toggle_points(self):
+        if not self.plot_drawn:
+            self.new_plot()
+            self.play_pause_button.configure(text="\u23f8", command=self.stop_animation)
+
+        self.points = False if self.points==True else True
+
+        # update plot
+        if self.points:
+            self.ax.set_linestyle('.-')
+        else:
+            self.ax.set_linestyle('-')
 
     def toggle_log(self):
         if not self.plot_drawn:
             self.new_plot()
             self.play_pause_button.configure(text="\u23f8", command=self.stop_animation)
 
-        if self.log == True:
-            self.log = False
-        else:
-            self.log = True
+        self.log = False if self.log==True else False
 
         # update plot
         if self.log:

@@ -109,12 +109,10 @@ class Plotter(tk.Frame):
         dt_entry.bind("<Return>", self.change_animation_dt)
         tk.Button(self.ctrls_f, text="Plot", command=self.replot)\
                 .grid(row=0, column=0, sticky='e', padx=10)
-        tk.Button(self.ctrls_f, text="\u25b6", command=self.start_animation)\
-                .grid(row=0, column=1, sticky='e', padx=10)
-        tk.Button(self.ctrls_f, text="\u25a0", command=self.stop_animation)\
-                .grid(row=0, column=2, sticky='e', padx=10)
+        self.play_pause_button = tk.Button(self.ctrls_f, text="\u25b6", command=self.start_animation)
+        self.play_pause_button.grid(row=0, column=1, sticky='e', padx=10)
         tk.Button(self.ctrls_f, text="Log/Lin", command=self.toggle_log)\
-                .grid(row=0, column=3, sticky='e', padx=10)
+                .grid(row=0, column=2, sticky='e', padx=10)
 
     def toggle_log(self):
         if self.log == True:
@@ -140,14 +138,16 @@ class Plotter(tk.Frame):
             self.ani.event_source.start()
         else:
             self.ani.event_source.start()
-
-    def change_animation_dt(self, i=0):
-        if self.plot_drawn:
-            self.ani.event_source.interval = self.dt()
+        self.play_pause_button.configure(text="\u23f8", command=self.stop_animation)
 
     def stop_animation(self):
         if self.plot_drawn:
             self.ani.event_source.stop()
+        self.play_pause_button.configure(text="\u25b6", command=self.start_animation)
+
+    def change_animation_dt(self, i=0):
+        if self.plot_drawn:
+            self.ani.event_source.interval = self.dt()
 
     def refresh_parameter_list(self, dev_name):
         self.dev_var.set(dev_name)
@@ -251,6 +251,7 @@ class Plotter(tk.Frame):
         sys.stdout.flush()
         if not self.plot_drawn:
             self.new_plot()
+            self.play_pause_button.configure(text="\u23f8", command=self.stop_animation)
             return
 
         # obtain new data

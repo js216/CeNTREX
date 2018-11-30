@@ -7,6 +7,7 @@ from matplotlib.figure import Figure
 import matplotlib.animation as animation
 import numpy as np
 import sys, time
+import csv
 
 from extra_widgets import VerticalScrolledFrame
 
@@ -176,14 +177,14 @@ class Plotter(tk.Frame):
             return None
 
         # update the parameter list
-        param_list = dev.config["attributes"]["column_names"].split(',')
-        param_list = [x.strip() for x in param_list]
+        self.param_list = dev.config["attributes"]["column_names"].split(',')
+        self.param_list = [x.strip() for x in self.param_list]
         menu = self.param_select["menu"]
         menu.delete(0, "end")
-        for p in param_list:
+        for p in self.param_list:
             menu.add_command(label=p, command=lambda val=p: self.param_var.set(val))
 
-        self.param_var.set(param_list[1])
+        self.param_var.set(self.param_list[1])
 
     def get_data(self):
         # check device is valid
@@ -194,28 +195,29 @@ class Plotter(tk.Frame):
             raise ValueError("invalid device")
 
         # check parameter is valid
-        param_list = dev.config["attributes"]["column_names"].split(',')
-        if self.param_var.get() in param_list:
+        if self.param_var.get() in self.param_list:
             param = self.param_var.get()
-            unit = dev.config["attributes"]["units"].split(',')[param_list.index(param)]
+            unit = dev.config["attributes"]["units"].split(',')[self.param_list.index(param)]
         else:
             messagebox.showerror("Parameter error", "Error: invalid parameter.")
             raise ValueError("invalid parameter")
 
-        # get data
-        path = dev.config["current_run_dir"] + "/" + dev.config["path"] + "/"
-        CSV_fname = path + dev.config["name"] + ".csv"
-        data = np.loadtxt(CSV_fname, delimiter=',')
-        x = data[:, 0]
-        y = data[:, param_list.index(param)]
+        # get filename of the data file
+        CSV_fname = dev.config["current_run_dir"] + "/" + dev.config["path"] \
+                + "/" + dev.config["name"] + ".csv"
 
-        # range selection
+        # range of data to obtain
         try:
             i1, i2 = int(self.from_var.get()), int(self.to_var.get())
         except ValueError as err:
             i1, i2 = 0, -1
         if i1 >= i2:
             i1, i2 = 0, -1
+
+        # get data (read whole file, then cut)
+        data = np.loadtxt(CSV_fname, delimiter=',')
+        x = data[:, 0]
+        y = data[:, self.param_list.index(param)]
         x, y = x[i1:i2], y[i1:i2]
 
         return x, y, param, unit

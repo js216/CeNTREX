@@ -40,19 +40,31 @@ class PlotsGUI(tk.Frame):
         plot_b = tk.Button(ctrls_f, text="Replot all", command=self.replot_all)
         plot_b.grid(row=0, column=0, sticky='e', padx=10)
 
+        # button to delete all plots
+        plot_b = tk.Button(ctrls_f, text="Delete all", command=self.delete_all)
+        plot_b.grid(row=0, column=1, sticky='e', padx=10)
+
         # button to add add plot in the specified column
         self.col_var = tk.StringVar()
         self.col_var.set("col")
-        tk.Entry(ctrls_f, textvariable=self.col_var).grid(row=0, column=1, sticky='w', padx=10)
+        tk.Entry(ctrls_f, textvariable=self.col_var).grid(row=0, column=2, sticky='w', padx=10)
         add_b = tk.Button(ctrls_f, text="New plot ...", command=self.add_plot)
-        add_b.grid(row=0, column=2, sticky='e', padx=10)
+        add_b.grid(row=0, column=3, sticky='e', padx=10)
 
         # add one plot
         self.add_plot()
 
+    def delete_all(self):
+        for col, col_plots in self.all_plots.items():
+            for row, plot in col_plots.items():
+                if plot:
+                    plot.destroy()
+        self.all_plots = {}
+
     def replot_all(self):
-        for plot in self.list_of_plots:
-            plot.replot()
+        for col, col_plots in self.all_plots.items():
+            for row, plot in col_plots.items():
+                plot.replot()
 
     def add_plot(self):
         # find location for the plot
@@ -71,11 +83,14 @@ class PlotsGUI(tk.Frame):
         self.all_plots[col][row] = plot
 
         # button to delete plot
-        del_b = tk.Button(plot.ctrls_f, text="\u274c", command=lambda plot=plot: self.delete_plot(plot))
+        del_b = tk.Button(plot.ctrls_f, text="\u274c", command=lambda plot=plot,
+                row=row, col=col: self.delete_plot(row,col,plot))
         del_b.grid(row=0, column=7, sticky='e', padx=10)
 
-    def delete_plot(self, plot):
-        plot.f.destroy()
+    def delete_plot(self, row, col, plot):
+        if plot:
+            plot.destroy()
+        self.all_plots[col].pop(row, None)
 
 class Plotter(tk.Frame):
     def __init__(self, frame, parent, *args, **kwargs):
@@ -176,6 +191,9 @@ class Plotter(tk.Frame):
     def change_animation_dt(self, i=0):
         if self.plot_drawn:
             self.ani.event_source.interval = self.dt()
+
+    def destroy(self):
+        self.f.destroy()
 
     def refresh_parameter_list(self, dev_name):
         self.dev_var.set(dev_name)

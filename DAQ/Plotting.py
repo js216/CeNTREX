@@ -16,15 +16,14 @@ class PlotsGUI(tk.Frame):
         tk.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
 
-        # variables to keep track of the plots
-        self.num_plots = 0
-        self.list_of_plots = []
+        # variable to keep track of the plots
+        self.all_plots = {}
 
         # main frame for all PlotsGUI elements
         self.nb_frame = tk.Frame(self.parent.nb)
         self.parent.nb.add(self.nb_frame, text="Plots")
 
-        ## scrolled frame
+        ## vertically scrolled frame
         #fr_object = VerticalScrolledFrame(self.nb_frame)
         #self.f = fr_object.interior
         #fr_object.grid(row=0, column=0, padx=0, pady=0, sticky='nsew')
@@ -41,9 +40,12 @@ class PlotsGUI(tk.Frame):
         plot_b = tk.Button(ctrls_f, text="Replot all", command=self.replot_all)
         plot_b.grid(row=0, column=0, sticky='e', padx=10)
 
-        # button to add more plots
+        # button to add add plot in the specified column
+        self.col_var = tk.StringVar()
+        self.col_var.set("col")
+        tk.Entry(ctrls_f, textvariable=self.col_var).grid(row=0, column=1, sticky='w', padx=10)
         add_b = tk.Button(ctrls_f, text="New plot ...", command=self.add_plot)
-        add_b.grid(row=0, column=1, sticky='e', padx=10)
+        add_b.grid(row=0, column=2, sticky='e', padx=10)
 
         # add one plot
         self.add_plot()
@@ -53,12 +55,20 @@ class PlotsGUI(tk.Frame):
             plot.replot()
 
     def add_plot(self):
-        # the plot
-        self.num_plots += 1
+        # find location for the plot
+        try:
+            col = int(self.col_var.get())
+        except ValueError:
+            col = 0
+        row = max([ r for r in self.all_plots.setdefault(col, {0:None}) ]) + 1
+
+        # frame for the plot
         fr = tk.LabelFrame(self.f, text="Plot")
-        fr.grid(padx=10, pady=10, sticky="nsew", row=self.num_plots, column=0)
+        fr.grid(row=row, column=col, padx=10, pady=10, sticky="nsew")
+
+        # place the plot
         plot = Plotter(fr, self.parent)
-        self.list_of_plots.append(plot)
+        self.all_plots[col][row] = plot
 
         # button to delete plot
         del_b = tk.Button(plot.ctrls_f, text="\u274c", command=lambda plot=plot: self.delete_plot(plot))

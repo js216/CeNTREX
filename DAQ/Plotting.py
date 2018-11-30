@@ -236,7 +236,7 @@ class Plotter(tk.Frame):
             dev = self.parent.devices[self.dev_var.get()]
         else:
             messagebox.showerror("Device error", "Error: invalid device.")
-            raise ValueError("invalid device")
+            return None
 
         # check parameter is valid
         if self.param_var.get() in self.param_list:
@@ -244,7 +244,7 @@ class Plotter(tk.Frame):
             unit = dev.config["attributes"]["units"].split(',')[self.param_list.index(param)]
         else:
             messagebox.showerror("Parameter error", "Error: invalid parameter.")
-            raise ValueError("invalid parameter")
+            return None
 
         # get filename of the data file
         CSV_fname = dev.config["current_run_dir"] + "/" + dev.config["path"] \
@@ -258,20 +258,27 @@ class Plotter(tk.Frame):
         if i1 >= i2:
             i1, i2 = 0, -1
 
-        # get data (read whole file, then cut)
-        data = np.loadtxt(CSV_fname, delimiter=',')
+        # get data
+        try:
+            data = np.loadtxt(CSV_fname, delimiter=',')
+        except OSError:
+            return None
+
+        # check if any data returned
+        if len(data.shape) < 2:
+            return None
+
+        # cut and return data
         x = data[:, 0]
         y = data[:, self.param_list.index(param)]
         x, y = x[i1:i2], y[i1:i2]
-
         return x, y, param, unit
 
     def new_plot(self):
-        # obtain new data
-        try:
-            x, y, param, unit = self.get_data()
-        except ValueError:
-            return False
+        data = self.get_data()
+
+        if data:
+            x, y, param, unit = data
 
         if self.plot_drawn:
             return False
@@ -315,22 +322,16 @@ class Plotter(tk.Frame):
         return dt
 
     def replot(self, i=0):
-        print("replot called ",time.time())
-        sys.stdout.flush()
         if self.new_plot():
             self.play_pause_button.configure(text="\u23f8", command=self.stop_animation)
             return
 
-        # obtain new data
-        try:
-            x, y, param, unit = self.get_data()
-        except ValueError:
-            return
-
-        # update plot
-        self.line.set_data(x, y)
-        self.ax.set_xlim((np.nanmin(x),np.nanmax(x)))
-        self.ax.set_ylim((np.nanmin(y),np.nanmax(y)))
-        self.ax.set_xlabel("time [s]")
-        self.ax.set_ylabel(param + " [" + unit.strip() + "]")
-        self.canvas.draw()
+        data = self.get_data()
+        if data:
+            x, y, param, unit = data
+            self.line.set_data(x, y)
+            self.ax.set_xlim((np.nanmin(x),np.nanmax(x)))
+            self.ax.set_ylim((np.nanmin(y),np.nanmax(y)))
+            self.ax.set_xlabel("time [s]")
+            self.ax.set_ylabel(param + " [" + unit.strip() + "]")
+            self.canvas.draw()

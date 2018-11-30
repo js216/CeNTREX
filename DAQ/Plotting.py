@@ -255,7 +255,7 @@ class Plotter(tk.Frame):
         try:
             x, y, param, unit = self.get_data()
         except ValueError:
-            return
+            return False
 
         if self.plot_drawn:
             return False
@@ -301,8 +301,7 @@ class Plotter(tk.Frame):
     def replot(self, i=0):
         print("replot called ",time.time())
         sys.stdout.flush()
-        if not self.plot_drawn:
-            self.new_plot()
+        if self.new_plot():
             self.play_pause_button.configure(text="\u23f8", command=self.stop_animation)
             return
 

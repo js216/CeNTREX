@@ -154,7 +154,7 @@ class Plotter(tk.Frame):
         self.f.columnconfigure(3, weight=1)
         self.ctrls_f.columnconfigure(7, weight=1)
         self.dt_var = tk.StringVar()
-        self.dt_var.set("plot refresh rate [ms]")
+        self.dt_var.set("plot refresh rate [s]")
         dt_entry = tk.Entry(self.ctrls_f, textvariable=self.dt_var)
         dt_entry.grid(row=1, column=0, columnspan=3, sticky='w')
         dt_entry.bind("<Return>", self.change_animation_dt)
@@ -212,7 +212,7 @@ class Plotter(tk.Frame):
 
     def change_animation_dt(self, i=0):
         if self.plot_drawn:
-            self.ani.event_source.interval = self.dt()
+            self.ani.event_source.interval = 1000 * self.dt()
 
     def destroy(self):
         self.f.destroy()
@@ -277,7 +277,8 @@ class Plotter(tk.Frame):
         # cut and return data
         x = data[:, 0]
         y = data[:, self.param_list.index(param)]
-        x, y = x[i1:i2], y[i1:i2]
+        if i2 <= len(x):
+            x, y = x[i1:i2], y[i1:i2]
         return x, y, param, unit
 
     def new_plot(self):
@@ -324,9 +325,9 @@ class Plotter(tk.Frame):
         try:
             dt = float(self.dt_var.get())
         except ValueError:
-            dt = 1000
-        if dt < 100:
-            dt = 1000
+            dt = 1
+        if dt < 0.1:
+            dt = 1
         return dt
 
     def replot(self, i=0):

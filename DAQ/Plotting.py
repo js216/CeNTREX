@@ -33,11 +33,9 @@ class PlotsGUI(tk.Frame):
         self.f = tk.Frame(self.nb_frame)
         self.f.grid(row=0, column=0, sticky='n')
 
-        # frame for controls
+        # controls for all plots
         ctrls_f = tk.Frame(self.f)
         ctrls_f.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
-
-        # controls for all plots
         tk.Button(ctrls_f, text="Start all", command=self.start_all)\
                 .grid(row=0, column=0, sticky='e', padx=10)
         tk.Button(ctrls_f, text="Stop all", command=self.stop_all)\
@@ -123,34 +121,42 @@ class Plotter(tk.Frame):
         self.dev_var.set("Select device ...")
         dev_select = tk.OptionMenu(self.f, self.dev_var, *self.dev_list,
                 command=self.refresh_parameter_list)
-        dev_select.grid(row=0, column=0, sticky='w')
+        dev_select.grid(row=0, column=0, columnspan=2, sticky='w')
 
         # select parameter
         self.param_list = [""]
         self.param_var = tk.StringVar()
         self.param_var.set("Select what to plot ...")
         self.param_select = tk.OptionMenu(self.f, self.param_var, *self.param_list)
-        self.param_select.grid(row=0, column=1, sticky='w')
+        self.param_select.grid(row=0, column=2, columnspan=2, sticky='w')
 
         # plot range controls
-        self.from_var = tk.StringVar()
-        self.from_var.set("from")
-        tk.Entry(self.f, textvariable=self.from_var)\
-                .grid(row=1, column=0, sticky='w', padx=10, pady=10)
-        self.to_var = tk.StringVar()
-        self.to_var.set("to")
-        tk.Entry(self.f, textvariable=self.to_var)\
-                .grid(row=1, column=1, sticky='w', padx=10, pady=10)
+        self.x0_var = tk.StringVar()
+        self.x0_var.set("x0")
+        tk.Entry(self.f, textvariable=self.x0_var, width=6)\
+                .grid(row=1, column=0, sticky='w', padx=4)
+        self.x1_var = tk.StringVar()
+        self.x1_var.set("x1")
+        tk.Entry(self.f, textvariable=self.x1_var, width=6)\
+                .grid(row=1, column=1, sticky='w', padx=4)
+        self.y0_var = tk.StringVar()
+        self.y0_var.set("y0")
+        tk.Entry(self.f, textvariable=self.y0_var, width=6)\
+                .grid(row=1, column=2, sticky='w', padx=4)
+        self.y1_var = tk.StringVar()
+        self.y1_var.set("y1")
+        tk.Entry(self.f, textvariable=self.y1_var, width=6)\
+                .grid(row=1, column=3, sticky='w', padx=4)
 
         # control buttons
         self.ctrls_f = tk.Frame(self.f)
-        self.ctrls_f.grid(row=0, column=2, sticky='nsew', padx=10, pady=10)
-        self.f.columnconfigure(2, weight=1)
+        self.ctrls_f.grid(row=0, column=4, sticky='nsew', padx=10)
+        self.f.columnconfigure(3, weight=1)
         self.ctrls_f.columnconfigure(7, weight=1)
         self.dt_var = tk.StringVar()
         self.dt_var.set("plot refresh rate [ms]")
-        dt_entry = tk.Entry(self.f, textvariable=self.dt_var)
-        dt_entry.grid(row=1, column=2, sticky='w')
+        dt_entry = tk.Entry(self.ctrls_f, textvariable=self.dt_var)
+        dt_entry.grid(row=1, column=0, columnspan=3, sticky='w')
         dt_entry.bind("<Return>", self.change_animation_dt)
         tk.Button(self.ctrls_f, text="Plot", command=self.replot)\
                 .grid(row=0, column=0, sticky='e', padx=2)
@@ -252,7 +258,7 @@ class Plotter(tk.Frame):
 
         # range of data to obtain
         try:
-            i1, i2 = int(self.from_var.get()), int(self.to_var.get())
+            i1, i2 = int(self.x0_var.get()), int(self.x1_var.get())
         except ValueError as err:
             i1, i2 = 0, -1
         if i1 >= i2:
@@ -279,6 +285,8 @@ class Plotter(tk.Frame):
 
         if data:
             x, y, param, unit = data
+        else:
+            return False
 
         if self.plot_drawn:
             return False
@@ -331,7 +339,13 @@ class Plotter(tk.Frame):
             x, y, param, unit = data
             self.line.set_data(x, y)
             self.ax.set_xlim((np.nanmin(x),np.nanmax(x)))
-            self.ax.set_ylim((np.nanmin(y),np.nanmax(y)))
+            try:
+                y0, y1 = float(self.y0_var.get()), float(self.y1_var.get())
+                if y0 > y1:
+                    raise ValueError
+            except ValueError as err:
+                y0, y1 = np.nanmin(y), np.nanmax(y)
+            self.ax.set_ylim((y0, y1))
             self.ax.set_xlabel("time [s]")
             self.ax.set_ylabel(param + " [" + unit.strip() + "]")
             self.canvas.draw()

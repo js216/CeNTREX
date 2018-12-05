@@ -305,6 +305,7 @@ class Plotter(tk.Frame):
         # plot layout
         self.fig.tight_layout()
         self.ax.grid()
+        self.ax.ticklabel_format(axis='y', scilimits=(-3,3))
 
         # update drawing
         self.canvas = FigureCanvasTkAgg(self.fig, self.f)

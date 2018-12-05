@@ -335,7 +335,11 @@ class Plotter(tk.Frame):
             self.play_pause_button.configure(text="\u23f8", command=self.stop_animation)
             return
 
-        data = self.get_data()
+        if self.plot_drawn:
+            data = self.get_data()
+        else:
+            return
+
         if data:
             x, y, param, unit = data
             self.line.set_data(x, y)

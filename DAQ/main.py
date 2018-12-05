@@ -93,7 +93,7 @@ class Device(threading.Thread):
                         # record numerical values
                         try:
                             last_data = [time.time() - self.config["time_offset"]] + device.ReadValue()
-                            if last_data[1] == np.nan:
+                            if np.isnan(last_data[1]):
                                 self.nan_count.set(int(self.nan_count.get())+1)
                             dev_dset.writerow(last_data)
                             self.last_data.set( ''.join([str('%.2E'%Decimal(x))+"\n" for x in last_data[1:]]) )

@@ -87,33 +87,34 @@ class Device(threading.Thread):
             self.rm = pyvisa.ResourceManager()
             with self.config["driver"](self.rm, *constr_params) as device: 
                 while self.active.is_set():
-                    # record numerical values
-                    try:
-                        last_data = [time.time() - self.config["time_offset"]] + device.ReadValue()
-                        dev_dset.writerow(last_data)
-                        self.last_data.set( ''.join([str('%.2E'%Decimal(x))+"\n" for x in last_data[1:]]) )
-                    except ValueError as err:
-                        ret_val = str(err)
-                        ret_val = "None" if not ret_val else ret_val
-                        events_dset.writerow([ time.time()-self.config["time_offset"], ret_val ])
-
-                    # send control commands, if any, to the device, and record return values
-                    for c in self.commands:
+                    if self.config["controls"]["enabled"]["var"].get():
+                        # record numerical values
                         try:
-                            ret_val = eval("device." + c)
-                        except (ValueError, AttributeError) as err:
+                            last_data = [time.time() - self.config["time_offset"]] + device.ReadValue()
+                            dev_dset.writerow(last_data)
+                            self.last_data.set( ''.join([str('%.2E'%Decimal(x))+"\n" for x in last_data[1:]]) )
+                        except ValueError as err:
                             ret_val = str(err)
-                        ret_val = "None" if not ret_val else ret_val
-                        last_event = [ time.time()-self.config["time_offset"], c, ret_val ]
-                        self.last_event.set([round(last_event[0],3)]+last_event[1:])
-                        events_dset.writerow(last_event)
-                    self.commands = []
+                            ret_val = "None" if not ret_val else ret_val
+                            events_dset.writerow([ time.time()-self.config["time_offset"], ret_val ])
 
-                    # loop delay
-                    try:
-                        time.sleep(float(self.config["controls"]["dt"]["var"].get()))
-                    except ValueError:
-                        time.sleep(1)
+                        # send control commands, if any, to the device, and record return values
+                        for c in self.commands:
+                            try:
+                                ret_val = eval("device." + c)
+                            except (ValueError, AttributeError) as err:
+                                ret_val = str(err)
+                            ret_val = "None" if not ret_val else ret_val
+                            last_event = [ time.time()-self.config["time_offset"], c, ret_val ]
+                            self.last_event.set([round(last_event[0],3)]+last_event[1:])
+                            events_dset.writerow(last_event)
+                        self.commands = []
+
+                        # loop delay
+                        try:
+                            time.sleep(float(self.config["controls"]["dt"]["var"].get()))
+                        except ValueError:
+                            time.sleep(1)
 
 class ControlGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):

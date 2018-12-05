@@ -40,6 +40,8 @@ class Device(threading.Thread):
         self.last_data.set("(no data)")
         self.last_event = tk.StringVar()
         self.last_event.set("(no event)")
+        self.nan_count = tk.StringVar()
+        self.nan_count.set("0")
 
     def setup_connection(self):
         threading.Thread.__init__(self)
@@ -91,6 +93,8 @@ class Device(threading.Thread):
                         # record numerical values
                         try:
                             last_data = [time.time() - self.config["time_offset"]] + device.ReadValue()
+                            if last_data[1] == np.nan:
+                                self.nan_count.set(int(self.nan_count.get())+1)
                             dev_dset.writerow(last_data)
                             self.last_data.set( ''.join([str('%.2E'%Decimal(x))+"\n" for x in last_data[1:]]) )
                         except ValueError as err:
@@ -512,6 +516,8 @@ class MonitoringGUI(tk.Frame):
                     .grid(row=0, column=0, sticky='nsew')
             tk.Message(fd, textvariable=dev.last_event, anchor='nw', width=150).\
                     grid(row=1, column=0, sticky='nsew')
+            tk.Message(fd, textvariable=dev.nan_count, anchor='nw', width=150).\
+                    grid(row=2, column=0, sticky='nsew')
 
 class CentrexGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):

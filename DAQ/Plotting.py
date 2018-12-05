@@ -262,7 +262,8 @@ class Plotter(tk.Frame):
         except ValueError as err:
             i1, i2 = 0, -1
         if i1 >= i2:
-            i1, i2 = 0, -1
+            if i2 >= 0:
+                i1, i2 = 0, -1
 
         # get data
         try:

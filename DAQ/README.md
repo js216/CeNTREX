@@ -159,6 +159,7 @@ remote interface of the instrument, also defines the following functions:
 - a button to save settings and a checkbox whether to save them at exit
 - write to sqlite instead of csv files
 - remove all references to the Plotter object once the plot is deleted
+- remove unnecessary pyvisa.ResourceManager
 - drivers
    - Keysight power supplies
    - windfreak synthhd, synthusb

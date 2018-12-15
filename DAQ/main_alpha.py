@@ -52,6 +52,7 @@ class HDF_writer(threading.Thread):
         with h5py.File(self.filename, 'a') as f:
             root = f.require_group(self.parent.run_name)
             while self.active.is_set():
+                start_time = time.time()
                 for dev_name, dev in self.parent.devices.items():
                     if dev.config["controls"]["enabled"]["var"].get():
                         # get data
@@ -64,9 +65,13 @@ class HDF_writer(threading.Thread):
                         dset = grp[dev.config["name"]]
                         dset.resize(dset.shape[0]+len(data), axis=0)
                         dset[-len(data):,:] = data
+                stop_time = time.time()
 
                 # loop delay
-                time.sleep(0.01)
+                time.sleep(0.1)
+
+                print(stop_time - start_time)
+                sys.stdout.flush()
 
     def get_data(self, fifo):
         data = []

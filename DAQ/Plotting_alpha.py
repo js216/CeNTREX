@@ -306,10 +306,10 @@ class Plotter(tk.Frame):
         self.ani.event_source.stop()
 
         ## place the plot navigation toolbar
-        t_f = tk.Frame(self.f)
-        t_f.grid(row=3, columnspan=5)
-        toolbar = NavigationToolbar2Tk(self.canvas, t_f)
-        toolbar.update()
+        #t_f = tk.Frame(self.f)
+        #t_f.grid(row=3, columnspan=5)
+        #toolbar = NavigationToolbar2Tk(self.canvas, t_f)
+        #toolbar.update()
         self.canvas._tkcanvas.grid()
 
         self.plot_drawn = True

@@ -23,7 +23,7 @@ from drivers import LakeShore330
 from drivers import CPA1110
 from drivers import USB6008
 
-from Plotting_alpha import PlotsGUI
+from Plotting import PlotsGUI
 
 class HDF_writer(threading.Thread):
     # TODO: events

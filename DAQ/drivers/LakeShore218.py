@@ -18,6 +18,9 @@ class LakeShore218:
         self.instr.term_char = '\r'
         self.verification_string = self.VerifyOperation()
 
+        # shape of the array of returned data
+        self.shape = (8, )
+
     def __enter__(self):
         return self
     

@@ -14,6 +14,9 @@ class LakeShore330:
             return
         self.verification_string = self.VerifyOperation()
 
+        # shape of the array of returned data
+        self.shape = (2, )
+
     def __enter__(self):
         return self
 

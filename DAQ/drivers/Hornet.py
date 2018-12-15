@@ -19,6 +19,9 @@ class Hornet:
         self.instr.stop_bits = pyvisa.constants.StopBits.one
         self.verification_string = self.VerifyOperation()
 
+        # shape of the array of returned data
+        self.shape = (1, )
+
     def __enter__(self):
         return self
 

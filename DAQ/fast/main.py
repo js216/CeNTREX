@@ -52,7 +52,6 @@ class HDF_writer(threading.Thread):
         with h5py.File(self.filename, 'a') as f:
             root = f.require_group(self.parent.run_name)
             while self.active.is_set():
-                start_time = time.time()
                 for dev_name, dev in self.parent.devices.items():
                     if dev.config["controls"]["enabled"]["var"].get():
                         # get data
@@ -65,13 +64,12 @@ class HDF_writer(threading.Thread):
                         dset = grp[dev.config["name"]]
                         dset.resize(dset.shape[0]+len(data), axis=0)
                         dset[-len(data):,:] = data
-                stop_time = time.time()
 
                 # loop delay
-                time.sleep(0.1)
-
-                print(stop_time - start_time)
-                sys.stdout.flush()
+                try:
+                    time.sleep(float(self.parent.config["hdf_loop_delay"].get()))
+                except ValueError:
+                    time.sleep(0.1)
 
     def get_data(self, fifo):
         data = []
@@ -210,11 +208,18 @@ class ControlGUI(tk.Frame):
                 command = lambda: self.open_file("hdf_fname"))\
                 .grid(row=0, column=2, sticky=tk.W)
 
-        tk.Label(files_frame, text="Run name:")\
+        # HDF writer loop delay
+        tk.Label(files_frame, text="HDF writer loop delay:")\
                 .grid(row=1, column=0, sticky=tk.E)
+        tk.Entry(files_frame,
+                textvariable=self.parent.config["hdf_loop_delay"])\
+                .grid(row=1, column=1, sticky="nsew")
+
+        tk.Label(files_frame, text="Run name:")\
+                .grid(row=2, column=0, sticky=tk.E)
         run_name_entry = tk.Entry(files_frame,
                 textvariable=self.parent.config["run_name"])\
-                .grid(row=1, column=1, sticky="nsew")
+                .grid(row=2, column=1, sticky="nsew")
 
         ########################################
         # devices
@@ -441,7 +446,6 @@ class CentrexGUI(tk.Frame):
                         "name"              : params["device"]["name"],
                         "label"             : params["device"]["label"],
                         "config_fname"      : f,
-                        "current_run_dir"   : self.config["current_run_dir"].get(),
                         "path"              : params["device"]["path"],
                         "correct_response"  : params["device"]["correct_response"],
                         "row"               : params["device"]["row"],

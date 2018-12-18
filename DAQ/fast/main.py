@@ -201,10 +201,10 @@ class ControlGUI(tk.Frame):
 
         tk.Label(files_frame, text="HDF file:")\
                 .grid(row=0, column=0, sticky=tk.E)
-        HDF_file_entry = tk.Entry(files_frame,
+        tk.Entry(files_frame,
                 textvariable=self.parent.config["hdf_fname"])\
                 .grid(row=0, column=1, sticky="nsew")
-        run_dir_button = tk.Button(files_frame, text="Open...",
+        tk.Button(files_frame, text="Open...",
                 command = lambda: self.open_file("hdf_fname"))\
                 .grid(row=0, column=2, sticky=tk.W)
 
@@ -396,6 +396,10 @@ class ControlGUI(tk.Frame):
         self.status = "running"
         self.status_message.set("Running")
 
+        # make all plots display the current run
+        HDF_fname = self.parent.config["hdf_fname"].get()
+        self.parent.plots.refresh_run_list(HDF_fname)
+
     def stop_control(self):
         # check we're not stopped already
         if self.status == "stopped":
@@ -423,8 +427,8 @@ class CentrexGUI(tk.Frame):
         # GUI elements in a tabbed interface
         self.nb = ttk.Notebook(self)
         self.nb.grid()
-        ControlGUI(self, *args, **kwargs)
-        PlotsGUI(self, *args, **kwargs)
+        self.control = ControlGUI(self, *args, **kwargs)
+        self.plots   = PlotsGUI(self, *args, **kwargs)
 
     def read_config(self):
         # read program settings

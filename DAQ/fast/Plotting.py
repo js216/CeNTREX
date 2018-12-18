@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox
+from tkinter import filedialog
 import matplotlib
 matplotlib.use("TkAgg")
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
@@ -28,7 +29,7 @@ class PlotsGUI(tk.Frame):
         self.f.grid(row=0, column=0, sticky='n')
 
         # controls for all plots
-        ctrls_f = tk.Frame(self.f)
+        ctrls_f = tk.LabelFrame(self.f, text="Plot controls")
         ctrls_f.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
         tk.Button(ctrls_f, text="Start all", command=self.start_all)\
                 .grid(row=0, column=0, sticky='e', padx=10)
@@ -41,13 +42,67 @@ class PlotsGUI(tk.Frame):
 
         # button to add add plot in the specified column
         self.col_var = tk.StringVar()
-        self.col_var.set("col")
+        self.col_var.set("plot column")
         tk.Entry(ctrls_f, textvariable=self.col_var).grid(row=0, column=4, sticky='w', padx=10)
-        add_b = tk.Button(ctrls_f, text="New plot ...", command=self.add_plot)
-        add_b.grid(row=0, column=5, sticky='e', padx=10)
+        tk.Button(ctrls_f, text="New plot ...", command=self.add_plot)\
+            .grid(row=0, column=5, sticky='e', padx=10)
+
+        # the HDF file we're currently plotting from
+        tk.Label(ctrls_f, text="HDF file:")\
+                .grid(row=1, column=0)
+        tk.Entry(ctrls_f,
+                textvariable=self.parent.config["plotting_hdf_fname"])\
+                .grid(row=1, column=1, columnspan=4, padx=10, sticky="ew")
+        tk.Button(ctrls_f, text="Open...",
+                command = lambda: self.open_HDF_file("plotting_hdf_fname"))\
+                .grid(row=1, column=5, padx=10, sticky='ew')
 
         # add one plot
         self.add_plot()
+
+        # update list of runs if a file was supplied
+        fname = self.parent.config["plotting_hdf_fname"].get()
+        try:
+            with h5py.File(fname, 'r') as f:
+                self.refresh_run_list(fname)
+        except OSError:
+            pass
+
+    def open_HDF_file(self, prop):
+        # ask for a file name
+        fname = filedialog.askopenfilename(
+                initialdir = self.parent.config[prop].get(),
+                title = "Select file",
+                filetypes = (("HDF files","*.h5"),("all files","*.*")))
+
+        # check a filename was returned
+        if not fname:
+            return
+
+        # check it's a valid HDF file
+        try:
+            with h5py.File(fname, 'r') as f:
+                self.parent.config[prop].set(fname)
+                self.refresh_run_list(fname)
+        except OSError:
+            messagebox.showerror("File error", "Not a valid HDF file.")
+
+    def refresh_run_list(self, fname):
+        # get list of runs
+        with h5py.File(fname, 'r') as f:
+            self.run_list = list(f.keys())
+
+        for col, col_plots in self.all_plots.items():
+            for row, plot in col_plots.items():
+                if plot:
+                    # update the OptionMenu
+                    menu = plot.run_select["menu"]
+                    menu.delete(0, "end")
+                    for p in self.run_list:
+                        menu.add_command(label=p, command=lambda val=p: plot.run_var.set(val))
+
+                    # select the last run by default
+                    plot.run_var.set(self.run_list[-1])
 
     def delete_all(self):
         for col, col_plots in self.all_plots.items():
@@ -80,10 +135,10 @@ class PlotsGUI(tk.Frame):
             col = int(self.col_var.get())
         except ValueError:
             col = 0
-        row = max([ r for r in self.all_plots.setdefault(col, {0:None}) ]) + 1
+        row = max([ r for r in self.all_plots.setdefault(col, {0:None}) ]) + 2
 
         # frame for the plot
-        fr = tk.LabelFrame(self.f, text="Plot")
+        fr = tk.LabelFrame(self.f, text="")
         fr.grid(row=row, column=col, padx=10, pady=10, sticky="nsew")
 
         # place the plot
@@ -91,9 +146,9 @@ class PlotsGUI(tk.Frame):
         self.all_plots[col][row] = plot
 
         # button to delete plot
-        del_b = tk.Button(plot.ctrls_f, text="\u274c", command=lambda plot=plot,
+        del_b = tk.Button(plot.f, text="\u274c", command=lambda plot=plot,
                 row=row, col=col: self.delete_plot(row,col,plot))
-        del_b.grid(row=0, column=7, sticky='e', padx=10)
+        del_b.grid(row=0, column=6, sticky='e', padx=10)
 
     def delete_plot(self, row, col, plot):
         if plot:
@@ -115,51 +170,55 @@ class Plotter(tk.Frame):
         self.dev_var.set("Select device ...")
         dev_select = tk.OptionMenu(self.f, self.dev_var, *self.dev_list,
                 command=self.refresh_parameter_list)
-        dev_select.grid(row=0, column=0, columnspan=2, sticky='w')
+        dev_select.grid(row=0, column=0, sticky='ew')
 
         # select parameter
-        self.param_list = [""]
+        self.param_list = ["(select device first)"]
         self.param_var = tk.StringVar()
         self.param_var.set("Select what to plot ...")
         self.param_select = tk.OptionMenu(self.f, self.param_var, *self.param_list)
-        self.param_select.grid(row=0, column=2, columnspan=2, sticky='w')
+        self.param_select.grid(row=0, column=1, sticky='ew')
+
+        # select run
+        self.run_list = [""]
+        self.run_var = tk.StringVar()
+        self.run_var.set("Select run ...")
+        self.run_select = tk.OptionMenu(self.f, self.run_var, *self.run_list)
+        self.run_select.grid(row=1, column=0, columnspan=2, sticky='ew')
 
         # plot range controls
+        num_width = 6 # width of numeric entry boxes
         self.x0_var = tk.StringVar()
         self.x0_var.set("x0")
-        tk.Entry(self.f, textvariable=self.x0_var, width=6)\
-                .grid(row=1, column=0, sticky='w', padx=4)
+        tk.Entry(self.f, textvariable=self.x0_var, width=num_width)\
+                .grid(row=1, column=2, sticky='w', padx=1)
         self.x1_var = tk.StringVar()
         self.x1_var.set("x1")
-        tk.Entry(self.f, textvariable=self.x1_var, width=6)\
-                .grid(row=1, column=1, sticky='w', padx=4)
+        tk.Entry(self.f, textvariable=self.x1_var, width=num_width)\
+                .grid(row=1, column=3, sticky='w', padx=1)
         self.y0_var = tk.StringVar()
         self.y0_var.set("y0")
-        tk.Entry(self.f, textvariable=self.y0_var, width=6)\
-                .grid(row=1, column=2, sticky='w', padx=4)
+        tk.Entry(self.f, textvariable=self.y0_var, width=num_width)\
+                .grid(row=1, column=4, sticky='w', padx=1)
         self.y1_var = tk.StringVar()
         self.y1_var.set("y1")
-        tk.Entry(self.f, textvariable=self.y1_var, width=6)\
-                .grid(row=1, column=3, sticky='w', padx=4)
+        tk.Entry(self.f, textvariable=self.y1_var, width=num_width)\
+                .grid(row=1, column=5, sticky='w', padx=1)
 
         # control buttons
-        self.ctrls_f = tk.Frame(self.f)
-        self.ctrls_f.grid(row=0, column=4, sticky='nsew', padx=10)
-        self.f.columnconfigure(3, weight=1)
-        self.ctrls_f.columnconfigure(7, weight=1)
         self.dt_var = tk.StringVar()
-        self.dt_var.set("plot refresh rate [s]")
-        dt_entry = tk.Entry(self.ctrls_f, textvariable=self.dt_var)
-        dt_entry.grid(row=1, column=0, columnspan=3, sticky='w')
+        self.dt_var.set("dt")
+        dt_entry = tk.Entry(self.f, textvariable=self.dt_var, width=num_width)
+        dt_entry.grid(row=1, column=6, columnspan=3)
         dt_entry.bind("<Return>", self.change_animation_dt)
-        tk.Button(self.ctrls_f, text="Plot", command=self.replot)\
-                .grid(row=0, column=0, sticky='e', padx=2)
-        self.play_pause_button = tk.Button(self.ctrls_f, text="\u25b6", command=self.start_animation)
-        self.play_pause_button.grid(row=0, column=1, sticky='e', padx=2)
-        tk.Button(self.ctrls_f, text="Log/Lin", command=self.toggle_log)\
-                .grid(row=0, column=2, sticky='e', padx=2)
-        tk.Button(self.ctrls_f, text="\u26ab / \u2014", command=self.toggle_points)\
-                .grid(row=0, column=3, sticky='e', padx=2)
+        tk.Button(self.f, text="Plot", command=self.replot)\
+                .grid(row=0, column=2, padx=2)
+        self.play_pause_button = tk.Button(self.f, text="\u25b6", command=self.start_animation)
+        self.play_pause_button.grid(row=0, column=3, padx=2)
+        tk.Button(self.f, text="Log/Lin", command=self.toggle_log)\
+                .grid(row=0, column=4, padx=2)
+        tk.Button(self.f, text="\u26ab / \u2014", command=self.toggle_points)\
+                .grid(row=0, column=5, padx=2)
 
     # whether to draw with just lines or also with points
     def toggle_points(self):
@@ -246,9 +305,19 @@ class Plotter(tk.Frame):
             messagebox.showerror("Parameter error", "Error: invalid parameter.")
             return None
 
+        # check run is valid
+        try:
+            with h5py.File(self.parent.config["plotting_hdf_fname"].get(), 'r') as f:
+                if not self.run_var.get() in f.keys():
+                    messagebox.showerror("Run error", "Run not found in the HDF file.")
+                    return None
+        except OSError:
+                messagebox.showerror("File error", "Not a valid HDF file.")
+                return None
+
         # get data
         with h5py.File(self.parent.config["hdf_fname"].get(), 'r') as f:
-            dset = f[self.parent.run_name + "/" + dev.config["path"] + "/" + dev.config["name"]]
+            dset = f[self.run_var.get() + "/" + dev.config["path"] + "/" + dev.config["name"]]
 
             # range of data to obtain
             try:

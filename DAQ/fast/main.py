@@ -160,9 +160,16 @@ class ControlGUI(tk.Frame):
 
     def read_device_config(self):
         self.parent.devices = {}
-        for f in glob.glob(self.parent.config["config_dir"].get() + "/*"):
+
+        if not os.path.isdir(self.parent.config["config_dir"].get()):
+            return
+
+        for f in glob.glob(self.parent.config["config_dir"].get() + "/*.ini"):
             params = configparser.ConfigParser()
             params.read(f)
+
+            if not "device" in params:
+                continue
 
             # read general device options
             dev_config = {
@@ -224,16 +231,16 @@ class ControlGUI(tk.Frame):
 
     def place_GUI_elements(self):
         # main frame for all ControlGUI elements
-        cgf = tk.Frame(self.parent.nb)
-        self.parent.nb.add(cgf, text="Control")
+        self.cgf = tk.Frame(self.parent.nb)
+        self.parent.nb.add(self.cgf, text="Control")
         self.parent.rowconfigure(0, weight=1)
-        cgf.rowconfigure(2, weight=1)
+        self.cgf.rowconfigure(2, weight=1)
 
         ########################################
         # control and status
         ########################################
 
-        control_frame = tk.LabelFrame(cgf)
+        control_frame = tk.LabelFrame(self.cgf)
         control_frame.grid(row=0, padx=10, pady=10, sticky="nsew")
         control_frame.grid_columnconfigure(index=2, weight=1)
 
@@ -257,7 +264,7 @@ class ControlGUI(tk.Frame):
         # files
         ########################################
 
-        files_frame = tk.LabelFrame(cgf, text="Files")
+        files_frame = tk.LabelFrame(self.cgf, text="Files")
         files_frame.grid(row=1, padx=10, pady=10, sticky="ew")
 
         # config dir
@@ -267,7 +274,7 @@ class ControlGUI(tk.Frame):
                 textvariable=self.parent.config["config_dir"])\
                 .grid(row=0, column=1, sticky="ew")
         tk.Button(files_frame, text="Open...",
-                command = lambda: self.open_dir("config_dir"))\
+                command = self.set_config_dir)\
                 .grid(row=0, column=2, sticky=tk.W)
 
         # HDF file
@@ -297,18 +304,22 @@ class ControlGUI(tk.Frame):
         ########################################
         # devices
         ########################################
+        self.place_device_controls()
 
-        fr = tk.LabelFrame(cgf, text="Devices")
-        fr.grid(row=4, padx=10, pady=10, sticky='nsew')
+    def place_device_controls(self):
+        self.fr = tk.LabelFrame(self.cgf, text="Devices")
+        self.fr.grid(row=4, padx=10, pady=10, sticky='nsew')
 
         # the control to send a custom command to a specified device
-        fc = tk.LabelFrame(fr, text="Send a custom command", padx=10, pady=10)
+        fc = tk.LabelFrame(self.fr, text="Send a custom command", padx=10, pady=10)
         fc.grid(row=0, columnspan=2, padx=10, pady=10, sticky='ew')
         custom_command = tk.StringVar(fc, value='Enter command ...')
         cmd_entry = tk.Entry(fc, textvariable=custom_command, width=30)
         cmd_entry.grid(row=0, column=0, sticky='nsew')
         custom_dev = tk.StringVar(fc, value='Select device ...')
         dev_list = [dev_name for dev_name in self.parent.devices]
+        if not dev_list:
+            dev_list = ["(no devices)"]
         dev_selection = tk.OptionMenu(fc, custom_dev, *dev_list)
         dev_selection.grid(row=0, column=1, sticky="e")
         custom_button = tk.Button(fc, text="Send",
@@ -321,7 +332,7 @@ class ControlGUI(tk.Frame):
 
         # make GUI elements for all devices
         for dev_name, dev in self.parent.devices.items():
-            fd = tk.LabelFrame(fr, text=dev.config["label"])
+            fd = tk.LabelFrame(self.fr, text=dev.config["label"])
             fd.grid(padx=10, pady=10, sticky="nsew",
                     row=dev.config["row"], column=dev.config["column"])
 
@@ -379,6 +390,12 @@ class ControlGUI(tk.Frame):
                     c["OptionMenu"].grid(row=c["row"], column=c["col"], sticky=tk.W)
                     c["Label"] = tk.Label(fd, text=c["label"])
                     c["Label"].grid(row=c["row"], column=c["col"]-1, sticky=tk.E)
+
+    def set_config_dir(self):
+        self.open_dir("config_dir")
+        self.read_device_config()
+        self.fr.destroy()
+        self.place_device_controls()
 
     def queue_custom_command(self, dev_name, command):
         # check the command is valid

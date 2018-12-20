@@ -171,6 +171,8 @@ class Plotter(tk.Frame):
 
         # select device
         self.dev_list = [dev_name.strip() for dev_name in self.parent.devices]
+        if not self.dev_list:
+            self.dev_list = ["(no devices)"]
         self.dev_var = tk.StringVar()
         self.dev_var.set("Select device ...")
         dev_select = tk.OptionMenu(self.f, self.dev_var, *self.dev_list,

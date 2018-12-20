@@ -155,7 +155,72 @@ class ControlGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
+        self.read_device_config()
         self.place_GUI_elements()
+
+    def read_device_config(self):
+        self.parent.devices = {}
+        for f in glob.glob(self.parent.config["config_dir"].get() + "/*"):
+            params = configparser.ConfigParser()
+            params.read(f)
+
+            # read general device options
+            dev_config = {
+                        "name"              : params["device"]["name"],
+                        "label"             : params["device"]["label"],
+                        "config_fname"      : f,
+                        "path"              : params["device"]["path"],
+                        "correct_response"  : params["device"]["correct_response"],
+                        "row"               : params["device"]["row"],
+                        "column"            : params["device"]["column"],
+                        "driver"            : eval(params["device"]["driver"]),
+                        "constr_params"     : [x.strip() for x in params["device"]["constr_params"].split(",")],
+                        "attributes"        : params["attributes"],
+                        "controls"          : {},
+                    }
+
+            # populate the list of device controls
+            ctrls = dev_config["controls"]
+            for c in params.sections():
+                if params[c].get("type") == "Checkbutton":
+                    ctrls[c] = {}
+                    ctrls[c]["label"]      = params[c]["label"]
+                    ctrls[c]["type"]       = params[c]["type"]
+                    ctrls[c]["row"]        = int(params[c]["row"])
+                    ctrls[c]["col"]        = int(params[c]["col"])
+                    ctrls[c]["var"]        = tk.BooleanVar()
+                    ctrls[c]["var"].set(params[c]["value"])
+                elif params[c].get("type") == "Button":
+                    ctrls[c] = {}
+                    ctrls[c]["label"]      = params[c]["label"]
+                    ctrls[c]["type"]       = params[c]["type"]
+                    ctrls[c]["row"]        = int(params[c]["row"])
+                    ctrls[c]["col"]        = int(params[c]["col"])
+                    ctrls[c]["command"]    = params[c].get("command")
+                    ctrls[c]["argument"]   = params[c]["argument"]
+                    ctrls[c]["align"]      = params[c].get("align")
+                elif params[c].get("type") == "Entry":
+                    ctrls[c] = {}
+                    ctrls[c]["label"]      = params[c]["label"]
+                    ctrls[c]["type"]       = params[c]["type"]
+                    ctrls[c]["row"]        = int(params[c]["row"])
+                    ctrls[c]["col"]        = int(params[c]["col"])
+                    ctrls[c]["enter_cmd"]  = params[c].get("enter_command")
+                    ctrls[c]["var"]        = tk.StringVar()
+                    ctrls[c]["var"].set(params[c]["value"])
+                elif params[c].get("type") == "OptionMenu":
+                    ctrls[c] = {}
+                    ctrls[c]["label"]      = params[c]["label"]
+                    ctrls[c]["type"]       = params[c]["type"]
+                    ctrls[c]["row"]        = int(params[c]["row"])
+                    ctrls[c]["col"]        = int(params[c]["col"])
+                    ctrls[c]["command"]    = params[c]["command"]
+                    ctrls[c]["options"]    = params[c]["options"].split(",")
+                    ctrls[c]["var"]        = tk.StringVar()
+                    ctrls[c]["var"].set(params[c]["value"])
+
+            # make a Device object
+            self.parent.devices[params["device"]["name"]] = Device(dev_config)
 
     def place_GUI_elements(self):
         # main frame for all ControlGUI elements
@@ -195,34 +260,46 @@ class ControlGUI(tk.Frame):
         files_frame = tk.LabelFrame(cgf, text="Files")
         files_frame.grid(row=1, padx=10, pady=10, sticky="ew")
 
-        tk.Label(files_frame, text="HDF file:")\
+        # config dir
+        tk.Label(files_frame, text="Config dir:")\
                 .grid(row=0, column=0, sticky=tk.E)
         tk.Entry(files_frame, width=64,
-                textvariable=self.parent.config["hdf_fname"])\
+                textvariable=self.parent.config["config_dir"])\
                 .grid(row=0, column=1, sticky="ew")
         tk.Button(files_frame, text="Open...",
-                command = lambda: self.open_file("hdf_fname"))\
+                command = lambda: self.open_dir("config_dir"))\
                 .grid(row=0, column=2, sticky=tk.W)
+
+        # HDF file
+        tk.Label(files_frame, text="HDF file:")\
+                .grid(row=1, column=0, sticky=tk.E)
+        tk.Entry(files_frame, width=64,
+                textvariable=self.parent.config["hdf_fname"])\
+                .grid(row=1, column=1, sticky="ew")
+        tk.Button(files_frame, text="Open...",
+                command = lambda: self.open_file("hdf_fname"))\
+                .grid(row=1, column=2, sticky=tk.W)
 
         # HDF writer loop delay
         tk.Label(files_frame, text="HDF writer loop delay:")\
-                .grid(row=1, column=0, sticky=tk.E)
+                .grid(row=2, column=0, sticky=tk.E)
         tk.Entry(files_frame,
                 textvariable=self.parent.config["hdf_loop_delay"])\
-                .grid(row=1, column=1, sticky="nsew")
+                .grid(row=2, column=1, sticky="nsew")
 
+        # run name
         tk.Label(files_frame, text="Run name:")\
-                .grid(row=2, column=0, sticky=tk.E)
+                .grid(row=3, column=0, sticky=tk.E)
         run_name_entry = tk.Entry(files_frame,
                 textvariable=self.parent.config["run_name"])\
-                .grid(row=2, column=1, sticky="nsew")
+                .grid(row=3, column=1, sticky="nsew")
 
         ########################################
         # devices
         ########################################
 
         fr = tk.LabelFrame(cgf, text="Devices")
-        fr.grid(row=2, padx=10, pady=10, sticky='nsew')
+        fr.grid(row=4, padx=10, pady=10, sticky='nsew')
 
         # the control to send a custom command to a specified device
         fc = tk.LabelFrame(fr, text="Send a custom command", padx=10, pady=10)
@@ -438,70 +515,6 @@ class CentrexGUI(tk.Frame):
         for key in settings["files"]:
             self.config[key] = tk.StringVar()
             self.config[key].set(settings["files"][key])
-
-        # read device settings
-        self.devices = {}
-        for f in glob.glob("config/devices/*"):
-            params = configparser.ConfigParser()
-            params.read(f)
-
-            # read general device options
-            dev_config = {
-                        "name"              : params["device"]["name"],
-                        "label"             : params["device"]["label"],
-                        "config_fname"      : f,
-                        "path"              : params["device"]["path"],
-                        "correct_response"  : params["device"]["correct_response"],
-                        "row"               : params["device"]["row"],
-                        "column"            : params["device"]["column"],
-                        "driver"            : eval(params["device"]["driver"]),
-                        "constr_params"     : [x.strip() for x in params["device"]["constr_params"].split(",")],
-                        "attributes"        : params["attributes"],
-                        "controls"          : {},
-                    }
-
-            # populate the list of device controls
-            ctrls = dev_config["controls"]
-            for c in params.sections():
-                if params[c].get("type") == "Checkbutton":
-                    ctrls[c] = {}
-                    ctrls[c]["label"]      = params[c]["label"]
-                    ctrls[c]["type"]       = params[c]["type"]
-                    ctrls[c]["row"]        = int(params[c]["row"])
-                    ctrls[c]["col"]        = int(params[c]["col"])
-                    ctrls[c]["var"]        = tk.BooleanVar()
-                    ctrls[c]["var"].set(params[c]["value"])
-                elif params[c].get("type") == "Button":
-                    ctrls[c] = {}
-                    ctrls[c]["label"]      = params[c]["label"]
-                    ctrls[c]["type"]       = params[c]["type"]
-                    ctrls[c]["row"]        = int(params[c]["row"])
-                    ctrls[c]["col"]        = int(params[c]["col"])
-                    ctrls[c]["command"]    = params[c].get("command")
-                    ctrls[c]["argument"]   = params[c]["argument"]
-                    ctrls[c]["align"]      = params[c].get("align")
-                elif params[c].get("type") == "Entry":
-                    ctrls[c] = {}
-                    ctrls[c]["label"]      = params[c]["label"]
-                    ctrls[c]["type"]       = params[c]["type"]
-                    ctrls[c]["row"]        = int(params[c]["row"])
-                    ctrls[c]["col"]        = int(params[c]["col"])
-                    ctrls[c]["enter_cmd"]  = params[c].get("enter_command")
-                    ctrls[c]["var"]        = tk.StringVar()
-                    ctrls[c]["var"].set(params[c]["value"])
-                elif params[c].get("type") == "OptionMenu":
-                    ctrls[c] = {}
-                    ctrls[c]["label"]      = params[c]["label"]
-                    ctrls[c]["type"]       = params[c]["type"]
-                    ctrls[c]["row"]        = int(params[c]["row"])
-                    ctrls[c]["col"]        = int(params[c]["col"])
-                    ctrls[c]["command"]    = params[c]["command"]
-                    ctrls[c]["options"]    = params[c]["options"].split(",")
-                    ctrls[c]["var"]        = tk.StringVar()
-                    ctrls[c]["var"].set(params[c]["value"])
-
-            # make a Device object
-            self.devices[params["device"]["name"]] = Device(dev_config)
 
 if __name__ == "__main__":
     root = tk.Tk()

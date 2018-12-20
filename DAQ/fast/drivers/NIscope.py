@@ -1,117 +1,31 @@
-"""
-This is the driver for the NI-USB 6008 device, which controls the MKS 1179C mass
-flow controller, as well as the flood detector.
-"""
-
-import PyDAQmx
+import niscope
 import numpy as np
 
 class PXIe5171:
-    def __init__(self, rm, flow_signal_out, setpoint_in, flood_in, flood_out):
-        self.flow_signal_out = flow_signal_out
-        self.setpoint_in     = setpoint_in
-        self.flood_in        = flood_in
-        self.flood_out       = flood_out
-
-        self.setpoint        = 0.0
-        self.SetPointControl(self.setpoint)
-
-        self.verification_string = self.VerifyOperation()
-
+    def __init__(self, rm):
         # shape of the array of returned data
         self.shape = (2, )
+
+        # verify operation
+        self.verification_string = "TODO"
+
+        # setup measurement
+	self.session = niscope.Session("Dev1")
+        session.channels[0].configure_vertical(range=1.0, coupling=niscope.VerticalCoupling.AC)
+        session.channels[1].configure_vertical(range=2.0, coupling=niscope.VerticalCoupling.DC)
+        session.configure_horizontal_timing(
+                in_sample_rate=50000000,
+                min_num_pts=1000,
+                ref_position=50.0,
+                num_records=5,
+                enforce_realtime=True)
+        session.initiate()
 
     def __enter__(self):
         return self
 
     def __exit__(self, *exc):
-        pass
+        self.session.close()
 
     def ReadValue(self):
-        return [self.ReadFlowSignal(), self.setpoint_sccm]
-
-    def VerifyOperation(self):
-        try:
-            self.ReadFlowSignal()
-        except:
-            return "cannot read"
-        return "operational"
-
-    #################################################################
-    ##########              READ COMMANDS                  ##########
-    #################################################################
-
-    def ReadFlowSignal(self):
-        flow = PyDAQmx.float64()
-        with PyDAQmx.Task() as task:
-            task.CreateAIVoltageChan(
-                    physicalChannel       = "/Dev1/ai0",
-                    nameToAssignToChannel = "",
-                    terminalConfig        = PyDAQmx.DAQmx_Val_RSE,
-                    minVal                = 0.0,
-                    maxVal                = 1.0,
-                    units                 = PyDAQmx.DAQmx_Val_Volts,
-                    customScaleName       = None)
-            task.SetSampTimingType(PyDAQmx.DAQmx_Val_OnDemand)
-            task.StartTask()
-            task.ReadAnalogScalarF64(1.0, PyDAQmx.byref(flow), None)
-
-        # calculate the flow rate from voltage
-        flow_signal = float(str(flow)[9:-1])
-        return flow_signal / 5 * 100
-
-    def CheckFlood(self):
-        """Check for flooding of the compressor cabinet.
-
-        Flood sensor is a relay that is closed in normal operation and open when
-        a flood is detected. This function applies a high and a low signal to
-        one terminal of the relay and checks that the corresponding signal
-        appears on the other terminal.
-        """
-        for test_val in [0, 1]:
-            # write test_val to port0/line1
-            with PyDAQmx.Task() as task:
-                task.CreateDOChan(self.flood_out, "", PyDAQmx.DAQmx_Val_ChanPerLine)
-                task.SetSampTimingType(PyDAQmx.DAQmx_Val_OnDemand)
-                task.StartTask()
-                task.WriteDigitalLines(1, True, 1.0, PyDAQmx.DAQmx_Val_GroupByChannel,
-                        np.array([test_val], dtype=np.uint8), None, None)
-
-                # read back the value from port0/line0
-            with PyDAQmx.Task() as task:
-                task.CreateDIChan(self.flood_in, "", PyDAQmx.DAQmx_Val_ChanForAllLines)
-                task.StartTask()
-                data = np.zeros(1, dtype=np.uint32)
-                task.ReadDigitalU32(numSampsPerChan = -1, 
-                        timeout = 1.0,
-                        fillMode = PyDAQmx.DAQmx_Val_GroupByChannel,
-                        readArray = data,
-                        arraySizeInSamps = len(data),
-                        sampsPerChanRead = PyDAQmx.byref(PyDAQmx.int32()),
-                        reserved=None)
-
-                # check that the read value matches the written value
-            if test_val != data[0]:
-                return "flooding"
-            return "no flood"
-
-    #################################################################
-    ##########              CONTROL COMMANDS               ##########
-    #################################################################
-
-    def SetPointControl(self, setpoint_sccm):
-        # calculate the setpoint voltage from sccm
-        self.setpoint_sccm = setpoint_sccm
-        self.setpoint_V = self.setpoint_sccm / 100 * 5
-
-        # check for too high a setpoint
-        if self.setpoint > 100:
-            raise ValueError("Setpoint too high.")
-
-        # set setpoint
-        with PyDAQmx.Task() as task:
-            task.CreateAOVoltageChan(self.setpoint_in, "", 0.0, 5.0,
-                PyDAQmx.DAQmx_Val_Volts,None)
-            task.SetSampTimingType(PyDAQmx.DAQmx_Val_OnDemand)
-            task.StartTask()
-            task.WriteAnalogScalarF64(True, 1.0, self.setpoint_V, None)
+        return session.channels[0,1].fetch(num_records=5)

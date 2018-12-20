@@ -27,7 +27,6 @@ from drivers import PXIe5171
 from Plotting import PlotsGUI
 
 class HDF_writer(threading.Thread):
-    # TODO: events
     def __init__(self, parent):
         threading.Thread.__init__(self)
         self.parent = parent

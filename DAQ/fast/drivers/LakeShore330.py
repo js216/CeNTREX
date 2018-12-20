@@ -608,7 +608,7 @@ class LakeShore330:
             logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
     
-    def SateManualModeRate(self, rate):
+    def SetManualModeRate(self, rate):
         """Enter an integer from 0 through 200. Rate corresponds to
         the Differential (D) portion of the PID Autotuning control
         algorithm. 

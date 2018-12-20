@@ -92,15 +92,3 @@ states, they are automatically generalized (i.e. overloaded) in two ways:
    `BasisState`, and any reasonable specialization of the `State<>` template
    class. With working basis transformations, all these types should convert
    implicitly on-the-fly.
-
-## Todo
-
-implicit conversions from BasisState to State<BasisState>
-operators that can take State<BasisState>
-basis transformations
-OBE, MCWF
-cycling predictions
-reproduce all the Norrgard et al. (2017) theoretical predictions
-put the results in the comprehensive document
-full system simulations
-quantum mechanical pipe organ

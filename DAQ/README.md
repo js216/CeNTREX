@@ -145,21 +145,3 @@ remote interface of the instrument, also defines the following functions:
   LakeShore monitors, `ReadValue()` returns all the measured temperatures)
 - `VerifyOperation()`: returns a string characteristic of the instrument, used
   to verify the instrument is connected correctly
-
-
-## Todo
-
-- make plot refresh rate Entry smaller
-- update the readme
-- sched for flood checking
-- units&labels for MonitoringGUI
-- specify requirements for ini files
-- resize window automatically to fit plots
-- change plot refresh rate automatically
-- a button to save settings and a checkbox whether to save them at exit
-- write to sqlite instead of csv files
-- remove all references to the Plotter object once the plot is deleted
-- remove unnecessary pyvisa.ResourceManager
-- drivers
-   - Keysight power supplies
-   - windfreak synthhd, synthusb

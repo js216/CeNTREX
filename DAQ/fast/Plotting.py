@@ -60,14 +60,6 @@ class PlotsGUI(tk.Frame):
         # add one plot
         self.add_plot()
 
-        # update list of runs if a file was supplied
-        fname = self.parent.config["plotting_hdf_fname"].get()
-        try:
-            with h5py.File(fname, 'r') as f:
-                self.refresh_run_list(fname)
-        except OSError:
-            pass
-
     def open_HDF_file(self, prop):
         # ask for a file name
         fname = filedialog.askopenfilename(
@@ -150,6 +142,19 @@ class PlotsGUI(tk.Frame):
                 row=row, col=col: self.delete_plot(row,col,plot))
         del_b.grid(row=0, column=6, sticky='e', padx=10)
 
+        # update list of runs if a file was supplied
+        fname = self.parent.config["plotting_hdf_fname"].get()
+        try:
+            with h5py.File(fname, 'r') as f:
+                self.run_list = list(f.keys())
+                menu = plot.run_select["menu"]
+                menu.delete(0, "end")
+                for p in self.run_list:
+                    menu.add_command(label=p, command=lambda val=p: plot.run_var.set(val))
+                plot.run_var.set(self.run_list[-1])
+        except OSError:
+            pass
+
     def delete_plot(self, row, col, plot):
         if plot:
             plot.destroy()
@@ -171,6 +176,7 @@ class Plotter(tk.Frame):
         dev_select = tk.OptionMenu(self.f, self.dev_var, *self.dev_list,
                 command=self.refresh_parameter_list)
         dev_select.grid(row=0, column=0, sticky='ew')
+        dev_select.configure(width=18)
 
         # select parameter
         self.param_list = ["(select device first)"]
@@ -178,6 +184,7 @@ class Plotter(tk.Frame):
         self.param_var.set("Select what to plot ...")
         self.param_select = tk.OptionMenu(self.f, self.param_var, *self.param_list)
         self.param_select.grid(row=0, column=1, sticky='ew')
+        self.param_select.configure(width=20)
 
         # select run
         self.run_list = [""]
@@ -185,6 +192,7 @@ class Plotter(tk.Frame):
         self.run_var.set("Select run ...")
         self.run_select = tk.OptionMenu(self.f, self.run_var, *self.run_list)
         self.run_select.grid(row=1, column=0, columnspan=2, sticky='ew')
+        self.run_select.configure(width=38)
 
         # plot range controls
         num_width = 6 # width of numeric entry boxes
@@ -252,14 +260,14 @@ class Plotter(tk.Frame):
         self.canvas.draw()
 
     def start_animation(self):
-        if self.new_plot():
+        if not self.plot_drawn:
             self.ani.event_source.start()
         else:
             self.ani.event_source.start()
         self.play_pause_button.configure(text="\u23f8", command=self.stop_animation)
 
     def stop_animation(self):
-        if not self.new_plot():
+        if self.plot_drawn:
             self.ani.event_source.stop()
         self.play_pause_button.configure(text="\u25b6", command=self.start_animation)
 
@@ -294,6 +302,7 @@ class Plotter(tk.Frame):
         if self.dev_var.get() in self.parent.devices:
             dev = self.parent.devices[self.dev_var.get()]
         else:
+            self.stop_animation()
             messagebox.showerror("Device error", "Error: invalid device.")
             return None
 
@@ -302,6 +311,7 @@ class Plotter(tk.Frame):
             param = self.param_var.get()
             unit = dev.config["attributes"]["units"].split(',')[self.param_list.index(param)]
         else:
+            self.stop_animation()
             messagebox.showerror("Parameter error", "Error: invalid parameter.")
             return None
 
@@ -309,15 +319,22 @@ class Plotter(tk.Frame):
         try:
             with h5py.File(self.parent.config["plotting_hdf_fname"].get(), 'r') as f:
                 if not self.run_var.get() in f.keys():
+                    self.stop_animation()
                     messagebox.showerror("Run error", "Run not found in the HDF file.")
                     return None
         except OSError:
+                self.stop_animation()
                 messagebox.showerror("File error", "Not a valid HDF file.")
                 return None
 
         # get data
         with h5py.File(self.parent.config["hdf_fname"].get(), 'r') as f:
-            dset = f[self.run_var.get() + "/" + dev.config["path"] + "/" + dev.config["name"]]
+            try:
+                dset = f[self.run_var.get() + "/" + dev.config["path"] + "/" + dev.config["name"]]
+            except KeyError:
+                self.stop_animation()
+                messagebox.showerror("Data error", "Dataset not found in this run.")
+                return None
 
             # range of data to obtain
             try:
@@ -367,7 +384,7 @@ class Plotter(tk.Frame):
 
         # update drawing
         self.canvas = FigureCanvasTkAgg(self.fig, self.f)
-        self.canvas.get_tk_widget().grid(row=4, columnspan=6)
+        self.canvas.get_tk_widget().grid(row=4, columnspan=7)
         self.ani = animation.FuncAnimation(self.fig, self.replot,
                 interval=1000*self.dt(), blit=True)
         self.ani.event_source.stop()
@@ -392,29 +409,20 @@ class Plotter(tk.Frame):
         return dt
 
     def replot(self, i=0):
-        if self.new_plot():
+        if not self.plot_drawn:
+            self.new_plot()
             self.play_pause_button.configure(text="\u23f8", command=self.stop_animation)
             return
 
-        if self.plot_drawn:
-            data = self.get_data()
-        else:
-            return
+        data = self.get_data()
 
         if data:
             x, y, param, unit = data
             self.line.set_data(x, y)
-            #self.ax.set_xlim((np.nanmin(x),np.nanmax(x)))
-            #try:
-            #    y0, y1 = float(self.y0_var.get()), float(self.y1_var.get())
-            #    if y0 > y1:
-            #        raise ValueError
-            #except ValueError as err:
-            #    y0, y1 = np.nanmin(y), np.nanmax(y)
-            #self.ax.set_ylim((y0, y1))
             self.ax.relim()
             self.ax.autoscale_view()
             self.ax.set_xlabel("time [s]")
             self.ax.set_ylabel(param + " [" + unit.strip() + "]")
             self.canvas.draw()
-            return self.line,
+
+        return self.line,

@@ -180,10 +180,6 @@ class ControlGUI(tk.Frame):
                 text="\u2b1b Stop control", command = self.stop_control)\
                 .grid(row=0, column=1, sticky="nsew")
 
-        # button to refresh the list of COM ports
-        tk.Button(control_frame, text="Refresh COM ports", command=self.refresh_COM_ports)\
-                        .grid(row=1, column=0, sticky='nsew')
-
         # the status label
         self.status = "stopped"
         self.status_message = tk.StringVar()
@@ -201,9 +197,9 @@ class ControlGUI(tk.Frame):
 
         tk.Label(files_frame, text="HDF file:")\
                 .grid(row=0, column=0, sticky=tk.E)
-        tk.Entry(files_frame,
+        tk.Entry(files_frame, width=64,
                 textvariable=self.parent.config["hdf_fname"])\
-                .grid(row=0, column=1, sticky="nsew")
+                .grid(row=0, column=1, sticky="ew")
         tk.Button(files_frame, text="Open...",
                 command = lambda: self.open_file("hdf_fname"))\
                 .grid(row=0, column=2, sticky=tk.W)
@@ -230,7 +226,7 @@ class ControlGUI(tk.Frame):
 
         # the control to send a custom command to a specified device
         fc = tk.LabelFrame(fr, text="Send a custom command", padx=10, pady=10)
-        fc.grid(row=0, padx=10, pady=10, columnspan=2)
+        fc.grid(row=0, columnspan=2, padx=10, pady=10, sticky='ew')
         custom_command = tk.StringVar(fc, value='Enter command ...')
         cmd_entry = tk.Entry(fc, textvariable=custom_command, width=30)
         cmd_entry.grid(row=0, column=0, sticky='nsew')
@@ -241,6 +237,10 @@ class ControlGUI(tk.Frame):
         custom_button = tk.Button(fc, text="Send",
                 command=lambda: self.queue_custom_command(custom_dev.get(), custom_command.get()))
         custom_button.grid(row=0, column=2, sticky='e')
+
+        # button to refresh the list of COM ports
+        tk.Button(fc, text="Refresh COM ports", command=self.refresh_COM_ports)\
+                        .grid(row=0, column=3, padx=30, sticky='e')
 
         # make GUI elements for all devices
         for dev_name, dev in self.parent.devices.items():

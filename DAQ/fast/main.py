@@ -226,6 +226,25 @@ class ControlGUI(tk.Frame):
                     ctrls[c]["options"]    = params[c]["options"].split(",")
                     ctrls[c]["var"]        = tk.StringVar()
                     ctrls[c]["var"].set(params[c]["value"])
+                elif params[c].get("type") == "ControlsRow":
+                    ctrls[c] = {}
+                    ctrls[c]["label"]           = params[c]["label"]
+                    ctrls[c]["type"]            = params[c]["type"]
+                    ctrls[c]["row"]             = int(params[c]["row"])
+                    ctrls[c]["col"]             = int(params[c]["col"])
+                    ctrls[c]["control_names"]   = [x.strip() for x in params[c]["control_names"].split(",")]
+                    ctrls[c]["control_labels"]  = [x.strip() for x in params[c]["control_labels"].split(",")]
+                    ctrls[c]["control_types"]   = [x.strip() for x in params[c]["control_types"].split(",")]
+                    ctrls[c]["control_widths"] = params[c].get("control_widths")
+                    if ctrls[c]["control_widths"]:
+                        ctrls[c]["control_widths"] = [int(x) for x in ctrls[c]["control_widths"].split(",")]
+                    ctrls[c]["control_options"] = params[c].get("control_options")
+                    if ctrls[c]["control_options"]:
+                        ctrls[c]["control_options"] = [x.strip() for x in ctrls[c]["control_options"].split(",")]
+                    ctrls[c]["control_values"]   = {}
+                    for name, val in zip(ctrls[c]["control_names"], params[c]["control_values"].split(",")):
+                        ctrls[c]["control_values"][name] = tk.StringVar()
+                        ctrls[c]["control_values"][name].set(val.strip())
 
             # make a Device object
             self.parent.devices[params["device"]["name"]] = Device(dev_config)
@@ -342,7 +361,7 @@ class ControlGUI(tk.Frame):
 
             # the button to reload attributes
             attr_b = tk.Button(fd, text="Attrs", command=lambda dev=dev: self.reload_attrs(dev))
-            attr_b.grid(row=0, column=2, sticky="nsew")
+            attr_b.grid(row=0, column=20, sticky="nsew")
 
             # device-specific controls
             for c_name, c in dev.config["controls"].items():
@@ -394,6 +413,24 @@ class ControlGUI(tk.Frame):
                     c["OptionMenu"].grid(row=c["row"], column=c["col"], sticky=tk.W)
                     c["Label"] = tk.Label(fd, text=c["label"])
                     c["Label"].grid(row=c["row"], column=c["col"]-1, sticky=tk.E)
+
+                # place ControlsRows
+                elif c["type"] == "ControlsRow":
+                    c["Frame"] = tk.Frame(fd)
+                    c["Frame"].grid(row=c["row"], column=c["col"], sticky='w', pady=10)
+                    c["Label"] = tk.Label(fd, text=c["label"])
+                    c["Label"].grid(row=c["row"], column=c["col"]-1, sticky=tk.E)
+                    for i, name in enumerate(c["control_names"]):
+                        c["ctrls"] = {}
+                        if c["control_types"][i] == "Entry":
+                            c["ctrls"][name] = tk.Entry(c["Frame"],
+                                    width=c["control_widths"][i], textvariable=c["control_values"][name])
+                        elif c["control_types"][i] == "OptionMenu":
+                            c["ctrls"][name] = tk.OptionMenu(c["Frame"],
+                                    c["control_values"][name], *c["control_options"][i])
+                        c["ctrls"][name].grid(row=1, column=i+1, sticky="nsew")
+                        tk.Label(c["Frame"], text=c["control_labels"][i])\
+                                .grid(row=0, column=i+1)
 
     def set_config_dir(self):
         self.open_dir("config_dir")

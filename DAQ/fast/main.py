@@ -213,6 +213,7 @@ class ControlGUI(tk.Frame):
                     ctrls[c]["type"]       = params[c]["type"]
                     ctrls[c]["row"]        = int(params[c]["row"])
                     ctrls[c]["col"]        = int(params[c]["col"])
+                    ctrls[c]["width"]      = params[c].get("width")
                     ctrls[c]["enter_cmd"]  = params[c].get("enter_command")
                     ctrls[c]["var"]        = tk.StringVar()
                     ctrls[c]["var"].set(params[c]["value"])
@@ -238,13 +239,38 @@ class ControlGUI(tk.Frame):
                     ctrls[c]["control_widths"] = params[c].get("control_widths")
                     if ctrls[c]["control_widths"]:
                         ctrls[c]["control_widths"] = [int(x) for x in ctrls[c]["control_widths"].split(",")]
-                    ctrls[c]["control_options"] = params[c].get("control_options")
-                    if ctrls[c]["control_options"]:
-                        ctrls[c]["control_options"] = [x.strip() for x in ctrls[c]["control_options"].split(",")]
+                    ctrls[c]["control_options"] = []
+                    control_options = params[c].get("control_options")
+                    if not control_options:
+                        control_options = ""
+                    for c_o in control_options.split(";"):
+                        ctrls[c]["control_options"].append([x.strip() for x in c_o.split(",")])
                     ctrls[c]["control_values"]   = {}
                     for name, val in zip(ctrls[c]["control_names"], params[c]["control_values"].split(",")):
                         ctrls[c]["control_values"][name] = tk.StringVar()
                         ctrls[c]["control_values"][name].set(val.strip())
+                elif params[c].get("type") == "ControlsTable":
+                    ctrls[c] = {}
+                    ctrls[c]["label"]         = params[c]["label"]
+                    ctrls[c]["type"]          = params[c]["type"]
+                    ctrls[c]["row"]           = int(params[c]["row"])
+                    ctrls[c]["col"]           = int(params[c]["col"])
+                    ctrls[c]["columnspan"]    = int(params[c]["columnspan"])
+                    ctrls[c]["column_names"]  = [x.strip() for x in params[c]["column_names"].split(",")]
+                    ctrls[c]["column_labels"] = [x.strip() for x in params[c]["column_labels"].split(",")]
+                    ctrls[c]["column_types"]  = [x.strip() for x in params[c]["column_types"].split(",")]
+                    ctrls[c]["column_widths"] = params[c].get("column_widths")
+                    if ctrls[c]["column_widths"]:
+                        ctrls[c]["column_widths"] = [int(x) for x in ctrls[c]["column_widths"].split(",")]
+                    ctrls[c]["column_options"] = []
+                    for c_v in params[c].get("column_options").split(";"):
+                        ctrls[c]["column_options"].append([x.strip() for x in c_v.split(",")])
+                    ctrls[c]["column_values"] = []
+                    for c_v in params[c].get("column_values").split(";"):
+                        ctrls[c]["column_values"].append([])
+                        for val in c_v.split(","):
+                            ctrls[c]["column_values"][-1].append(tk.StringVar())
+                            ctrls[c]["column_values"][-1][-1].set(val.strip())
 
             # make a Device object
             self.parent.devices[params["device"]["name"]] = Device(dev_config)
@@ -393,8 +419,12 @@ class ControlGUI(tk.Frame):
 
                 # place Entries
                 elif c["type"] == "Entry":
-                    c["Entry"] = tk.Entry(fd, textvariable=c["var"])
-                    c["Entry"].grid(row=c["row"], column=c["col"],sticky="nsew")
+                    if c["width"]:
+                        c["Entry"] = tk.Entry(fd, textvariable=c["var"], width=c["width"])
+                        c["Entry"].grid(row=c["row"], column=c["col"],sticky="w")
+                    else:
+                        c["Entry"] = tk.Entry(fd, textvariable=c["var"])
+                        c["Entry"].grid(row=c["row"], column=c["col"],sticky="nsew")
                     c["Label"] = tk.Label(fd, text=c["label"])
                     c["Label"].grid(row=c["row"], column=c["col"]-1, sticky=tk.E)
                     if c["enter_cmd"]:
@@ -428,9 +458,30 @@ class ControlGUI(tk.Frame):
                         elif c["control_types"][i] == "OptionMenu":
                             c["ctrls"][name] = tk.OptionMenu(c["Frame"],
                                     c["control_values"][name], *c["control_options"][i])
-                        c["ctrls"][name].grid(row=1, column=i+1, sticky="nsew")
+                        c["ctrls"][name].grid(row=1, column=i+1, sticky="nsew", padx=5)
                         tk.Label(c["Frame"], text=c["control_labels"][i])\
                                 .grid(row=0, column=i+1)
+
+                # place ControlsTables
+                elif c["type"] == "ControlsTable":
+                    tk.Label(fd, text=c["label"]).grid(row=c["row"], column=c["col"]-1, sticky="ne")
+                    c["Frame"] = tk.LabelFrame(fd)
+                    c["Frame"].grid(row=c["row"], column=c["col"],
+                            columnspan=c["columnspan"], sticky='w', pady=10, padx=3)
+                    for i, name in enumerate(c["column_names"]):
+                        tk.Label(c["Frame"], text=c["column_labels"][i]).grid(row=0, column=i)
+                        for j, var in enumerate(c["column_values"][i]):
+                            if c["column_types"][i] == "Checkbutton":
+                                tk.Checkbutton(c["Frame"], variable=var).grid(row=j+1, column=i)
+                            elif c["column_types"][i] == "Entry":
+                                tk.Entry(c["Frame"], textvariable=var,
+                                        width=c["column_widths"][i]).grid(row=j+1, column=i)
+                            elif c["column_types"][i] == "Label":
+                                tk.Label(c["Frame"], textvariable=var).grid(row=j+1, column=i)
+                            elif c["column_types"][i] == "OptionMenu":
+                                om = tk.OptionMenu(c["Frame"], var, *c["column_options"][i])
+                                om.config(width=c["column_widths"][i])
+                                om.grid(row=j+1, column=i)
 
     def set_config_dir(self):
         self.open_dir("config_dir")

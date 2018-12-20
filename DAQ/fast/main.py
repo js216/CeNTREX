@@ -22,6 +22,7 @@ from drivers import LakeShore218
 from drivers import LakeShore330 
 from drivers import CPA1110
 from drivers import USB6008
+from drivers import PXIe5171
 
 from Plotting import PlotsGUI
 
@@ -304,15 +305,10 @@ class ControlGUI(tk.Frame):
         ########################################
         # devices
         ########################################
-        self.place_device_controls()
-
-    def place_device_controls(self):
-        self.fr = tk.LabelFrame(self.cgf, text="Devices")
-        self.fr.grid(row=4, padx=10, pady=10, sticky='nsew')
 
         # the control to send a custom command to a specified device
-        fc = tk.LabelFrame(self.fr, text="Send a custom command", padx=10, pady=10)
-        fc.grid(row=0, columnspan=2, padx=10, pady=10, sticky='ew')
+        fc = tk.LabelFrame(self.cgf, text="Send a custom command", padx=10, pady=10)
+        fc.grid(row=2, padx=10, pady=10, sticky='ew')
         custom_command = tk.StringVar(fc, value='Enter command ...')
         cmd_entry = tk.Entry(fc, textvariable=custom_command, width=30)
         cmd_entry.grid(row=0, column=0, sticky='nsew')
@@ -329,6 +325,14 @@ class ControlGUI(tk.Frame):
         # button to refresh the list of COM ports
         tk.Button(fc, text="Refresh COM ports", command=self.refresh_COM_ports)\
                         .grid(row=0, column=3, padx=30, sticky='e')
+
+
+        # all device-specific controls
+        self.place_device_controls()
+
+    def place_device_controls(self):
+        self.fr = tk.LabelFrame(self.cgf, text="Devices")
+        self.fr.grid(row=4, padx=10, pady=10, sticky='nsew')
 
         # make GUI elements for all devices
         for dev_name, dev in self.parent.devices.items():

@@ -5,3 +5,4 @@ from .LakeShore218 import LakeShore218
 from .LakeShore330 import LakeShore330
 from .USB6008 import USB6008
 from .Tektronix2014B import Tektronix2014B
+from .NIscope import PXIe5171

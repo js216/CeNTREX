@@ -10,7 +10,7 @@ class PXIe5171:
         self.verification_string = "TODO"
 
         # setup measurement
-	self.session = niscope.Session("Dev1")
+        self.session = niscope.Session("Dev1")
         session.channels[0].configure_vertical(range=1.0, coupling=niscope.VerticalCoupling.AC)
         session.channels[1].configure_vertical(range=2.0, coupling=niscope.VerticalCoupling.DC)
         session.configure_horizontal_timing(

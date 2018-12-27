@@ -40,22 +40,29 @@ class PlotsGUI(tk.Frame):
         tk.Button(ctrls_f, text="Delete all", command=self.delete_all)\
                 .grid(row=0, column=3, sticky='e', padx=10)
 
+        # for setting refresh rate of all plots
+        self.dt_var = tk.StringVar()
+        self.dt_var.set("dt")
+        dt_entry = tk.Entry(ctrls_f, textvariable=self.dt_var, width=7)
+        dt_entry.grid(row=0, column=4, sticky='w', padx=5)
+        dt_entry.bind("<Return>", self.change_all_animation_dt)
+
         # button to add add plot in the specified column
         self.col_var = tk.StringVar()
         self.col_var.set("plot column")
-        tk.Entry(ctrls_f, textvariable=self.col_var).grid(row=0, column=4, sticky='w', padx=10)
+        tk.Entry(ctrls_f, textvariable=self.col_var, width=13).grid(row=0, column=5, sticky='w', padx=5)
         tk.Button(ctrls_f, text="New plot ...", command=self.add_plot)\
-            .grid(row=0, column=5, sticky='e', padx=10)
+            .grid(row=0, column=6, sticky='e', padx=10)
 
         # the HDF file we're currently plotting from
         tk.Label(ctrls_f, text="HDF file:")\
                 .grid(row=1, column=0)
         tk.Entry(ctrls_f,
                 textvariable=self.parent.config["plotting_hdf_fname"])\
-                .grid(row=1, column=1, columnspan=4, padx=10, sticky="ew")
+                .grid(row=1, column=1, columnspan=5, padx=10, sticky="ew")
         tk.Button(ctrls_f, text="Open...",
                 command = lambda: self.open_HDF_file("plotting_hdf_fname"))\
-                .grid(row=1, column=5, padx=10, sticky='ew')
+                .grid(row=1, column=6, padx=10, sticky='ew')
 
         # add one plot
         self.add_plot()
@@ -78,6 +85,21 @@ class PlotsGUI(tk.Frame):
                 self.refresh_run_list(fname)
         except OSError:
             messagebox.showerror("File error", "Not a valid HDF file.")
+
+    def change_all_animation_dt(self, i=0):
+        # determine what the plot refresh rate is
+        try:
+            dt = float(self.dt_var.get())
+        except ValueError:
+            dt = 1
+        if dt < 0.01:
+            dt = 0.01
+
+        # set all plots to that refresh rate
+        for col, col_plots in self.all_plots.items():
+            for row, plot in col_plots.items():
+                if plot:
+                    plot.change_animation_dt(0, dt)
 
     def refresh_run_list(self, fname):
         # get list of runs
@@ -263,6 +285,7 @@ class Plotter(tk.Frame):
 
     def start_animation(self):
         if not self.plot_drawn:
+            self.new_plot()
             self.ani.event_source.start()
         else:
             self.ani.event_source.start()
@@ -273,9 +296,12 @@ class Plotter(tk.Frame):
             self.ani.event_source.stop()
         self.play_pause_button.configure(text="\u25b6", command=self.start_animation)
 
-    def change_animation_dt(self, i=0):
+    def change_animation_dt(self, i=0, dt=-1):
         if self.plot_drawn:
-            self.ani.event_source.interval = 1000 * self.dt()
+            if dt > 0.1:
+                self.ani.event_source.interval = 1000 * dt
+            else:
+                self.ani.event_source.interval = 1000 * self.dt()
 
     def destroy(self):
         self.f.destroy()

@@ -46,19 +46,17 @@ class MonitoringGUI(tk.Frame):
             tk.Message(fd, textvariable=dev.units, anchor='nw', width=350)\
                     .grid(row=0, column=2, sticky='nsew')
 
-        # the thread that updates the above
-        self.monitoring = Monitoring(self.parent)
-
         # monitoring controls
-        ctrls_f = tk.Frame(mgf)
-        ctrls_f.grid(row=0, column=0, padx=10, pady=10)
-        self.monitoring.dt_var = tk.StringVar()
-        self.monitoring.dt_var.set("1")
-        tk.Label(ctrls_f, text="Loop delay [s]:").grid(row=0, column=0)
-        tk.Entry(ctrls_f, textvariable=self.monitoring.dt_var).grid(row=0, column=1)
+        self.ctrls_f = tk.Frame(mgf)
+        self.ctrls_f.grid(row=0, column=0, padx=10, pady=10)
 
     def start_monitoring(self):
+        self.monitoring = Monitoring(self.parent)
         self.monitoring.active.set()
+
+        tk.Label(self.ctrls_f, text="Loop delay [s]:").grid(row=0, column=0)
+        tk.Entry(self.ctrls_f, textvariable=self.monitoring.dt_var).grid(row=0, column=1)
+
         self.monitoring.start()
 
     def stop_monitoring(self):
@@ -70,6 +68,8 @@ class Monitoring(threading.Thread):
         threading.Thread.__init__(self)
         self.parent = parent
         self.active = threading.Event()
+        self.dt_var = tk.StringVar()
+        self.dt_var.set("1")
 
     def run(self):
         while self.active.is_set():

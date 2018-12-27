@@ -44,8 +44,10 @@ class HDF_writer(threading.Thread):
             for dev_name, dev in self.parent.devices.items():
                 if dev.config["controls"]["enabled"]["var"].get():
                     grp = root.require_group(dev.config["path"])
-                    grp.create_dataset(dev.config["name"], (0,dev.shape[0]+1),
+                    dset = grp.create_dataset(dev.config["name"], (0,dev.shape[0]+1),
                             maxshape=(None,dev.shape[0]+1), dtype='f')
+                    for attr_name, attr in dev.config["attributes"].items():
+                        dset.attrs[attr_name] = attr
 
         self.active.set()
 

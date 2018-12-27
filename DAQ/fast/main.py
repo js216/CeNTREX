@@ -25,6 +25,7 @@ from drivers import USB6008
 from drivers import PXIe5171
 
 from Plotting import PlotsGUI
+from Monitoring import MonitoringGUI
 
 class HDF_writer(threading.Thread):
     def __init__(self, parent):
@@ -572,6 +573,9 @@ class ControlGUI(tk.Frame):
         self.HDF_writer = HDF_writer(self.parent)
         self.HDF_writer.start()
 
+        # start the monitoring thread
+        self.parent.monitoring.start_monitoring()
+
         # start control for all devices
         for dev_name, dev in self.parent.devices.items():
             if dev.config["controls"]["enabled"]["var"].get():
@@ -594,6 +598,9 @@ class ControlGUI(tk.Frame):
         if self.HDF_writer.active.is_set():
             self.HDF_writer.active.clear()
 
+        # stop monitoring
+        self.parent.monitoring.stop_monitoring()
+
         # stop devices, waiting for threads to finish
         for dev_name, dev in self.parent.devices.items():
             if dev.active.is_set():
@@ -612,8 +619,9 @@ class CentrexGUI(tk.Frame):
         # GUI elements in a tabbed interface
         self.nb = ttk.Notebook(self)
         self.nb.grid()
-        self.control = ControlGUI(self, *args, **kwargs)
-        self.plots   = PlotsGUI(self, *args, **kwargs)
+        self.control    = ControlGUI(self, *args, **kwargs)
+        self.monitoring = MonitoringGUI(self, *args, **kwargs)
+        self.plots      = PlotsGUI(self, *args, **kwargs)
 
     def read_config(self):
         # read program settings

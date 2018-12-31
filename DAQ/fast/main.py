@@ -574,8 +574,11 @@ class ControlGUI(tk.Frame):
     def refresh_COM_ports(self):
         rl = pyvisa.ResourceManager().list_resources()
         for dev_name, dev in self.parent.devices.items():
-            menu = dev.config["controls"]["COM_port"]["OptionMenu"]["menu"]
-            COM_var = dev.config["controls"]["COM_port"]["var"]
+            COM_port = dev.config["controls"].get("COM_port")
+            if not COM_port:
+                continue
+            menu = COM_port["OptionMenu"]["menu"]
+            COM_var = COM_port["var"]
             menu.delete(0, "end")
             for string in rl:
                 menu.add_command(label=string,
@@ -636,9 +639,10 @@ class ControlGUI(tk.Frame):
         self.status = "running"
         self.status_message.set("Running")
 
-        # make all plots display the current run
+        # make all plots display the current run and file
         HDF_fname = self.parent.config["hdf_fname"].get()
         self.parent.plots.refresh_run_list(HDF_fname)
+        self.parent.config["plotting_hdf_fname"].set(HDF_fname)
 
     def stop_control(self):
         # check we're not stopped already

@@ -102,6 +102,10 @@ class Device(threading.Thread):
         self.data_queue = queue.Queue()
         self.events_queue = queue.Queue()
 
+        # the variable for counting the number of NaN returns
+        self.nan_count = tk.StringVar()
+        self.nan_count.set(0)
+
     def setup_connection(self, time_offset):
         threading.Thread.__init__(self)
         self.rm = pyvisa.ResourceManager()
@@ -143,6 +147,10 @@ class Device(threading.Thread):
                 # record numerical values
                 last_data = [time.time() - self.time_offset] + device.ReadValue()
                 self.data_queue.put(last_data)
+
+                # keep track of the number of NaN returns
+                if np.isnan(last_data[1]):
+                    self.nan_count.set( int(self.nan_count.get()) + 1)
 
                 # send control commands, if any, to the device, and record return values
                 for c in self.commands:

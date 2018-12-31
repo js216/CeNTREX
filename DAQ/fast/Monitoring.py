@@ -27,8 +27,13 @@ class MonitoringGUI(tk.Frame):
 
             # length of the data queue
             dev.qsize = tk.StringVar()
-            tk.Label(fd, text="Queue length:").grid(row=0, column=0)
-            tk.Label(fd, textvariable=dev.qsize).grid(row=0, column=1)
+            dev.qsize.set(0)
+            tk.Label(fd, text="Queue length:").grid(row=0, column=0, sticky='ne')
+            tk.Label(fd, textvariable=dev.qsize).grid(row=0, column=1, sticky='nw')
+
+            # NaN count
+            tk.Label(fd, text="NaN count:").grid(row=1, column=0, sticky='ne')
+            tk.Label(fd, textvariable=dev.nan_count).grid(row=1, column=1, sticky='nw')
 
             # column names
             col_names = dev.config["attributes"]["column_names"].split(',')
@@ -36,12 +41,12 @@ class MonitoringGUI(tk.Frame):
             dev.column_names = tk.StringVar()
             dev.column_names.set("\n".join(col_names))
             tk.Message(fd, textvariable=dev.column_names, anchor='ne', justify="right", width=350)\
-                    .grid(row=1, column=0, sticky='nsew')
+                    .grid(row=2, column=0, sticky='nsew')
 
             # data
             dev.last_data = tk.StringVar()
             tk.Message(fd, textvariable=dev.last_data, anchor='nw', width=350)\
-                    .grid(row=1, column=1, sticky='nsew')
+                    .grid(row=2, column=1, sticky='nsew')
 
             # units
             units = dev.config["attributes"]["units"].split(',')
@@ -49,7 +54,7 @@ class MonitoringGUI(tk.Frame):
             dev.units = tk.StringVar()
             dev.units.set("\n".join(units))
             tk.Message(fd, textvariable=dev.units, anchor='nw', width=350)\
-                    .grid(row=1, column=2, sticky='nsew')
+                    .grid(row=2, column=2, sticky='nsew')
 
         # monitoring controls
         self.ctrls_f = tk.Frame(mgf)

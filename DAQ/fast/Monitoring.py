@@ -82,7 +82,7 @@ class Monitoring(threading.Thread):
                 if dev.config["controls"]["enabled"]["var"].get():
                     # look at the element at the beginning of the data queue
                     try:
-                        data = dev.data.queue[-1]
+                        data = dev.data_queue.queue[-1]
                     except IndexError:
                         continue
 
@@ -91,7 +91,7 @@ class Monitoring(threading.Thread):
                     dev.last_data.set("\n".join(formatted_data))
 
                     # find out and display the data queue length
-                    dev.qsize.set(dev.data.qsize())
+                    dev.qsize.set(dev.data_queue.qsize())
 
             # loop delay
             try:

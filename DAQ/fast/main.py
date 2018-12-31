@@ -16,6 +16,7 @@ import os
 import configparser
 from decimal import Decimal
 import queue
+from collections import deque
 
 from drivers import Hornet 
 from drivers import LakeShore218 
@@ -58,7 +59,7 @@ class HDF_writer(threading.Thread):
                 for dev_name, dev in self.parent.devices.items():
                     if dev.config["controls"]["enabled"]["var"].get():
                         # get data
-                        data = self.get_data(dev.data)
+                        data = self.get_data(dev.data_queue)
                         if len(data) == 0:
                             continue
 
@@ -98,8 +99,8 @@ class Device(threading.Thread):
         self.commands = []
 
         # the data and events queues
-        self.data = queue.Queue()
-        self.events = queue.Queue()
+        self.data_queue = queue.Queue()
+        self.events_queue = queue.Queue()
 
     def setup_connection(self, time_offset):
         threading.Thread.__init__(self)
@@ -141,7 +142,7 @@ class Device(threading.Thread):
 
                 # record numerical values
                 last_data = [time.time() - self.time_offset] + device.ReadValue()
-                self.data.put(last_data)
+                self.data_queue.put(last_data)
 
                 # send control commands, if any, to the device, and record return values
                 for c in self.commands:

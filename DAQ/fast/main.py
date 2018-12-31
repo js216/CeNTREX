@@ -59,9 +59,9 @@ class HDF_writer(threading.Thread):
         self.active.set()
 
     def run(self):
-        with h5py.File(self.filename, 'a') as f:
-            root = f.require_group(self.parent.run_name)
-            while self.active.is_set():
+        while self.active.is_set():
+            with h5py.File(self.filename, 'a') as f:
+                root = f.require_group(self.parent.run_name)
                 for dev_name, dev in self.parent.devices.items():
                     if dev.config["controls"]["enabled"]["var"].get():
                         # get data and write to HDF

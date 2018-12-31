@@ -79,8 +79,6 @@ class HDF_writer(threading.Thread):
                             events_dset = grp[dev.config["name"] + "_events"]
                             events_dset.resize(events_dset.shape[0]+len(events), axis=0)
                             events_dset[-len(events):,:] = events
-                            print(events)
-                            sys.stdout.flush()
 
                 # loop delay
                 try:
@@ -124,19 +122,16 @@ class Device(threading.Thread):
 
     def setup_connection(self, time_offset):
         threading.Thread.__init__(self)
-        self.rm = pyvisa.ResourceManager()
         self.time_offset = time_offset
 
         # verify the device responds correctly
         constr_params = [self.config["controls"][cp]["var"].get() for cp in self.config["constr_params"]]
-        with self.config["driver"](self.rm, *constr_params) as dev: 
+        with self.config["driver"](*constr_params) as dev: 
             self.shape = dev.shape
             if dev.verification_string == self.config["correct_response"]:
                 self.operational = True
             else:
                 self.operational = False
-
-        self.rm.close() 
 
     def clear_queues(self):
         # empty the data queue
@@ -162,8 +157,7 @@ class Device(threading.Thread):
 
         # main control loop
         constr_params = [self.config["controls"][cp]["var"].get() for cp in self.config["constr_params"]]
-        self.rm = pyvisa.ResourceManager()
-        with self.config["driver"](self.rm, *constr_params) as device: 
+        with self.config["driver"](*constr_params) as device: 
             while self.active.is_set():
                 # loop delay
                 try:

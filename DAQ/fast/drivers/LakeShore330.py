@@ -3,8 +3,8 @@ import time
 import numpy as np
 
 class LakeShore330:
-    def __init__(self, rm, resource_name):
-        self.rm = rm
+    def __init__(self, resource_name):
+        self.rm = pyvisa.ResourceManager()
         try:
             self.instr = self.rm.open_resource(resource_name)
         except pyvisa.errors.VisaIOError:

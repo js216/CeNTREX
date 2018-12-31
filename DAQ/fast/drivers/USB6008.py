@@ -7,7 +7,7 @@ import PyDAQmx
 import numpy as np
 
 class USB6008:
-    def __init__(self, rm, flow_signal_out, setpoint_in, flood_in, flood_out):
+    def __init__(self, flow_signal_out, setpoint_in, flood_in, flood_out):
         self.flow_signal_out = flow_signal_out
         self.setpoint_in     = setpoint_in
         self.flood_in        = flood_in

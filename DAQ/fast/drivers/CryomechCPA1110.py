@@ -60,6 +60,7 @@ and the rest of the input registers are in 32bit floating point format."
 
 from pymodbus.client.sync import ModbusSerialClient
 import struct
+import pyvisa
 
 # utility functions (see manual pp 21-22)
 def to_float(b12, b34):
@@ -70,7 +71,8 @@ def to_int(b12, b34):
 
 
 class CPA1110:
-    def __init__(self, rm, resource_name):
+    def __init__(self, resource_name):
+        rm = pyvisa.ResourceManager()
         COM_port = rm.resource_info(resource_name).alias
         try:
             self.client = ModbusSerialClient(method='rtu', port=COM_port,

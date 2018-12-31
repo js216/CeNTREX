@@ -3,9 +3,9 @@ import numpy as np
 import time
 
 class Hornet:
-    def __init__(self, rm, resource_name, address='01'):
+    def __init__(self, resource_name, address='01'):
         self.address = address # Factory default address=1
-        self.rm = rm
+        self.rm = pyvisa.ResourceManager()
         try:
             self.instr = self.rm.open_resource(resource_name)
         except pyvisa.errors.VisaIOError:

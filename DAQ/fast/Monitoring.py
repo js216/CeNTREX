@@ -12,16 +12,23 @@ class MonitoringGUI(tk.Frame):
 
     def place_GUI_elements(self):
         # main frame for all MonitoringGUI elements
-        mgf = tk.Frame(self.parent.nb)
-        self.parent.nb.add(mgf, text="Monitoring")
+        self.frame = tk.Frame(self.parent.nb)
+        self.parent.nb.add(self.frame, text="Monitoring")
 
+        self.place_device_specific_items()
+
+        # monitoring controls
+        self.ctrls_f = tk.Frame(self.frame)
+        self.ctrls_f.grid(row=0, column=0, padx=10, pady=10)
+
+    def place_device_specific_items(self):
         # frame for device data
-        dev_f = tk.LabelFrame(mgf, text="Devices")
-        dev_f.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+        self.dev_f = tk.LabelFrame(self.frame, text="Devices")
+        self.dev_f.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
 
         # device-specific text
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
-            fd = tk.LabelFrame(dev_f, text=dev.config["label"])
+            fd = tk.LabelFrame(self.dev_f, text=dev.config["label"])
             fd.grid(padx=10, pady=10, sticky="nsew",
                     row=dev.config["row"], column=dev.config["column"])
 
@@ -60,11 +67,6 @@ class MonitoringGUI(tk.Frame):
             tk.Label(fd, text="Last event:").grid(row=3, column=0, sticky='ne')
             tk.Message(fd, textvariable=dev.last_event, anchor='nw', width=100)\
                     .grid(row=3, column=1, columnspan=2, sticky='nw')
-
-        # monitoring controls
-        self.ctrls_f = tk.Frame(mgf)
-        self.ctrls_f.grid(row=0, column=0, padx=10, pady=10)
-
     def start_monitoring(self):
         self.monitoring = Monitoring(self.parent)
         self.monitoring.active.set()

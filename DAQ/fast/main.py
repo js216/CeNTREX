@@ -528,8 +528,14 @@ class ControlGUI(tk.Frame):
     def set_config_dir(self):
         self.open_dir("config_dir")
         self.read_device_config()
+
+        # update device controls
         self.fr.destroy()
         self.place_device_controls()
+
+        # update device data in MonitoringGUI
+        self.parent.monitoring.dev_f.destroy()
+        self.parent.monitoring.place_device_specific_items()
 
     def queue_custom_command(self, dev_name, command):
         # check the command is valid

@@ -514,9 +514,17 @@ class ControlGUI(tk.Frame):
         dev.commands.append(command)
 
     def reload_attrs(self, dev):
+        # read attributes from file
         params = configparser.ConfigParser()
         params.read(dev.config["config_fname"])
         dev.config["attributes"] = params["attributes"]
+
+        # update the column names in MonitoringGUI
+        col_names = dev.config["attributes"]["column_names"].split(',')
+        col_names = [x.strip() for x in col_names]
+        dev.column_names.set("\n".join(col_names))
+
+        # display the new attributes in a message box
         attrs = ""
         for attr_name,attr in dev.config["attributes"].items():
             attrs += attr_name + ": " + str(attr) + "\n\n"
@@ -557,13 +565,12 @@ class ControlGUI(tk.Frame):
             return
 
         # select the time offset
-        time_offset = time.time()
-        self.parent.config["time_offset"] = time_offset
+        self.parent.config["time_offset"] = time.time()
 
         # setup & check connections of all devices
         for dev_name, dev in self.parent.devices.items():
             if dev.config["controls"]["enabled"]["var"].get():
-                dev.setup_connection(time_offset)
+                dev.setup_connection(self.parent.config["time_offset"])
                 if not dev.operational:
                     messagebox.showerror("Device error",
                             "Error: " + dev.config["label"] + " not responding\

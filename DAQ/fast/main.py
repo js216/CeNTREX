@@ -414,7 +414,6 @@ class ControlGUI(tk.Frame):
         tk.Button(fc, text="Refresh COM ports", command=self.refresh_COM_ports)\
                         .grid(row=0, column=3, padx=30, sticky='e')
 
-
         # all device-specific controls
         self.place_device_controls()
 
@@ -574,15 +573,17 @@ class ControlGUI(tk.Frame):
     def refresh_COM_ports(self):
         rl = pyvisa.ResourceManager().list_resources()
         for dev_name, dev in self.parent.devices.items():
-            COM_port = dev.config["controls"].get("COM_port")
-            if not COM_port:
+            # check device has a COM_port control
+            if not dev.config["controls"].get("COM_port"):
                 continue
-            menu = COM_port["OptionMenu"]["menu"]
-            COM_var = COM_port["var"]
+
+            # update the menu of COM_port options
+            menu = dev.config["controls"].get("COM_port")["OptionMenu"]["menu"]
+            COM_var = dev.config["controls"].get("COM_port")["var"]
             menu.delete(0, "end")
             for string in rl:
                 menu.add_command(label=string,
-                        command=lambda value=string: COM_var.set(value))
+                        command=lambda value=string, COM_var=COM_var: COM_var.set(value))
 
     def open_file(self, prop):
         fname = filedialog.asksaveasfilename(

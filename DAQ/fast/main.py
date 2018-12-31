@@ -669,7 +669,14 @@ class CentrexGUI(tk.Frame):
         tk.Frame.__init__(self, parent, *args, **kwargs)
         self.winfo_toplevel().title("CENTREX Slow DAQ")
         self.parent = parent
-        self.read_config()
+
+        # read program configuration
+        self.config = {}
+        settings = configparser.ConfigParser()
+        settings.read("config/settings.ini")
+        for key in settings["files"]:
+            self.config[key] = tk.StringVar()
+            self.config[key].set(settings["files"][key])
 
         # GUI elements in a tabbed interface
         self.nb = ttk.Notebook(self)
@@ -677,15 +684,6 @@ class CentrexGUI(tk.Frame):
         self.control    = ControlGUI(self, *args, **kwargs)
         self.monitoring = MonitoringGUI(self, *args, **kwargs)
         self.plots      = PlotsGUI(self, *args, **kwargs)
-
-    def read_config(self):
-        # read program settings
-        self.config = {}
-        settings = configparser.ConfigParser()
-        settings.read("config/settings.ini")
-        for key in settings["files"]:
-            self.config[key] = tk.StringVar()
-            self.config[key].set(settings["files"][key])
 
 if __name__ == "__main__":
     root = tk.Tk()

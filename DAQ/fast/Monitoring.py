@@ -16,7 +16,7 @@ class MonitoringGUI(tk.Frame):
         self.parent.nb.add(mgf, text="Monitoring")
 
         # frame for device data
-        dev_f = tk.LabelFrame(mgf, text="devices")
+        dev_f = tk.LabelFrame(mgf, text="Devices")
         dev_f.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
 
         # device-specific text
@@ -25,18 +25,23 @@ class MonitoringGUI(tk.Frame):
             fd.grid(padx=10, pady=10, sticky="nsew",
                     row=dev.config["row"], column=dev.config["column"])
 
+            # length of the data queue
+            dev.qsize = tk.StringVar()
+            tk.Label(fd, text="Queue length:").grid(row=0, column=0)
+            tk.Label(fd, textvariable=dev.qsize).grid(row=0, column=1)
+
             # column names
             col_names = dev.config["attributes"]["column_names"].split(',')
             col_names = [x.strip() for x in col_names]
             dev.column_names = tk.StringVar()
             dev.column_names.set("\n".join(col_names))
             tk.Message(fd, textvariable=dev.column_names, anchor='ne', justify="right", width=350)\
-                    .grid(row=0, column=0, sticky='nsew')
+                    .grid(row=1, column=0, sticky='nsew')
 
             # data
             dev.last_data = tk.StringVar()
             tk.Message(fd, textvariable=dev.last_data, anchor='nw', width=350)\
-                    .grid(row=0, column=1, sticky='nsew')
+                    .grid(row=1, column=1, sticky='nsew')
 
             # units
             units = dev.config["attributes"]["units"].split(',')
@@ -44,7 +49,7 @@ class MonitoringGUI(tk.Frame):
             dev.units = tk.StringVar()
             dev.units.set("\n".join(units))
             tk.Message(fd, textvariable=dev.units, anchor='nw', width=350)\
-                    .grid(row=0, column=2, sticky='nsew')
+                    .grid(row=1, column=2, sticky='nsew')
 
         # monitoring controls
         self.ctrls_f = tk.Frame(mgf)
@@ -84,6 +89,9 @@ class Monitoring(threading.Thread):
                     # format display the data in a tkinter variable
                     formatted_data = ["{0:.3f}".format(x) for x in data]
                     dev.last_data.set("\n".join(formatted_data))
+
+                    # find out and display the data queue length
+                    dev.qsize.set(dev.data.qsize())
 
             # loop delay
             try:

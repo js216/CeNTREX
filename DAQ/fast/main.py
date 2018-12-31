@@ -45,10 +45,16 @@ class HDF_writer(threading.Thread):
             for dev_name, dev in self.parent.devices.items():
                 if dev.config["controls"]["enabled"]["var"].get():
                     grp = root.require_group(dev.config["path"])
+
+                    # create dataset for data
                     dset = grp.create_dataset(dev.config["name"], (0,dev.shape[0]+1),
                             maxshape=(None,dev.shape[0]+1), dtype='f')
                     for attr_name, attr in dev.config["attributes"].items():
                         dset.attrs[attr_name] = attr
+
+                    # create dataset for events
+                    events_dset = grp.create_dataset(dev.config["name"]+"_events", (0,3),
+                            maxshape=(None,3), dtype=h5py.special_dtype(vlen=str))
 
         self.active.set()
 
@@ -58,16 +64,23 @@ class HDF_writer(threading.Thread):
             while self.active.is_set():
                 for dev_name, dev in self.parent.devices.items():
                     if dev.config["controls"]["enabled"]["var"].get():
-                        # get data
+                        # get data and write to HDF
                         data = self.get_data(dev.data_queue)
-                        if len(data) == 0:
-                            continue
+                        if len(data) != 0:
+                            grp = root.require_group(dev.config["path"])
+                            dset = grp[dev.config["name"]]
+                            dset.resize(dset.shape[0]+len(data), axis=0)
+                            dset[-len(data):,:] = data
 
-                        # write to HDF
-                        grp = root.require_group(dev.config["path"])
-                        dset = grp[dev.config["name"]]
-                        dset.resize(dset.shape[0]+len(data), axis=0)
-                        dset[-len(data):,:] = data
+                        # get events and write them to HDF
+                        events = self.get_data(dev.events_queue)
+                        if len(events) != 0:
+                            grp = root.require_group(dev.config["path"])
+                            events_dset = grp[dev.config["name"] + "_events"]
+                            events_dset.resize(events_dset.shape[0]+len(events), axis=0)
+                            events_dset[-len(events):,:] = events
+                            print(events)
+                            sys.stdout.flush()
 
                 # loop delay
                 try:
@@ -124,6 +137,21 @@ class Device(threading.Thread):
                 self.operational = False
 
         self.rm.close() 
+
+    def clear_queues(self):
+        # empty the data queue
+        while not self.data_queue.empty():
+            try:
+                self.data_queue.get(False)
+            except queue.Empty:
+                break
+
+        # empty the data queue
+        while not self.events_queue.empty():
+            try:
+                self.events_queue.get(False)
+            except queue.Empty:
+                break
 
     def run(self):
         # check connection to the device was successful
@@ -601,6 +629,7 @@ class ControlGUI(tk.Frame):
         # start control for all devices
         for dev_name, dev in self.parent.devices.items():
             if dev.config["controls"]["enabled"]["var"].get():
+                dev.clear_queues()
                 dev.start()
 
         # update program status

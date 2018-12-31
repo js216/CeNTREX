@@ -15,7 +15,9 @@ class LakeShore218:
         self.instr.data_bits = 7
         self.instr.baud_rate = 9600
         self.instr.term_char = '\r'
-        self.verification_string = self.VerifyOperation()
+
+        # make the verification string
+        self.verification_string = self.QueryIdentification()
 
         # shape of the array of returned data
         self.shape = (8, )
@@ -29,9 +31,6 @@ class LakeShore218:
 
     def ReadValue(self):
         return self.QueryKelvinReading()
-
-    def VerifyOperation(self):
-        return self.QueryIdentification()
 
     #################################################################
     ##########           IEEE-488/SERIAL COMMANDS          ##########

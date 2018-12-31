@@ -79,7 +79,10 @@ class CPA1110:
             self.verification_string = "False"
             self.client = False
             return
-        self.verification_string = self.VerifyOperation()
+
+        # make the verification string
+        self.ReadRegisters()
+        self.verification_string = str(self.PanelSerialNumber()[0])
 
         # shape of the array of returned data
         self.shape = (10, )
@@ -103,10 +106,6 @@ class CPA1110:
                  self.HighPressureAverage(),
                  self.DeltaPressureAverage(),
                  self.MotorCurrent() ]
-
-    def VerifyOperation(self):
-        self.ReadRegisters()
-        return str(self.PanelSerialNumber()[0])
 
     #################################################################
     ##########              CONTROL COMMANDS               ##########

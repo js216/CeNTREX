@@ -624,8 +624,7 @@ class ControlGUI(tk.Frame):
                 dev.setup_connection(self.parent.config["time_offset"])
                 if not dev.operational:
                     messagebox.showerror("Device error",
-                            "Error: " + dev.config["label"] + " not responding\
-                            correctly, or cannot access the directory for data storage.")
+                            "Error: " + dev.config["label"] + " not responding correctly, or cannot access the directory for data storage.")
                     self.status_message.set("Device configuration error")
                     return
 

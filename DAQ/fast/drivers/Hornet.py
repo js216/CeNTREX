@@ -16,7 +16,13 @@ class Hornet:
         self.instr.data_bits = 8
         self.instr.parity = pyvisa.constants.Parity.none
         self.instr.stop_bits = pyvisa.constants.StopBits.one
-        self.verification_string = self.VerifyOperation()
+
+        # make the verification string
+        try:
+            self.IG_status = self.ReadIGStatus()
+            self.verification_string = str(self.IG_status != np.nan)
+        except pyvisa.errors.VisaIOError:
+            self.verification_string = "False"
 
         # shape of the array of returned data
         self.shape = (1, )
@@ -40,13 +46,6 @@ class Hornet:
 
     def ReadValue(self):
         return [self.ReadSystemPressure()]
-
-    def VerifyOperation(self):
-        try:
-            self.IG_status = self.ReadIGStatus()
-        except pyvisa.errors.VisaIOError:
-            return "False"
-        return str(self.IG_status != np.nan)
 
     #################################################################
     ##########           SERIAL COMMANDS                   ##########

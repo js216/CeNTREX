@@ -11,7 +11,9 @@ class LakeShore330:
             self.verification_string = "False"
             self.instr = False
             return
-        self.verification_string = self.VerifyOperation()
+
+        # make the verification string
+        self.verification_string = self.QueryIdentification()
 
         # shape of the array of returned data
         self.shape = (2, )
@@ -25,9 +27,6 @@ class LakeShore330:
 
     def ReadValue(self):
         return [self.SampleSensorDataQuery(), self.ControlSensorDataQuery()]
-
-    def VerifyOperation(self):
-        return self.QueryIdentification()
 
     #################################################################
     ##########              COMMON COMMANDS                ##########

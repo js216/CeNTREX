@@ -16,7 +16,13 @@ class USB6008:
         self.setpoint        = 0.0
         self.SetPointControl(self.setpoint)
 
-        self.verification_string = self.VerifyOperation()
+        # make the verification string
+        try:
+            self.ReadFlowSignal()
+            self.verification_string = "operational"
+        except:
+            self.verification_string = "cannot read"
+
 
         # shape of the array of returned data
         self.shape = (2, )
@@ -29,13 +35,6 @@ class USB6008:
 
     def ReadValue(self):
         return [self.ReadFlowSignal(), self.setpoint_sccm]
-
-    def VerifyOperation(self):
-        try:
-            self.ReadFlowSignal()
-        except:
-            return "cannot read"
-        return "operational"
 
     #################################################################
     ##########              READ COMMANDS                  ##########

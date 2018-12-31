@@ -106,6 +106,9 @@ class Device(threading.Thread):
         self.nan_count = tk.StringVar()
         self.nan_count.set(0)
 
+        # variable for displaying the last event in MonitoringGUI
+        self.last_event = tk.StringVar()
+
     def setup_connection(self, time_offset):
         threading.Thread.__init__(self)
         self.rm = pyvisa.ResourceManager()
@@ -160,7 +163,8 @@ class Device(threading.Thread):
                         ret_val = str(err)
                     ret_val = "None" if not ret_val else ret_val
                     last_event = [ time.time()-self.time_offset, c, ret_val ]
-                    self.events.put(last_event)
+                    self.last_event.set(last_event)
+                    self.events_queue.put(last_event)
                 self.commands = []
 
 class ControlGUI(tk.Frame):

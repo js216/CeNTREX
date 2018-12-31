@@ -56,6 +56,11 @@ class MonitoringGUI(tk.Frame):
             tk.Message(fd, textvariable=dev.units, anchor='nw', width=350)\
                     .grid(row=2, column=2, sticky='nsew')
 
+            # latest event / command sent to device & its return value
+            tk.Label(fd, text="Last event:").grid(row=3, column=0, sticky='ne')
+            tk.Message(fd, textvariable=dev.last_event, anchor='nw', width=100)\
+                    .grid(row=3, column=1, columnspan=2, sticky='nw')
+
         # monitoring controls
         self.ctrls_f = tk.Frame(mgf)
         self.ctrls_f.grid(row=0, column=0, padx=10, pady=10)

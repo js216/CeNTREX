@@ -6,30 +6,33 @@ import niscope
 import numpy as np
 
 class PXIe5171:
-    def __init__(self, COM_port, recording, trigger, channels):
+    def __init__(self, COM_port, record, sample, trigger, channels):
         self.session = niscope.Session(COM_port)
 
-        # verify operation TODO
+        # verify operation
         self.verification_string = ""
 
-        # record parameters
+        # set record parameters
         try:
-            self.num_records = int(recording["nr_records"])
+            self.num_records = int(record["nr_records"].get())
         except ValueError:
             self.num_records = 1
         try:
-            session.max_input_frequency = 1e6 * float(recording["bandwidth_MHz"].get())
+            session.max_input_frequency = 1e6 * float(record["bandwidth_MHz"].get())
         except ValueError:
             session.max_input_frequency = 100e6
         try:
-            samplingRate_kSs = float(recording["sample_rate"])
+            samplingRate_kSs = float(sample["sample_rate"].get())
         except ValueError:
             samplingRate_kSs = 20.0
         try:
-            nrSamples        = int(recording["record_length"])
+            nrSamples        = int(record["record_length"].get())
         except ValueError:
             nrSamples        = 2000
-        session.binary_sample_width = 16
+        try:
+            session.binary_sample_width = int(sample["sample_width"].get())
+        except ValueError:
+            session.binary_sample_width = 16
         session.configure_horizontal_timing(
                 min_sample_rate  = 1000 * int(samplingRate_kSs),
                 min_num_pts      = nrSamples,
@@ -38,25 +41,25 @@ class PXIe5171:
                 enforce_realtime = True
             )
 
-        # trigger configuration TODO
+        # set trigger configuration
         trigger_src          = trigger["trigger_src"]
         trigger_slope        = trigger["trigger_slope"]
         try:
-            trigger_level    = float(trigger["trigger_level"])
+            trigger_level    = float(trigger["trigger_level"].get())
         except ValueError:
             trigger_level    = 0.0
         try:
-            trigger_delay    = float(trgger["trigger_delay"])
+            trigger_delay    = float(trgger["trigger_delay"].get())
         except ValueError:
             trigger_delay    = 0.0
 
-        # channel configuration
-        self.channels = []
+        # set channel configuration
+        self.active_channels = []
         for ch in [0, 1, 2, 3, 4, 5, 6, 7]:
             if bool(channels[0][ch].get()):
-                self.channels.append[ch]
+                self.active_channels.append[ch]
             try:
-                range_V = float(channels[2].get())
+                range_V = float(channels[2].get().strip()[0:-3])
             except ValueError:
                 range_V = 5.0
             if channels[3][ch] == "AC":
@@ -84,7 +87,7 @@ class PXIe5171:
 
     def ReadValue(self):
         with session.initiate():
-            info = session.channels[self.channels].fetch_into(
+            info = session.channels[self.active_channels].fetch_into(
                     self.waveform,
                     num_records=self.num_records
                 )[0]

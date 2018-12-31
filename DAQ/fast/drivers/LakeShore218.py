@@ -1,6 +1,5 @@
 import pyvisa
 import time
-import logging
 import numpy as np
 
 class LakeShore218:
@@ -73,7 +72,6 @@ class LakeShore218:
         try:
             return self.instr.query("*ESE?")
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
     
     def QueryStandardEventStatusRegister(self):
@@ -87,7 +85,6 @@ class LakeShore218:
         try:
             return self.instr.query("*ESR?")
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
 
     def QueryIdentification(self):
@@ -100,7 +97,6 @@ class LakeShore218:
         try:
             return self.instr.query("*IDN?")[0:-2]
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
     
     def OperationCompleteCommand(self):
@@ -123,7 +119,6 @@ class LakeShore218:
         try:
             return self.instr.query("*OPC?")
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
         
     def ResetInstrument(self):
@@ -157,7 +152,6 @@ class LakeShore218:
         try:
             return self.instr.query("*SRE?")
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
     
     def QueryStatusByte(self):
@@ -172,7 +166,6 @@ class LakeShore218:
         try:
             return self.instr.query("*STB?")
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
     
     def QuerySelfTest(self):
@@ -185,7 +178,6 @@ class LakeShore218:
         try:
             return self.instr.write("*TST?")
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
     
     def WaitToContinue(self):
@@ -232,7 +224,6 @@ class LakeShore218:
         try:
             return self.instr.query("ALARM? "+str(inp))
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
 
     def QueryInputAlarmStatus(self, inp):
@@ -250,7 +241,6 @@ class LakeShore218:
         try:
             return self.instr.query("ALARMST? "+str(inp))
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
 
     def ConfigureAudibleAlarm(self, onOff):
@@ -271,7 +261,6 @@ class LakeShore218:
         try:
             return self.instr.query("ALMB?")
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
     
     def ClearAlarmStatusAllInputs(self):
@@ -321,7 +310,6 @@ class LakeShore218:
         try:
             return self.instr.query("ANALOG? "+str(output))        
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
     
     def QueryAnalogOutputData(self, output):
@@ -334,7 +322,6 @@ class LakeShore218:
         try:
             return self.instr.query("AOUT? "+str(output))  
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
     
     def ConfigureSerialInterfaceBaudRate(self, bps):
@@ -359,7 +346,6 @@ class LakeShore218:
         try:
             return self.instr.query("BAUD?")
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
 
     def QueryCelsiusReading(self, inputs=0):
@@ -385,7 +371,6 @@ class LakeShore218:
         try:
             return self.instr.query("CRDG? "+str(inputs))
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
 
     def DeleteUserCurve(self, curve):
@@ -428,7 +413,6 @@ class LakeShore218:
         try:
             return self.instr.query("CRVHDR? "+str(curve))
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
         
     def ConfigureCurveDataPoint(self, params):
@@ -463,7 +447,6 @@ class LakeShore218:
         try:
             return self.instr.query("CRVPT? "+str(curve)+','+str(index))
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def ConfigureDateTime(self, datetime):
@@ -495,7 +478,6 @@ class LakeShore218:
         try:
             return self.instr.query("DATETIME?")
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def SetFactoryDefaults(self):
@@ -536,7 +518,6 @@ class LakeShore218:
         try:
             return self.instr.query("DISPFLD?")
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def ConfigureInputFilterParameters(self, params):
@@ -572,7 +553,6 @@ class LakeShore218:
         try:
             return self.instr.query("FILTER? "+str(inp))
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def ConfigureGPIBInterfaceParameters(self, params):
@@ -603,7 +583,6 @@ class LakeShore218:
         try:
             return self.instr.query("IEEE?")
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def ConfigureInputCurveNumber(self, params):
@@ -638,7 +617,6 @@ class LakeShore218:
         try:
             return self.instr.query("INCRV? "+str(inp))
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def ConfigureInputControlParameter(self, params):
@@ -666,7 +644,6 @@ class LakeShore218:
         try:
             return self.instr.query("INPUT? "+str(inp))
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def ConfigureInputTypeParameters(self, params):
@@ -700,7 +677,6 @@ class LakeShore218:
         try:
             return self.instr.query("INTYPE? "+str(input_group))
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def QueryKeypadStatus(self):
@@ -716,7 +692,6 @@ class LakeShore218:
         try:
             return self.instr.query("KEYST?")
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def QueryKelvinReading(self, inputs=0):
@@ -735,7 +710,6 @@ class LakeShore218:
         try:
             res = self.instr.query("KRDG? "+str(inputs))
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return [np.nan]
         return [float(x) for x in res.split(",")]
                          
@@ -770,7 +744,6 @@ class LakeShore218:
         try:
             return self.instr.query("LINEAR? "+str(inp))
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def ConfigureLockCode(self, params):
@@ -798,7 +771,6 @@ class LakeShore218:
         try:
             return self.instr.query("LOCK?")
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def TurnsLoggingOnOff(self, onOff):
@@ -821,7 +793,6 @@ class LakeShore218:
         try:
             return self.instr.query("LOG?")
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def QueryLastDataLogRecordNumber(self):
@@ -833,7 +804,6 @@ class LakeShore218:
         try:
             self.instr.query("LOGNUM?")
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def ConfigureLogRecords(self, params):
@@ -867,7 +837,6 @@ class LakeShore218:
         try:
             return self.instr.query("LOGREAD? "+str(num))
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def ConfigureLoggingParameters(self, params):
@@ -902,7 +871,6 @@ class LakeShore218:
         try:
             return self.instr.query("LOGSET?")
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def QueryLoggedDataRecord(self, params):
@@ -932,7 +900,6 @@ class LakeShore218:
         try:
             return self.instr.query("LOGVIEW? "+params)
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def QueryLinearEquationData(self, inputs=0):
@@ -951,7 +918,6 @@ class LakeShore218:
         try:
             return self.instr.query("LRDG? "+str(inputs))
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def ConfigureMinMaxInputFunctionParameters(self, params):
@@ -982,7 +948,6 @@ class LakeShore218:
         try:
             self.instr.query("MNMX? "+str(inp))
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def QueryMinMaxInputFunctionParameters(self, inp):
@@ -996,7 +961,6 @@ class LakeShore218:
         try:
             return self.instr.query("MNMXRDG? "+str(inp))
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def ResetsMinMaxFunctionAllInputs(self):
@@ -1031,7 +995,6 @@ class LakeShore218:
         try:
             return self.instr.query("MODE?")
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def QueryInputStatus(self, inp):
@@ -1046,7 +1009,6 @@ class LakeShore218:
         try:
             return self.instr.query("RDGST? "+str(inp))
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def ConfigureRelayControlParameters(self, params):
@@ -1081,7 +1043,6 @@ class LakeShore218:
         try:
             return self.instr.query("RELAY? "+str(relay_number))
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def QueryRelayStatus(self):
@@ -1104,7 +1065,6 @@ class LakeShore218:
         try:
             return self.instr.query("RELAYST?")
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan
                          
     def GenerateSoftCalCurve(self, params):
@@ -1149,5 +1109,4 @@ class LakeShore218:
         try:
             return self.instr.query("SRDG?")
         except pyvisa.errors.VisaIOError:
-            logging.warning(str(time.time())+": pyvisa.errors.VisaIOError")
             return np.nan

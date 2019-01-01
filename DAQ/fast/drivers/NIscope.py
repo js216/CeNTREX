@@ -7,10 +7,10 @@ import numpy as np
 
 class PXIe5171:
     def __init__(self, COM_port, record, sample, trigger, channels):
-        self.session = niscope.Session(COM_port)
+        #self.session = niscope.Session(COM_port)
 
         # verify operation
-        self.verification_string = ""
+        self.verification_string = "TODO"
 
         # set record parameters
         try:
@@ -18,9 +18,11 @@ class PXIe5171:
         except ValueError:
             self.num_records = 1
         try:
-            session.max_input_frequency = 1e6 * float(record["bandwidth_MHz"].get())
+            #session.max_input_frequency = 1e6 * float(record["bandwidth_MHz"].get())
+            max_input_frequency = 1e6 * float(record["bandwidth_MHz"].get())
         except ValueError:
-            session.max_input_frequency = 100e6
+            #session.max_input_frequency = 100e6
+            max_input_frequency = 100e6
         try:
             samplingRate_kSs = float(sample["sample_rate"].get())
         except ValueError:
@@ -30,16 +32,18 @@ class PXIe5171:
         except ValueError:
             nrSamples        = 2000
         try:
-            session.binary_sample_width = int(sample["sample_width"].get())
+            #session.binary_sample_width = int(sample["sample_width"].get())
+            binary_sample_width = int(sample["sample_width"].get())
         except ValueError:
-            session.binary_sample_width = 16
-        session.configure_horizontal_timing(
-                min_sample_rate  = 1000 * int(samplingRate_kSs),
-                min_num_pts      = nrSamples,
-                ref_position     = 50.0,
-                num_records      = self.num_records,
-                enforce_realtime = True
-            )
+            #session.binary_sample_width = 16
+            binary_sample_width = 16
+        #session.configure_horizontal_timing(
+        #        min_sample_rate  = 1000 * int(samplingRate_kSs),
+        #        min_num_pts      = nrSamples,
+        #        ref_position     = 50.0,
+        #        num_records      = self.num_records,
+        #        enforce_realtime = True
+        #    )
 
         # set trigger configuration
         trigger_src          = trigger["trigger_src"]
@@ -49,7 +53,7 @@ class PXIe5171:
         except ValueError:
             trigger_level    = 0.0
         try:
-            trigger_delay    = float(trgger["trigger_delay"].get())
+            trigger_delay    = float(trigger["trigger_delay"].get())
         except ValueError:
             trigger_delay    = 0.0
 
@@ -57,7 +61,7 @@ class PXIe5171:
         self.active_channels = []
         for ch in [0, 1, 2, 3, 4, 5, 6, 7]:
             if bool(channels[0][ch].get()):
-                self.active_channels.append[ch]
+                self.active_channels.append(ch)
             try:
                 range_V = float(channels[2].get().strip()[0:-3])
             except ValueError:
@@ -68,13 +72,13 @@ class PXIe5171:
                 coupling_setting = niscope.VerticalCoupling.DC
             else:
                 coupling_setting = niscope.VerticalCoupling.GND
-            session.channels[ch].configure_vertical(
-                    range    = range_V,
-                    coupling = coupling_setting
-                )
+            #session.channels[ch].configure_vertical(
+            #        range    = range_V,
+            #        coupling = coupling_setting
+            #    )
 
         # shape of the array of returned data
-        self.shape = (2, )
+        self.shape = (1, )
 
         # the array for reading data into
         self.waveform = np.ndarray(nrSamples, dtype = np.int16)
@@ -83,16 +87,18 @@ class PXIe5171:
         return self
 
     def __exit__(self, *exc):
-        self.session.close()
+        #self.session.close()
+        ...
 
     def ReadValue(self):
-        with session.initiate():
-            info = session.channels[self.active_channels].fetch_into(
-                    self.waveform,
-                    num_records=self.num_records
-                )[0]
-        dset.attrs['gain'] = info.gain
-        dset.attrs['offset'] = info.offset
-        dset.attrs['x_increment'] = info.x_increment
-        dset.attrs['absolute_initial_x'] = info.absolute_initial_x
-        return self.waveform
+        #with session.initiate():
+        #    info = session.channels[self.active_channels].fetch_into(
+        #            self.waveform,
+        #            num_records=self.num_records
+        #        )[0]
+        #dset.attrs['gain'] = info.gain
+        #dset.attrs['offset'] = info.offset
+        #dset.attrs['x_increment'] = info.x_increment
+        #dset.attrs['absolute_initial_x'] = info.absolute_initial_x
+        #return self.waveform
+        return [1]

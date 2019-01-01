@@ -78,10 +78,10 @@ class PXIe5171:
                     )
 
         # shape of the array of returned data
-        self.shape = (1, )
+        self.shape = (len(self.active_channels), nrSamples)
 
         # the array for reading data into
-        self.waveform = np.ndarray(nrSamples, dtype = np.int16)
+        self.waveform = np.ndarray(self.shape, dtype = np.int16)
 
     def __enter__(self):
         return self

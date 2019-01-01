@@ -14,11 +14,11 @@ This is the software to control and record the parameters of the Centrex experim
 ## Program organization
 
 The main program is an object of the `CentrexGUI` class. It reads the
-configuration files when it starts (through the `read_config()` function), then
-instantiates the classes that draw the graphical user interface. Note that the
-program does not write to the configuration files.
+configuration files when it starts, then instantiates the classes that draw the
+graphical user interface. Note that the program does not write to its
+configuration files.
 
-So far, the only implemented GUI class is `ControlGUI`, which is a canvas for
+The user controls the devices through the `ControlGUI`, which is a canvas for
 control of recording and external devices such as temperature controllers and
 pulse tube compressors. As detailed in the next section, the information in
 device config files is automatically read and translated into usable controls
@@ -28,7 +28,16 @@ However, the controls in `ControlGUI` do not access the drivers, let alone the
 devices, directly. Instead, `ControlGUI` instantiates `Device` objects that in
 communicate with the drivers to record parameters and pass commands to the
 external devices. This enables thread-based parallelism; each `Device` instance
-runs in a separate thread for quasi-synchronous control of devices.
+runs in a separate thread for quasi-synchronous control of devices. The data
+returned from each device is put in a FIFO queue; there is one such queue
+(`dev.data_queue`) per device.
+
+In addition to the `Device` objects, when the user starts control, an
+`HDF_writer` object is instantiated. In its thread, it periodically reads all
+the data from the device data queues and writes it to HDF datasets.
+
+`PlotsGUI` and `MonitoringGUI` are used, respectively, to make plots about the
+data currently being collected, and to display the latest values measured.
 
 ## Configuration files
 
@@ -36,8 +45,9 @@ Upon starting, the program reads the general configuration file
 `config/settings.ini` that defines general program settings; the values are read
 into the `config` dictionary.
 
-Device configurations are read from `.ini` files in the `config/devices`
-directory. These files have the structure:
+Device configurations are read from `.ini` files in the chosen directory. (Thus
+choosing a different directory allows for a different set of devices or device
+configurations to be loaded.) These files have the structure:
 
     [device]
     name = Hornet               # name of device as used internally by the program
@@ -143,5 +153,3 @@ remote interface of the instrument, also defines the following functions:
   `with` statement
 - `ReadValue()`: defines the default measurement parameter (e.g., for the
   LakeShore monitors, `ReadValue()` returns all the measured temperatures)
-- `VerifyOperation()`: returns a string characteristic of the instrument, used
-  to verify the instrument is connected correctly

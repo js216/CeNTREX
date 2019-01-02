@@ -48,7 +48,7 @@ class HDF_writer(threading.Thread):
 
                     # create dataset for data if only one is needed
                     # (fast devices create a new dataset for each acquisition)
-                    if dev.single_dataset:
+                    if dev.config["single_dataset"]:
                         dset = grp.create_dataset(dev.config["name"],
                                 (0, *dev.shape), maxshape=(None, *dev.shape), dtype=dev.dtype)
                         for attr_name, attr in dev.config["attributes"].items():
@@ -85,13 +85,12 @@ class HDF_writer(threading.Thread):
                     grp = root.require_group(dev.config["path"])
 
                     # if writing all data fron a single device to one dataset
-                    if dev.single_dataset:
+                    if dev.config["single_dataset"]:
                         dset = grp[dev.config["name"]]
                         dset.resize(dset.shape[0]+len(data), axis=0)
                         dset[-len(data):] = data
 
-                    # if writing each acquisition record to a separate dataset
-                    else:
+                    # if writing each acquisition record to a separate dataset else:
                         for record_array in data:
                             for record in record_array:
                                 dset = grp.create_dataset(
@@ -159,7 +158,6 @@ class Device(threading.Thread):
         with self.config["driver"](*self.constr_params) as dev: 
             self.shape = dev.shape
             self.dtype = dev.dtype
-            self.single_dataset = dev.single_dataset
             if dev.verification_string == self.config["correct_response"]:
                 self.operational = True
             else:
@@ -248,6 +246,7 @@ class ControlGUI(tk.Frame):
                         "config_fname"      : f,
                         "path"              : params["device"]["path"],
                         "correct_response"  : params["device"]["correct_response"],
+                        "single_dataset"    : True if params["device"]["single_dataset"]=="True" else False,
                         "row"               : params["device"]["row"],
                         "column"            : params["device"]["column"],
                         "driver"            : eval(params["device"]["driver"]),

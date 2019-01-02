@@ -323,7 +323,10 @@ class Plotter(tk.Frame):
         for p in self.param_list:
             menu.add_command(label=p, command=lambda val=p: self.param_var.set(val))
 
-        self.param_var.set(self.param_list[1])
+        if len(self.param_list) >= 2:
+            self.param_var.set(self.param_list[1])
+        else:
+            self.param_var.set(self.param_list[0])
 
     def get_data(self):
         # check device is valid
@@ -353,12 +356,17 @@ class Plotter(tk.Frame):
         except OSError:
                 self.stop_animation()
                 messagebox.showerror("File error", "Not a valid HDF file.")
-                return None
+                return NonFalse
 
         # get data
         with h5py.File(self.parent.config["hdf_fname"].get(), 'r') as f:
             try:
-                dset = f[self.run_var.get() + "/" + dev.config["path"] + "/" + dev.config["name"]]
+                grp = f[self.run_var.get() + "/" + dev.config["path"]]
+                if dev.config["single_dataset"]:
+                    dset = grp[dev.config["name"]]
+                else: # if each acquisition is its own dataset
+                    # return latest run only
+                    dset = grp[dev.config["name"] + "_" + str(len(grp)-1)]
             except KeyError:
                 self.stop_animation()
                 messagebox.showerror("Data error", "Dataset not found in this run.")
@@ -381,8 +389,12 @@ class Plotter(tk.Frame):
             stride = 1 if slice_length < 100 else int(slice_length/100)
 
             # cut and return data
-            x = dset[i1:i2:stride, 0]
-            y = dset[i1:i2:stride, self.param_list.index(param)]
+            if dev.config["single_dataset"]:
+                x = dset[i1:i2:stride, 0]
+                y = dset[i1:i2:stride, self.param_list.index(param)]
+            else:
+                x = np.arange(dset_len)
+                y = dset[:, self.param_list.index(param)]
             return x, y, param, unit
 
     def new_plot(self):
@@ -402,7 +414,10 @@ class Plotter(tk.Frame):
         self.line, = self.ax.plot(x, y)
 
         # labels
-        self.ax.set_xlabel("time [s]")
+        if self.parent.devices[self.dev_var.get()].config["single_dataset"]:
+            self.ax.set_xlabel("time [s]")
+        else:
+            self.ax.set_xlabel("sample number")
         self.ax.set_ylabel(param + " [" + unit.strip() + "]")
 
         # plot layout
@@ -449,7 +464,10 @@ class Plotter(tk.Frame):
             self.line.set_data(x, y)
             self.ax.relim()
             self.ax.autoscale_view()
-            self.ax.set_xlabel("time [s]")
+            if self.parent.devices[self.dev_var.get()].config["single_dataset"]:
+                self.ax.set_xlabel("time [s]")
+            else:
+                self.ax.set_xlabel("sample number")
             self.ax.set_ylabel(param + " [" + unit.strip() + "]")
             self.canvas.draw()
 

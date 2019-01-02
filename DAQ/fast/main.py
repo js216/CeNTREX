@@ -136,6 +136,8 @@ class Device(threading.Thread):
                 self.constr_params.append( self.config["controls"][cp]["var"].get() )
 
         # verify the device responds correctly
+        print(self.constr_params)
+        sys.stdout.flush()
         with self.config["driver"](*self.constr_params) as dev: 
             self.shape = dev.shape
             if dev.verification_string == self.config["correct_response"]:

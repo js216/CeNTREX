@@ -19,10 +19,8 @@ class PXIe5171:
             self.num_records = 1
         try:
             session.max_input_frequency = 1e6 * float(record["bandwidth_MHz"].get())
-            max_input_frequency = 1e6 * float(record["bandwidth_MHz"].get())
         except ValueError:
             session.max_input_frequency = 100e6
-            max_input_frequency = 100e6
         try:
             samplingRate_kSs = float(sample["sample_rate"].get())
         except ValueError:
@@ -33,10 +31,8 @@ class PXIe5171:
             nrSamples        = 2000
         try:
             session.binary_sample_width = int(sample["sample_width"].get())
-            binary_sample_width = int(sample["sample_width"].get())
         except ValueError:
             session.binary_sample_width = 16
-            binary_sample_width = 16
         session.configure_horizontal_timing(
                 min_sample_rate  = 1000 * int(samplingRate_kSs),
                 min_num_pts      = nrSamples,
@@ -78,7 +74,7 @@ class PXIe5171:
                     )
 
         # shape of the array of returned data
-        self.shape = (len(self.active_channels), nrSamples)
+        self.shape = (len(self.active_channels), num_records, nrSamples)
 
         # the array for reading data into
         self.waveform = np.ndarray(self.shape, dtype = np.int16)
@@ -95,9 +91,5 @@ class PXIe5171:
             info = session.channels[self.active_channels].fetch_into(
                     self.waveform,
                     num_records=self.num_records
-                )[0]
-        dset.attrs['gain'] = info.gain
-        dset.attrs['offset'] = info.offset
-        dset.attrs['x_increment'] = info.x_increment
-        dset.attrs['absolute_initial_x'] = info.absolute_initial_x
+                )
         return self.waveform

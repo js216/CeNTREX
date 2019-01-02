@@ -18,9 +18,9 @@ class PXIe5171:
         except ValueError:
             self.num_records = 1
         try:
-            session.max_input_frequency = 1e6 * float(record["bandwidth_MHz"].get())
+            self.session.max_input_frequency = 1e6 * float(record["bandwidth_MHz"].get())
         except ValueError:
-            session.max_input_frequency = 100e6
+            self.session.max_input_frequency = 100e6
         try:
             samplingRate_kSs = float(sample["sample_rate"].get())
         except ValueError:
@@ -30,10 +30,10 @@ class PXIe5171:
         except ValueError:
             nrSamples        = 2000
         try:
-            session.binary_sample_width = int(sample["sample_width"].get())
+            self.session.binary_sample_width = int(sample["sample_width"].get())
         except ValueError:
-            session.binary_sample_width = 16
-        session.configure_horizontal_timing(
+            self.session.binary_sample_width = 16
+        self.session.configure_horizontal_timing(
                 min_sample_rate  = 1000 * int(samplingRate_kSs),
                 min_num_pts      = nrSamples,
                 ref_position     = 50.0,
@@ -68,16 +68,16 @@ class PXIe5171:
                     coupling_setting = niscope.VerticalCoupling.DC
                 else:
                     coupling_setting = niscope.VerticalCoupling.GND
-                session.channels[ch].configure_vertical(
+                self.session.channels[ch].configure_vertical(
                         range    = range_V,
                         coupling = coupling_setting
                     )
 
         # shape of the array of returned data
-        self.shape = (len(self.active_channels), num_records, nrSamples)
+        self.shape = (len(self.active_channels), self.num_records, nrSamples)
 
         # the array for reading data into
-        self.waveform = np.ndarray(self.shape, dtype = np.int16)
+        self.waveform = np.ndarray(self.shape, dtype = np.int16).flatten()
 
     def __enter__(self):
         return self
@@ -87,9 +87,13 @@ class PXIe5171:
         ...
 
     def ReadValue(self):
-        with session.initiate():
-            info = session.channels[self.active_channels].fetch_into(
+        with self.session.initiate():
+            info = self.session.channels[self.active_channels].fetch_into(
                     self.waveform,
                     num_records=self.num_records
                 )
-        return self.waveform
+
+        # reshape without copying
+        wfm = self.waveform.view()
+        wfm.shape = self.shape
+        return wfm

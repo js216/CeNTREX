@@ -67,6 +67,7 @@ class MonitoringGUI(tk.Frame):
             tk.Label(fd, text="Last event:").grid(row=3, column=0, sticky='ne')
             tk.Message(fd, textvariable=dev.last_event, anchor='nw', width=100)\
                     .grid(row=3, column=1, columnspan=2, sticky='nw')
+
     def start_monitoring(self):
         self.monitoring = Monitoring(self.parent)
         self.monitoring.active.set()
@@ -92,14 +93,17 @@ class Monitoring(threading.Thread):
         while self.active.is_set():
             for dev_name, dev in self.parent.devices.items():
                 if dev.config["controls"]["enabled"]["var"].get():
-                    # look at the element at the beginning of the data queue
+                    # look at the last element in the queue
                     try:
                         data = dev.data_queue.queue[-1]
                     except IndexError:
                         continue
 
                     # format display the data in a tkinter variable
-                    formatted_data = ["{0:.3f}".format(x) for x in data]
+                    if len(dev.shape) == 1:
+                        formatted_data = ["{0:.3f}".format(x) for x in data]
+                    else:
+                        formatted_data = [str(x) for x in data[:,0][0]]
                     dev.last_data.set("\n".join(formatted_data))
 
                     # find out and display the data queue length

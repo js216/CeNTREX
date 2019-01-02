@@ -4,10 +4,15 @@
 
 import niscope
 import numpy as np
+import time
 
 class PXIe5171:
-    def __init__(self, COM_port, record, sample, trigger, channels):
+    def __init__(self, time_offset, COM_port, record, sample, trigger, channels):
+        self.time_offset = time_offset
         self.session = niscope.Session(COM_port)
+
+        # each reading is to be written to a different HDF dataset
+        self.single_dataset = False
 
         # verify operation
         self.verification_string = "TODO"
@@ -73,27 +78,25 @@ class PXIe5171:
                         coupling = coupling_setting
                     )
 
-        # shape of the array of returned data
-        self.shape = (len(self.active_channels), self.num_records, nrSamples)
+        # shape and type of the array of returned data
+        self.shape = (self.num_records, nrSamples, len(self.active_channels))
+        self.dtype = np.int16
 
-        # the array for reading data into
-        self.waveform = np.ndarray(self.shape, dtype = np.int16).flatten()
+        # the array for reading waveform data into
+        self.wfm = np.ndarray(self.shape, dtype = np.int16)
+        self.wfm_flat = self.wfm.flatten()
 
     def __enter__(self):
         return self
 
     def __exit__(self, *exc):
         self.session.close()
-        ...
 
     def ReadValue(self):
         with self.session.initiate():
             info = self.session.channels[self.active_channels].fetch_into(
-                    self.waveform,
+                    self.wfm_flat,
                     num_records=self.num_records
                 )
 
-        # reshape without copying
-        wfm = self.waveform.view()
-        wfm.shape = self.shape
-        return wfm
+        return self.wfm

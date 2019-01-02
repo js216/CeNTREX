@@ -46,11 +46,13 @@ class HDF_writer(threading.Thread):
                 if dev.config["controls"]["enabled"]["var"].get():
                     grp = root.require_group(dev.config["path"])
 
-                    # create dataset for data
-                    dset = grp.create_dataset(dev.config["name"], (0,dev.shape[0]+1),
-                            maxshape=(None,dev.shape[0]+1), dtype='f')
-                    for attr_name, attr in dev.config["attributes"].items():
-                        dset.attrs[attr_name] = attr
+                    # create dataset for data if only one is needed
+                    # (fast devices create a new dataset for each acquisition)
+                    if dev.single_dataset:
+                        dset = grp.create_dataset(dev.config["name"],
+                                (0, *dev.shape), maxshape=(None, *dev.shape), dtype=dev.dtype)
+                        for attr_name, attr in dev.config["attributes"].items():
+                            dset.attrs[attr_name] = attr
 
                     # create dataset for events
                     events_dset = grp.create_dataset(dev.config["name"]+"_events", (0,3),
@@ -63,22 +65,40 @@ class HDF_writer(threading.Thread):
             with h5py.File(self.filename, 'a') as f:
                 root = f.require_group(self.parent.run_name)
                 for dev_name, dev in self.parent.devices.items():
-                    if dev.config["controls"]["enabled"]["var"].get():
-                        # get data and write to HDF
-                        data = self.get_data(dev.data_queue)
-                        if len(data) != 0:
-                            grp = root.require_group(dev.config["path"])
-                            dset = grp[dev.config["name"]]
-                            dset.resize(dset.shape[0]+len(data), axis=0)
-                            dset[-len(data):,:] = data
+                    # check device is enables
+                    if not dev.config["controls"]["enabled"]["var"].get():
+                        continue
 
-                        # get events and write them to HDF
-                        events = self.get_data(dev.events_queue)
-                        if len(events) != 0:
-                            grp = root.require_group(dev.config["path"])
-                            events_dset = grp[dev.config["name"] + "_events"]
-                            events_dset.resize(events_dset.shape[0]+len(events), axis=0)
-                            events_dset[-len(events):,:] = events
+                    # get events, if any, and write them to HDF
+                    events = self.get_data(dev.events_queue)
+                    if len(events) != 0:
+                        grp = root.require_group(dev.config["path"])
+                        events_dset = grp[dev.config["name"] + "_events"]
+                        events_dset.resize(events_dset.shape[0]+len(events), axis=0)
+                        events_dset[-len(events):,:] = events
+
+                    # get data
+                    data = self.get_data(dev.data_queue)
+                    if len(data) == 0:
+                        continue
+
+                    grp = root.require_group(dev.config["path"])
+
+                    # if writing all data fron a single device to one dataset
+                    if dev.single_dataset:
+                        dset = grp[dev.config["name"]]
+                        dset.resize(dset.shape[0]+len(data), axis=0)
+                        dset[-len(data):] = data
+
+                    # if writing each acquisition record to a separate dataset
+                    else:
+                        for record_array in data:
+                            for record in record_array:
+                                dset = grp.create_dataset(
+                                        dev.config["name"] + "_" + str(len(grp)),
+                                        data=record,
+                                        dtype=dev.dtype
+                                    )
 
                 # loop delay
                 try:
@@ -125,7 +145,7 @@ class Device(threading.Thread):
         self.time_offset = time_offset
 
         # get the parameters that are to be passed to the driver constructor
-        self.constr_params = []
+        self.constr_params = [self.time_offset]
         for cp in self.config["constr_params"]:
             cp_obj = self.config["controls"][cp]
             if cp_obj["type"] == "ControlsRow":
@@ -136,10 +156,10 @@ class Device(threading.Thread):
                 self.constr_params.append( self.config["controls"][cp]["var"].get() )
 
         # verify the device responds correctly
-        print(self.constr_params)
-        sys.stdout.flush()
         with self.config["driver"](*self.constr_params) as dev: 
             self.shape = dev.shape
+            self.dtype = dev.dtype
+            self.single_dataset = dev.single_dataset
             if dev.verification_string == self.config["correct_response"]:
                 self.operational = True
             else:
@@ -181,12 +201,13 @@ class Device(threading.Thread):
                     continue
 
                 # record numerical values
-                last_data = [time.time() - self.time_offset] + device.ReadValue()
+                last_data = device.ReadValue()
                 self.data_queue.put(last_data)
 
                 # keep track of the number of NaN returns
-                if np.isnan(last_data[1]):
-                    self.nan_count.set( int(self.nan_count.get()) + 1)
+                if isinstance(last_data, float):
+                    if np.isnan(last_data):
+                        self.nan_count.set( int(self.nan_count.get()) + 1)
 
                 # send control commands, if any, to the device, and record return values
                 for c in self.commands:

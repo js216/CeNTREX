@@ -11,7 +11,7 @@ class PXIe5171:
         self.verification_string = "TODO"
 
         # set record parameters
-        self.num_records = 2
+        self.num_records = 5
         self.session.max_input_frequency = 100e6
         samplingRate_kSs = 20.0
         nrSamples        = 1000
@@ -25,15 +25,15 @@ class PXIe5171:
                 )
 
         # set channel configuration
-        self.active_channels = [0,2]
+        self.active_channels = [0]
         self.session.channels[0].configure_vertical(
-                range    = 5.0,
+                range    = 1.0,
                 coupling = niscope.VerticalCoupling.DC
                 )
-        self.session.channels[2].configure_vertical(
-                range    = 5.0,
-                coupling = niscope.VerticalCoupling.DC
-                )
+#        self.session.channels[2].configure_vertical(
+#                range    = 5.0,
+#                coupling = niscope.VerticalCoupling.DC
+#                )
 
         # shape of the array of returned data
         self.shape = (len(self.active_channels), self.num_records, nrSamples)
@@ -56,6 +56,10 @@ class PXIe5171:
                     num_records=self.num_records
                     )
 
+        # examine info
+        for i,inf in enumerate(info):
+            print(i, "\n", inf, "\n\n")
+
         # reshape without copying
         wfm = self.waveform.view()
         wfm.shape = self.shape
@@ -64,6 +68,3 @@ class PXIe5171:
 if __name__ == "__main__":
     scope = PXIe5171("PXI1Slot2")
     wfm = scope.ReadValue()
-    print(wfm[1:10])
-    wfm = scope.ReadValue()
-    print(wfm[1:10])

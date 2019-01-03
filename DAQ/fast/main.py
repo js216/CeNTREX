@@ -674,7 +674,8 @@ class ControlGUI(tk.Frame):
         self.HDF_writer = HDF_writer(self.parent)
         self.HDF_writer.start()
 
-        # start the monitoring thread
+        # update and start the monitoring thread
+        self.parent.monitoring.refresh_column_names_and_units()
         self.parent.monitoring.start_monitoring()
 
         # start control for all devices

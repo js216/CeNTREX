@@ -68,6 +68,18 @@ class MonitoringGUI(tk.Frame):
             tk.Message(fd, textvariable=dev.last_event, anchor='nw', width=100)\
                     .grid(row=3, column=1, columnspan=2, sticky='nw')
 
+    def refresh_column_names_and_units(self):
+        for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
+            # column names
+            col_names = dev.config["attributes"]["column_names"].split(',')
+            col_names = [x.strip() for x in col_names]
+            dev.column_names.set("\n".join(col_names))
+
+            # units
+            units = dev.config["attributes"]["units"].split(',')
+            units = [x.strip() for x in units]
+            dev.units.set("\n".join(units))
+
     def start_monitoring(self):
         self.monitoring = Monitoring(self.parent)
         self.monitoring.active.set()

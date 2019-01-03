@@ -78,13 +78,17 @@ class PXIe5171:
                         coupling = coupling_setting
                     )
 
+
+        # specify active channels as attributes for HDF, etc.
+        self.new_attributes = [
+                    ("column_names", ", ".join(["ch"+str(x) for x in self.active_channels])),
+                    ("units", ", ".join(["binary" for x in self.active_channels])),
+               ]
+
         # shape and type of the array of returned data
         self.shape = (self.num_records, nrSamples, len(self.active_channels))
+        #self.shape = (self.num_records, len(self.active_channels), nrSamples)
         self.dtype = np.int16
-
-        # the array for reading waveform data into
-        self.wfm = np.ndarray(self.shape, dtype = np.int16)
-        self.wfm_flat = self.wfm.flatten()
 
     def __enter__(self):
         return self
@@ -93,6 +97,9 @@ class PXIe5171:
         self.session.close()
 
     def ReadValue(self):
+        # the array for reading waveform data into
+        self.wfm = np.ndarray(self.shape, dtype = np.int16)
+        self.wfm_flat = self.wfm.flatten()
         with self.session.initiate():
             info = self.session.channels[self.active_channels].fetch_into(
                     self.wfm_flat,

@@ -190,6 +190,7 @@ class Plotter(tk.Frame):
         self.log = False
         self.points = False
         self.plot_drawn = False
+        self.record_number = tk.StringVar()
 
         # select device
         self.dev_list = [dev_name.strip() for dev_name in self.parent.devices]
@@ -364,9 +365,9 @@ class Plotter(tk.Frame):
                 grp = f[self.run_var.get() + "/" + dev.config["path"]]
                 if dev.config["single_dataset"]:
                     dset = grp[dev.config["name"]]
-                else: # if each acquisition is its own dataset
-                    # return latest run only
+                else: # if each acquisition is its own dataset, return latest run only
                     dset = grp[dev.config["name"] + "_" + str(len(grp)-1)]
+                    self.record_number.set(str(len(grp)-1))
             except KeyError:
                 self.stop_animation()
                 messagebox.showerror("Data error", "Dataset not found in this run.")
@@ -393,8 +394,8 @@ class Plotter(tk.Frame):
                 x = dset[i1:i2:stride, 0]
                 y = dset[i1:i2:stride, self.param_list.index(param)]
             else:
-                x = np.arange(dset_len)
-                y = dset[:, self.param_list.index(param)]
+                x = np.arange(dset_len)[i1:i2]
+                y = dset[i1:i2, self.param_list.index(param)]
             return x, y, param, unit
 
     def new_plot(self):
@@ -421,7 +422,7 @@ class Plotter(tk.Frame):
         self.ax.set_ylabel(param + " [" + unit.strip() + "]")
 
         # plot layout
-        self.fig.tight_layout()
+        self.fig.set_tight_layout(True)
         self.ax.grid()
         self.ax.ticklabel_format(axis='y', scilimits=(-3,3))
 
@@ -462,12 +463,19 @@ class Plotter(tk.Frame):
         if data:
             x, y, param, unit = data
             self.line.set_data(x, y)
-            self.ax.relim()
-            self.ax.autoscale_view()
+            self.ax.set_xlim((np.nanmin(x),np.nanmax(x)))
+            try:
+                y0, y1 = float(self.y0_var.get()), float(self.y1_var.get())
+                if y0 > y1:
+                    raise ValueError
+            except ValueError as err:
+                y0, y1 = np.nanmin(y), np.nanmax(y)
+            self.ax.set_ylim((y0, y1))
             if self.parent.devices[self.dev_var.get()].config["single_dataset"]:
                 self.ax.set_xlabel("time [s]")
             else:
                 self.ax.set_xlabel("sample number")
+                self.ax.set_title("record #"+str(self.record_number.get()))
             self.ax.set_ylabel(param + " [" + unit.strip() + "]")
             self.canvas.draw()
 

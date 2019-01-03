@@ -100,7 +100,7 @@ class Monitoring(threading.Thread):
                         continue
 
                     # format display the data in a tkinter variable
-                    if len(dev.shape) == 1:
+                    if len(dev.config["shape"]) == 1:
                         formatted_data = ["{0:.3f}".format(x) for x in data]
                     else:
                         formatted_data = [str(x) for x in data[:,0][0]]

@@ -49,10 +49,17 @@ class HDF_writer(threading.Thread):
                     # create dataset for data if only one is needed
                     # (fast devices create a new dataset for each acquisition)
                     if dev.config["single_dataset"]:
-                        dset = grp.create_dataset(dev.config["name"],
-                                (0, *dev.shape), maxshape=(None, *dev.shape), dtype=dev.dtype)
+                        dset = grp.create_dataset(
+                                dev.config["name"],
+                                (0, *dev.config["shape"]),
+                                maxshape=(None, *dev.config["shape"]),
+                                dtype=dev.config["dtype"]
+                            )
                         for attr_name, attr in dev.config["attributes"].items():
                             dset.attrs[attr_name] = attr
+                    else:
+                        for attr_name, attr in dev.config["attributes"].items():
+                            grp.attrs[attr_name] = attr
 
                     # create dataset for events
                     events_dset = grp.create_dataset(dev.config["name"]+"_events", (0,3),
@@ -84,19 +91,20 @@ class HDF_writer(threading.Thread):
 
                     grp = root.require_group(dev.config["path"])
 
-                    # if writing all data fron a single device to one dataset
+                    # if writing all data from a single device to one dataset
                     if dev.config["single_dataset"]:
                         dset = grp[dev.config["name"]]
                         dset.resize(dset.shape[0]+len(data), axis=0)
                         dset[-len(data):] = data
 
-                    # if writing each acquisition record to a separate dataset else:
+                    # if writing each acquisition record to a separate dataset
+                    else:
                         for record_array in data:
                             for record in record_array:
                                 dset = grp.create_dataset(
                                         dev.config["name"] + "_" + str(len(grp)),
                                         data=record,
-                                        dtype=dev.dtype
+                                        dtype=dev.config["dtype"]
                                     )
 
                 # loop delay
@@ -154,14 +162,18 @@ class Device(threading.Thread):
             else:
                 self.constr_params.append( self.config["controls"][cp]["var"].get() )
 
-        # verify the device responds correctly
         with self.config["driver"](*self.constr_params) as dev: 
-            self.shape = dev.shape
-            self.dtype = dev.dtype
+            # verify the device responds correctly
             if dev.verification_string == self.config["correct_response"]:
                 self.operational = True
             else:
                 self.operational = False
+
+            # get parameters and attributes, if any, from the driver
+            self.config["shape"] = dev.shape
+            self.config["dtype"] = dev.dtype
+            for attr_name, attr_val in dev.new_attributes:
+                self.config["attributes"][attr_name] = attr_val
 
     def clear_queues(self):
         # empty the data queue

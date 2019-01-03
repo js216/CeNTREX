@@ -7,8 +7,9 @@ import numpy as np
 import time
 
 class PXIe5171:
-    def __init__(self, time_offset, COM_port, record, sample, trigger, channels):
+    def __init__(self, time_offset, COM_port, record, sample, trigger, edge, channels):
         self.time_offset = time_offset
+        self.trigger_now = False
         self.session = niscope.Session(COM_port)
 
         # each reading is to be written to a different HDF dataset
@@ -47,16 +48,26 @@ class PXIe5171:
             )
 
         # set trigger configuration
-        trigger_src          = trigger["trigger_src"].get()
-        trigger_slope        = trigger["trigger_slope"].get()
+        if trigger["trigger_type"].get() == "Edge":
+            self.session.trigger_type = niscope.TriggerType.EDGE
+        if trigger["trigger_type"].get() == "Immediate":
+            self.session.trigger_type = niscope.TriggerType.IMMEDIATE
+        if trigger["trigger_type"].get() == "Software":
+            #self.session.configure_trigger_software()
+            self.session.trigger_type = niscope.TriggerType.SOFTWARE
+        self.session.trigger_source = edge["trigger_src"].get()
+        if edge["trigger_slope"].get() == "Falling":
+            self.session.trigger_slope = niscope.TriggerSlope.NEGATIVE
+        elif edge["trigger_slope"].get() == "Rising":
+            self.session.trigger_slope = niscope.TriggerSlope.POSITIVE
         try:
-            trigger_level    = float(trigger["trigger_level"].get())
+            self.session.trigger_level = float(edge["trigger_level"].get())
         except ValueError:
-            trigger_level    = 0.0
+            self.session.trigger_level = 0.0
         try:
-            trigger_delay    = float(trigger["trigger_delay"].get())
+            self.trigger_delay_time    = float(trigger["trigger_delay"].get())
         except ValueError:
-            trigger_delay    = 0.0
+            self.trigger_delay_time    = 0.0
 
         # set channel configuration
         self.active_channels = []
@@ -101,9 +112,19 @@ class PXIe5171:
 
         # get data
         with self.session.initiate():
-            info = self.session.channels[self.active_channels].fetch_into(
-                    wfm.flatten(),
-                    num_records=self.num_records
-                )
+            try:
+                if self.trigger_now:
+                    self.session.send_software_trigger_edge(niscope.WhichTrigger.START)
+                    self.trigger_now = False
+                info = self.session.channels[self.active_channels].fetch_into(
+                        wfm.flatten(),
+                        num_records=self.num_records,
+                        timeout = 1.0
+                    )
+            except niscope.errors.DriverError:
+                return None
 
         return (wfm, info)
+
+    def send_software_trigger_edge(self):
+        self.trigger_now = True

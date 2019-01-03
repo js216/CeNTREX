@@ -219,7 +219,8 @@ class Device(threading.Thread):
 
                 # record numerical values
                 last_data = device.ReadValue()
-                self.data_queue.put(last_data)
+                if last_data:
+                    self.data_queue.put(last_data)
 
                 # keep track of the number of NaN returns
                 if isinstance(last_data, float):
@@ -330,6 +331,9 @@ class ControlGUI(tk.Frame):
                     ctrls[c]["control_widths"] = params[c].get("control_widths")
                     if ctrls[c]["control_widths"]:
                         ctrls[c]["control_widths"] = [int(x) for x in ctrls[c]["control_widths"].split(",")]
+                    ctrls[c]["control_commands"] = params[c].get("control_commands")
+                    if ctrls[c]["control_commands"]:
+                        ctrls[c]["control_commands"] = ctrls[c]["control_commands"].split(",")
                     ctrls[c]["control_options"] = []
                     control_options = params[c].get("control_options")
                     if not control_options:
@@ -347,6 +351,7 @@ class ControlGUI(tk.Frame):
                     ctrls[c]["type"]          = params[c]["type"]
                     ctrls[c]["row"]           = int(params[c]["row"])
                     ctrls[c]["col"]           = int(params[c]["col"])
+                    ctrls[c]["rowspan"]       = int(params[c]["rowspan"])
                     ctrls[c]["columnspan"]    = int(params[c]["columnspan"])
                     ctrls[c]["column_names"]  = [x.strip() for x in params[c]["column_names"].split(",")]
                     ctrls[c]["column_labels"] = [x.strip() for x in params[c]["column_labels"].split(",")]
@@ -546,6 +551,13 @@ class ControlGUI(tk.Frame):
                         if c["control_types"][i] == "Entry":
                             c["ctrls"][name] = tk.Entry(c["Frame"],
                                     width=c["control_widths"][i], textvariable=c["control_values"][name])
+                        elif c["control_types"][i] == "Button":
+                            c["ctrls"][name] = tk.Button(
+                                    c["Frame"],
+                                    text=c["control_values"][name].get(),
+                                    command=lambda dev=dev,
+                                        cmd=c["control_commands"][i]+"()": self.queue_command(dev, cmd)
+                                )
                         elif c["control_types"][i] == "OptionMenu":
                             c["ctrls"][name] = tk.OptionMenu(c["Frame"],
                                     c["control_values"][name], *c["control_options"][i])
@@ -558,7 +570,7 @@ class ControlGUI(tk.Frame):
                     tk.Label(fd, text=c["label"]).grid(row=c["row"], column=c["col"]-1, sticky="ne")
                     c["Frame"] = tk.LabelFrame(fd)
                     c["Frame"].grid(row=c["row"], column=c["col"],
-                            columnspan=c["columnspan"], sticky='w', pady=10, padx=3)
+                            columnspan=c["columnspan"], rowspan=c["rowspan"], sticky='w', pady=10, padx=3)
                     for i, name in enumerate(c["column_names"]):
                         tk.Label(c["Frame"], text=c["column_labels"][i]).grid(row=0, column=i)
                         for j, var in enumerate(c["column_values"][i]):

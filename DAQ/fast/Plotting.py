@@ -373,12 +373,17 @@ class Plotter(tk.Frame):
                 if dev.config["single_dataset"]:
                     dset = grp[dev.config["name"]]
                 else: # if each acquisition is its own dataset, return latest run only
-                    dset = grp[dev.config["name"] + "_" + str(len(grp)-1)]
-                    self.record_number.set(str(len(grp)-1))
+                    rec_num = len(grp) - 1
+                    if rec_num < 1:
+                        messagebox.showerror("Data error", "No records in this dataset (yet).")
+                        self.stop_animation()
+                        return None
+                    self.record_number.set(rec_num)
+                    dset = grp[dev.config["name"] + "_" + str(rec_num)]
             except KeyError:
                 if time.time() - self.parent.config["time_offset"] > 5:
-                    self.stop_animation()
                     messagebox.showerror("Data error", "Dataset not found in this run.")
+                self.stop_animation()
                 return None
 
             # range of data to obtain

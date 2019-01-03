@@ -87,7 +87,6 @@ class PXIe5171:
 
         # shape and type of the array of returned data
         self.shape = (self.num_records, nrSamples, len(self.active_channels))
-        #self.shape = (self.num_records, len(self.active_channels), nrSamples)
         self.dtype = np.int16
 
     def __enter__(self):
@@ -98,12 +97,13 @@ class PXIe5171:
 
     def ReadValue(self):
         # the array for reading waveform data into
-        self.wfm = np.ndarray(self.shape, dtype = np.int16)
-        self.wfm_flat = self.wfm.flatten()
+        wfm = np.ndarray(self.shape, dtype = np.int16)
+
+        # get data
         with self.session.initiate():
             info = self.session.channels[self.active_channels].fetch_into(
-                    self.wfm_flat,
+                    wfm.flatten(),
                     num_records=self.num_records
                 )
 
-        return self.wfm
+        return (wfm, info)

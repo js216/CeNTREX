@@ -197,7 +197,7 @@ class Plotter(tk.Frame):
         if not self.dev_list:
             self.dev_list = ["(no devices)"]
         self.dev_var = tk.StringVar()
-        self.dev_var.set("Select device ...")
+        self.dev_var.set(self.dev_list[0])
         dev_select = tk.OptionMenu(self.f, self.dev_var, *self.dev_list,
                 command=self.refresh_parameter_list)
         dev_select.grid(row=0, column=0, sticky='ew')
@@ -210,6 +210,7 @@ class Plotter(tk.Frame):
         self.param_select = tk.OptionMenu(self.f, self.param_var, *self.param_list)
         self.param_select.grid(row=0, column=1, sticky='ew')
         self.param_select.configure(width=20)
+        self.refresh_parameter_list(self.dev_var.get())
 
         # select run
         self.run_list = [""]

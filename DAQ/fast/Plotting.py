@@ -143,6 +143,12 @@ class PlotsGUI(tk.Frame):
                 if plot:
                     plot.replot()
 
+    def refresh_all_parameter_lists(self):
+        for col, col_plots in self.all_plots.items():
+            for row, plot in col_plots.items():
+                if plot:
+                    plot.refresh_parameter_list(plot.dev_var.get())
+
     def add_plot(self):
         # find location for the plot
         try:

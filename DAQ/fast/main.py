@@ -695,10 +695,11 @@ class ControlGUI(tk.Frame):
         self.status = "running"
         self.status_message.set("Running")
 
-        # make all plots display the current run and file
+        # make all plots display the current run and file and update parameters
         HDF_fname = self.parent.config["hdf_fname"].get()
         self.parent.plots.refresh_run_list(HDF_fname)
         self.parent.config["plotting_hdf_fname"].set(HDF_fname)
+        self.parent.plots.refresh_all_parameter_lists()
 
     def stop_control(self):
         # check we're not stopped already

@@ -369,8 +369,9 @@ class Plotter(tk.Frame):
                     dset = grp[dev.config["name"] + "_" + str(len(grp)-1)]
                     self.record_number.set(str(len(grp)-1))
             except KeyError:
-                self.stop_animation()
-                messagebox.showerror("Data error", "Dataset not found in this run.")
+                if time.time() - self.parent.config["time_offset"] > 5:
+                    self.stop_animation()
+                    messagebox.showerror("Data error", "Dataset not found in this run.")
                 return None
 
             # range of data to obtain

@@ -115,7 +115,7 @@ class Monitoring(threading.Thread):
                     if len(dev.config["shape"]) == 1:
                         formatted_data = ["{0:.3f}".format(x) for x in data]
                     else:
-                        formatted_data = [str(x) for x in data[:,0][0]]
+                        formatted_data = [str(x) for x in data[0][:,0][0]]
                     dev.last_data.set("\n".join(formatted_data))
 
                     # find out and display the data queue length

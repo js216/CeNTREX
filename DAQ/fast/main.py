@@ -727,7 +727,7 @@ class CentrexGUI(tk.Frame):
         self.parent = parent
 
         # read program configuration
-        self.config = {}
+        self.config = {"time_offset":0}
         settings = configparser.ConfigParser()
         settings.read("config/settings.ini")
         for key in settings["files"]:

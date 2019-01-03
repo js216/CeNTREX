@@ -15,7 +15,7 @@ class PXIe5171:
         self.single_dataset = False
 
         # verify operation
-        self.verification_string = "TODO"
+        self.verification_string = "not implemented"
 
         # set record parameters
         try:

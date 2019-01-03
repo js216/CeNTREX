@@ -114,11 +114,11 @@ class HDF_writer(threading.Thread):
                                 dset.attrs['gain'] = info.gain
                                 dset.attrs['offset'] = info.offset
 
-                # loop delay
-                try:
-                    time.sleep(float(self.parent.config["hdf_loop_delay"].get()))
-                except ValueError:
-                    time.sleep(0.1)
+            # loop delay
+            try:
+                time.sleep(float(self.parent.config["hdf_loop_delay"].get()))
+            except ValueError:
+                time.sleep(0.1)
 
     def get_data(self, fifo):
         data = []

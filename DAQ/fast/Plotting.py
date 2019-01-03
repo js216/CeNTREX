@@ -35,8 +35,6 @@ class PlotsGUI(tk.Frame):
                 .grid(row=0, column=0, sticky='e', padx=10)
         tk.Button(ctrls_f, text="Stop all", command=self.stop_all)\
                 .grid(row=0, column=1, sticky='e', padx=10)
-        tk.Button(ctrls_f, text="Replot all", command=self.replot_all)\
-                .grid(row=0, column=2, sticky='e', padx=10)
         tk.Button(ctrls_f, text="Delete all", command=self.delete_all)\
                 .grid(row=0, column=3, sticky='e', padx=10)
 
@@ -136,12 +134,6 @@ class PlotsGUI(tk.Frame):
             for row, plot in col_plots.items():
                 if plot:
                     plot.stop_animation()
-
-    def replot_all(self):
-        for col, col_plots in self.all_plots.items():
-            for row, plot in col_plots.items():
-                if plot:
-                    plot.replot()
 
     def refresh_all_parameter_lists(self):
         for col, col_plots in self.all_plots.items():
@@ -251,8 +243,6 @@ class Plotter(tk.Frame):
         dt_entry = tk.Entry(self.f, textvariable=self.dt_var, width=num_width)
         dt_entry.grid(row=1, column=6, columnspan=3)
         dt_entry.bind("<Return>", self.change_animation_dt)
-        tk.Button(self.f, text="Plot", command=self.replot)\
-                .grid(row=0, column=2, padx=2)
         self.play_pause_button = tk.Button(self.f, text="\u25b6", command=self.start_animation)
         self.play_pause_button.grid(row=0, column=3, padx=2)
         tk.Button(self.f, text="Log/Lin", command=self.toggle_log)\
@@ -293,8 +283,8 @@ class Plotter(tk.Frame):
 
     def start_animation(self):
         if not self.plot_drawn:
-            self.new_plot()
-            self.ani.event_source.start()
+            if self.new_plot():
+                self.ani.event_source.start()
         else:
             self.ani.event_source.start()
         self.play_pause_button.configure(text="\u23f8", command=self.stop_animation)
@@ -374,11 +364,11 @@ class Plotter(tk.Frame):
                     dset = grp[dev.config["name"]]
                 else: # if each acquisition is its own dataset, return latest run only
                     rec_num = len(grp) - 1
-                    if rec_num < 1:
-                        messagebox.showerror("Data error", "No records in this dataset (yet).")
-                        self.stop_animation()
-                        return None
                     self.record_number.set(rec_num)
+                    if rec_num < 1:
+                        self.stop_animation()
+                        #messagebox.showerror("Data error", "No records in this dataset (yet).")
+                        return None
                     dset = grp[dev.config["name"] + "_" + str(rec_num)]
             except KeyError:
                 if time.time() - self.parent.config["time_offset"] > 5:

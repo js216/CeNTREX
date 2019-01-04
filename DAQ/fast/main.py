@@ -69,53 +69,58 @@ class HDF_writer(threading.Thread):
 
     def run(self):
         while self.active.is_set():
-            with h5py.File(self.filename, 'a') as f:
-                root = f.require_group(self.parent.run_name)
-                for dev_name, dev in self.parent.devices.items():
-                    # check device is enables
-                    if not dev.config["controls"]["enabled"]["var"].get():
-                        continue
+            try:
+                with h5py.File(self.filename, 'a') as f:
+                    root = f.require_group(self.parent.run_name)
+                    for dev_name, dev in self.parent.devices.items():
+                        # check device is enables
+                        if not dev.config["controls"]["enabled"]["var"].get():
+                            continue
 
-                    # get events, if any, and write them to HDF
-                    events = self.get_data(dev.events_queue)
-                    if len(events) != 0:
+                        # get events, if any, and write them to HDF
+                        events = self.get_data(dev.events_queue)
+                        if len(events) != 0:
+                            grp = root.require_group(dev.config["path"])
+                            events_dset = grp[dev.config["name"] + "_events"]
+                            events_dset.resize(events_dset.shape[0]+len(events), axis=0)
+                            events_dset[-len(events):,:] = events
+
+                        # get data
+                        data = self.get_data(dev.data_queue)
+                        if len(data) == 0:
+                            continue
+
                         grp = root.require_group(dev.config["path"])
-                        events_dset = grp[dev.config["name"] + "_events"]
-                        events_dset.resize(events_dset.shape[0]+len(events), axis=0)
-                        events_dset[-len(events):,:] = events
 
-                    # get data
-                    data = self.get_data(dev.data_queue)
-                    if len(data) == 0:
-                        continue
+                        # if writing all data from a single device to one dataset
+                        if dev.config["single_dataset"]:
+                            dset = grp[dev.config["name"]]
+                            dset.resize(dset.shape[0]+len(data), axis=0)
+                            dset[-len(data):] = data
 
-                    grp = root.require_group(dev.config["path"])
+                        # if writing each acquisition record to a separate dataset
+                        else:
+                            for record, all_attrs in data:
+                                for waveforms, attrs in zip(record, all_attrs):
+                                    # data
+                                    dset = grp.create_dataset(
+                                            name  = dev.config["name"] + "_" + str(len(grp)),
+                                            data  = waveforms.T,
+                                            dtype = dev.config["dtype"]
+                                        )
+                                    # metadata
+                                    for key, val in attrs.items():
+                                        dset.attrs[key] = val
 
-                    # if writing all data from a single device to one dataset
-                    if dev.config["single_dataset"]:
-                        dset = grp[dev.config["name"]]
-                        dset.resize(dset.shape[0]+len(data), axis=0)
-                        dset[-len(data):] = data
+            # ignore the error of not being able to open file
+            except OSError:
+                pass
 
-                    # if writing each acquisition record to a separate dataset
-                    else:
-                        for record, all_attrs in data:
-                            for waveforms, attrs in zip(record, all_attrs):
-                                # data
-                                dset = grp.create_dataset(
-                                        name  = dev.config["name"] + "_" + str(len(grp)),
-                                        data  = waveforms.T,
-                                        dtype = dev.config["dtype"]
-                                    )
-                                # metadata
-                                for key, val in attrs.items():
-                                    dset.attrs[key] = val
-
-                # loop delay
-                try:
-                    time.sleep(float(self.parent.config["hdf_loop_delay"].get()))
-                except ValueError:
-                    time.sleep(0.1)
+            # loop delay
+            try:
+                time.sleep(float(self.parent.config["hdf_loop_delay"].get()))
+            except ValueError:
+                time.sleep(0.1)
 
     def get_data(self, fifo):
         data = []

@@ -378,7 +378,7 @@ class Plotter(tk.Frame):
 
             # range of data to obtain
             try:
-                i1, i2 = int(self.x0_var.get()), int(self.x1_var.get())
+                i1, i2 = int(float(self.x0_var.get())), int(float(self.x1_var.get()))
             except ValueError as err:
                 i1, i2 = 0, -1
             if i1 >= i2:

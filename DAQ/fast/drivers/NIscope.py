@@ -31,17 +31,21 @@ class PXIe5171:
         if samplingRate_kSs > 250e3:
             samplingRate_kSs = 20.0
         try:
-            nrSamples        = int(float(record["record_length"].get()))
+            self.num_samples        = int(float(record["record_length"].get()))
         except ValueError:
-            nrSamples        = 2000
+            self.num_samples        = 2000
         try:
             self.session.binary_sample_width = int(sample["sample_width"].get())
         except (niscope.errors.DriverError, ValueError):
             self.session.binary_sample_width = 16
+        try:
+            self.num_records = int(float(record["nr_records"].get()))
+        except ValueError:
+            self.num_records = 1
         self.session.allow_more_records_than_memory = True
         self.session.configure_horizontal_timing(
                 min_sample_rate  = 1000 * int(samplingRate_kSs),
-                min_num_pts      = nrSamples,
+                min_num_pts      = self.num_samples,
                 ref_position     = 0.0,
                 num_records      = 2147483647,
                 enforce_realtime = True
@@ -94,7 +98,7 @@ class PXIe5171:
                ]
 
         # shape and type of the array of returned data
-        self.shape = (len(self.active_channels), nrSamples)
+        self.shape = (self.num_records, len(self.active_channels), self.num_samples)
         self.dtype = np.int16
 
         # index of which waveform to acquire
@@ -112,33 +116,38 @@ class PXIe5171:
     def ReadValue(self):
         # the structures for reading waveform data into
         attrs = {}
-        waveforms = [np.ndarray((self.shape[1],), dtype=np.int16) for ch in self.active_channels]
+        waveforms_flat = np.ndarray(len(self.active_channels) * self.num_records * self.num_samples, dtype = np.int16)
 
-        # get data
-        for ch, waveform in zip(self.active_channels, waveforms):
-            # fetch data & metadata
-            try:
-                info = self.session.channels[ch].fetch_into(
-                        waveform      = waveform,
-                        relative_to   = niscope.FetchRelativeTo.PRETRIGGER,
-                        offset        = 0,
-                        record_number = self.rec_num,
-                        num_records   = 1,
-                        timeout       = datetime.timedelta(seconds=1.0)
-                    )[0]
-            except niscope.errors.DriverError:
-                return None
-
-            # put metadata in a dictionary
-            attrs['ch'+str(ch)+' : relative_initial_x'] = info.relative_initial_x
-            attrs['ch'+str(ch)+' : absolute_initial_x'] = info.absolute_initial_x
-            attrs['ch'+str(ch)+' : x_increment']        = info.x_increment
-            attrs['ch'+str(ch)+' : channel']            = info.channel
-            attrs['ch'+str(ch)+' : record']             = info.record
-            attrs['ch'+str(ch)+' : gain']               = info.gain
-            attrs['ch'+str(ch)+' : offset']             = info.offset
+        # fetch data & metadata
+        try:
+            infos = self.session.channels[self.active_channels].fetch_into(
+                    waveform      = waveforms_flat,
+                    relative_to   = niscope.FetchRelativeTo.PRETRIGGER,
+                    offset        = 0,
+                    record_number = self.rec_num,
+                    num_records   = self.num_records,
+                    timeout       = datetime.timedelta(seconds=1.0)
+                )
+        except niscope.errors.DriverError as err:
+            print(err)
+            return None
 
         # increment record count
-        self.rec_num += 1
+        self.rec_num += self.num_records
 
-        return (np.transpose(waveforms), attrs)
+        # organize metadata in a list of dictionaries
+        all_attrs = []
+        for i in range(self.num_records):
+            for info in infos:
+                attrs = {}
+                if info.record == i:
+                    attrs['ch'+str(info.channel)+' : relative_initial_x'] = info.relative_initial_x
+                    attrs['ch'+str(info.channel)+' : absolute_initial_x'] = info.absolute_initial_x
+                    attrs['ch'+str(info.channel)+' : x_increment']        = info.x_increment
+                    attrs['ch'+str(info.channel)+' : channel']            = info.channel
+                    attrs['ch'+str(info.channel)+' : record']             = info.record
+                    attrs['ch'+str(info.channel)+' : gain']               = info.gain
+                    attrs['ch'+str(info.channel)+' : offset']             = info.offset
+                all_attrs.append(attrs)
+
+        return (waveforms_flat.reshape(self.shape), all_attrs)

@@ -70,6 +70,7 @@ class HDF_writer(threading.Thread):
     def run(self):
         with h5py.File(self.filename, 'a') as f:
             while self.active.is_set():
+                time0 = time.time()
                 root = f.require_group(self.parent.run_name)
                 for dev_name, dev in self.parent.devices.items():
                     # check device is enables
@@ -99,22 +100,25 @@ class HDF_writer(threading.Thread):
 
                     # if writing each acquisition record to a separate dataset
                     else:
-                        for waveforms, attrs in data:
-                            # data
-                            dset = grp.create_dataset(
-                                    name  = dev.config["name"] + "_" + str(len(grp)),
-                                    data  = waveforms,
-                                    dtype = dev.config["dtype"]
-                                )
-                            # metadata
-                            for key, val in attrs.items():
-                                dset.attrs[key] = val
+                        for record, all_attrs in data:
+                            for waveforms, attrs in zip(record, all_attrs):
+                                # data
+                                dset = grp.create_dataset(
+                                        name  = dev.config["name"] + "_" + str(len(grp)),
+                                        data  = waveforms.T,
+                                        dtype = dev.config["dtype"]
+                                    )
+                                # metadata
+                                for key, val in attrs.items():
+                                    dset.attrs[key] = val
 
-            # loop delay
-            try:
-                time.sleep(float(self.parent.config["hdf_loop_delay"].get()))
-            except ValueError:
-                time.sleep(0.1)
+                print( time.time() - time0 )
+
+                # loop delay
+                try:
+                    time.sleep(float(self.parent.config["hdf_loop_delay"].get()))
+                except ValueError:
+                    time.sleep(0.1)
 
     def get_data(self, fifo):
         data = []

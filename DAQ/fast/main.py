@@ -711,6 +711,9 @@ class ControlGUI(tk.Frame):
         # stop monitoring
         self.parent.monitoring.stop_monitoring()
 
+        # stop all plots
+        self.parent.plots.stop_all()
+
         # stop devices, waiting for threads to finish
         for dev_name, dev in self.parent.devices.items():
             if dev.active.is_set():

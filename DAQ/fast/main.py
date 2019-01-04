@@ -68,8 +68,8 @@ class HDF_writer(threading.Thread):
         self.active.set()
 
     def run(self):
-        with h5py.File(self.filename, 'a') as f:
-            while self.active.is_set():
+        while self.active.is_set():
+            with h5py.File(self.filename, 'a') as f:
                 time0 = time.time()
                 root = f.require_group(self.parent.run_name)
                 for dev_name, dev in self.parent.devices.items():
@@ -112,7 +112,7 @@ class HDF_writer(threading.Thread):
                                 for key, val in attrs.items():
                                     dset.attrs[key] = val
 
-                print( time.time() - time0 )
+                #print( time.time() - time0 )
 
                 # loop delay
                 try:
@@ -121,11 +121,12 @@ class HDF_writer(threading.Thread):
                     time.sleep(0.1)
 
     def get_data(self, fifo):
+        print(len(fifo))
         data = []
         while True:
             try:
-                data.append( fifo.get_nowait() )
-            except queue.Empty:
+                data.append( fifo.popleft() )
+            except IndexError:
                 break
         return data
 
@@ -144,8 +145,8 @@ class Device(threading.Thread):
         self.commands = []
 
         # the data and events queues
-        self.data_queue = queue.Queue()
-        self.events_queue = queue.Queue()
+        self.data_queue = deque()
+        self.events_queue = deque()
 
         # the variable for counting the number of NaN returns
         self.nan_count = tk.StringVar()
@@ -183,19 +184,8 @@ class Device(threading.Thread):
                 self.config["attributes"][attr_name] = attr_val
 
     def clear_queues(self):
-        # empty the data queue
-        while not self.data_queue.empty():
-            try:
-                self.data_queue.get(False)
-            except queue.Empty:
-                break
-
-        # empty the data queue
-        while not self.events_queue.empty():
-            try:
-                self.events_queue.get(False)
-            except queue.Empty:
-                break
+        self.data_queue.clear()
+        self.events_queue.clear()
 
     def run(self):
         # check connection to the device was successful
@@ -220,7 +210,7 @@ class Device(threading.Thread):
                 # record numerical values
                 last_data = device.ReadValue()
                 if last_data:
-                    self.data_queue.put(last_data)
+                    self.data_queue.append(last_data)
 
                 # keep track of the number of NaN returns
                 if isinstance(last_data, float):
@@ -236,7 +226,7 @@ class Device(threading.Thread):
                     ret_val = "None" if not ret_val else ret_val
                     last_event = [ time.time()-self.time_offset, c, ret_val ]
                     self.last_event.set(last_event)
-                    self.events_queue.put(last_event)
+                    self.events_queue.append(last_event)
                 self.commands = []
 
 class ControlGUI(tk.Frame):

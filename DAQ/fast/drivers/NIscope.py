@@ -138,16 +138,20 @@ class PXIe5171:
         # organize metadata in a list of dictionaries
         all_attrs = []
         for i in range(self.num_records):
+            attrs = {}
             for info in infos:
-                attrs = {}
                 if info.record == i:
-                    attrs['ch'+str(info.channel)+' : relative_initial_x'] = info.relative_initial_x
-                    attrs['ch'+str(info.channel)+' : absolute_initial_x'] = info.absolute_initial_x
-                    attrs['ch'+str(info.channel)+' : x_increment']        = info.x_increment
-                    attrs['ch'+str(info.channel)+' : channel']            = info.channel
-                    attrs['ch'+str(info.channel)+' : record']             = info.record
-                    attrs['ch'+str(info.channel)+' : gain']               = info.gain
-                    attrs['ch'+str(info.channel)+' : offset']             = info.offset
-                all_attrs.append(attrs)
+                    attrs_upd = {
+                            'ch'+str(info.channel)+' : relative_initial_x' : info.relative_initial_x,
+                            'ch'+str(info.channel)+' : absolute_initial_x' : info.absolute_initial_x,
+                            'ch'+str(info.channel)+' : x_increment'        : info.x_increment,
+                            'ch'+str(info.channel)+' : channel'            : info.channel,
+                            'ch'+str(info.channel)+' : record'             : info.record,
+                            'ch'+str(info.channel)+' : gain'               : info.gain,
+                            'ch'+str(info.channel)+' : offset'             : info.offset,
+                        }
+                    attrs.update(attrs_upd)
+            all_attrs.append(attrs)
 
+        print(all_attrs)
         return (waveforms_flat.reshape(self.shape), all_attrs)

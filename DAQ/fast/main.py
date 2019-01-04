@@ -70,7 +70,6 @@ class HDF_writer(threading.Thread):
     def run(self):
         while self.active.is_set():
             with h5py.File(self.filename, 'a') as f:
-                time0 = time.time()
                 root = f.require_group(self.parent.run_name)
                 for dev_name, dev in self.parent.devices.items():
                     # check device is enables
@@ -112,8 +111,6 @@ class HDF_writer(threading.Thread):
                                 for key, val in attrs.items():
                                     dset.attrs[key] = val
 
-                #print( time.time() - time0 )
-
                 # loop delay
                 try:
                     time.sleep(float(self.parent.config["hdf_loop_delay"].get()))
@@ -121,7 +118,6 @@ class HDF_writer(threading.Thread):
                     time.sleep(0.1)
 
     def get_data(self, fifo):
-        print(len(fifo))
         data = []
         while True:
             try:

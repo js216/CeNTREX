@@ -68,8 +68,8 @@ class HDF_writer(threading.Thread):
         self.active.set()
 
     def run(self):
-        while self.active.is_set():
-            with h5py.File(self.filename, 'a') as f:
+        with h5py.File(self.filename, 'a') as f:
+            while self.active.is_set():
                 root = f.require_group(self.parent.run_name)
                 for dev_name, dev in self.parent.devices.items():
                     # check device is enables
@@ -99,20 +99,16 @@ class HDF_writer(threading.Thread):
 
                     # if writing each acquisition record to a separate dataset
                     else:
-                        for records, wfm_infos in data:
-                            for r, info in zip(records, wfm_infos):
-                                dset = grp.create_dataset(
-                                        dev.config["name"] + "_" + str(len(grp)),
-                                        data=r,
-                                        dtype=dev.config["dtype"]
-                                    )
-                                dset.attrs['relative_initial_x'] = info.relative_initial_x
-                                dset.attrs['absolute_initial_x'] = info.absolute_initial_x
-                                dset.attrs['x_increment'] = info.x_increment
-                                dset.attrs['channel'] = info.channel
-                                dset.attrs['record'] = info.record
-                                dset.attrs['gain'] = info.gain
-                                dset.attrs['offset'] = info.offset
+                        for waveforms, attrs in data:
+                            # data
+                            dset = grp.create_dataset(
+                                    name  = dev.config["name"] + "_" + str(len(grp)),
+                                    data  = waveforms,
+                                    dtype = dev.config["dtype"]
+                                )
+                            # metadata
+                            for key, val in attrs.items():
+                                dset.attrs[key] = val
 
             # loop delay
             try:

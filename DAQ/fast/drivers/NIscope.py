@@ -6,6 +6,7 @@ import niscope
 import numpy as np
 import time
 import sys
+import datetime
 
 class PXIe5171:
     def __init__(self, time_offset, COM_port, record, sample, trigger, edge, channels):
@@ -19,10 +20,6 @@ class PXIe5171:
         self.verification_string = "not implemented"
 
         # set record parameters
-        try:
-            self.num_records = int(record["nr_records"].get())
-        except ValueError:
-            self.num_records = 1
         try:
             self.session.max_input_frequency = 1e6 * float(record["bandwidth_MHz"].get())
         except (niscope.errors.DriverError, ValueError):
@@ -41,11 +38,12 @@ class PXIe5171:
             self.session.binary_sample_width = int(sample["sample_width"].get())
         except (niscope.errors.DriverError, ValueError):
             self.session.binary_sample_width = 16
+        self.session.allow_more_records_than_memory = True
         self.session.configure_horizontal_timing(
                 min_sample_rate  = 1000 * int(samplingRate_kSs),
                 min_num_pts      = nrSamples,
-                ref_position     = 50.0,
-                num_records      = self.num_records,
+                ref_position     = 0.0,
+                num_records      = 2147483647,
                 enforce_realtime = True
             )
 
@@ -96,8 +94,14 @@ class PXIe5171:
                ]
 
         # shape and type of the array of returned data
-        self.shape = (self.num_records, nrSamples, len(self.active_channels))
+        self.shape = (len(self.active_channels), nrSamples)
         self.dtype = np.int16
+
+        # index of which waveform to acquire
+        self.rec_num = 0
+
+        # start acquisition
+        self.session.initiate()
 
     def __enter__(self):
         return self
@@ -106,22 +110,35 @@ class PXIe5171:
         self.session.close()
 
     def ReadValue(self):
-        # the array for reading waveform data into
-        wfm = np.ndarray(self.shape, dtype = np.int16)
+        # the structures for reading waveform data into
+        attrs = {}
+        waveforms = [np.ndarray((self.shape[1],), dtype=np.int16) for ch in self.active_channels]
 
         # get data
-        with self.session.initiate():
+        for ch, waveform in zip(self.active_channels, waveforms):
+            # fetch data & metadata
             try:
-                time0 = time.time()
-                info = self.session.channels[self.active_channels].fetch_into(
-                        wfm.flatten(),
-                        num_records=self.num_records,
-                        timeout = 1.0
-                    )
+                info = self.session.channels[ch].fetch_into(
+                        waveform      = waveform,
+                        relative_to   = niscope.FetchRelativeTo.PRETRIGGER,
+                        offset        = 0,
+                        record_number = self.rec_num,
+                        num_records   = 1,
+                        timeout       = datetime.timedelta(seconds=1.0)
+                    )[0]
             except niscope.errors.DriverError:
                 return None
-            print("scope read time = ", time.time()-time0)
-            sys.stdout.flush()
 
+            # put metadata in a dictionary
+            attrs['ch'+str(ch)+' : relative_initial_x'] = info.relative_initial_x
+            attrs['ch'+str(ch)+' : absolute_initial_x'] = info.absolute_initial_x
+            attrs['ch'+str(ch)+' : x_increment']        = info.x_increment
+            attrs['ch'+str(ch)+' : channel']            = info.channel
+            attrs['ch'+str(ch)+' : record']             = info.record
+            attrs['ch'+str(ch)+' : gain']               = info.gain
+            attrs['ch'+str(ch)+' : offset']             = info.offset
 
-        return (wfm, info)
+        # increment record count
+        self.rec_num += 1
+
+        return (np.transpose(waveforms), attrs)

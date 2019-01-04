@@ -395,10 +395,10 @@ class Plotter(tk.Frame):
             # cut and return data
             if dev.config["single_dataset"]:
                 x = dset[i1:i2:stride, 0]
-                y = dset[i1:i2:stride, self.param_list.index(param)]
+                y = dset[self.param_list.index(param), i1:i2:stride]
             else:
-                x = np.arange(dset_len)[i1:i2]
-                y = dset[i1:i2, self.param_list.index(param)]
+                x = np.arange(dset_len)[i1:i2:stride]
+                y = dset[i1:i2:stride, self.param_list.index(param)]
             return x, y, param, unit
 
     def new_plot(self):

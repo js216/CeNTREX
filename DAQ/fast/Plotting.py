@@ -401,13 +401,15 @@ class Plotter(tk.Frame):
             slice_length = (i2 if i2>=0 else dset_len+i2) - (i1 if i1>=0 else dset_len+i1)
             stride = 1 if slice_length < 100 else int(slice_length/100)
 
-            # cut and return data
+            # cut data
             if dev.config["single_dataset"]:
                 x = dset[i1:i2:stride, 0]
-                y = dset[self.param_list.index(param), i1:i2:stride]
+                y = dset[i1:i2:stride, self.param_list.index(param)]
+                sys.stdout.flush()
             else:
                 x = np.arange(dset_len)[i1:i2:stride]
                 y = dset[i1:i2:stride, self.param_list.index(param)]
+
             return x, y, param, unit
 
     def new_plot(self):
@@ -473,22 +475,43 @@ class Plotter(tk.Frame):
         data = self.get_data()
 
         if data:
+            # update plot data
             x, y, param, unit = data
             self.line.set_data(x, y)
-            self.ax.set_xlim((np.nanmin(x),np.nanmax(x)))
+
+            # update x limits
+            try:
+                x0, x1 = np.nanmin(x), np.nanmax(x)
+                if x0 >= x1:
+                    raise ValueError
+            except ValueError:
+                x0, x1 = 0, 1
+            self.ax.set_xlim((x0, x1))
+
+            # update y limits
             try:
                 y0, y1 = float(self.y0_var.get()), float(self.y1_var.get())
-                if y0 > y1:
+                if y0 >= y1:
+                    print("a")
                     raise ValueError
             except ValueError as err:
-                y0, y1 = np.nanmin(y), np.nanmax(y)
+                try:
+                    y0, y1 = np.nanmin(y), np.nanmax(y)
+                    if y0 == y1:
+                        y0, y1 = y0 - 1, y0 + 1
+                except ValueError:
+                    y0, y1 = 0, 10
             self.ax.set_ylim((y0, y1))
+
+            # update plot labels
             if self.parent.devices[self.dev_var.get()].config["single_dataset"]:
                 self.ax.set_xlabel("time [s]")
             else:
                 self.ax.set_xlabel("sample number")
                 self.ax.set_title("record #"+str(self.record_number.get()))
             self.ax.set_ylabel(param + " [" + unit.strip() + "]")
+
+            # redraw plot
             self.canvas.draw()
 
         return self.line,

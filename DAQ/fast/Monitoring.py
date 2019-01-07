@@ -110,6 +110,7 @@ class Monitoring(threading.Thread):
                     try:
                         data = dev.data_queue.queue[-1]
                     except IndexError:
+                        print(data)
                         continue
 
                     # format display the data in a tkinter variable

@@ -86,7 +86,11 @@ class CPA1110:
         self.ReadRegisters()
         self.verification_string = str(self.PanelSerialNumber()[0])
 
-        # shape of the array of returned data
+        # HDF attributes generated when constructor is run
+        self.new_attributes = []
+
+        # shape and type of the array of returned data
+        self.dtype = 'f'
         self.shape = (10, )
 
     def __enter__(self):

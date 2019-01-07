@@ -24,7 +24,11 @@ class Hornet:
         except pyvisa.errors.VisaIOError:
             self.verification_string = "False"
 
-        # shape of the array of returned data
+        # HDF attributes generated when constructor is run
+        self.new_attributes = []
+
+        # shape and type of the array of returned data
+        self.dtype = 'f'
         self.shape = (1, )
 
     def __enter__(self):

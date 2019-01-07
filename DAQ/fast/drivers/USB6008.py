@@ -23,8 +23,11 @@ class USB6008:
         except:
             self.verification_string = "cannot read"
 
+        # HDF attributes generated when constructor is run
+        self.new_attributes = []
 
-        # shape of the array of returned data
+        # shape and type of the array of returned data
+        self.dtype = 'f'
         self.shape = (2, )
 
     def __enter__(self):

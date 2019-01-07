@@ -9,12 +9,8 @@ import sys
 import datetime
 
 class PXIe5171:
-    def __init__(self, time_offset, COM_port, record, sample, trigger, edge, channels):
-        self.time_offset = time_offset
+    def __init__(self, COM_port, record, sample, trigger, edge, channels):
         self.session = niscope.Session(COM_port)
-
-        # each reading is to be written to a different HDF dataset
-        self.single_dataset = False
 
         # verify operation
         self.verification_string = "not implemented"

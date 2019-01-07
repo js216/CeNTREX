@@ -19,7 +19,11 @@ class LakeShore218:
         # make the verification string
         self.verification_string = self.QueryIdentification()
 
-        # shape of the array of returned data
+        # HDF attributes generated when constructor is run
+        self.new_attributes = []
+
+        # shape and type of the array of returned data
+        self.dtype = 'f'
         self.shape = (8, )
 
     def __enter__(self):

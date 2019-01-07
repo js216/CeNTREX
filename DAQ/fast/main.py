@@ -104,9 +104,10 @@ class HDF_writer(threading.Thread):
                                 for waveforms, attrs in zip(record, all_attrs):
                                     # data
                                     dset = grp.create_dataset(
-                                            name  = dev.config["name"] + "_" + str(len(grp)),
-                                            data  = waveforms.T,
-                                            dtype = dev.config["dtype"]
+                                            name        = dev.config["name"] + "_" + str(len(grp)),
+                                            data        = waveforms.T,
+                                            dtype       = dev.config["dtype"],
+                                            compression = None
                                         )
                                     # metadata
                                     for key, val in attrs.items():

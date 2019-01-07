@@ -102,13 +102,12 @@ class Monitoring(threading.Thread):
         self.dt_var.set("1")
 
     def run(self):
-        return
         while self.active.is_set():
             for dev_name, dev in self.parent.devices.items():
                 if dev.config["controls"]["enabled"]["var"].get():
                     # look at the last element in the queue
                     try:
-                        data = dev.data_queue.queue[-1]
+                        data = dev.data_queue[-1]
                     except IndexError:
                         continue
 
@@ -116,11 +115,11 @@ class Monitoring(threading.Thread):
                     if len(dev.config["shape"]) == 1:
                         formatted_data = ["{0:.3f}".format(x) for x in data]
                     else:
-                        formatted_data = [str(x) for x in data[0][:,0][0]]
+                        formatted_data = [str(x) for x in data[0][-1][:,-1]]
                     dev.last_data.set("\n".join(formatted_data))
 
-                    # find out and display the data queue length
-                    dev.qsize.set(dev.data_queue.qsize())
+                    ## find out and display the data queue length
+                    dev.qsize.set(len(dev.data_queue))
 
             # loop delay
             try:

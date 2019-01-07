@@ -7,6 +7,7 @@ import numpy as np
 import time
 import sys
 import datetime
+import logging
 
 class PXIe5171:
     def __init__(self, time_offset, COM_port, record, sample, trigger, edge, channels):
@@ -129,8 +130,8 @@ class PXIe5171:
                     timeout       = datetime.timedelta(seconds=1.0)
                 )
         except niscope.errors.DriverError as err:
-            print(err)
-            return None
+            loggling.warning(err)
+            return np.nan
 
         # increment record count
         self.rec_num += self.num_records

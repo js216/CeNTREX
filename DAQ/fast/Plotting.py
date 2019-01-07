@@ -321,11 +321,6 @@ class Plotter(tk.Frame):
         for p in self.param_list:
             menu.add_command(label=p, command=lambda val=p: self.param_var.set(val))
 
-        if len(self.param_list) >= 2:
-            self.param_var.set(self.param_list[1])
-        else:
-            self.param_var.set(self.param_list[0])
-
     def get_data(self):
         # check device is valid
         if self.dev_var.get() in self.parent.devices:
@@ -339,10 +334,24 @@ class Plotter(tk.Frame):
         if self.param_var.get() in self.param_list:
             param = self.param_var.get()
             unit = dev.config["attributes"]["units"].split(',')[self.param_list.index(param)]
-        else:
+        elif len(self.param_list) == 0:
             self.stop_animation()
-            messagebox.showerror("Parameter error", "Error: invalid parameter.")
+            messagebox.showerror("Parameter error", "Error: device has no parameters.")
             return None
+        else:
+            # set a default parameter
+            if len(self.param_list) >= 2:
+                self.param_var.set(self.param_list[1])
+            else:
+                self.param_var.set(self.param_list[0])
+            # check the newly set parameter is valid
+            if self.param_var.get() in self.param_list:
+                param = self.param_var.get()
+                unit = dev.config["attributes"]["units"].split(',')[self.param_list.index(param)]
+            else:
+                self.stop_animation()
+                messagebox.showerror("Parameter error", "Error: invalid parameter.")
+                return None
 
         # check run is valid
         try:

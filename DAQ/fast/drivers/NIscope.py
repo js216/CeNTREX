@@ -10,8 +10,9 @@ import datetime
 import logging
 
 class PXIe5171:
-    def __init__(self, COM_port, record, sample, trigger, edge, channels):
+    def __init__(self, time_offset, COM_port, record, sample, trigger, edge, channels):
         self.session = niscope.Session(COM_port)
+        self.time_offset = time_offset
 
         # verify operation
         self.verification_string = "not implemented"

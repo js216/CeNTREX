@@ -3,7 +3,8 @@ import time
 import numpy as np
 
 class LakeShore218:
-    def __init__(self, resource_name):
+    def __init__(self, time_offset, resource_name):
+        self.time_offset = time_offset
         self.rm = pyvisa.ResourceManager()
         try:
             self.instr = self.rm.open_resource(resource_name)
@@ -24,7 +25,7 @@ class LakeShore218:
 
         # shape and type of the array of returned data
         self.dtype = 'f'
-        self.shape = (8, )
+        self.shape = (9, )
 
     def __enter__(self):
         return self
@@ -34,7 +35,7 @@ class LakeShore218:
             self.instr.close()
 
     def ReadValue(self):
-        return self.QueryKelvinReading()
+        return [time.time()-self.time_offset] + self.QueryKelvinReading()
 
     #################################################################
     ##########           IEEE-488/SERIAL COMMANDS          ##########

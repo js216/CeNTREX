@@ -61,6 +61,7 @@ and the rest of the input registers are in 32bit floating point format."
 from pymodbus.client.sync import ModbusSerialClient
 import struct
 import pyvisa
+import time
 
 # utility functions (see manual pp 21-22)
 def to_float(b12, b34):
@@ -71,7 +72,8 @@ def to_int(b12, b34):
 
 
 class CPA1110:
-    def __init__(self, resource_name):
+    def __init__(self, time_offset, resource_name):
+        self.time_offset = time_offset
         rm = pyvisa.ResourceManager()
         COM_port = rm.resource_info(resource_name).alias
         try:
@@ -91,7 +93,7 @@ class CPA1110:
 
         # shape and type of the array of returned data
         self.dtype = 'f'
-        self.shape = (10, )
+        self.shape = (11, )
 
     def __enter__(self):
         return self
@@ -102,7 +104,8 @@ class CPA1110:
 
     def ReadValue(self):
         self.ReadRegisters()
-        return [ self.CoolantInTemp(),
+        return [ time.time()-self.time_offset,
+                 self.CoolantInTemp(),
                  self.CoolantOutTemp(),
                  self.OilTemp(),
                  self.HeliumTemp(),

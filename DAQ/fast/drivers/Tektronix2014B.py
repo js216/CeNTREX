@@ -25,6 +25,7 @@
 
 import pyvisa
 import numpy as np
+import time
 
 class Tektronix2014B:
     def __init__(self, rm, resource_name):

@@ -5,9 +5,11 @@ flow controller, as well as the flood detector.
 
 import PyDAQmx
 import numpy as np
+import time
 
 class USB6008:
-    def __init__(self, flow_signal_out, setpoint_in, flood_in, flood_out):
+    def __init__(self, time_offset, flow_signal_out, setpoint_in, flood_in, flood_out):
+        self.time_offset = time_offset
         self.flow_signal_out = flow_signal_out
         self.setpoint_in     = setpoint_in
         self.flood_in        = flood_in
@@ -28,7 +30,7 @@ class USB6008:
 
         # shape and type of the array of returned data
         self.dtype = 'f'
-        self.shape = (2, )
+        self.shape = (3, )
 
     def __enter__(self):
         return self
@@ -37,7 +39,7 @@ class USB6008:
         pass
 
     def ReadValue(self):
-        return [self.ReadFlowSignal(), self.setpoint_sccm]
+        return [time.time()-self.time_offset, self.ReadFlowSignal(), self.setpoint_sccm]
 
     #################################################################
     ##########              READ COMMANDS                  ##########

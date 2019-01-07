@@ -3,7 +3,8 @@ import numpy as np
 import time
 
 class Hornet:
-    def __init__(self, resource_name, address='01'):
+    def __init__(self, time_offset, resource_name, address='01'):
+        self.time_offset = time_offset
         self.address = address # Factory default address=1
         self.rm = pyvisa.ResourceManager()
         try:
@@ -29,7 +30,7 @@ class Hornet:
 
         # shape and type of the array of returned data
         self.dtype = 'f'
-        self.shape = (1, )
+        self.shape = (2, )
 
     def __enter__(self):
         return self
@@ -49,7 +50,7 @@ class Hornet:
             return np.nan
 
     def ReadValue(self):
-        return [self.ReadSystemPressure()]
+        return [time.time()-self.time_offset, self.ReadSystemPressure()]
 
     #################################################################
     ##########           SERIAL COMMANDS                   ##########

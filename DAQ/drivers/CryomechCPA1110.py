@@ -59,6 +59,7 @@ and the rest of the input registers are in 32bit floating point format."
 """
 
 from pymodbus.client.sync import ModbusSerialClient
+from pymodbus.exceptions import ConnectionException, ModbusIOException
 import struct
 import pyvisa
 import time
@@ -85,8 +86,10 @@ class CPA1110:
             return
 
         # make the verification string
-        self.ReadRegisters()
-        self.verification_string = str(self.PanelSerialNumber()[0])
+        if self.ReadRegisters():
+            self.verification_string = str(self.PanelSerialNumber()[0])
+        else:
+            self.verification_string = "False"
 
         # HDF attributes generated when constructor is run
         self.new_attributes = []
@@ -103,18 +106,20 @@ class CPA1110:
             self.client.close()
 
     def ReadValue(self):
-        self.ReadRegisters()
-        return [ time.time()-self.time_offset,
-                 self.CoolantInTemp(),
-                 self.CoolantOutTemp(),
-                 self.OilTemp(),
-                 self.HeliumTemp(),
-                 self.LowPressure(),
-                 self.LowPressureAverage(),
-                 self.HighPressure(),
-                 self.HighPressureAverage(),
-                 self.DeltaPressureAverage(),
-                 self.MotorCurrent() ]
+        if self.ReadRegisters():
+            return [ time.time()-self.time_offset,
+                     self.CoolantInTemp(),
+                     self.CoolantOutTemp(),
+                     self.OilTemp(),
+                     self.HeliumTemp(),
+                     self.LowPressure(),
+                     self.LowPressureAverage(),
+                     self.HighPressure(),
+                     self.HighPressureAverage(),
+                     self.DeltaPressureAverage(),
+                     self.MotorCurrent() ]
+        else:
+            return np.nan
 
     #################################################################
     ##########              CONTROL COMMANDS               ##########
@@ -131,7 +136,15 @@ class CPA1110:
     #################################################################
 
     def ReadRegisters(self):
-        self.rr = self.client.read_input_registers(1, count=33, unit=16)
+        try:
+            self.rr = self.client.read_input_registers(1, count=33, unit=16)
+        except ConnectionException:
+            return None
+        else:
+            if isinstance(self.rr, ModbusIOException):
+                return None
+            else:
+                return True
 
     def OperatingState(self):
         state = to_int(self.rr.registers[0], 0)

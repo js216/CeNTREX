@@ -99,7 +99,7 @@ class Monitoring(threading.Thread):
         self.parent = parent
         self.active = threading.Event()
         self.dt_var = tk.StringVar()
-        self.dt_var.set("1")
+        self.dt_var.set(".9")
 
     def run(self):
         while self.active.is_set():

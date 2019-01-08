@@ -20,10 +20,10 @@ from collections import deque
 
 from drivers import Hornet 
 from drivers import LakeShore218 
-from drivers import LakeShore330 
 from drivers import CPA1110
 from drivers import USB6008
 from drivers import PXIe5171
+from drivers import CTC100
 
 from Plotting import PlotsGUI
 from Monitoring import MonitoringGUI
@@ -174,10 +174,11 @@ class Device(threading.Thread):
 
         with self.config["driver"](*self.constr_params) as dev: 
             # verify the device responds correctly
-            if dev.verification_string == self.config["correct_response"]:
+            if dev.verification_string.strip() == self.config["correct_response"].strip():
                 self.operational = True
             else:
                 self.operational = False
+                return
 
             # get parameters and attributes, if any, from the driver
             self.config["shape"] = dev.shape

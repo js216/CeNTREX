@@ -108,3 +108,27 @@ class CTC100:
                 return self.instr.write('"system.log.interval" "' + rate + '"')
             except pyvisa.errors.VisaIOError:
                 return np.nan
+
+    def SetOut1Setpoint(self, setpoint):
+        try:
+            return self.instr.write('"Out1.PID.Setpoint" "' + str(setpoint) + '"')
+        except pyvisa.errors.VisaIOError:
+            return np.nan
+
+    def SetOut2Setpoint(self, setpoint):
+        try:
+            return self.instr.write('"Out2.PID.Setpoint" "' + str(setpoint) + '"')
+        except pyvisa.errors.VisaIOError:
+            return np.nan
+
+    def SetOut1Src(self, src):
+        try:
+            return self.instr.write('"Out1.PID.Input" "' + src + '"')
+        except pyvisa.errors.VisaIOError:
+            return np.nan
+
+    def SetOut2Src(self, src):
+        try:
+            return self.instr.write('"Out2.PID.Input" "' + src + '"')
+        except pyvisa.errors.VisaIOError:
+            return np.nan

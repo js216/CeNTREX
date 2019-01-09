@@ -220,7 +220,7 @@ class Device(threading.Thread):
                 # send control commands, if any, to the device, and record return values
                 for c in self.commands:
                     try:
-                        ret_val = eval("device." + c)
+                        ret_val = eval("device." + c.strip())
                     except (ValueError, AttributeError) as err:
                         ret_val = str(err)
                     ret_val = "None" if not ret_val else ret_val
@@ -308,7 +308,7 @@ class ControlGUI(tk.Frame):
                     ctrls[c]["row"]        = int(params[c]["row"])
                     ctrls[c]["col"]        = int(params[c]["col"])
                     ctrls[c]["command"]    = params[c]["command"]
-                    ctrls[c]["options"]    = params[c]["options"].split(",")
+                    ctrls[c]["options"]    = [x.strip() for x in params[c]["options"].split(",")]
                     ctrls[c]["var"]        = tk.StringVar()
                     ctrls[c]["var"].set(params[c]["value"])
 
@@ -347,11 +347,15 @@ class ControlGUI(tk.Frame):
                     ctrls[c]["rowspan"]       = int(params[c]["rowspan"])
                     ctrls[c]["columnspan"]    = int(params[c]["columnspan"])
                     ctrls[c]["column_names"]  = [x.strip() for x in params[c]["column_names"].split(",")]
+                    ctrls[c]["row_ids"]  = [x.strip() for x in params[c]["row_ids"].split(",")]
                     ctrls[c]["column_labels"] = [x.strip() for x in params[c]["column_labels"].split(",")]
                     ctrls[c]["column_types"]  = [x.strip() for x in params[c]["column_types"].split(",")]
                     ctrls[c]["column_widths"] = params[c].get("column_widths")
                     if ctrls[c]["column_widths"]:
                         ctrls[c]["column_widths"] = [int(x) for x in ctrls[c]["column_widths"].split(",")]
+                    ctrls[c]["column_commands"] = params[c].get("column_commands")
+                    if ctrls[c]["column_commands"]:
+                        ctrls[c]["column_commands"] = ctrls[c]["column_commands"].split(",")
                     ctrls[c]["column_options"] = []
                     for c_v in params[c].get("column_options").split(";"):
                         ctrls[c]["column_options"].append([x.strip() for x in c_v.split(",")])
@@ -518,7 +522,7 @@ class ControlGUI(tk.Frame):
                     c["Label"] = tk.Label(fd, text=c["label"])
                     c["Label"].grid(row=c["row"], column=c["col"]-1, sticky=tk.E)
                     if c["enter_cmd"]:
-                        command = lambda dev=dev, cmd=c["enter_cmd"], arg=c["var"]:\
+                        command = lambda x, dev=dev, cmd=c["enter_cmd"], arg=c["var"]:\
                                     self.queue_command(dev, cmd+"("+arg.get()+")")
                         c["Entry"].bind("<Return>", command)
 
@@ -567,15 +571,33 @@ class ControlGUI(tk.Frame):
                     for i, name in enumerate(c["column_names"]):
                         tk.Label(c["Frame"], text=c["column_labels"][i]).grid(row=0, column=i)
                         for j, var in enumerate(c["column_values"][i]):
+                            cmd = c["column_commands"][i] if c["column_commands"] else None
                             if c["column_types"][i] == "Checkbutton":
-                                tk.Checkbutton(c["Frame"], variable=var).grid(row=j+1, column=i)
+                                if cmd:
+                                    arg = "('" + c["row_ids"][j] + "', " + var.get() + ")"
+                                    cmd_fn = lambda dev=dev, cmd=cmd: self.queue_command(dev, cmd+arg)
+                                    tk.Checkbutton(c["Frame"], variable=var, command=cmd_fn).\
+                                                    grid(row=j+1, column=i)
+                                else:
+                                    tk.Checkbutton(c["Frame"], variable=var).grid(row=j+1, column=i)
                             elif c["column_types"][i] == "Entry":
                                 tk.Entry(c["Frame"], textvariable=var,
                                         width=c["column_widths"][i]).grid(row=j+1, column=i)
+                                if cmd_fn:
+                                    pass # TODO
                             elif c["column_types"][i] == "Label":
                                 tk.Label(c["Frame"], textvariable=var).grid(row=j+1, column=i)
                             elif c["column_types"][i] == "OptionMenu":
-                                om = tk.OptionMenu(c["Frame"], var, *c["column_options"][i])
+                                if cmd:
+                                    arg = "(" + c["row_ids"][j] + ", " + var.get() + ")"
+                                    cmd_fn = lambda dev=dev, cmd=cmd: self.queue_command(dev, cmd+arg)
+                                    om = tk.OptionMenu(
+                                            c["Frame"], var,
+                                            *c["column_options"][i],
+                                            command=cmd_fn
+                                        )
+                                else:
+                                    om = tk.OptionMenu(c["Frame"], var, *c["column_options"][i])
                                 om.config(width=c["column_widths"][i])
                                 om.grid(row=j+1, column=i)
 

@@ -257,7 +257,11 @@ class ControlGUI(tk.Frame):
                         "correct_response"  : params["device"]["correct_response"],
                         "single_dataset"    : True if params["device"]["single_dataset"]=="True" else False,
                         "row"               : params["device"]["row"],
+                        "rowspan"           : params["device"]["rowspan"],
+                        "monitoring_row"    : params["device"]["monitoring_row"],
                         "column"            : params["device"]["column"],
+                        "columnspan"        : params["device"]["columnspan"],
+                        "monitoring_column" : params["device"]["monitoring_column"],
                         "driver"            : eval(params["device"]["driver"]),
                         "constr_params"     : [x.strip() for x in params["device"]["constr_params"].split(",")],
                         "attributes"        : params["attributes"],
@@ -468,7 +472,8 @@ class ControlGUI(tk.Frame):
         for dev_name, dev in self.parent.devices.items():
             fd = tk.LabelFrame(self.fr, text=dev.config["label"])
             fd.grid(padx=10, pady=10, sticky="nsew",
-                    row=dev.config["row"], column=dev.config["column"])
+                    row=dev.config["row"], column=dev.config["column"],
+                    rowspan=dev.config["rowspan"], columnspan=dev.config["columnspan"]) 
 
             # the button to reload attributes
             attr_b = tk.Button(fd, text="Attrs", command=lambda dev=dev: self.reload_attrs(dev))
@@ -556,8 +561,7 @@ class ControlGUI(tk.Frame):
 
                 # place ControlsTables
                 elif c["type"] == "ControlsTable":
-                    tk.Label(fd, text=c["label"]).grid(row=c["row"], column=c["col"]-1, sticky="ne")
-                    c["Frame"] = tk.LabelFrame(fd)
+                    c["Frame"] = tk.LabelFrame(fd, text=c["label"])
                     c["Frame"].grid(row=c["row"], column=c["col"],
                             columnspan=c["columnspan"], rowspan=c["rowspan"], sticky='w', pady=10, padx=3)
                     for i, name in enumerate(c["column_names"]):

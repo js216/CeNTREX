@@ -75,3 +75,36 @@ class CTC100:
             return self.instr.query("description")
         except pyvisa.errors.VisaIOError:
             return np.nan
+
+    def outputEnable(self):
+        try:
+            return self.instr.write("outputEnable on")
+        except pyvisa.errors.VisaIOError:
+            return np.nan
+
+    def outputDisable(self):
+        try:
+            return self.instr.write("outputEnable off")
+        except pyvisa.errors.VisaIOError:
+            return np.nan
+
+    def setADrate(self, rate):
+        if not rate in [ "16.7 ms", "33.3", "50 ms", "66.7 ms", "83.3 ms", "100 ms",
+                 "150 ms", "200 ms", "250 ms", "350 ms", "400 ms", "500 ms",
+                 "600 ms", "700 ms", "800 ms", "900 ms", "1000 ms"]:
+            return np.nan
+        else:
+            try:
+                return self.instr.write('"system.other.A/D rate" "' + rate + '"')
+            except pyvisa.errors.VisaIOError:
+                return np.nan
+
+    def setLogRate(self, rate):
+        if not rate in ["off", "0.1 s", "0.3 s", "1 s", "3 s", "10 s", "30 s",
+                "1 min", "3 min", "10 min", "30 min", "1 hr"]:
+            return np.nan
+        else:
+            try:
+                return self.instr.write('"system.log.interval" "' + rate + '"')
+            except pyvisa.errors.VisaIOError:
+                return np.nan

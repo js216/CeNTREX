@@ -55,7 +55,7 @@ class MonitoringGUI(tk.Frame):
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
             fd = tk.LabelFrame(self.dev_f, text=dev.config["label"])
             fd.grid(padx=10, pady=10, sticky="nsew",
-                    row=dev.config["row"], column=dev.config["column"])
+                    row=dev.config["monitoring_row"], column=dev.config["monitoring_column"])
 
             # length of the data queue
             dev.qsize = tk.StringVar()
@@ -91,7 +91,7 @@ class MonitoringGUI(tk.Frame):
             # latest event / command sent to device & its return value
             tk.Label(fd, text="Last event:").grid(row=3, column=0, sticky='ne')
             dev.last_event = tk.StringVar()
-            tk.Message(fd, textvariable=dev.last_event, anchor='nw', width=100)\
+            tk.Message(fd, textvariable=dev.last_event, anchor='nw', width=150)\
                     .grid(row=3, column=1, columnspan=2, sticky='nw')
 
     def refresh_column_names_and_units(self):

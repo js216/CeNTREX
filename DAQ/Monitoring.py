@@ -4,6 +4,8 @@ import time
 import sys
 import queue
 import h5py
+from influxdb import InfluxDBClient
+import numpy as np
 
 class MonitoringGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -44,10 +46,10 @@ class MonitoringGUI(tk.Frame):
             tk.Label(fd, textvariable=dev.nan_count).grid(row=1, column=1, sticky='nw')
 
             # column names
-            col_names = dev.config["attributes"]["column_names"].split(',')
-            col_names = [x.strip() for x in col_names]
+            dev.col_names_list = dev.config["attributes"]["column_names"].split(',')
+            dev.col_names_list = [x.strip() for x in dev.col_names_list]
             dev.column_names = tk.StringVar()
-            dev.column_names.set("\n".join(col_names))
+            dev.column_names.set("\n".join(dev.col_names_list))
             tk.Message(fd, textvariable=dev.column_names, anchor='ne', justify="right", width=350)\
                     .grid(row=2, column=0, sticky='nsew')
 
@@ -66,6 +68,7 @@ class MonitoringGUI(tk.Frame):
 
             # latest event / command sent to device & its return value
             tk.Label(fd, text="Last event:").grid(row=3, column=0, sticky='ne')
+            dev.last_event = tk.StringVar()
             tk.Message(fd, textvariable=dev.last_event, anchor='nw', width=100)\
                     .grid(row=3, column=1, columnspan=2, sticky='nw')
 
@@ -102,6 +105,15 @@ class Monitoring(threading.Thread):
         self.dt_var = tk.StringVar()
         self.dt_var.set("1")
 
+        # connect to InfluxDB
+        self.influxdb_client = InfluxDBClient(
+                host='172.28.82.114',
+                port=8086,
+                username='bsmonitor',
+                password='molecules',
+            )
+        self.influxdb_client.switch_database(self.parent.config["influxdb_database"].get())
+
     def run(self):
         while self.active.is_set():
             for dev_name, dev in self.parent.devices.items():
@@ -136,8 +148,26 @@ class Monitoring(threading.Thread):
                         formatted_data = [str(x) for x in data[0][-1][:,-1]]
                     dev.last_data.set("\n".join(formatted_data))
 
-                    ## find out and display the data queue length
+                    # find out and display the data queue length
                     dev.qsize.set(len(dev.data_queue))
+
+                    # write slow data to InfluxDB
+                    if not dev.config["single_dataset"]:
+                        continue
+                    fields = {}
+                    for col,val in zip(dev.col_names_list[1:], data[1:]):
+                        if not np.isnan(val):
+                            fields[col] = val
+                    if len(fields) > 0:
+                        json_body = [
+                                {
+                                    "measurement": dev_name,
+                                    "tags": { "run_name": self.parent.run_name, },
+                                    "time": int(1000 * (data[0] + self.parent.config["time_offset"])),
+                                    "fields": fields,
+                                    }
+                                ]
+                        self.influxdb_client.write_points(json_body, time_precision='ms')
 
             # loop delay
             try:

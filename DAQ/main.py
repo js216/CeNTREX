@@ -154,9 +154,6 @@ class Device(threading.Thread):
         self.nan_count = tk.StringVar()
         self.nan_count.set(0)
 
-        # variable for displaying the last event in MonitoringGUI
-        self.last_event = tk.StringVar()
-
     def setup_connection(self, time_offset):
         threading.Thread.__init__(self)
         self.time_offset = time_offset
@@ -228,7 +225,6 @@ class Device(threading.Thread):
                         ret_val = str(err)
                     ret_val = "None" if not ret_val else ret_val
                     last_event = [ time.time()-self.time_offset, c, ret_val ]
-                    self.last_event.set(last_event)
                     self.events_queue.append(last_event)
                 self.commands = []
 
@@ -686,15 +682,15 @@ class ControlGUI(tk.Frame):
         self.HDF_writer = HDF_writer(self.parent)
         self.HDF_writer.start()
 
-        # update and start the monitoring thread
-        self.parent.monitoring.refresh_column_names_and_units()
-        self.parent.monitoring.start_monitoring()
-
         # start control for all devices
         for dev_name, dev in self.parent.devices.items():
             if dev.config["controls"]["enabled"]["var"].get():
                 dev.clear_queues()
                 dev.start()
+
+        # update and start the monitoring thread
+        self.parent.monitoring.refresh_column_names_and_units()
+        self.parent.monitoring.start_monitoring()
 
         # update program status
         self.status = "running"

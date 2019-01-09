@@ -3,6 +3,7 @@ import threading
 import time
 import sys
 import queue
+import h5py
 
 class MonitoringGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -99,17 +100,34 @@ class Monitoring(threading.Thread):
         self.parent = parent
         self.active = threading.Event()
         self.dt_var = tk.StringVar()
-        self.dt_var.set(".9")
+        self.dt_var.set("1")
 
     def run(self):
         while self.active.is_set():
             for dev_name, dev in self.parent.devices.items():
                 if dev.config["controls"]["enabled"]["var"].get():
-                    # look at the last element in the queue
-                    try:
-                        data = dev.data_queue[-1]
-                    except IndexError:
-                        continue
+                    with h5py.File(self.parent.config["hdf_fname"].get(), 'r') as f:
+                        grp = f[self.parent.run_name + "/" + dev.config["path"]]
+
+                        # look at the last row of data in the HDF dataset
+                        if dev.config["single_dataset"]:
+                            dset = grp[dev.config["name"]]
+                            if dset.shape[0] == 0:
+                                continue
+                            else:
+                                data = dset[-1]
+                        else:
+                            rec_num = len(grp) - 1
+                            if rec_num < 1:
+                                continue
+                            data = grp[dev.config["name"] + "_" + str(rec_num)][-1]
+
+                        # look at last event (if any) of the device
+                        events_dset = grp[dev.config["name"] + "_events"]
+                        if events_dset.shape[0] == 0:
+                            dev.last_event.set("(no event)")
+                        else:
+                            dev.last_event.set(str(events_dset[-1]))
 
                     # format display the data in a tkinter variable
                     if len(dev.config["shape"]) == 1:

@@ -6,6 +6,7 @@ import queue
 import h5py
 from influxdb import InfluxDBClient
 import numpy as np
+from decimal import Decimal
 
 class MonitoringGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -162,7 +163,7 @@ class Monitoring(threading.Thread):
 
                     # format display the data in a tkinter variable
                     if len(dev.config["shape"]) == 1:
-                        formatted_data = ["{0:.3f}".format(x) for x in data]
+                        formatted_data = [np.format_float_scientific(x, precision=3) for x in data]
                     else:
                         formatted_data = [str(x) for x in data[0][-1][:,-1]]
                     dev.last_data.set("\n".join(formatted_data))

@@ -82,7 +82,6 @@ class Hornet:
             return np.nan
         if (self.IG_status == "*"+self.address+" 1 IG ON") and (pressure > 1e-3):
             self.TurnIGOff()
-            raise ValueError("Pressure too high; turning IG off.")
         return pressure
 
     def ReadCGnPressure(self, n):

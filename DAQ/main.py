@@ -35,8 +35,8 @@ class HDF_writer(threading.Thread):
         self.active = threading.Event()
 
         # configuration parameters
-        self.filename = self.parent.config["hdf_fname"].get()
-        self.parent.run_name = str(int(time.time())) + " " + self.parent.config["run_name"].get()
+        self.filename = self.parent.config["files"]["hdf_fname"].get()
+        self.parent.run_name = str(int(time.time())) + " " + self.parent.config["general"]["run_name"].get()
 
         # create/open HDF file, groups, and datasets
         with h5py.File(self.filename, 'a') as f:
@@ -119,7 +119,7 @@ class HDF_writer(threading.Thread):
 
             # loop delay
             try:
-                time.sleep(float(self.parent.config["hdf_loop_delay"].get()))
+                time.sleep(float(self.parent.config["general"]["hdf_loop_delay"].get()))
             except ValueError:
                 time.sleep(0.1)
 
@@ -238,10 +238,10 @@ class ControlGUI(tk.Frame):
     def read_device_config(self):
         self.parent.devices = {}
 
-        if not os.path.isdir(self.parent.config["config_dir"].get()):
+        if not os.path.isdir(self.parent.config["files"]["config_dir"].get()):
             return
 
-        for f in glob.glob(self.parent.config["config_dir"].get() + "/*.ini"):
+        for f in glob.glob(self.parent.config["files"]["config_dir"].get() + "/*.ini"):
             params = configparser.ConfigParser()
             params.read(f)
 
@@ -403,7 +403,7 @@ class ControlGUI(tk.Frame):
         tk.Label(files_frame, text="Config dir:")\
                 .grid(row=0, column=0, sticky=tk.E)
         tk.Entry(files_frame, width=64,
-                textvariable=self.parent.config["config_dir"])\
+                textvariable=self.parent.config["files"]["config_dir"])\
                 .grid(row=0, column=1, sticky="ew")
         tk.Button(files_frame, text="Open...",
                 command = self.set_config_dir)\
@@ -413,7 +413,7 @@ class ControlGUI(tk.Frame):
         tk.Label(files_frame, text="HDF file:")\
                 .grid(row=1, column=0, sticky=tk.E)
         tk.Entry(files_frame, width=64,
-                textvariable=self.parent.config["hdf_fname"])\
+                textvariable=self.parent.config["files"]["hdf_fname"])\
                 .grid(row=1, column=1, sticky="ew")
         tk.Button(files_frame, text="Open...",
                 command = lambda: self.open_file("hdf_fname"))\
@@ -423,14 +423,14 @@ class ControlGUI(tk.Frame):
         tk.Label(files_frame, text="HDF writer loop delay:")\
                 .grid(row=2, column=0, sticky=tk.E)
         tk.Entry(files_frame,
-                textvariable=self.parent.config["hdf_loop_delay"])\
+                textvariable=self.parent.config["general"]["hdf_loop_delay"])\
                 .grid(row=2, column=1, sticky="nsew")
 
         # run name
         tk.Label(files_frame, text="Run name:")\
                 .grid(row=3, column=0, sticky=tk.E)
         run_name_entry = tk.Entry(files_frame,
-                textvariable=self.parent.config["run_name"])\
+                textvariable=self.parent.config["general"]["run_name"])\
                 .grid(row=3, column=1, sticky="nsew")
 
         ########################################
@@ -643,22 +643,22 @@ class ControlGUI(tk.Frame):
 
     def open_file(self, prop):
         fname = filedialog.asksaveasfilename(
-                initialdir = self.parent.config[prop].get(),
+                initialdir = self.parent.config["files"][prop].get(),
                 title = "Select file",
                 filetypes = (("HDF files","*.h5"),("all files","*.*")))
         if not fname:
             return
         else:
-            self.parent.config[prop].set(fname)
+            self.parent.config["files"][prop].set(fname)
 
     def open_dir(self, prop):
         fname = filedialog.askdirectory(
-                initialdir = self.parent.config[prop].get(),
+                initialdir = self.parent.config["files"][prop].get(),
                 title = "Select directory")
         if not fname:
             return
         else:
-            self.parent.config[prop].set(fname)
+            self.parent.config["files"][prop].set(fname)
 
     def start_control(self):
         # check we're not running already
@@ -697,9 +697,9 @@ class ControlGUI(tk.Frame):
         self.status_message.set("Running")
 
         # make all plots display the current run and file and update parameters
-        HDF_fname = self.parent.config["hdf_fname"].get()
+        HDF_fname = self.parent.config["files"]["hdf_fname"].get()
         self.parent.plots.refresh_run_list(HDF_fname)
-        self.parent.config["plotting_hdf_fname"].set(HDF_fname)
+        self.parent.config["files"]["plotting_hdf_fname"].set(HDF_fname)
         self.parent.plots.refresh_all_parameter_lists()
 
     def stop_control(self):
@@ -735,9 +735,11 @@ class CentrexGUI(tk.Frame):
         self.config = {"time_offset":0}
         settings = configparser.ConfigParser()
         settings.read("config/settings.ini")
-        for key in settings["files"]:
-            self.config[key] = tk.StringVar()
-            self.config[key].set(settings["files"][key])
+        for config_group, configs in settings.items():
+            self.config[config_group] = {}
+            for key, val in configs.items():
+                self.config[config_group][key] = tk.StringVar()
+                self.config[config_group][key].set(val)
 
         # GUI elements in a tabbed interface
         self.nb = ttk.Notebook(self)

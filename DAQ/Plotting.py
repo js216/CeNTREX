@@ -56,7 +56,7 @@ class PlotsGUI(tk.Frame):
         tk.Label(ctrls_f, text="HDF file:")\
                 .grid(row=1, column=0)
         tk.Entry(ctrls_f,
-                textvariable=self.parent.config["plotting_hdf_fname"])\
+                textvariable=self.parent.config["files"]["plotting_hdf_fname"])\
                 .grid(row=1, column=1, columnspan=5, padx=10, sticky="ew")
         tk.Button(ctrls_f, text="Open...",
                 command = lambda: self.open_HDF_file("plotting_hdf_fname"))\
@@ -68,7 +68,7 @@ class PlotsGUI(tk.Frame):
     def open_HDF_file(self, prop):
         # ask for a file name
         fname = filedialog.askopenfilename(
-                initialdir = self.parent.config[prop].get(),
+                initialdir = self.parent.config["files"][prop].get(),
                 title = "Select file",
                 filetypes = (("HDF files","*.h5"),("all files","*.*")))
 
@@ -79,7 +79,7 @@ class PlotsGUI(tk.Frame):
         # check it's a valid HDF file
         try:
             with h5py.File(fname, 'r') as f:
-                self.parent.config[prop].set(fname)
+                self.parent.config["files"][prop].set(fname)
                 self.refresh_run_list(fname)
         except OSError:
             messagebox.showerror("File error", "Not a valid HDF file.")
@@ -163,7 +163,7 @@ class PlotsGUI(tk.Frame):
         del_b.grid(row=0, column=6, sticky='e', padx=10)
 
         # update list of runs if a file was supplied
-        fname = self.parent.config["plotting_hdf_fname"].get()
+        fname = self.parent.config["files"]["plotting_hdf_fname"].get()
         try:
             with h5py.File(fname, 'r') as f:
                 self.run_list = list(f.keys())
@@ -355,7 +355,7 @@ class Plotter(tk.Frame):
 
         # check run is valid
         try:
-            with h5py.File(self.parent.config["plotting_hdf_fname"].get(), 'r') as f:
+            with h5py.File(self.parent.config["files"]["plotting_hdf_fname"].get(), 'r') as f:
                 if not self.run_var.get() in f.keys():
                     self.stop_animation()
                     messagebox.showerror("Run error", "Run not found in the HDF file.")
@@ -366,7 +366,7 @@ class Plotter(tk.Frame):
                 return NonFalse
 
         # get data
-        with h5py.File(self.parent.config["hdf_fname"].get(), 'r') as f:
+        with h5py.File(self.parent.config["files"]["hdf_fname"].get(), 'r') as f:
             try:
                 grp = f[self.run_var.get() + "/" + dev.config["path"]]
                 if dev.config["single_dataset"]:

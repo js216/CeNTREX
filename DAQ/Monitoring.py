@@ -19,10 +19,31 @@ class MonitoringGUI(tk.Frame):
         self.parent.nb.add(self.frame, text="Monitoring")
 
         self.place_device_specific_items()
+        self.monitoring = Monitoring(self.parent)
 
-        # monitoring controls
+        # monitoring controls frame
         self.ctrls_f = tk.Frame(self.frame)
         self.ctrls_f.grid(row=0, column=0, padx=10, pady=10)
+
+        # general monitoring controls
+        self.gen_f = tk.LabelFrame(self.ctrls_f, text="General")
+        self.gen_f.grid(row=0, column=0, padx=10, pady=10)
+        tk.Label(self.gen_f, text="Loop delay [s]:").grid(row=0, column=0)
+        tk.Entry(self.gen_f, textvariable=self.monitoring.dt_var).grid(row=0, column=1)
+
+        # InfluxDB controls
+        conf = self.parent.config["influxdb"]
+        self.db_f = tk.LabelFrame(self.ctrls_f, text="InfluxDB")
+        self.db_f.grid(row=0, column=1, padx=10, pady=10)
+        tk.Label(self.db_f, text="Host IP").grid(row=0, column=0, sticky='e')
+        tk.Entry(self.db_f, textvariable=conf["host"]).grid(row=0, column=1, sticky='w')
+        tk.Label(self.db_f, text="Port").grid(row=1, column=0, sticky='e')
+        tk.Entry(self.db_f, textvariable=conf["port"]).grid(row=1, column=1, sticky='w')
+        tk.Label(self.db_f, text="Username").grid(row=2, column=0, sticky='e')
+        tk.Entry(self.db_f, textvariable=conf["username"]).grid(row=2, column=1, sticky='w')
+        tk.Label(self.db_f, text="Pasword").grid(row=3, column=0, sticky='e')
+        tk.Entry(self.db_f, textvariable=conf["password"]).grid(row=3, column=1, sticky='w')
+
 
     def place_device_specific_items(self):
         # frame for device data
@@ -85,12 +106,7 @@ class MonitoringGUI(tk.Frame):
             dev.units.set("\n".join(units))
 
     def start_monitoring(self):
-        self.monitoring = Monitoring(self.parent)
         self.monitoring.active.set()
-
-        tk.Label(self.ctrls_f, text="Loop delay [s]:").grid(row=0, column=0)
-        tk.Entry(self.ctrls_f, textvariable=self.monitoring.dt_var).grid(row=0, column=1)
-
         self.monitoring.start()
 
     def stop_monitoring(self):
@@ -102,23 +118,26 @@ class Monitoring(threading.Thread):
         threading.Thread.__init__(self)
         self.parent = parent
         self.active = threading.Event()
+
+        # variables
         self.dt_var = tk.StringVar()
         self.dt_var.set("1")
 
         # connect to InfluxDB
+        conf = self.parent.config["influxdb"]
         self.influxdb_client = InfluxDBClient(
-                host='172.28.82.114',
-                port=8086,
-                username='bsmonitor',
-                password='molecules',
+                host     = conf["host"].get(),
+                port     = conf["port"].get(),
+                username = conf["username"].get(),
+                password = conf["password"].get(),
             )
-        self.influxdb_client.switch_database(self.parent.config["influxdb_database"].get())
+        self.influxdb_client.switch_database(self.parent.config["influxdb"]["database"].get())
 
     def run(self):
         while self.active.is_set():
             for dev_name, dev in self.parent.devices.items():
                 if dev.config["controls"]["enabled"]["var"].get():
-                    with h5py.File(self.parent.config["hdf_fname"].get(), 'r') as f:
+                    with h5py.File(self.parent.config["files"]["hdf_fname"].get(), 'r') as f:
                         grp = f[self.parent.run_name + "/" + dev.config["path"]]
 
                         # look at the last row of data in the HDF dataset

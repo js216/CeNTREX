@@ -127,7 +127,7 @@ class PXIe5171:
                     timeout       = datetime.timedelta(seconds=1.0)
                 )
         except niscope.errors.DriverError as err:
-            loggling.warning(err)
+            logging.warning(err)
             return np.nan
 
         # increment record count

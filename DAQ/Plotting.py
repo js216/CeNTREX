@@ -12,6 +12,7 @@ import csv
 import gc
 import h5py
 import logging
+from scipy import integrate
 
 class PlotsGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -196,12 +197,6 @@ class Plotter(tk.Frame):
         self.plot_drawn = False
         self.record_number = tk.StringVar()
 
-        # for displaying a function of the data
-        self.fn = False
-        self.fn_var = tk.StringVar()
-        self.fn_var.set("enter a function to evaluate on data, e.g. np.sqrt(x)")
-        self.fn_entry = tk.Entry(self.f, textvariable=self.fn_var)
-
         # select device
         self.dev_list = [dev_name.strip() for dev_name in self.parent.devices]
         if not self.dev_list:
@@ -255,8 +250,6 @@ class Plotter(tk.Frame):
         dt_entry = tk.Entry(self.f, textvariable=self.dt_var, width=num_width)
         dt_entry.grid(row=1, column=7, columnspan=3)
         dt_entry.bind("<Return>", self.change_animation_dt)
-        tk.Button(self.f, text="f(x)", command=self.toggle_fn)\
-                .grid(row=0, column=3, padx=2)
         self.play_pause_button = tk.Button(self.f, text="\u25b6", command=self.start_animation)
         self.play_pause_button.grid(row=0, column=4, padx=2)
         tk.Button(self.f, text="Log/Lin", command=self.toggle_log)\
@@ -264,16 +257,33 @@ class Plotter(tk.Frame):
         tk.Button(self.f, text="\u26ab / \u2014", command=self.toggle_points)\
                 .grid(row=0, column=6, padx=2)
 
+        # for displaying a function of the data
+        self.fn = False
+        self.fn_var = tk.StringVar()
+        self.fn_var.set("np.sum(x)")
+        self.x = []
+        self.y = []
+        tk.Button(self.f, text="f(x)", command=self.toggle_fn)\
+                .grid(row=0, column=3, padx=2)
+        self.fn_entry = tk.Entry(self.f, textvariable=self.fn_var)
+        self.fn_clear_button = tk.Button(self.f, text="Clear", command=self.clear_fn)
+
+    def clear_fn(self):
+        if self.fn:
+            self.x, self.y = [], []
+
     def toggle_fn(self):
         # toggle the fn flag
         self.fn = not self.fn
 
         if self.fn:
             # display function controls
-            self.fn_entry.grid(row=3, columnspan=7, sticky='nsew', padx=10, pady=10)
+            self.fn_entry.grid(row=3, column=0, columnspan=6, sticky='nsew', padx=10, pady=10)
+            self.fn_clear_button.grid(row=3, column=7, sticky='nsew', padx=10, pady=10)
         else:
             # hide function controls
             self.fn_entry.grid_remove()
+            self.fn_clear_button.grid_remove()
 
     # whether to draw with just lines or also with points
     def toggle_points(self):
@@ -390,66 +400,74 @@ class Plotter(tk.Frame):
                 messagebox.showerror("File error", "Not a valid HDF file.")
                 return NonFalse
 
-        # get data
+        # check dataset exists in the run
         with h5py.File(self.parent.config["files"]["hdf_fname"].get(), 'r') as f:
             try:
                 grp = f[self.run_var.get() + "/" + dev.config["path"]]
-
-                # make sure there is enough data collected to plot it
-                if not dev.config["single_dataset"]:
-                    if len(grp) < 2:
-                        self.stop_animation()
-                        return None
-
-                # if displaying a function of the data (e.g., integrated data)
-                if self.fn:
-                    # when each acquisition is its own dataset, evaluate a
-                    # function of the entire dataset (e.g. integral of entire
-                    # trace plotted vs trace index)
-                    if not dev.config["single_dataset"]:
-                        x = np.arange(dset_len)
-                        y = []
-                        for rec_num in range(len(grp)):
-                            dset = grp[dev.config["name"] + "_" + str(rec_num)]
-                            trace_y = dset[:, self.param_list.index(param)]
-                            y.append(self.evaluate_fn(y))
-                        y = np.array(y)
-
-                        # check y has correct shape
-                        if x.shape != y.shape:
-                            logging.warning("Function returns wrong shape data")
-                            y = dset[:, self.param_list.index(param)]
-
-                    # when all acquisitions are in one dataset, evaluate a
-                    # function of individual datapoints (e.g. sqrt of the entire trace)
-                    else:
-                        dset = grp[dev.config["name"]]
-                        x = dset[:, 0]
-                        y = self.evaluate_fn(dset[:, self.param_list.index(param)])
-
-                        # check y has correct shape
-                        if x.shape != y.shape:
-                            logging.warning("Function returns wrong shape data")
-                            y = dset[:, self.param_list.index(param)]
-
-                # if displaying data as recorded (not evaluating a function of the data)
-                else: 
-                    if dev.config["single_dataset"]:
-                        dset = grp[dev.config["name"]]
-                        x = dset[:, 0]
-                        y = dset[:, self.param_list.index(param)]
-                    else: # if each acquisition is its own dataset, return latest run only
-                        rec_num = len(grp) - 1
-                        self.record_number.set(rec_num)
-                        dset = grp[dev.config["name"] + "_" + str(rec_num)]
-                        x = np.arange(dset_len)
-                        y = dset[:, self.param_list.index(param)]
-
             except KeyError:
                 if time.time() - self.parent.config["time_offset"] > 5:
                     messagebox.showerror("Data error", "Dataset not found in this run.")
                 self.stop_animation()
                 return None
+
+        # get data
+        with h5py.File(self.parent.config["files"]["hdf_fname"].get(), 'r') as f:
+            grp = f[self.run_var.get() + "/" + dev.config["path"]]
+
+            # make sure there is enough data collected to plot it
+            if not dev.config["single_dataset"]:
+                if len(grp) < 2:
+                    self.stop_animation()
+                    return None
+
+            # if displaying a function of the data (e.g., integrated data)
+            if self.fn:
+                # when each acquisition is its own dataset, evaluate a
+                # scalar-valued function of the latest dataset (e.g. integral of
+                # entire trace plotted vs trace index)
+                if not dev.config["single_dataset"]:
+                    rec_num = len(grp) - 1
+                    dset = grp[dev.config["name"] + "_" + str(rec_num)]
+                    trace_y = dset[:, self.param_list.index(param)]
+                    # if the most recent value hasn't been calculated yet, calculate it
+                    if len(self.x) == 0 or self.x[-1] != rec_num:
+                        self.x.append(rec_num)
+                        self.y.append(self.evaluate_fn(trace_y))
+                    # make sure the x, y arrays have correct shape
+                    try:
+                        x, y = np.array(self.x), np.array(self.y)
+                    except ValueError: # else just return the trace
+                        rec_num = len(grp) - 1
+                        self.record_number.set(rec_num)
+                        dset = grp[dev.config["name"] + "_" + str(rec_num)]
+                        x = np.arange(dset.shape[0])
+                        y = dset[:, self.param_list.index(param)]
+
+                # when all acquisitions are in one dataset, evaluate a
+                # function of individual datapoints (e.g. sqrt of the entire trace)
+                else:
+                    dset = grp[dev.config["name"]]
+                    x = dset[:, 0]
+                    y = self.evaluate_fn(dset[:, self.param_list.index(param)])
+
+                    # check y has correct shape
+                    if x.shape != y.shape:
+                        logging.warning("Function returns wrong shape data")
+                        x = np.arange(dset.shape[0])
+                        y = dset[:, self.param_list.index(param)]
+
+            # if displaying data as recorded (not evaluating a function of the data)
+            else: 
+                if dev.config["single_dataset"]:
+                    dset = grp[dev.config["name"]]
+                    x = dset[:, 0]
+                    y = dset[:, self.param_list.index(param)]
+                else: # if each acquisition is its own dataset, return latest run only
+                    rec_num = len(grp) - 1
+                    self.record_number.set(rec_num)
+                    dset = grp[dev.config["name"] + "_" + str(rec_num)]
+                    x = np.arange(dset.shape[0])
+                    y = dset[:, self.param_list.index(param)]
 
             # range of data to obtain
             try:
@@ -467,7 +485,7 @@ class Plotter(tk.Frame):
                 max_pts = int(self.parent.plots.max_pts.get())
             except ValueError:
                 max_pts = 10000
-            dset_len = dset.shape[0]
+            dset_len = len(x)
             slice_length = (i2 if i2>=0 else dset_len+i2) - (i1 if i1>=0 else dset_len+i1)
             stride = 1 if slice_length < max_pts else int(slice_length/max_pts)
 
@@ -493,10 +511,18 @@ class Plotter(tk.Frame):
 
         # apply the function to the data
         try:
-            return fn(data)
+            ret_val = fn(data)
         except (SyntaxError, AttributeError) as err:
             logging.warning("Cannot evaluate function: " + str(err))
             return data
+
+        # make sure the data can be of type float
+        try:
+            ret_val = float(ret_val)
+        except ValueError:
+            return data
+
+        return ret_val
 
     def new_plot(self):
         data = self.get_data()
@@ -578,7 +604,6 @@ class Plotter(tk.Frame):
             try:
                 y0, y1 = float(self.y0_var.get()), float(self.y1_var.get())
                 if y0 >= y1:
-                    print("a")
                     raise ValueError
             except ValueError as err:
                 try:

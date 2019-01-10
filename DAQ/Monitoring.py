@@ -165,7 +165,10 @@ class Monitoring(threading.Thread):
                     if len(dev.config["shape"]) == 1:
                         formatted_data = [np.format_float_scientific(x, precision=3) for x in data]
                     else:
-                        formatted_data = [str(x) for x in data[0][-1][:,-1]]
+                        if len(data) > 1:
+                            formatted_data = [str(x) for x in data[0][-1][:,-1]]
+                        else:
+                            formatted_data = str(data)
                     dev.last_data.set("\n".join(formatted_data))
 
                     # find out and display the data queue length
@@ -173,6 +176,9 @@ class Monitoring(threading.Thread):
 
                     # write slow data to InfluxDB
                     if not dev.config["single_dataset"]:
+                        continue
+                    if self.parent.config["influxdb"]["enabled"].get().strip() == "False":
+                        print ("aa")
                         continue
                     fields = {}
                     for col,val in zip(dev.col_names_list[1:], data[1:]):

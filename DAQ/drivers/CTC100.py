@@ -163,3 +163,87 @@ class CTC100:
         except pyvisa.errors.VisaIOError as err:
             logging.warning("CTC100 warning in SetOut2Src(): " + str(err))
             return np.nan
+
+    def SetOut1P(self, param):
+        # parameter sanity check
+        try:
+            val = float(param)
+        except ValueError:
+            logging.warning("CTC100 warning in SetOut1P(): invalid parameter " + str(param))
+            return np.nan
+
+        try:
+            return self.instr.write('Out1.PID.P ' + str(val))
+        except pyvisa.errors.VisaIOError as err:
+            logging.warning("CTC100 warning in SetOut1P(): " + str(err))
+            return np.nan
+
+    def SetOut1I(self, param):
+        # parameter sanity check
+        try:
+            val = float(param)
+        except ValueError:
+            logging.warning("CTC100 warning in SetOut1I(): invalid parameter " + str(param))
+            return np.nan
+
+        try:
+            return self.instr.write('Out1.PID.I ' + str(val))
+        except pyvisa.errors.VisaIOError as err:
+            logging.warning("CTC100 warning in SetOut1I(): " + str(err))
+            return np.nan
+
+    def SetOut1D(self, param):
+        # parameter sanity check
+        try:
+            val = float(param)
+        except ValueError:
+            logging.warning("CTC100 warning in SetOut1D(): invalid parameter " + str(param))
+            return np.nan
+
+        try:
+            return self.instr.write('Out1.PID.D ' + str(val))
+        except pyvisa.errors.VisaIOError as err:
+            logging.warning("CTC100 warning in SetOut1D(): " + str(err))
+            return np.nan
+
+    def SetOut2P(self, param):
+        # parameter sanity check
+        try:
+            val = float(param)
+        except ValueError:
+            logging.warning("CTC100 warning in SetOut2P(): invalid parameter " + str(param))
+            return np.nan
+
+        try:
+            return self.instr.write('Out2.PID.P ' + str(val))
+        except pyvisa.errors.VisaIOError as err:
+            logging.warning("CTC100 warning in SetOut2P(): " + str(err))
+            return np.nan
+
+    def SetOut2I(self, param):
+        # parameter sanity check
+        try:
+            val = float(param)
+        except ValueError:
+            logging.warning("CTC100 warning in SetOut2I(): invalid parameter " + str(param))
+            return np.nan
+
+        try:
+            return self.instr.write('Out2.PID.I ' + str(val))
+        except pyvisa.errors.VisaIOError as err:
+            logging.warning("CTC100 warning in SetOut2I(): " + str(err))
+            return np.nan
+
+    def SetOut2D(self, param):
+        # parameter sanity check
+        try:
+            val = float(param)
+        except ValueError:
+            logging.warning("CTC100 warning in SetOut2D(): invalid parameter " + str(param))
+            return np.nan
+
+        try:
+            return self.instr.write('Out2.PID.D ' + str(val))
+        except pyvisa.errors.VisaIOError as err:
+            logging.warning("CTC100 warning in SetOut2D(): " + str(err))
+            return np.nan

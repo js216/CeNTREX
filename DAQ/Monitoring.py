@@ -31,6 +31,13 @@ class MonitoringGUI(tk.Frame):
         self.gen_f.grid(row=0, column=0, padx=10, pady=10)
         tk.Label(self.gen_f, text="Loop delay [s]:").grid(row=0, column=0)
         tk.Entry(self.gen_f, textvariable=self.monitoring.dt_var).grid(row=0, column=1)
+        tk.Label(self.gen_f, text="InfluxDB enabled:").grid(row=1, column=0)
+        tk.Checkbutton(
+                self.gen_f,
+                variable=self.parent.config["influxdb"]["enabled"],
+                onvalue = "True",
+                offvalue = "False",
+            ).grid(row=1, column=1, sticky='w')
 
         # InfluxDB controls
         conf = self.parent.config["influxdb"]
@@ -175,10 +182,9 @@ class Monitoring(threading.Thread):
                     dev.qsize.set(len(dev.data_queue))
 
                     # write slow data to InfluxDB
-                    if not dev.config["single_dataset"]:
-                        continue
                     if self.parent.config["influxdb"]["enabled"].get().strip() == "False":
-                        print ("aa")
+                        continue
+                    if not dev.config["single_dataset"]:
                         continue
                     fields = {}
                     for col,val in zip(dev.col_names_list[1:], data[1:]):

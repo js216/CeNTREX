@@ -20,6 +20,9 @@ class PlotsGUI(tk.Frame):
         # variable to keep track of the plots
         self.all_plots = {}
 
+        # whether to display data or a function of the data
+        self.fn = False
+
         # main frame for all PlotsGUI elements
         self.nb_frame = tk.Frame(self.parent.nb)
         self.parent.nb.add(self.nb_frame, text="Plots")
@@ -243,12 +246,21 @@ class Plotter(tk.Frame):
         dt_entry = tk.Entry(self.f, textvariable=self.dt_var, width=num_width)
         dt_entry.grid(row=1, column=6, columnspan=3)
         dt_entry.bind("<Return>", self.change_animation_dt)
+        tk.Button(self.f, text="f(x)", command=self.toggle_fn)
         self.play_pause_button = tk.Button(self.f, text="\u25b6", command=self.start_animation)
         self.play_pause_button.grid(row=0, column=3, padx=2)
         tk.Button(self.f, text="Log/Lin", command=self.toggle_log)\
                 .grid(row=0, column=4, padx=2)
         tk.Button(self.f, text="\u26ab / \u2014", command=self.toggle_points)\
                 .grid(row=0, column=5, padx=2)
+
+    def toggle_fn(self):
+        if self.fn:
+            self.fn = False
+            # hide function controls
+        else:
+            self.fn = True
+            # display function controls
 
     # whether to draw with just lines or also with points
     def toggle_points(self):

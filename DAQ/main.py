@@ -774,7 +774,16 @@ class CentrexGUI(tk.Frame):
         self.monitoring = MonitoringGUI(self, *args, **kwargs)
         self.plots      = PlotsGUI(self, *args, **kwargs)
 
+    def on_closing(self):
+        if self.control.status == "running":
+            if messagebox.askokcancel("Confirm quit", "Control running. Do you really want to quit?"):
+                root.destroy()
+        else:
+                root.destroy()
+
 if __name__ == "__main__":
     root = tk.Tk()
-    CentrexGUI(root).grid()
+    mainapp = CentrexGUI(root)
+    mainapp.grid()
+    root.protocol("WM_DELETE_WINDOW", mainapp.on_closing)
     root.mainloop()

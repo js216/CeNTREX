@@ -615,12 +615,20 @@ class Plotter(tk.Frame):
             self.ax.set_ylim((y0, y1))
 
             # update plot labels
-            if self.parent.devices[self.dev_var.get()].config["single_dataset"]:
-                self.ax.set_xlabel("time [s]")
+            if self.fn:
+                if self.parent.devices[self.dev_var.get()].config["single_dataset"]:
+                    self.ax.set_xlabel("time [s]")
+                else:
+                    self.ax.set_xlabel("dset number")
+                    self.ax.set_title(self.fn_var.get())
+                self.ax.set_ylabel(param + " [" + unit.strip() + "]")
             else:
-                self.ax.set_xlabel("sample number")
-                self.ax.set_title("record #"+str(self.record_number.get()))
-            self.ax.set_ylabel(param + " [" + unit.strip() + "]")
+                if self.parent.devices[self.dev_var.get()].config["single_dataset"]:
+                    self.ax.set_xlabel("time [s]")
+                else:
+                    self.ax.set_xlabel("sample number")
+                    self.ax.set_title("record #"+str(self.record_number.get()))
+                self.ax.set_ylabel(param + " [" + unit.strip() + "]")
 
             # redraw plot
             self.canvas.draw()

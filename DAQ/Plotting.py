@@ -48,12 +48,17 @@ class PlotsGUI(tk.Frame):
         dt_entry.grid(row=0, column=4, sticky='w', padx=5)
         dt_entry.bind("<Return>", self.change_all_animation_dt)
 
+        # control to select how many data points to display in a graph (to speed up plotting)
+        self.max_pts = tk.StringVar()
+        self.max_pts.set("max_pts")
+        tk.Entry(ctrls_f, textvariable=self.max_pts, width=13).grid(row=0, column=6, sticky='w', padx=5)
+
         # button to add add plot in the specified column
         self.col_var = tk.StringVar()
         self.col_var.set("plot column")
-        tk.Entry(ctrls_f, textvariable=self.col_var, width=13).grid(row=0, column=5, sticky='w', padx=5)
+        tk.Entry(ctrls_f, textvariable=self.col_var, width=13).grid(row=0, column=7, sticky='w', padx=5)
         tk.Button(ctrls_f, text="New plot ...", command=self.add_plot)\
-            .grid(row=0, column=6, sticky='e', padx=10)
+            .grid(row=0, column=8, sticky='e', padx=10)
 
         # the HDF file we're currently plotting from
         tk.Label(ctrls_f, text="HDF file:")\
@@ -163,7 +168,7 @@ class PlotsGUI(tk.Frame):
         # button to delete plot
         del_b = tk.Button(plot.f, text="\u274c", command=lambda plot=plot,
                 row=row, col=col: self.delete_plot(row,col,plot))
-        del_b.grid(row=0, column=6, sticky='e', padx=10)
+        del_b.grid(row=0, column=7, sticky='e', padx=10)
 
         # update list of runs if a file was supplied
         fname = self.parent.config["files"]["plotting_hdf_fname"].get()
@@ -226,41 +231,45 @@ class Plotter(tk.Frame):
         self.x0_var = tk.StringVar()
         self.x0_var.set("x0")
         tk.Entry(self.f, textvariable=self.x0_var, width=num_width)\
-                .grid(row=1, column=2, sticky='w', padx=1)
+                .grid(row=1, column=2, columnspan=2, sticky='w', padx=1)
         self.x1_var = tk.StringVar()
         self.x1_var.set("x1")
         tk.Entry(self.f, textvariable=self.x1_var, width=num_width)\
-                .grid(row=1, column=3, sticky='w', padx=1)
+                .grid(row=1, column=4, sticky='w', padx=1)
         self.y0_var = tk.StringVar()
         self.y0_var.set("y0")
         tk.Entry(self.f, textvariable=self.y0_var, width=num_width)\
-                .grid(row=1, column=4, sticky='w', padx=1)
+                .grid(row=1, column=5, sticky='w', padx=1)
         self.y1_var = tk.StringVar()
         self.y1_var.set("y1")
         tk.Entry(self.f, textvariable=self.y1_var, width=num_width)\
-                .grid(row=1, column=5, sticky='w', padx=1)
+                .grid(row=1, column=6, sticky='w', padx=1)
 
         # control buttons
         self.dt_var = tk.StringVar()
         self.dt_var.set("dt")
         dt_entry = tk.Entry(self.f, textvariable=self.dt_var, width=num_width)
-        dt_entry.grid(row=1, column=6, columnspan=3)
+        dt_entry.grid(row=1, column=7, columnspan=3)
         dt_entry.bind("<Return>", self.change_animation_dt)
-        tk.Button(self.f, text="f(x)", command=self.toggle_fn)
+        tk.Button(self.f, text="f(x)", command=self.toggle_fn)\
+                .grid(row=0, column=3, padx=2)
         self.play_pause_button = tk.Button(self.f, text="\u25b6", command=self.start_animation)
-        self.play_pause_button.grid(row=0, column=3, padx=2)
+        self.play_pause_button.grid(row=0, column=4, padx=2)
         tk.Button(self.f, text="Log/Lin", command=self.toggle_log)\
-                .grid(row=0, column=4, padx=2)
-        tk.Button(self.f, text="\u26ab / \u2014", command=self.toggle_points)\
                 .grid(row=0, column=5, padx=2)
+        tk.Button(self.f, text="\u26ab / \u2014", command=self.toggle_points)\
+                .grid(row=0, column=6, padx=2)
 
     def toggle_fn(self):
+        # toggle the fn flag
+        self.fn = not self.fn
+
         if self.fn:
-            self.fn = False
-            # hide function controls
-        else:
-            self.fn = True
+            pass
             # display function controls
+        else:
+            pass
+            # hide function controls
 
     # whether to draw with just lines or also with points
     def toggle_points(self):
@@ -408,10 +417,14 @@ class Plotter(tk.Frame):
             if i2 >= dset.shape[0] - 1:
                 i1, i2 = 0, -1
 
-            # don't return more than about 100 points
+            # don't return more than about max_pts points
+            try:
+                max_pts = int(self.parent.plots.max_pts.get())
+            except ValueError:
+                max_pts = 10000
             dset_len = dset.shape[0]
             slice_length = (i2 if i2>=0 else dset_len+i2) - (i1 if i1>=0 else dset_len+i1)
-            stride = 1 if slice_length < 100 else int(slice_length/100)
+            stride = 1 if slice_length < max_pts else int(slice_length/max_pts)
 
             # cut data
             if dev.config["single_dataset"]:

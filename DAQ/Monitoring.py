@@ -20,7 +20,6 @@ class MonitoringGUI(tk.Frame):
         self.parent.nb.add(self.frame, text="Monitoring")
 
         self.place_device_specific_items()
-        self.monitoring = Monitoring(self.parent)
 
         # monitoring controls frame
         self.ctrls_f = tk.Frame(self.frame)
@@ -30,7 +29,9 @@ class MonitoringGUI(tk.Frame):
         self.gen_f = tk.LabelFrame(self.ctrls_f, text="General")
         self.gen_f.grid(row=0, column=0, padx=10, pady=10)
         tk.Label(self.gen_f, text="Loop delay [s]:").grid(row=0, column=0)
-        tk.Entry(self.gen_f, textvariable=self.monitoring.dt_var).grid(row=0, column=1)
+        self.parent.config["monitoring_dt"] = tk.StringVar()
+        self.parent.config["monitoring_dt"].set("1")
+        tk.Entry(self.gen_f, textvariable=self.parent.config["monitoring_dt"]).grid(row=0, column=1)
         tk.Label(self.gen_f, text="InfluxDB enabled:").grid(row=1, column=0)
         tk.Checkbutton(
                 self.gen_f,
@@ -51,7 +52,6 @@ class MonitoringGUI(tk.Frame):
         tk.Entry(self.db_f, textvariable=conf["username"]).grid(row=2, column=1, sticky='w')
         tk.Label(self.db_f, text="Pasword").grid(row=3, column=0, sticky='e')
         tk.Entry(self.db_f, textvariable=conf["password"]).grid(row=3, column=1, sticky='w')
-
 
     def place_device_specific_items(self):
         # frame for device data
@@ -114,6 +114,7 @@ class MonitoringGUI(tk.Frame):
             dev.units.set("\n".join(units))
 
     def start_monitoring(self):
+        self.monitoring = Monitoring(self.parent)
         self.monitoring.active.set()
         self.monitoring.start()
 
@@ -126,10 +127,6 @@ class Monitoring(threading.Thread):
         threading.Thread.__init__(self)
         self.parent = parent
         self.active = threading.Event()
-
-        # variables
-        self.dt_var = tk.StringVar()
-        self.dt_var.set("1")
 
         # connect to InfluxDB
         conf = self.parent.config["influxdb"]
@@ -144,7 +141,7 @@ class Monitoring(threading.Thread):
     def run(self):
         while self.active.is_set():
             for dev_name, dev in self.parent.devices.items():
-                if dev.config["controls"]["enabled"]["var"].get():
+                if dev.control_started:
                     with h5py.File(self.parent.config["files"]["hdf_fname"].get(), 'r') as f:
                         grp = f[self.parent.run_name + "/" + dev.config["path"]]
 
@@ -197,6 +194,6 @@ class Monitoring(threading.Thread):
 
             # loop delay
             try:
-                time.sleep(float(self.dt_var.get()))
+                time.sleep(float(self.parent.config["monitoring_dt"].get()))
             except ValueError:
                 time.sleep(1)

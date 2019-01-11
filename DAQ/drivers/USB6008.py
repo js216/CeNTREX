@@ -41,6 +41,13 @@ class USB6008:
     def ReadValue(self):
         return [time.time()-self.time_offset, self.ReadFlowSignal(), self.setpoint_sccm]
 
+    def GetWarnings(self):
+        flood = self.CheckFlood()
+        if flood == "no flood":
+            return None
+        else:
+            return [time.time(), flood]
+
     #################################################################
     ##########              READ COMMANDS                  ##########
     #################################################################

@@ -47,6 +47,9 @@ class CTC100:
             ret_val.append(self.getLog(ch))
         return ret_val
 
+    def GetWarnings(self):
+        return None
+
     def getLog(self, channel):
         if not channel in ["In 1", "In 2", "In 3", "In 4", "Out 1", "Out 2",
                 "AIO 1", "AIO 2", "AIO 3", "AIO 4", "V1", "V2", "V3", "DIO", "Relays"]:

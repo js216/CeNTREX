@@ -49,7 +49,7 @@ class HDF_writer(threading.Thread):
                 with h5py.File(self.filename, 'a') as fname:
                     self.write_all_queues_to_HDF(fname)
             except OSError as err:
-                logging.warning("HDF_writer error: ", err)
+                logging.warning("HDF_writer error: " + str(err))
 
             # loop delay
             try:
@@ -62,7 +62,7 @@ class HDF_writer(threading.Thread):
             with h5py.File(self.filename, 'a') as fname:
                 self.write_all_queues_to_HDF(fname)
         except OSError as err:
-            logging.warning("HDF_writer error: ", err)
+            logging.warning("HDF_writer error: " + str(err))
 
     def write_all_queues_to_HDF(self, fname):
             root = fname.require_group(self.parent.run_name)

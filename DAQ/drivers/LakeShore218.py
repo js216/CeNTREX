@@ -37,6 +37,9 @@ class LakeShore218:
     def ReadValue(self):
         return [time.time()-self.time_offset] + self.QueryKelvinReading()
 
+    def GetWarnings(self):
+        return None
+
     #################################################################
     ##########           IEEE-488/SERIAL COMMANDS          ##########
     #################################################################

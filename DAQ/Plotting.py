@@ -634,6 +634,7 @@ class Plotter(tk.Frame):
             else:
                 if self.parent.devices[self.dev_var.get()].config["single_dataset"]:
                     self.ax.set_xlabel("time [s]")
+                    self.ax.set_title("")
                 else:
                     self.ax.set_xlabel("sample number")
                     self.ax.set_title("record #"+str(self.record_number.get()))

@@ -52,6 +52,9 @@ class Hornet:
     def ReadValue(self):
         return [time.time()-self.time_offset, self.ReadSystemPressure()]
 
+    def GetWarnings(self):
+        return None
+
     #################################################################
     ##########           SERIAL COMMANDS                   ##########
     #################################################################

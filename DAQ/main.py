@@ -44,6 +44,9 @@ class Device(threading.Thread):
         # for sending commands to the device
         self.commands = []
 
+        # for warnings about device abnormal condiotion
+        self.warnings = []
+
         # the data and events queues
         self.data_queue = deque()
         self.events_queue = deque()
@@ -105,6 +108,11 @@ class Device(threading.Thread):
                 # check device is enabled
                 if not self.config["controls"]["enabled"]["var"].get():
                     continue
+
+                # check device for abnormal conditions
+                warning = device.GetWarnings()
+                if warning:
+                    self.warnings.append(warning)
 
                 # record numerical values
                 last_data = device.ReadValue()

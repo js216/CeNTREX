@@ -7,6 +7,7 @@ import h5py
 from influxdb import InfluxDBClient
 import numpy as np
 from decimal import Decimal
+import logging
 
 class MonitoringGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -145,6 +146,14 @@ class Monitoring(threading.Thread):
                 if not dev.control_started:
                     continue
 
+                # check device for abnormal conditions
+                if len(dev.warnings) != 0:
+                    logging.warning("Abnormal condition in " + str(dev_name))
+                    for warning in dev.warnings:
+                        logging.warning(str(warning))
+                        self.push_warnings_to_influxdb(dev_name, warning)
+                    dev.warnings = []
+
                 # find out and display the data queue length
                 dev.qsize.set(len(dev.data_queue))
 
@@ -211,3 +220,17 @@ class Monitoring(threading.Thread):
                 dev.last_event.set("(no event)")
             else:
                 dev.last_event.set(str(events_dset[-1]))
+
+    def push_warnings_to_influxdb(self, dev_name, warning):
+        json_body = [
+                {
+                    "measurement": "warnings",
+                    "tags": {
+                        "run_name": self.parent.run_name,
+                        "dev_name": dev_name,
+                        },
+                    "time": int(1000 * (warning[0] + self.parent.config["time_offset"])),
+                    "fields": {"message" : warning[1]},
+                    }
+                ]
+        self.influxdb_client.write_points(json_body, time_precision='ms')

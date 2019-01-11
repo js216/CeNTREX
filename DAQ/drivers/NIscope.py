@@ -152,3 +152,6 @@ class PXIe5171:
             all_attrs.append(attrs)
 
         return (waveforms_flat.reshape(self.shape), all_attrs)
+
+    def GetWarnings(self):
+        return None

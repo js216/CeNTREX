@@ -112,7 +112,7 @@ class Device(threading.Thread):
                 # check device for abnormal conditions
                 warning = device.GetWarnings()
                 if warning:
-                    self.warnings.append(warning)
+                    self.warnings += warning
 
                 # record numerical values
                 last_data = device.ReadValue()

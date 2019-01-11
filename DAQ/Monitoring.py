@@ -229,7 +229,7 @@ class Monitoring(threading.Thread):
                         "run_name": self.parent.run_name,
                         "dev_name": dev_name,
                         },
-                    "time": int(1000 * (warning[0] + self.parent.config["time_offset"])),
+                    "time": int(1000 * warning[0]),
                     "fields": {"message" : warning[1]},
                     }
                 ]

@@ -133,6 +133,12 @@ class CTC100:
                 return np.nan
 
     def SetOut1Setpoint(self, setpoint):
+        # sanity check for the setpoint
+        try:
+            float(setpoint)
+        except ValueError as err:
+            logging.warning("CTC100 warning in SetOut1Setpoint(): " + str(err))
+
         try:
             return self.instr.write('"Out1.PID.Setpoint" "' + str(setpoint) + '"')
         except pyvisa.errors.VisaIOError as err:
@@ -140,6 +146,12 @@ class CTC100:
             return np.nan
 
     def SetOut2Setpoint(self, setpoint):
+        # sanity check for the setpoint
+        try:
+            float(setpoint)
+        except ValueError as err:
+            logging.warning("CTC100 warning in SetOut2Setpoint(): " + str(err))
+
         try:
             return self.instr.write('"Out2.PID.Setpoint" "' + str(setpoint) + '"')
         except pyvisa.errors.VisaIOError as err:

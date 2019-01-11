@@ -622,7 +622,10 @@ class Plotter(tk.Frame):
                         y0, y1 = y0 - 1, y0 + 1
                 except ValueError:
                     y0, y1 = 0, 10
-            self.ax.set_ylim((y0, y1))
+            try:
+                self.ax.set_ylim((y0, y1))
+            except ValueError as err:
+                logging.warning("Cannot set ylim: " + str(err))
 
             # update plot labels
             if self.fn:

@@ -32,6 +32,9 @@ class USB6008:
         self.dtype = 'f'
         self.shape = (3, )
 
+        # for flood checking
+        self.warnings = []
+
     def __enter__(self):
         return self
 
@@ -42,11 +45,10 @@ class USB6008:
         return [time.time()-self.time_offset, self.ReadFlowSignal(), self.setpoint_sccm]
 
     def GetWarnings(self):
-        flood = self.CheckFlood()
-        if flood == "no flood":
-            return None
-        else:
-            return [time.time(), flood]
+        self.AutoCheckFlood()
+        warnings = self.warnings
+        self.warnings = []
+        return warnings
 
     #################################################################
     ##########              READ COMMANDS                  ##########
@@ -105,6 +107,18 @@ class USB6008:
             if test_val != data[0]:
                 return "flooding"
             return "no flood"
+
+    def ManualCheckFlood(self):
+        flood = self.CheckFlood()
+        self.warnings.append([time.time(), flood])
+        return flood
+
+    def AutoCheckFlood(self):
+        flood = self.CheckFlood()
+        if flood == "no flood":
+            return None
+        else:
+            self.warnings.append([time.time(), flood])
 
     #################################################################
     ##########              CONTROL COMMANDS               ##########

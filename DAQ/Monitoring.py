@@ -141,59 +141,73 @@ class Monitoring(threading.Thread):
     def run(self):
         while self.active.is_set():
             for dev_name, dev in self.parent.devices.items():
-                if dev.control_started:
-                    with h5py.File(self.parent.config["files"]["hdf_fname"].get(), 'r') as f:
-                        grp = f[self.parent.run_name + "/" + dev.config["path"]]
+                # check device running
+                if not dev.control_started:
+                    continue
 
-                        # look at the last row of data in the HDF dataset
-                        if dev.config["single_dataset"]:
-                            dset = grp[dev.config["name"]]
-                            if dset.shape[0] == 0:
-                                continue
-                            else:
-                                data = dset[-1]
-                        else:
-                            rec_num = len(grp) - 1
-                            if rec_num < 1:
-                                continue
-                            data = grp[dev.config["name"] + "_" + str(rec_num)][-1]
+                # find out and display the data queue length
+                dev.qsize.set(len(dev.data_queue))
 
-                        # look at last event (if any) of the device
-                        events_dset = grp[dev.config["name"] + "_events"]
-                        if events_dset.shape[0] == 0:
-                            dev.last_event.set("(no event)")
-                        else:
-                            dev.last_event.set(str(events_dset[-1]))
+                # get the last event (if any) of the device
+                self.display_last_event(dev)
 
+                # get the last row of data in the HDF dataset
+                data = self.get_last_row_of_data(dev)
+                if not isinstance(data, type(None)):
                     # format display the data in a tkinter variable
                     formatted_data = [np.format_float_scientific(x, precision=3) for x in data]
                     dev.last_data.set("\n".join(formatted_data))
 
-                    # find out and display the data queue length
-                    dev.qsize.set(len(dev.data_queue))
-
                     # write slow data to InfluxDB
-                    if self.parent.config["influxdb"]["enabled"].get().strip() == "False":
-                        continue
-                    if not dev.config["single_dataset"]:
-                        continue
-                    fields = {}
-                    for col,val in zip(dev.col_names_list[1:], data[1:]):
-                        if not np.isnan(val):
-                            fields[col] = val
-                    if len(fields) > 0:
-                        json_body = [
-                                {
-                                    "measurement": dev_name,
-                                    "tags": { "run_name": self.parent.run_name, },
-                                    "time": int(1000 * (data[0] + self.parent.config["time_offset"])),
-                                    "fields": fields,
-                                    }
-                                ]
-                        self.influxdb_client.write_points(json_body, time_precision='ms')
+                    self.write_to_influxdb(dev, data)
 
             # loop delay
             try:
                 time.sleep(float(self.parent.config["monitoring_dt"].get()))
             except ValueError:
                 time.sleep(1)
+
+    def write_to_influxdb(self, dev, data):
+        if self.parent.config["influxdb"]["enabled"].get().strip() == "False":
+            return
+        if not dev.config["single_dataset"]:
+            return
+        fields = {}
+        for col,val in zip(dev.col_names_list[1:], data[1:]):
+            if not np.isnan(val):
+                fields[col] = val
+        if len(fields) > 0:
+            json_body = [
+                    {
+                        "measurement": dev.config["name"],
+                        "tags": { "run_name": self.parent.run_name, },
+                        "time": int(1000 * (data[0] + self.parent.config["time_offset"])),
+                        "fields": fields,
+                        }
+                    ]
+            self.influxdb_client.write_points(json_body, time_precision='ms')
+
+    def get_last_row_of_data(self, dev):
+        with h5py.File(self.parent.config["files"]["hdf_fname"].get(), 'r') as f:
+            grp = f[self.parent.run_name + "/" + dev.config["path"]]
+            if dev.config["single_dataset"]:
+                dset = grp[dev.config["name"]]
+                if dset.shape[0] == 0:
+                    return None
+                else:
+                    data = dset[-1]
+            else:
+                rec_num = len(grp) - 1
+                if rec_num < 1:
+                    return None
+                data = grp[dev.config["name"] + "_" + str(rec_num)][-1]
+            return data
+
+    def display_last_event(self, dev):
+        with h5py.File(self.parent.config["files"]["hdf_fname"].get(), 'r') as f:
+            grp = f[self.parent.run_name + "/" + dev.config["path"]]
+            events_dset = grp[dev.config["name"] + "_events"]
+            if events_dset.shape[0] == 0:
+                dev.last_event.set("(no event)")
+            else:
+                dev.last_event.set(str(events_dset[-1]))

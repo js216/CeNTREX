@@ -58,6 +58,7 @@ class CTC100:
             res = self.instr.read_raw()
         except pyvisa.errors.VisaIOError as err:
             logging.warning("CTC100 warning in getLog(): " + str(err))
+            return np.nan
 
         if res == b'\x97\r\n': # CTC100 returns b'\x97\r\n' when it doesn't have a number to return
             return np.nan

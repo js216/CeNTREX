@@ -458,14 +458,17 @@ class Plotter(tk.Frame):
                 # function of individual datapoints (e.g. sqrt of the entire trace)
                 else:
                     dset = grp[dev.config["name"]]
-                    y_fn = self.evaluate_fn(dset[:, self.param_list.index(param)])
-                    if y_fn:
-                        x = dset[:, 0]
-                        y = y_fn
+                    x = dset[:, 0]
+                    y = self.evaluate_fn(dset[:, self.param_list.index(param)])
 
                     # check y has correct shape
-                    if x.shape != y.shape:
-                        logging.warning("Function returns wrong shape data")
+                    try:
+                        if isinstance(y, type(None)):
+                            raise ValueError("NoneType returned")
+                        elif x.shape != y.shape:
+                            raise ValueError("x.shape != y.shape")
+                    except ValueError as err:
+                        logging.warning("Function returns invalid data: " + str(err))
                         x = np.arange(dset.shape[0])
                         y = dset[:, self.param_list.index(param)]
 
@@ -526,13 +529,6 @@ class Plotter(tk.Frame):
         try:
             ret_val = fn(data)
         except (SyntaxError, AttributeError, NameError, TypeError) as err:
-            logging.warning("Cannot evaluate function: " + str(err))
-            return None
-
-        # make sure the data can be of type float
-        try:
-            ret_val = float(ret_val)
-        except (ValueError, TypeError) as err:
             logging.warning("Cannot evaluate function: " + str(err))
             return None
 
@@ -630,19 +626,18 @@ class Plotter(tk.Frame):
 
             # update plot labels
             if self.fn:
+                self.ax.set_title(self.fn_var.get())
                 if self.parent.devices[self.dev_var.get()].config["single_dataset"]:
                     self.ax.set_xlabel("time [s]")
                 else:
                     self.ax.set_xlabel("dset number")
-                    self.ax.set_title(self.fn_var.get())
-                self.ax.set_ylabel(param + " [" + unit.strip() + "]")
             else:
                 if self.parent.devices[self.dev_var.get()].config["single_dataset"]:
                     self.ax.set_xlabel("time [s]")
                 else:
                     self.ax.set_xlabel("sample number")
                     self.ax.set_title("record #"+str(self.record_number.get()))
-                self.ax.set_ylabel(param + " [" + unit.strip() + "]")
+            self.ax.set_ylabel(param + " [" + unit.strip() + "]")
 
             # redraw plot
             self.canvas.draw()

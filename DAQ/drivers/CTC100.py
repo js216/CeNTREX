@@ -42,24 +42,10 @@ class CTC100:
             self.instr.close()
 
     def ReadValue(self):
-        return [
-                time.time() - self.time_offset,
-                self.getLog("In 1"),
-                self.getLog("In 2"),
-                self.getLog("In 3"),
-                self.getLog("In 4"),
-                self.getLog("Out 1"),
-                self.getLog("Out 2"),
-               #self.getLog("AIO 1"),
-               #self.getLog("AIO 2"),
-               #self.getLog("AIO 3"),
-               #self.getLog("AIO 4"),
-               #self.getLog("V1"),
-               #self.getLog("V2"),
-               #self.getLog("V3"),
-               #self.getLog("DIO"),
-               #self.getLog("Relays"),
-            ]
+        ret_val = [ time.time() - self.time_offset ]
+        for ch in ["In 1", "In 2", "In 3", "In 4", "Out 1", "Out 2"]:
+            ret_val.append(self.getLog(ch))
+        return ret_val
 
     def getLog(self, channel):
         if not channel in ["In 1", "In 2", "In 3", "In 4", "Out 1", "Out 2",
@@ -91,8 +77,14 @@ class CTC100:
     def description(self):
         try:
             self.instr.write("description")
-            val = self.instr.read_raw().decode('utf-8')
-            return val
+            val = self.instr.read_raw()
+            if val == b'\x97\r\n': # CTC100 returns b'\x97\r\n' when it doesn't have a number to return
+                return "False"
+            else:
+                try:
+                    return val.decode('utf-8')
+                except UnicodeDecodeError as err:
+                    logging.warning("CTC100 getting identification failed: ", err)
         except pyvisa.errors.VisaIOError as err:
             logging.warning("CTC100 warning in description(): " + str(err))
             return np.nan

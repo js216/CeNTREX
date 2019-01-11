@@ -636,7 +636,6 @@ class ControlGUI(tk.Frame):
         for dev_name, dev in self.parent.devices.items():
             if dev.active.is_set():
                 dev.active.clear()
-                sys.stdout.flush()
 
         # stop HDF writer
         if self.HDF_writer.active.is_set():

@@ -48,7 +48,7 @@ class HDF_writer(threading.Thread):
             try:
                 with h5py.File(self.filename, 'a') as fname:
                     self.write_all_queues_to_HDF(fname)
-            except OSError:
+            except OSError as err:
                 logging.warning("HDF_writer error: ", err)
 
             # loop delay

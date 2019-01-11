@@ -777,6 +777,7 @@ class CentrexGUI(tk.Frame):
     def on_closing(self):
         if self.control.status == "running":
             if messagebox.askokcancel("Confirm quit", "Control running. Do you really want to quit?"):
+                self.control.stop_control()
                 root.destroy()
         else:
                 root.destroy()

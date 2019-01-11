@@ -431,8 +431,10 @@ class Plotter(tk.Frame):
                     trace_y = dset[:, self.param_list.index(param)]
                     # if the most recent value hasn't been calculated yet, calculate it
                     if len(self.x) == 0 or self.x[-1] != rec_num:
-                        self.x.append(rec_num)
-                        self.y.append(self.evaluate_fn(trace_y))
+                        y_fn = self.evaluate_fn(trace_y)
+                        if y_fn:
+                            self.x.append(rec_num)
+                            self.y.append(y_fn)
                     # make sure the x, y arrays have correct shape
                     try:
                         x, y = np.array(self.x), np.array(self.y)
@@ -447,8 +449,10 @@ class Plotter(tk.Frame):
                 # function of individual datapoints (e.g. sqrt of the entire trace)
                 else:
                     dset = grp[dev.config["name"]]
-                    x = dset[:, 0]
-                    y = self.evaluate_fn(dset[:, self.param_list.index(param)])
+                    y_fn = self.evaluate_fn(dset[:, self.param_list.index(param)])
+                    if y_fn:
+                        x = dset[:, 0]
+                        y = y_fn
 
                     # check y has correct shape
                     if x.shape != y.shape:
@@ -496,31 +500,32 @@ class Plotter(tk.Frame):
 
         # make sure the function is not empty
         if len(fn_var) == 0:
-            return data
+            return None
 
         # make sure the function contains x (the argument of function)
         if not "x" in fn_var:
-            return data
+            return None
 
         # find the requested function
         try:
             fn = lambda x : eval(fn_var)
         except (TypeError, AttributeError) as err:
             logging.warning("Cannot evaluate function: " + str(err))
-            return data
+            return None
 
         # apply the function to the data
         try:
             ret_val = fn(data)
-        except (SyntaxError, AttributeError) as err:
+        except (SyntaxError, AttributeError, NameError, TypeError) as err:
             logging.warning("Cannot evaluate function: " + str(err))
-            return data
+            return None
 
         # make sure the data can be of type float
         try:
             ret_val = float(ret_val)
-        except ValueError:
-            return data
+        except (ValueError, TypeError) as err:
+            logging.warning("Cannot evaluate function: " + str(err))
+            return None
 
         return ret_val
 

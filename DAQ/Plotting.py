@@ -196,6 +196,7 @@ class Plotter(tk.Frame):
         self.points = False
         self.plot_drawn = False
         self.record_number = tk.StringVar()
+        self.animation_running = False
 
         # select device
         self.dev_list = [dev_name.strip() for dev_name in self.parent.devices]
@@ -260,28 +261,34 @@ class Plotter(tk.Frame):
         # for displaying a function of the data
         self.fn = False
         self.fn_var = tk.StringVar()
-        self.fn_var.set("np.sum(x)")
+        self.fn_var.set("np.sum(x, dtype=np.int32)")
         self.x = []
         self.y = []
-        tk.Button(self.f, text="f(x)", command=self.toggle_fn)\
-                .grid(row=0, column=3, padx=2)
+        tk.Button(self.f, text="f(x)", command=self.toggle_fn).grid(row=0, column=3, padx=2)
         self.fn_entry = tk.Entry(self.f, textvariable=self.fn_var)
         self.fn_clear_button = tk.Button(self.f, text="Clear", command=self.clear_fn)
 
     def clear_fn(self):
+        """Clear the arrays of past evaluations of the custom function on the data."""
         if self.fn:
             self.x, self.y = [], []
 
     def toggle_fn(self):
+        """Toggle controls for applying a custom function to the data."""
+        # start animation and (if not yet drawn) draw plot
+        if self.new_plot():
+            self.play_pause_button.configure(text="\u23f8", command=self.stop_animation)
+        else:
+            self.start_animation()
+
         # toggle the fn flag
         self.fn = not self.fn
 
+        # display/hide function controls
         if self.fn:
-            # display function controls
             self.fn_entry.grid(row=3, column=0, columnspan=6, sticky='nsew', padx=10, pady=10)
             self.fn_clear_button.grid(row=3, column=7, sticky='nsew', padx=10, pady=10)
         else:
-            # hide function controls
             self.fn_entry.grid_remove()
             self.fn_clear_button.grid_remove()
 
@@ -323,10 +330,12 @@ class Plotter(tk.Frame):
         else:
             self.ani.event_source.start()
         self.play_pause_button.configure(text="\u23f8", command=self.stop_animation)
+        self.animation_running = True
 
     def stop_animation(self):
         if self.plot_drawn:
             self.ani.event_source.stop()
+        self.animation_running = False
         self.play_pause_button.configure(text="\u25b6", command=self.start_animation)
 
     def change_animation_dt(self, i=0, dt=-1):

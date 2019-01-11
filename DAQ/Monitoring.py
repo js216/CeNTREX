@@ -28,7 +28,7 @@ class MonitoringGUI(tk.Frame):
 
         # general monitoring controls
         self.gen_f = tk.LabelFrame(self.ctrls_f, text="General")
-        self.gen_f.grid(row=0, column=0, padx=10, pady=10)
+        self.gen_f.grid(row=0, column=0, padx=10, pady=10, sticky='nsew')
         tk.Label(self.gen_f, text="Loop delay [s]:").grid(row=0, column=0)
         self.parent.config["monitoring_dt"] = tk.StringVar()
         self.parent.config["monitoring_dt"].set("1")
@@ -44,7 +44,7 @@ class MonitoringGUI(tk.Frame):
         # InfluxDB controls
         conf = self.parent.config["influxdb"]
         self.db_f = tk.LabelFrame(self.ctrls_f, text="InfluxDB")
-        self.db_f.grid(row=0, column=1, padx=10, pady=10)
+        self.db_f.grid(row=0, column=1, padx=10, pady=10, sticky='nsew')
         tk.Label(self.db_f, text="Host IP").grid(row=0, column=0, sticky='e')
         tk.Entry(self.db_f, textvariable=conf["host"]).grid(row=0, column=1, sticky='w')
         tk.Label(self.db_f, text="Port").grid(row=1, column=0, sticky='e')
@@ -53,6 +53,13 @@ class MonitoringGUI(tk.Frame):
         tk.Entry(self.db_f, textvariable=conf["username"]).grid(row=2, column=1, sticky='w')
         tk.Label(self.db_f, text="Pasword").grid(row=3, column=0, sticky='e')
         tk.Entry(self.db_f, textvariable=conf["password"]).grid(row=3, column=1, sticky='w')
+
+        # for displaying warnings
+        self.w_f = tk.LabelFrame(self.ctrls_f, text="Warnings")
+        self.w_f.grid(row=0, column=2, padx=10, pady=10, sticky='nsew')
+        self.last_warning = tk.StringVar()
+        self.last_warning.set("no warning")
+        tk.Label(self.w_f, textvariable=self.last_warning).grid()
 
     def place_device_specific_items(self):
         # frame for device data
@@ -152,6 +159,7 @@ class Monitoring(threading.Thread):
                     for warning in dev.warnings:
                         logging.warning(str(warning))
                         self.push_warnings_to_influxdb(dev_name, warning)
+                        self.parent.monitoring.last_warning.set(str(warning))
                     dev.warnings = []
 
                 # find out and display the data queue length

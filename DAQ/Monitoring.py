@@ -169,13 +169,7 @@ class Monitoring(threading.Thread):
                             dev.last_event.set(str(events_dset[-1]))
 
                     # format display the data in a tkinter variable
-                    if len(dev.config["shape"]) == 1:
-                        formatted_data = [np.format_float_scientific(x, precision=3) for x in data]
-                    else:
-                        if len(data) > 1:
-                            formatted_data = [str(x) for x in data[0][-1][:,-1]]
-                        else:
-                            formatted_data = str(data)
+                    formatted_data = [np.format_float_scientific(x, precision=3) for x in data]
                     dev.last_data.set("\n".join(formatted_data))
 
                     # find out and display the data queue length

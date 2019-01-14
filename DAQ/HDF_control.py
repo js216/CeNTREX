@@ -19,27 +19,34 @@ class HDF_writer(threading.Thread):
             root = f.create_group(self.parent.run_name)
             root.attrs["time_offset"] = self.parent.config["time_offset"]
             for dev_name, dev in self.parent.devices.items():
-                if dev.config["controls"]["enabled"]["var"].get():
-                    grp = root.require_group(dev.config["path"])
+                # check device is enabled
+                if not dev.config["controls"]["enabled"]["var"].get():
+                    continue
 
-                    # create dataset for data if only one is needed
-                    # (fast devices create a new dataset for each acquisition)
-                    if dev.config["single_dataset"]:
-                        dset = grp.create_dataset(
-                                dev.config["name"],
-                                (0, *dev.config["shape"]),
-                                maxshape=(None, *dev.config["shape"]),
-                                dtype=dev.config["dtype"]
-                            )
-                        for attr_name, attr in dev.config["attributes"].items():
-                            dset.attrs[attr_name] = attr
-                    else:
-                        for attr_name, attr in dev.config["attributes"].items():
-                            grp.attrs[attr_name] = attr
+                # check writing to HDF is enabled for this device
+                if not dev.config["controls"]["HDF_enabled"]["var"].get():
+                    continue
 
-                    # create dataset for events
-                    events_dset = grp.create_dataset(dev.config["name"]+"_events", (0,3),
-                            maxshape=(None,3), dtype=h5py.special_dtype(vlen=str))
+                grp = root.require_group(dev.config["path"])
+
+                # create dataset for data if only one is needed
+                # (fast devices create a new dataset for each acquisition)
+                if dev.config["single_dataset"]:
+                    dset = grp.create_dataset(
+                            dev.config["name"],
+                            (0, *dev.config["shape"]),
+                            maxshape=(None, *dev.config["shape"]),
+                            dtype=dev.config["dtype"]
+                        )
+                    for attr_name, attr in dev.config["attributes"].items():
+                        dset.attrs[attr_name] = attr
+                else:
+                    for attr_name, attr in dev.config["attributes"].items():
+                        grp.attrs[attr_name] = attr
+
+                # create dataset for events
+                events_dset = grp.create_dataset(dev.config["name"]+"_events", (0,3),
+                        maxshape=(None,3), dtype=h5py.special_dtype(vlen=str))
 
         self.active.set()
 
@@ -70,6 +77,10 @@ class HDF_writer(threading.Thread):
             for dev_name, dev in self.parent.devices.items():
                 # check device has had control started
                 if not dev.control_started:
+                    continue
+
+                # check writing to HDF is enabled for this device
+                if not dev.config["controls"]["HDF_enabled"]["var"].get():
                     continue
 
                 # get events, if any, and write them to HDF

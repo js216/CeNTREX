@@ -475,7 +475,11 @@ class Plotter(tk.Frame):
             # if displaying data as recorded (not evaluating a function of the data)
             else: 
                 if dev.config["single_dataset"]:
-                    dset = grp[dev.config["name"]]
+                    try:
+                        dset = grp[dev.config["name"]]
+                    except KeyError as err:
+                        messagebox.showerror("Data error", "Dataset not found in this run.")
+                        return None
                     x = dset[:, 0]
                     y = dset[:, self.param_list.index(param)]
                 else: # if each acquisition is its own dataset, return latest run only

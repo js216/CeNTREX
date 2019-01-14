@@ -178,6 +178,11 @@ class Monitoring(threading.Thread):
                     # write slow data to InfluxDB
                     self.write_to_influxdb(dev, data)
 
+                # if writing to HDF is disabled, empty the queues
+                if not dev.config["controls"]["HDF_enabled"]["var"].get():
+                    dev.events_queue.clear()
+                    dev.data_queue.clear()
+
             # loop delay
             try:
                 time.sleep(float(self.parent.config["monitoring_dt"].get()))
@@ -205,29 +210,47 @@ class Monitoring(threading.Thread):
             self.influxdb_client.write_points(json_body, time_precision='ms')
 
     def get_last_row_of_data(self, dev):
-        with h5py.File(self.parent.config["files"]["hdf_fname"].get(), 'r') as f:
-            grp = f[self.parent.run_name + "/" + dev.config["path"]]
-            if dev.config["single_dataset"]:
-                dset = grp[dev.config["name"]]
-                if dset.shape[0] == 0:
-                    return None
+        # if HDF writing enabled for this device, get data from the HDF file
+        if dev.config["controls"]["HDF_enabled"]["var"].get():
+            with h5py.File(self.parent.config["files"]["hdf_fname"].get(), 'r') as f:
+                grp = f[self.parent.run_name + "/" + dev.config["path"]]
+                if dev.config["single_dataset"]:
+                    dset = grp[dev.config["name"]]
+                    if dset.shape[0] == 0:
+                        return None
+                    else:
+                        data = dset[-1]
                 else:
-                    data = dset[-1]
-            else:
-                rec_num = len(grp) - 1
-                if rec_num < 1:
-                    return None
-                data = grp[dev.config["name"] + "_" + str(rec_num)][-1]
-            return data
+                    rec_num = len(grp) - 1
+                    if rec_num < 1:
+                        return None
+                    data = grp[dev.config["name"] + "_" + str(rec_num)][-1]
+                return data
+
+        # if HDF writing not enabled for this device, get events from the events_queue
+        else:
+            try:
+                return dev.data_queue.pop()
+            except IndexError:
+                return None
 
     def display_last_event(self, dev):
-        with h5py.File(self.parent.config["files"]["hdf_fname"].get(), 'r') as f:
-            grp = f[self.parent.run_name + "/" + dev.config["path"]]
-            events_dset = grp[dev.config["name"] + "_events"]
-            if events_dset.shape[0] == 0:
-                dev.last_event.set("(no event)")
-            else:
-                dev.last_event.set(str(events_dset[-1]))
+        # if HDF writing enabled for this device, get events from the HDF file
+        if dev.config["controls"]["HDF_enabled"]["var"].get():
+            with h5py.File(self.parent.config["files"]["hdf_fname"].get(), 'r') as f:
+                grp = f[self.parent.run_name + "/" + dev.config["path"]]
+                events_dset = grp[dev.config["name"] + "_events"]
+                if events_dset.shape[0] == 0:
+                    dev.last_event.set("(no event)")
+                else:
+                    dev.last_event.set(str(events_dset[-1]))
+
+        # if HDF writing not enabled for this device, get events from the events_queue
+        else:
+            try:
+                dev.last_event.set(str(dev.events_queue.pop()))
+            except IndexError:
+                return
 
     def push_warnings_to_influxdb(self, dev_name, warning):
         json_body = [

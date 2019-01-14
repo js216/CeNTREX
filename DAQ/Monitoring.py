@@ -238,7 +238,7 @@ class Monitoring(threading.Thread):
                         "dev_name": dev_name,
                         },
                     "time": int(1000 * warning[0]),
-                    "fields": {"message" : warning[1]},
+                    "fields": warning[1],
                     }
                 ]
         self.influxdb_client.write_points(json_body, time_precision='ms')

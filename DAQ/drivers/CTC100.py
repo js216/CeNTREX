@@ -32,7 +32,7 @@ class CTC100:
 
         # shape and type of the array of returned data
         self.dtype = 'f'
-        self.shape = (7, )
+        self.shape = (17, )
 
     def __enter__(self):
         return self
@@ -42,9 +42,21 @@ class CTC100:
             self.instr.close()
 
     def ReadValue(self):
+        # record time
         ret_val = [ time.time() - self.time_offset ]
-        for ch in ["In 1", "In 2", "In 3", "In 4", "Out 1", "Out 2"]:
-            ret_val.append(self.getLog(ch))
+
+        # read the most recent value of all channels
+        all_values = self.instr.query('getOutput?').split(",")
+
+        # retain the first 16 values:
+        #    In 1, In 2, PCB 1, In 3, In 4, PCB 2, Out 1, Out 1 I, Out 1 V, 
+        #    Out 1 R, PCB 3, Out 2, Out 2 I, Out 2 V, Out 2 R, PCB 4
+        for i in range(16):
+            try:
+                ret_val.append(float(all_values[i]))
+            except ValueError:
+                ret_val.append(np.nan)
+
         return ret_val
 
     def GetWarnings(self):
@@ -81,6 +93,7 @@ class CTC100:
     def description(self):
         try:
             self.instr.write("description")
+            time.sleep(1)
             val = self.instr.read_raw()
             if val == b'\x97\r\n': # CTC100 returns b'\x97\r\n' when it doesn't have a number to return
                 return "False"

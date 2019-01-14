@@ -110,7 +110,12 @@ class USB6008:
 
     def ManualCheckFlood(self):
         flood = self.CheckFlood()
-        self.warnings.append([time.time(), flood])
+        warning_dict = { "message" : flood }
+        if flood == "no flood":
+            warning_dict["is_flooding"] = 0
+        elif flood == "flooding":
+            warning_dict["is_flooding"] = 1
+        self.warnings.append([time.time(), warning_dict])
         return flood
 
     def AutoCheckFlood(self):
@@ -118,7 +123,11 @@ class USB6008:
         if flood == "no flood":
             return None
         else:
-            self.warnings.append([time.time(), flood])
+            warning_dict = {
+                    "message" : flood,
+                    "is_flooding" : 1,
+                }
+            self.warnings.append([time.time(), warning_dict])
 
     #################################################################
     ##########              CONTROL COMMANDS               ##########

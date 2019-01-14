@@ -17,13 +17,7 @@ import configparser
 from decimal import Decimal
 import queue
 from collections import deque
-
-from drivers import Hornet 
-from drivers import LakeShore218 
-from drivers import CPA1110
-from drivers import USB6008
-from drivers import PXIe5171
-from drivers import CTC100
+import importlib
 
 from Plotting import PlotsGUI
 from Monitoring import MonitoringGUI
@@ -155,6 +149,15 @@ class ControlGUI(tk.Frame):
             if not "device" in params:
                 continue
 
+            # import the device driver
+            driver_spec = importlib.util.spec_from_file_location(
+                    params["device"]["driver"],
+                    "drivers/" + params["device"]["driver"] + ".py",
+                )
+            driver_module = importlib.util.module_from_spec(driver_spec)
+            driver_spec.loader.exec_module(driver_module)
+            driver = getattr(driver_module, params["device"]["driver"])
+
             # read general device options
             dev_config = {
                         "name"              : params["device"]["name"],
@@ -169,7 +172,7 @@ class ControlGUI(tk.Frame):
                         "column"            : params["device"]["column"],
                         "columnspan"        : params["device"]["columnspan"],
                         "monitoring_column" : params["device"]["monitoring_column"],
-                        "driver"            : eval(params["device"]["driver"]),
+                        "driver"            : driver,
                         "constr_params"     : [x.strip() for x in params["device"]["constr_params"].split(",")],
                         "attributes"        : params["attributes"],
                         "controls"          : {},

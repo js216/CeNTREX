@@ -64,7 +64,7 @@ class Device(threading.Thread):
             else:
                 self.constr_params.append( self.config["controls"][cp]["var"].get() )
 
-        with self.config["driver"](*self.constr_params) as dev: 
+        with self.config["driver"](*self.constr_params) as dev:
             # verify the device responds correctly
             if dev.verification_string.strip() == self.config["correct_response"].strip():
                 self.operational = True
@@ -91,7 +91,7 @@ class Device(threading.Thread):
             self.control_started = True
 
         # main control loop
-        with self.config["driver"](*self.constr_params) as device: 
+        with self.config["driver"](*self.constr_params) as device:
             while self.active.is_set():
                 # loop delay
                 try:
@@ -110,7 +110,7 @@ class Device(threading.Thread):
 
                 # record numerical values
                 last_data = device.ReadValue()
-                if last_data:
+                if  len(last_data) > 0:
                     self.data_queue.append(last_data)
 
                 # keep track of the number of NaN returns
@@ -387,7 +387,7 @@ class ControlGUI(tk.Frame):
             fd = tk.LabelFrame(self.fr, text=dev.config["label"])
             fd.grid(padx=10, pady=10, sticky="nsew",
                     row=dev.config["row"], column=dev.config["column"],
-                    rowspan=dev.config["rowspan"], columnspan=dev.config["columnspan"]) 
+                    rowspan=dev.config["rowspan"], columnspan=dev.config["columnspan"])
 
             # the button to reload attributes
             attr_b = tk.Button(fd, text="Attrs", command=lambda dev=dev: self.reload_attrs(dev))
@@ -454,6 +454,7 @@ class ControlGUI(tk.Frame):
                     c["Frame"].grid(row=c["row"], column=c["col"], sticky='w', pady=10)
                     c["Label"] = tk.Label(fd, text=c["label"])
                     c["Label"].grid(row=c["row"], column=c["col"]-1, sticky=tk.E)
+                    controls_row_args = dict((name, c["control_values"][name]) for name in c["control_names"] if c["control_values"][name].get() != '')
                     for i, name in enumerate(c["control_names"]):
                         c["ctrls"] = {}
                         if c["control_types"][i] == "Entry":
@@ -461,14 +462,23 @@ class ControlGUI(tk.Frame):
                                     width=c["control_widths"][i], textvariable=c["control_values"][name])
                         elif c["control_types"][i] == "Button":
                             c["ctrls"][name] = tk.Button(
-                                    c["Frame"],
+                                    c["Frame"], width = c["control_widths"][i],
                                     text=c["control_values"][name].get(),
-                                    command=lambda dev=dev,
-                                        cmd=c["control_commands"][i]+"()": self.queue_command(dev, cmd)
+                                    command=lambda dev=dev, args = controls_row_args,
+                                        cmd=c["control_commands"][i]: self.queue_command(dev, cmd+"(**"+str(dict((n,v.get()) for n,v in args.items()))+")")
                                 )
                         elif c["control_types"][i] == "OptionMenu":
                             c["ctrls"][name] = tk.OptionMenu(c["Frame"],
                                     c["control_values"][name], *c["control_options"][i])
+                        elif c["control_types"][i] == "Checkbutton":
+                            c["ctrls"][name] = \
+                            tk.Checkbutton(c["Frame"], variable=c["control_values"][name])
+                        elif c["control_types"][i] == "CheckbuttonCmd":
+                            c["ctrls"][name] = \
+                            tk.Checkbutton(c["Frame"], variable=c["control_values"][name],
+                                           command=lambda dev=dev, arg = c["control_values"][name],
+                                           cmd=c["control_commands"][i]: self.queue_command(dev, cmd+"("+arg.get()+")"))
+
                         c["ctrls"][name].grid(row=1, column=i+1, sticky="nsew", padx=5)
                         tk.Label(c["Frame"], text=c["control_labels"][i])\
                                 .grid(row=0, column=i+1)

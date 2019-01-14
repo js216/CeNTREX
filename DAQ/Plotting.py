@@ -206,25 +206,36 @@ class Plotter(tk.Frame):
         self.dev_var.set(self.dev_list[0])
         dev_select = tk.OptionMenu(self.f, self.dev_var, *self.dev_list,
                 command=self.refresh_parameter_list)
-        dev_select.grid(row=0, column=0, sticky='ew')
+        dev_select.grid(row=0, column=0, columnspan=1, sticky='ew')
         dev_select.configure(width=18)
-
-        # select parameter
-        self.param_list = ["(select device first)"]
-        self.param_var = tk.StringVar()
-        self.param_var.set("Select what to plot ...")
-        self.param_select = tk.OptionMenu(self.f, self.param_var, *self.param_list)
-        self.param_select.grid(row=0, column=1, sticky='ew')
-        self.param_select.configure(width=20)
-        self.refresh_parameter_list(self.dev_var.get())
 
         # select run
         self.run_list = [""]
         self.run_var = tk.StringVar()
         self.run_var.set("Select run ...")
         self.run_select = tk.OptionMenu(self.f, self.run_var, *self.run_list)
-        self.run_select.grid(row=1, column=0, columnspan=2, sticky='ew')
-        self.run_select.configure(width=38)
+        self.run_select.grid(row=0, column=1, columnspan=1, sticky='ew')
+        self.run_select.configure(width=18)
+
+        # select parameter
+        self.param_list = ["(select device first)"]
+        self.param_var = tk.StringVar()
+        self.param_var.set("y ...")
+        self.param_select = tk.OptionMenu(self.f, self.param_var, *self.param_list)
+        self.param_select.grid(row=1, column=1, columnspan=1, sticky='ew')
+        self.param_select.configure(width=18)
+
+        # select xcol
+        self.xcol_list = ["(select device first)"]
+        self.xcol_var = tk.StringVar()
+        self.xcol_var.set("x ...")
+        self.xcol_select = tk.OptionMenu(self.f, self.xcol_var, *self.xcol_list)
+        self.xcol_select.grid(row=1, column=0, columnspan=1, sticky='ew')
+        self.xcol_select.configure(width=18)
+
+        self.refresh_parameter_list(self.dev_var.get())
+
+
 
         # plot range controls
         num_width = 6 # width of numeric entry boxes
@@ -365,6 +376,13 @@ class Plotter(tk.Frame):
         for p in self.param_list:
             menu.add_command(label=p, command=lambda val=p: self.param_var.set(val))
 
+        # update xcol list
+        self.xcol_list = ["None"]+self.param_list.copy()
+        menu = self.xcol_select["menu"]
+        menu.delete(0, "end")
+        for p in self.xcol_list:
+            menu.add_command(label=p, command=lambda val=p: self.xcol_var.set(val))
+
     def get_data(self):
         # check device is valid
         if self.dev_var.get() in self.parent.devices:
@@ -473,14 +491,18 @@ class Plotter(tk.Frame):
                         y = dset[:, self.param_list.index(param)]
 
             # if displaying data as recorded (not evaluating a function of the data)
-            else: 
+            else:
                 if dev.config["single_dataset"]:
                     try:
                         dset = grp[dev.config["name"]]
                     except KeyError as err:
                         messagebox.showerror("Data error", "Dataset not found in this run.")
                         return None
-                    x = dset[:, 0]
+                    print(type(self.xcol_var.get()), self.xcol_var.get())
+                    if self.xcol_var.get() == "None":
+                        x = np.arange(dset.shape[0])
+                    else:
+                        x = dset[:, self.param_list.index(self.xcol_var.get())]
                     y = dset[:, self.param_list.index(param)]
                 else: # if each acquisition is its own dataset, return latest run only
                     rec_num = len(grp) - 1

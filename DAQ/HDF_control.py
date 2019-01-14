@@ -2,6 +2,7 @@ import h5py
 import time
 import threading
 import logging
+import numpy as np
 
 class HDF_writer(threading.Thread):
     def __init__(self, parent):
@@ -49,7 +50,7 @@ class HDF_writer(threading.Thread):
                 with h5py.File(self.filename, 'a') as fname:
                     self.write_all_queues_to_HDF(fname)
             except OSError as err:
-                logging.warning("HDF_writer error: " + str(err))
+                logging.warning("HDF_writer error: {0}".format(err))
 
             # loop delay
             try:
@@ -62,7 +63,7 @@ class HDF_writer(threading.Thread):
             with h5py.File(self.filename, 'a') as fname:
                 self.write_all_queues_to_HDF(fname)
         except OSError as err:
-            logging.warning("HDF_writer error: " + str(err))
+            logging.warning("HDF_writer error: ", err)
 
     def write_all_queues_to_HDF(self, fname):
             root = fname.require_group(self.parent.run_name)
@@ -89,8 +90,22 @@ class HDF_writer(threading.Thread):
                 # if writing all data from a single device to one dataset
                 if dev.config["single_dataset"]:
                     dset = grp[dev.config["name"]]
-                    dset.resize(dset.shape[0]+len(data), axis=0)
-                    dset[-len(data):] = data
+                    # check if one queue entry has multiple rows
+                    if np.ndim(data) == 3:
+                        arr_len = np.shape(data)[1]
+                        list_len = len(data)
+                        dset.resize(dset.shape[0]+list_len*arr_len, axis=0)
+                        # iterate over queue entries with multiple rows and append
+                        for idx, d in enumerate(data):
+                            idx_start = -arr_len*(list_len-idx)
+                            idx_stop = -arr_len*(list_len-(idx+1))
+                            if idx_stop == 0:
+                                dset[idx_start:] = d
+                            else:
+                                dset[idx_start:idx_stop] = d
+                    else:
+                        dset.resize(dset.shape[0]+len(data), axis=0)
+                        dset[-len(data):] = data
 
                 # if writing each acquisition record to a separate dataset
                 else:

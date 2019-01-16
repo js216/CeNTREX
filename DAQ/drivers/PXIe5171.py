@@ -93,6 +93,7 @@ class PXIe5171:
         self.new_attributes = [
                     ("column_names", ", ".join(["ch"+str(x) for x in self.active_channels])),
                     ("units", ", ".join(["binary" for x in self.active_channels])),
+                    ("sampling", str(1000*samplingRate_kSs)+" [S/s]")
                ]
 
         # shape and type of the array of returned data

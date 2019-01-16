@@ -167,7 +167,7 @@ class PlotsGUI(tk.Frame):
         # button to delete plot
         del_b = tk.Button(plot.f, text="\u274c", command=lambda plot=plot,
                 row=row, col=col: self.delete_plot(row,col,plot))
-        del_b.grid(row=0, column=7, sticky='e', padx=10)
+        del_b.grid(row=0, column=8, sticky='e', padx=10)
 
         # update list of runs if a file was supplied
         fname = self.parent.config["files"]["plotting_hdf_fname"].get()
@@ -206,28 +206,39 @@ class Plotter(tk.Frame):
         self.dev_var.set(self.dev_list[0])
         dev_select = tk.OptionMenu(self.f, self.dev_var, *self.dev_list,
                 command=self.refresh_parameter_list)
-        dev_select.grid(row=0, column=0, sticky='ew')
-        dev_select.configure(width=18)
-
-        # select parameter
-        self.param_list = ["(select device first)"]
-        self.param_var = tk.StringVar()
-        self.param_var.set("Select what to plot ...")
-        self.param_select = tk.OptionMenu(self.f, self.param_var, *self.param_list)
-        self.param_select.grid(row=0, column=1, sticky='ew')
-        self.param_select.configure(width=20)
-        self.refresh_parameter_list(self.dev_var.get())
+        dev_select.grid(row=0, column=0, columnspan=1, sticky='ew')
+        dev_select.configure(width=22)
 
         # select run
         self.run_list = [""]
         self.run_var = tk.StringVar()
         self.run_var.set("Select run ...")
         self.run_select = tk.OptionMenu(self.f, self.run_var, *self.run_list)
-        self.run_select.grid(row=1, column=0, columnspan=2, sticky='ew')
-        self.run_select.configure(width=38)
+        self.run_select.grid(row=0, column=1, columnspan=1, sticky='ew')
+        self.run_select.configure(width=18)
+
+        # select parameter
+        self.param_list = ["(select device first)"]
+        self.param_var = tk.StringVar()
+        self.param_var.set("y ...")
+        self.param_select = tk.OptionMenu(self.f, self.param_var, *self.param_list)
+        self.param_select.grid(row=1, column=1, columnspan=1, sticky='ew')
+        self.param_select.configure(width=18)
+
+        # select xcol
+        self.xcol_list = ["(select device first)"]
+        self.xcol_var = tk.StringVar()
+        self.xcol_var.set("x ...")
+        self.xcol_select = tk.OptionMenu(self.f, self.xcol_var, *self.xcol_list)
+        self.xcol_select.grid(row=1, column=0, columnspan=1, sticky='ew')
+        self.xcol_select.configure(width=18)
+
+        self.refresh_parameter_list(self.dev_var.get())
+
+
 
         # plot range controls
-        num_width = 6 # width of numeric entry boxes
+        num_width = 7 # width of numeric entry boxes
         self.x0_var = tk.StringVar()
         self.x0_var.set("x0")
         tk.Entry(self.f, textvariable=self.x0_var, width=num_width)\
@@ -249,29 +260,43 @@ class Plotter(tk.Frame):
         self.dt_var = tk.StringVar()
         self.dt_var.set("dt")
         dt_entry = tk.Entry(self.f, textvariable=self.dt_var, width=num_width)
-        dt_entry.grid(row=1, column=7, columnspan=3)
+        dt_entry.grid(row=1, column=7, columnspan=1)
         dt_entry.bind("<Return>", self.change_animation_dt)
         self.play_pause_button = tk.Button(self.f, text="\u25b6", command=self.start_animation)
-        self.play_pause_button.grid(row=0, column=4, padx=2)
+        self.play_pause_button.grid(row=0, column=5, padx=2)
         tk.Button(self.f, text="Log/Lin", command=self.toggle_log)\
-                .grid(row=0, column=5, padx=2)
-        tk.Button(self.f, text="\u26ab / \u2014", command=self.toggle_points)\
                 .grid(row=0, column=6, padx=2)
+        tk.Button(self.f, text="\u26ab / \u2014", command=self.toggle_points)\
+                .grid(row=0, column=7, padx=2)
 
         # for displaying a function of the data
         self.fn = False
         self.fn_var = tk.StringVar()
-        self.fn_var.set("np.sum(x, dtype=np.int32)")
+        self.fn_var.set("np.sum(y, dtype=np.int32)")
         self.x = []
         self.y = []
-        tk.Button(self.f, text="f(x)", command=self.toggle_fn).grid(row=0, column=3, padx=2)
+        tk.Button(self.f, text="f(y)", command=self.toggle_fn).grid(row=0, column=3, padx=0)
         self.fn_entry = tk.Entry(self.f, textvariable=self.fn_var)
         self.fn_clear_button = tk.Button(self.f, text="Clear", command=self.clear_fn)
+
+        self.fft = False
+        tk.Button(self.f, text="fft", command=self.toggle_fft).grid(row=0, column=4, padx=0)
 
     def clear_fn(self):
         """Clear the arrays of past evaluations of the custom function on the data."""
         if self.fn:
             self.x, self.y = [], []
+
+    def toggle_fft(self):
+        """
+        Toggle fft for plot.
+        """
+        if self.new_plot():
+            self.play_pause_button.configure(text="\u23f8", command=self.stop_animation)
+        else:
+            self.start_animation()
+        # toggle the fn flag
+        self.fft = not self.fft
 
     def toggle_fn(self):
         """Toggle controls for applying a custom function to the data."""
@@ -365,6 +390,16 @@ class Plotter(tk.Frame):
         for p in self.param_list:
             menu.add_command(label=p, command=lambda val=p: self.param_var.set(val))
 
+        # update xcol list
+        if "time" in self.param_list:
+            self.xcol_list = self.param_list.copy()
+        else:
+            self.xcol_list = ["None"]+self.param_list.copy()
+        menu = self.xcol_select["menu"]
+        menu.delete(0, "end")
+        for p in self.xcol_list:
+            menu.add_command(label=p, command=lambda val=p: self.xcol_var.set(val))
+
     def get_data(self):
         # check device is valid
         if self.dev_var.get() in self.parent.devices:
@@ -375,9 +410,16 @@ class Plotter(tk.Frame):
             return None
 
         # check parameter is valid
-        if self.param_var.get() in self.param_list:
-            param = self.param_var.get()
-            unit = dev.config["attributes"]["units"].split(',')[self.param_list.index(param)]
+        if ((self.param_var.get() in self.param_list) and (self.xcol_var.get() in self.xcol_list)) or \
+           ((self.param_var.get() in self.param_list) and (self.xcol_var.get() == "None")):
+            yparam = self.param_var.get()
+            yunit = dev.config["attributes"]["units"].split(',')[self.param_list.index(yparam)]
+            xparam = self.xcol_var.get()
+            if xparam == "None":
+                xunit = ""
+                xparam = ""
+            else:
+                xunit = dev.config["attributes"]["units"].split(',')[self.xcol_list.index(xparam)]
         elif len(self.param_list) == 0:
             self.stop_animation()
             messagebox.showerror("Parameter error", "Error: device has no parameters.")
@@ -385,13 +427,25 @@ class Plotter(tk.Frame):
         else:
             # set a default parameter
             if len(self.param_list) >= 2:
-                self.param_var.set(self.param_list[1])
+                if "time" in self.param_list:
+                    self.param_var.set(self.param_list[1])
+                else:
+                    self.param_var.set(self.param_list[0])
+                self.xcol_var.set(self.xcol_list[0])
             else:
                 self.param_var.set(self.param_list[0])
+                self.xcol_var.set("None")
             # check the newly set parameter is valid
-            if self.param_var.get() in self.param_list:
-                param = self.param_var.get()
-                unit = dev.config["attributes"]["units"].split(',')[self.param_list.index(param)]
+            if ((self.param_var.get() in self.param_list) and (self.xcol_var.get() in self.xcol_list)) or \
+               ((self.param_var.get() in self.param_list) and (self.xcol_var.get() == "None")):
+                yparam = self.param_var.get()
+                yunit = dev.config["attributes"]["units"].split(',')[self.param_list.index(yparam)]
+                xparam = self.xcol_var.get()
+                if xparam == "None":
+                    xunit = ""
+                    xparam = ""
+                else:
+                    xunit = dev.config["attributes"]["units"].split(',')[self.xcol_list.index(xparam)]
             else:
                 self.stop_animation()
                 messagebox.showerror("Parameter error", "Error: invalid parameter.")
@@ -419,6 +473,9 @@ class Plotter(tk.Frame):
                 self.stop_animation()
                 return None
 
+        # bool to check if data is sampled at a set frequency for fft
+        continuous_sampling = False
+
         # get data
         with h5py.File(self.parent.config["files"]["hdf_fname"].get(), 'r') as f:
             grp = f[self.run_var.get() + "/" + dev.config["path"]]
@@ -437,7 +494,7 @@ class Plotter(tk.Frame):
                 if not dev.config["single_dataset"]:
                     rec_num = len(grp) - 1
                     dset = grp[dev.config["name"] + "_" + str(rec_num)]
-                    trace_y = dset[:, self.param_list.index(param)]
+                    trace_y = dset[:, self.param_list.index(yparam)]
                     # if the most recent value hasn't been calculated yet, calculate it
                     if len(self.x) == 0 or self.x[-1] != rec_num:
                         y_fn = self.evaluate_fn(trace_y)
@@ -452,14 +509,20 @@ class Plotter(tk.Frame):
                         self.record_number.set(rec_num)
                         dset = grp[dev.config["name"] + "_" + str(rec_num)]
                         x = np.arange(dset.shape[0])
-                        y = dset[:, self.param_list.index(param)]
+                        y = dset[:, self.param_list.index(yparam)]
 
                 # when all acquisitions are in one dataset, evaluate a
                 # function of individual datapoints (e.g. sqrt of the entire trace)
                 else:
                     dset = grp[dev.config["name"]]
-                    x = dset[:, 0]
-                    y = self.evaluate_fn(dset[:, self.param_list.index(param)])
+                    if self.xcol_var.get() == "None":
+                        xunit = dset.attrs["sampling"].split("[")[0]
+                        continuous_sampling = True
+                        x = np.arange(dset.shape[0])*1/int(xunit)
+                        xunit = "s"
+                    else:
+                        x = dset[:, self.param_list.index(self.xcol_var.get())]
+                    y = self.evaluate_fn(dset[:, self.param_list.index(yparam)])
 
                     # check y has correct shape
                     try:
@@ -469,25 +532,37 @@ class Plotter(tk.Frame):
                             raise ValueError("x.shape != y.shape")
                     except ValueError as err:
                         logging.warning("Function returns invalid data: " + str(err))
-                        x = np.arange(dset.shape[0])
-                        y = dset[:, self.param_list.index(param)]
+                        if self.xcol_var.get() == "None":
+                            xunit = dset.attrs["sampling"].split("[")[0]
+                            continuous_sampling = True
+                            x = np.arange(dset.shape[0])*1/int(xunit)
+                            xunit = "s"
+                        else:
+                            x = dset[:, self.param_list.index(self.xcol_var.get())]
+                        y = dset[:, self.param_list.index(yparam)]
 
             # if displaying data as recorded (not evaluating a function of the data)
-            else: 
+            else:
                 if dev.config["single_dataset"]:
                     try:
                         dset = grp[dev.config["name"]]
                     except KeyError as err:
                         messagebox.showerror("Data error", "Dataset not found in this run.")
                         return None
-                    x = dset[:, 0]
-                    y = dset[:, self.param_list.index(param)]
+                    if self.xcol_var.get() == "None":
+                        xunit = dset.attrs["sampling"].split("[")[0]
+                        continuous_sampling = True
+                        x = np.arange(dset.shape[0])*1/int(xunit)
+                        xunit = "s"
+                    else:
+                        x = dset[:, self.param_list.index(self.xcol_var.get())]
+                    y = dset[:, self.param_list.index(yparam)]
                 else: # if each acquisition is its own dataset, return latest run only
                     rec_num = len(grp) - 1
                     self.record_number.set(rec_num)
                     dset = grp[dev.config["name"] + "_" + str(rec_num)]
                     x = np.arange(dset.shape[0])
-                    y = dset[:, self.param_list.index(param)]
+                    y = dset[:, self.param_list.index(yparam)]
 
             # range of data to obtain
             try:
@@ -508,8 +583,15 @@ class Plotter(tk.Frame):
             dset_len = len(x)
             slice_length = (i2 if i2>=0 else dset_len+i2) - (i1 if i1>=0 else dset_len+i1)
             stride = 1 if slice_length < max_pts else int(slice_length/max_pts)
-
-            return x[i1:i2:stride], y[i1:i2:stride], param, unit
+            if (self.fft) & (not self.fn) & (continuous_sampling):
+                data = y[i1:i2:stride]
+                fft = np.abs(np.fft.rfft(data))
+                fft_freq = np.fft.rfftfreq(data.size,np.diff(x[i1:i2:stride])[0])
+                return fft_freq, fft, "frequency", "", "Hz", ""
+            if self.fft:
+                logging.warning("Cannot perform FFT on supplied data.")
+                self.toggle_fft()
+            return x[i1:i2:stride], y[i1:i2:stride], xparam, yparam, xunit, yunit
 
     def evaluate_fn(self, data):
         fn_var = self.fn_var.get()
@@ -519,12 +601,12 @@ class Plotter(tk.Frame):
             return None
 
         # make sure the function contains x (the argument of function)
-        if not "x" in fn_var:
+        if not "y" in fn_var:
             return None
 
         # find the requested function
         try:
-            fn = lambda x : eval(fn_var)
+            fn = lambda y : eval(fn_var)
         except (TypeError, AttributeError) as err:
             logging.warning("Cannot evaluate function: " + str(err))
             return None
@@ -542,7 +624,7 @@ class Plotter(tk.Frame):
         data = self.get_data()
 
         if data:
-            x, y, param, unit = data
+            x, y, xparam, yparam, xunit, yunit = data
         else:
             return False
 
@@ -550,16 +632,16 @@ class Plotter(tk.Frame):
             return False
 
         # draw plot
-        self.fig = Figure(figsize=(5.5,2.5), dpi=100)
+        self.fig = Figure(figsize=(6.2,2.5), dpi=100)
         self.ax = self.fig.add_subplot(111)
         self.line, = self.ax.plot(x, y)
 
         # labels
         if self.parent.devices[self.dev_var.get()].config["single_dataset"]:
-            self.ax.set_xlabel("time [s]")
+            self.ax.set_xlabel(xparam + " [" + xunit.strip() + "]")
         else:
             self.ax.set_xlabel("sample number")
-        self.ax.set_ylabel(param + " [" + unit.strip() + "]")
+        self.ax.set_ylabel(yparam + " [" + yunit.strip() + "]")
 
         # plot layout
         self.fig.set_tight_layout(True)
@@ -568,7 +650,7 @@ class Plotter(tk.Frame):
 
         # update drawing
         self.canvas = FigureCanvasTkAgg(self.fig, self.f)
-        self.canvas.get_tk_widget().grid(row=4, columnspan=7)
+        self.canvas.get_tk_widget().grid(row=4, columnspan=9)
         self.ani = animation.FuncAnimation(self.fig, self.replot,
                 interval=1000*self.dt(), blit=True)
         self.ani.event_source.stop()
@@ -602,7 +684,7 @@ class Plotter(tk.Frame):
 
         if data:
             # update plot data
-            x, y, param, unit = data
+            x, y, xparam, yparam, xunit, yunit = data
             self.line.set_data(x, y)
 
             # update x limits
@@ -635,17 +717,17 @@ class Plotter(tk.Frame):
             if self.fn:
                 self.ax.set_title(self.fn_var.get())
                 if self.parent.devices[self.dev_var.get()].config["single_dataset"]:
-                    self.ax.set_xlabel("time [s]")
+                    self.ax.set_xlabel(xparam + " [" + xunit.strip() + "]")
                 else:
                     self.ax.set_xlabel("dset number")
             else:
                 if self.parent.devices[self.dev_var.get()].config["single_dataset"]:
-                    self.ax.set_xlabel("time [s]")
+                    self.ax.set_xlabel(xparam + " [" + xunit.strip() + "]")
                     self.ax.set_title("")
                 else:
                     self.ax.set_xlabel("sample number")
                     self.ax.set_title("record #"+str(self.record_number.get()))
-            self.ax.set_ylabel(param + " [" + unit.strip() + "]")
+            self.ax.set_ylabel(yparam + " [" + yunit.strip() + "]")
 
             # redraw plot
             self.canvas.draw()

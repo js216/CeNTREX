@@ -272,10 +272,10 @@ class Plotter(tk.Frame):
         # for displaying a function of the data
         self.fn = False
         self.fn_var = tk.StringVar()
-        self.fn_var.set("np.sum(x, dtype=np.int32)")
+        self.fn_var.set("np.sum(y, dtype=np.int32)")
         self.x = []
         self.y = []
-        tk.Button(self.f, text="f(x)", command=self.toggle_fn).grid(row=0, column=3, padx=2)
+        tk.Button(self.f, text="f(y)", command=self.toggle_fn).grid(row=0, column=3, padx=2)
         self.fn_entry = tk.Entry(self.f, textvariable=self.fn_var)
         self.fn_clear_button = tk.Button(self.f, text="Clear", command=self.clear_fn)
 
@@ -377,7 +377,10 @@ class Plotter(tk.Frame):
             menu.add_command(label=p, command=lambda val=p: self.param_var.set(val))
 
         # update xcol list
-        self.xcol_list = ["None"]+self.param_list.copy()
+        if "time" in self.param_list:
+            self.xcol_list = self.param_list.copy()
+        else:
+            self.xcol_list = ["None"]+self.param_list.copy()
         menu = self.xcol_select["menu"]
         menu.delete(0, "end")
         for p in self.xcol_list:
@@ -393,9 +396,16 @@ class Plotter(tk.Frame):
             return None
 
         # check parameter is valid
-        if self.param_var.get() in self.param_list:
-            param = self.param_var.get()
-            unit = dev.config["attributes"]["units"].split(',')[self.param_list.index(param)]
+        if ((self.param_var.get() in self.param_list) and (self.xcol_var.get() in self.xcol_list)) or \
+           ((self.param_var.get() in self.param_list) and (self.xcol_var.get() == "None")):
+            yparam = self.param_var.get()
+            yunit = dev.config["attributes"]["units"].split(',')[self.param_list.index(yparam)]
+            xparam = self.xcol_var.get()
+            if xparam == "None":
+                xunit = ""
+                xparam = ""
+            else:
+                xunit = dev.config["attributes"]["units"].split(',')[self.xcol_list.index(xparam)]
         elif len(self.param_list) == 0:
             self.stop_animation()
             messagebox.showerror("Parameter error", "Error: device has no parameters.")
@@ -403,13 +413,25 @@ class Plotter(tk.Frame):
         else:
             # set a default parameter
             if len(self.param_list) >= 2:
-                self.param_var.set(self.param_list[1])
+                if "time" in self.param_list:
+                    self.param_var.set(self.param_list[1])
+                else:
+                    self.param_var.set(self.param_list[0])
+                self.xcol_var.set(self.xcol_list[0])
             else:
                 self.param_var.set(self.param_list[0])
+                self.xcol_var.set("None")
             # check the newly set parameter is valid
-            if self.param_var.get() in self.param_list:
-                param = self.param_var.get()
-                unit = dev.config["attributes"]["units"].split(',')[self.param_list.index(param)]
+            if ((self.param_var.get() in self.param_list) and (self.xcol_var.get() in self.xcol_list)) or \
+               ((self.param_var.get() in self.param_list) and (self.xcol_var.get() == "None")):
+                yparam = self.param_var.get()
+                yunit = dev.config["attributes"]["units"].split(',')[self.param_list.index(yparam)]
+                xparam = self.xcol_var.get()
+                if xparam == "None":
+                    xunit = ""
+                    xparam = ""
+                else:
+                    xunit = dev.config["attributes"]["units"].split(',')[self.xcol_list.index(xparam)]
             else:
                 self.stop_animation()
                 messagebox.showerror("Parameter error", "Error: invalid parameter.")
@@ -455,7 +477,7 @@ class Plotter(tk.Frame):
                 if not dev.config["single_dataset"]:
                     rec_num = len(grp) - 1
                     dset = grp[dev.config["name"] + "_" + str(rec_num)]
-                    trace_y = dset[:, self.param_list.index(param)]
+                    trace_y = dset[:, self.param_list.index(yparam)]
                     # if the most recent value hasn't been calculated yet, calculate it
                     if len(self.x) == 0 or self.x[-1] != rec_num:
                         y_fn = self.evaluate_fn(trace_y)
@@ -470,14 +492,19 @@ class Plotter(tk.Frame):
                         self.record_number.set(rec_num)
                         dset = grp[dev.config["name"] + "_" + str(rec_num)]
                         x = np.arange(dset.shape[0])
-                        y = dset[:, self.param_list.index(param)]
+                        y = dset[:, self.param_list.index(yparam)]
 
                 # when all acquisitions are in one dataset, evaluate a
                 # function of individual datapoints (e.g. sqrt of the entire trace)
                 else:
                     dset = grp[dev.config["name"]]
-                    x = dset[:, 0]
-                    y = self.evaluate_fn(dset[:, self.param_list.index(param)])
+                    if self.xcol_var.get() == "None":
+                        xunit = dset.attrs["sampling"].split("[")[0]
+                        x = np.arange(dset.shape[0])*1/int(xunit)
+                        xunit = "s"
+                    else:
+                        x = dset[:, self.param_list.index(self.xcol_var.get())]
+                    y = self.evaluate_fn(dset[:, self.param_list.index(yparam)])
 
                     # check y has correct shape
                     try:
@@ -487,8 +514,13 @@ class Plotter(tk.Frame):
                             raise ValueError("x.shape != y.shape")
                     except ValueError as err:
                         logging.warning("Function returns invalid data: " + str(err))
-                        x = np.arange(dset.shape[0])
-                        y = dset[:, self.param_list.index(param)]
+                        if self.xcol_var.get() == "None":
+                            xunit = dset.attrs["sampling"].split("[")[0]
+                            x = np.arange(dset.shape[0])*1/int(xunit)
+                            xunit = "s"
+                        else:
+                            x = dset[:, self.param_list.index(self.xcol_var.get())]
+                        y = dset[:, self.param_list.index(yparam)]
 
             # if displaying data as recorded (not evaluating a function of the data)
             else:
@@ -498,18 +530,19 @@ class Plotter(tk.Frame):
                     except KeyError as err:
                         messagebox.showerror("Data error", "Dataset not found in this run.")
                         return None
-                    print(type(self.xcol_var.get()), self.xcol_var.get())
                     if self.xcol_var.get() == "None":
-                        x = np.arange(dset.shape[0])
+                        xunit = dset.attrs["sampling"].split("[")[0]
+                        x = np.arange(dset.shape[0])*1/int(xunit)
+                        xunit = "s"
                     else:
                         x = dset[:, self.param_list.index(self.xcol_var.get())]
-                    y = dset[:, self.param_list.index(param)]
+                    y = dset[:, self.param_list.index(yparam)]
                 else: # if each acquisition is its own dataset, return latest run only
                     rec_num = len(grp) - 1
                     self.record_number.set(rec_num)
                     dset = grp[dev.config["name"] + "_" + str(rec_num)]
                     x = np.arange(dset.shape[0])
-                    y = dset[:, self.param_list.index(param)]
+                    y = dset[:, self.param_list.index(yparam)]
 
             # range of data to obtain
             try:
@@ -531,7 +564,7 @@ class Plotter(tk.Frame):
             slice_length = (i2 if i2>=0 else dset_len+i2) - (i1 if i1>=0 else dset_len+i1)
             stride = 1 if slice_length < max_pts else int(slice_length/max_pts)
 
-            return x[i1:i2:stride], y[i1:i2:stride], param, unit
+            return x[i1:i2:stride], y[i1:i2:stride], xparam, yparam, xunit, yunit
 
     def evaluate_fn(self, data):
         fn_var = self.fn_var.get()
@@ -541,12 +574,12 @@ class Plotter(tk.Frame):
             return None
 
         # make sure the function contains x (the argument of function)
-        if not "x" in fn_var:
+        if not "y" in fn_var:
             return None
 
         # find the requested function
         try:
-            fn = lambda x : eval(fn_var)
+            fn = lambda y : eval(fn_var)
         except (TypeError, AttributeError) as err:
             logging.warning("Cannot evaluate function: " + str(err))
             return None
@@ -564,7 +597,7 @@ class Plotter(tk.Frame):
         data = self.get_data()
 
         if data:
-            x, y, param, unit = data
+            x, y, xparam, yparam, xunit, yunit = data
         else:
             return False
 
@@ -578,10 +611,10 @@ class Plotter(tk.Frame):
 
         # labels
         if self.parent.devices[self.dev_var.get()].config["single_dataset"]:
-            self.ax.set_xlabel("time [s]")
+            self.ax.set_xlabel(xparam + " [" + xunit.strip() + "]")
         else:
             self.ax.set_xlabel("sample number")
-        self.ax.set_ylabel(param + " [" + unit.strip() + "]")
+        self.ax.set_ylabel(yparam + " [" + yunit.strip() + "]")
 
         # plot layout
         self.fig.set_tight_layout(True)
@@ -624,7 +657,7 @@ class Plotter(tk.Frame):
 
         if data:
             # update plot data
-            x, y, param, unit = data
+            x, y, xparam, yparam, xunit, yunit = data
             self.line.set_data(x, y)
 
             # update x limits
@@ -657,17 +690,17 @@ class Plotter(tk.Frame):
             if self.fn:
                 self.ax.set_title(self.fn_var.get())
                 if self.parent.devices[self.dev_var.get()].config["single_dataset"]:
-                    self.ax.set_xlabel("time [s]")
+                    self.ax.set_xlabel(xparam + " [" + xunit.strip() + "]")
                 else:
                     self.ax.set_xlabel("dset number")
             else:
                 if self.parent.devices[self.dev_var.get()].config["single_dataset"]:
-                    self.ax.set_xlabel("time [s]")
+                    self.ax.set_xlabel(xparam + " [" + xunit.strip() + "]")
                     self.ax.set_title("")
                 else:
                     self.ax.set_xlabel("sample number")
                     self.ax.set_title("record #"+str(self.record_number.get()))
-            self.ax.set_ylabel(param + " [" + unit.strip() + "]")
+            self.ax.set_ylabel(yparam + " [" + yunit.strip() + "]")
 
             # redraw plot
             self.canvas.draw()

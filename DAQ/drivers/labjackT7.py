@@ -150,6 +150,8 @@ class labjackT7:
             self.SetHV2(0)
             time.sleep(5)
         self.SetPolarity("POS", "NEG")
+        self.HV1Enable(False)
+        self.HV2Enable(False)
         ljm.close(self.handle)
 
     def GetWarnings(self):

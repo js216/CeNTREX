@@ -329,5 +329,7 @@ class labjackT7:
             self.ramp_thread.stop()
             self.ramp_thread = None
             self.running_ramp = False
+            return
         else:
             logging.warning("labjackT7 error: No ramp running")
+            return

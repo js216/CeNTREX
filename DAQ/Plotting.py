@@ -584,14 +584,16 @@ class Plotter(tk.Frame):
             slice_length = (i2 if i2>=0 else dset_len+i2) - (i1 if i1>=0 else dset_len+i1)
             stride = 1 if slice_length < max_pts else int(slice_length/max_pts)
             if (self.fft) & (not self.fn) & (continuous_sampling):
-                data = y[i1:i2:stride]
-                fft = np.abs(np.fft.rfft(data))
-                fft_freq = np.fft.rfftfreq(data.size,np.diff(x[i1:i2:stride])[0])
-                return fft_freq, fft, "frequency", "", "Hz", ""
+                return self.evaluate_fft(np.diff(x[i1:i2:stride])[0], y[i1:i2:stride])
             if self.fft:
                 logging.warning("Cannot perform FFT on supplied data.")
                 self.toggle_fft()
             return x[i1:i2:stride], y[i1:i2:stride], xparam, yparam, xunit, yunit
+
+    def evaluate_fft(self, dt, y):
+        fft = np.abs(np.fft.rfft(y))
+        fft_freq = np.fft.rfftfreq(len(y),dt)
+        return fft_freq, fft, "frequency", "", "Hz", ""
 
     def evaluate_fn(self, data):
         fn_var = self.fn_var.get()

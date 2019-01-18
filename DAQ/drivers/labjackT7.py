@@ -5,19 +5,82 @@ from labjack import ljm
 import numpy as np
 import time
 from threading import Thread
+import threading
 import logging
+
+# logging.basicConfig(level=logging.DEBUG)
+
+class StoppableThread(threading.Thread):
+    """Thread class with a stop() method. The thread itself has to check
+    regularly for the stopped() condition."""
+
+    def __init__(self, *args, **kwargs):
+        super(StoppableThread, self).__init__(*args, **kwargs)
+        self._stop = threading.Event()
+
+    def stop(self):
+        self._stop.set()
+
+    def stopped(self):
+        return self._stop.isSet()
+
+def RampVoltageSet(self, hv1_v, hv2_v, ramp, ramp_time):
+    """
+    Voltage ramping function
+    """
+
+class VoltageRamp(StoppableThread):
+    """
+    Voltage ramp in a separate thread to ensure continuous data acquisition
+    simultaneous to ramping the voltage.
+    """
+    def __init__(self, driver, hv1_v, hv2_v, ramp, ramp_time):
+        super(VoltageRamp, self).__init__()
+        driver.running_ramp = True
+        self.driver = driver
+        self.hv1_v = hv1_v
+        self.hv2_v = hv2_v
+        self.ramp = ramp
+        self.ramp_time = ramp_time
+
+    def run(self):
+        if self.ramp_time == 0:
+            logging.warning("labjackT7 error: Ramp time is zero")
+            return
+        hv1_start = self.driver.hv1
+        hv2_start = self.driver.hv2
+        dv1 = self.hv1_v-hv1_start
+        dv2 = self.hv2_v-hv2_start
+        dt = 0.1
+        dv1dt = (dv1/self.ramp_time)*dt
+        dv2dt = (dv2/self.ramp_time)*dt
+        steps = int(self.ramp_time/dt)
+        for i in range(steps):
+            if self.stopped():
+                return
+            self.driver.SetHV1(hv1_start+dv1dt*i)
+            self.driver.SetHV2(hv2_start+dv2dt*i)
+            time.sleep(dt)
+        self.driver.SetHV1(self.hv1_v)
+        self.driver.SetHV2(self.hv2_v)
+        self.driver.running_ramp = False
+        self.driver.ramp_thread = None
 
 class labjackT7:
     def __init__(self, time_offset, IP_address, sampling, channels):
-
         self.hv1_enable = 0
         self.hv2_enable = 0
         self.hv1 = 0
         self.hv2 = 0
+        self.polarity1 = "POS"
+        self.polarity2 = "NEG"
         self.running_ramp = False
+        self.ramp_thread = None
         self.handle = openS("T7","ETHERNET",IP_address)
         self.HV1Enable()
         self.HV2Enable()
+        self.SetLJTickVoltage("TDAC0", 0)
+        self.SetLJTickVoltage("TDAC1", 0)
         try:
             eStreamStop(self.handle)
         except ljm.LJMError as exception:
@@ -80,6 +143,13 @@ class labjackT7:
         except ljm.LJMError as exception:
             if exception.errorString != "STREAM_NOT_RUNNING":
                 raise
+        if (self.running_ramp) and (self.ramp_thread != None):
+            self.ramp_thread.stop()
+        if (self.hv1 != 0) or (self.hv2 != 0):
+            self.SetHV1(0)
+            self.SetHV2(0)
+            time.sleep(5)
+        self.SetPolarity("POS", "NEG")
         ljm.close(self.handle)
 
     def GetWarnings(self):
@@ -93,6 +163,15 @@ class labjackT7:
         data = np.array(eStreamRead(self.handle)[0]).reshape(-1,self.num_addresses)
         return data
 
+    def SetDigitalIO(name, high = True):
+        if high not in [True, False]:
+            logging.warning("labjackT7 error: high has to be True or False")
+            return
+        if high:
+            eWriteName(self.handle, name, 1)
+        else:
+            eWriteName(self.handle, name, 0)
+
     def DigitalIO5V(self, name, high):
         """
         Labjack digital IO is 3.3V, need 5V for the HV PSU. Use open-collector
@@ -100,6 +179,10 @@ class labjackT7:
         Set the line to input for 5V out.
         Set the line to output-low for 3.3V out.
         """
+        if high not in [True, False]:
+            logging.warning("labjackT7 error: high has to be True or False")
+            return
+        logging.debug("Set {0} to {1}V".format(name, 5 if high else 0))
         if high:
             eReadName(self.handle, name)
         else:
@@ -110,7 +193,8 @@ class labjackT7:
         Enables HV PSU 1.
         HV PSU has an inhibit input, e.g. high signal disables the PSU
         """
-        name = "FIO0"
+        name = "FIO3"
+        logging.debug("Inhibit HV1 : {0}".format(not bool(enable)))
         self.DigitalIO5V(name, not enable)
         self.hv1_enable = enable
 
@@ -119,7 +203,8 @@ class labjackT7:
         Enables HV PSU 1.
         HV PSU has an inhibit input, e.g. high signal disables the PSU
         """
-        name = "FIO1"
+        name = "FIO5"
+        logging.debug("Inhibit HV2 : {0}".format(not bool(enable)))
         self.DigitalIO5V(name, not enable)
         self.hv2_enable = enable
 
@@ -127,10 +212,34 @@ class labjackT7:
         """
         Set polarities of HV PSU 1 & 2, requires them to be at 0 kV.
         """
-        if (self.hv1 != 0) and (self.hv2 != 0):
-            logging.warning("labjackT7 error: Voltages not zero, cannot switch polarities")
+        if self.hv1 != 0:
+            logging.warning("labjackT7 error: Voltage HV1 not zero, cannot switch polarities")
             return
-        print(polarity1, polarity2)
+        if self.hv2 != 0:
+            logging.warning("labjackT7 error: Voltage HV2 not zero, cannot switch polarities")
+            return
+        if (polarity1 not in ["NEG", "POS"]) or (polarity2 not in ["NEG", "POS"]):
+            logging.warning("labjackT7 error: Polarity has to be NEG or POS")
+            return
+        bool_convert = {"NEG": False, "POS": True}
+        logging.debug("Setting HV1 {0} & HV2 {1}".format(polarity1, polarity2))
+        if self.polarity1 != polarity1:
+            self.DigitalIO5V("FIO2", bool_convert[polarity1])
+        if self.polarity2 != polarity2:
+            self.DigitalIO5V("FIO4", bool_convert[polarity2])
+        self.polarity1 = polarity1
+        self.polarity2 = polarity2
+
+    def SetLJTickVoltage(self, name, voltage):
+        """
+        Set the voltage output of the LTTick DAC
+        """
+        if (voltage < 0) or (voltage > 10):
+            logging.warning("labjackT7 error: Set voltage LJTick out of range 0-10V")
+            return
+        else:
+            logging.debug("Setting LJTICK to {0:.3f}V".format(voltage))
+            eWriteName(self.handle, name, voltage)
 
     def SetHV1(self, hv1):
         """
@@ -138,7 +247,7 @@ class labjackT7:
         Sets output voltage of LJTick-DAC from 0-10 V, corresponding to 0-30kV
         """
         if not ((hv1 <= 30) & (hv1 >= 0)):
-            logging.warning("labjackT7 error: Set Voltage HV1 out of range 0-30kV")
+            logging.warning("labjackT7 error: Set voltage HV1 out of range 0-30kV")
             return
         if self.hv1 == hv1:
             return
@@ -146,7 +255,8 @@ class labjackT7:
             logging.warning("labjackT7 error: HV1 not enabled")
             return
         elif not self.hv1 == hv1:
-            print("HV1 : ",hv1)
+            logging.debug("Set HV1 to {0:.2f}kV".format(hv1))
+            self.SetLJTickVoltage("TDAC0", hv1/3)
             self.hv1 = hv1
 
     def SetHV2(self, hv2):
@@ -155,7 +265,7 @@ class labjackT7:
         Sets output voltage of LJTick-DAC from 0-10 V, corresponding to 0-30kV
         """
         if not ((hv2 <= 30) & (hv2 >= 0)):
-            logging.warning("labjackT7 error: Set Voltage HV2 out of range 0-30kV")
+            logging.warning("labjackT7 error: Set voltage HV2 out of range 0-30kV")
             return
         if self.hv2 == hv2:
             return
@@ -163,7 +273,8 @@ class labjackT7:
             logging.warning("labjackT7 error: HV2 not enabled")
             return
         elif not self.hv2 == hv2:
-            print("HV2 : ",hv2)
+            logging.debug("Set HV2 to {0:.2f}kV".format(hv2))
+            self.SetLJTickVoltage("TDAC1", hv2/3)
             self.hv2 = hv2
 
     def SetVoltage(self, hv1_v, hv2_v, ramp, ramp_time):
@@ -187,10 +298,10 @@ class labjackT7:
             logging.warning("labjackT7 error: HV2 not enabled")
             return
         if not ((hv1_v <= 30) & (hv1_v >= 0)):
-            logging.warning("labjackT7 error: Set Voltage HV1 out of range 0-30kV")
+            logging.warning("labjackT7 error: Set voltage HV1 out of range 0-30kV")
             return
         if not ((hv2_v <= 30) & (hv2_v >= 0)):
-            logging.warning("labjackT7 error: Set Voltage HV2 out of range 0-30kV")
+            logging.warning("labjackT7 error: Set voltage HV2 out of range 0-30kV")
             return
 
         # Check if threaded ramp is already running, if yes exit SetVoltage
@@ -202,34 +313,19 @@ class labjackT7:
             logging.warning("labjackT7 error: Voltages already set")
         # Start threaded ramp function if ramping
         elif ramp:
-            thread = Thread(target = self.RampVoltageSet, args = (hv1_v, hv2_v, ramp, ramp_time))
-            thread.start()
-
+            self.ramp_thread = VoltageRamp(self, hv1_v, hv2_v, ramp, ramp_time)
+            self.ramp_thread.start()
         else:
             self.SetHV1(hv1_v)
             self.SetHV2(hv2_v)
 
-    def RampVoltageSet(self, hv1_v, hv2_v, ramp, ramp_time):
+    def StopVoltage(self):
         """
-        Voltage ramping function
+        Stoping a voltage ramp in running in a thread.
         """
-        self.running_ramp = True
-        if ramp_time == 0:
-            logging.warning("labjackT7 error: Ramp time is zero")
+        if (self.running_ramp) and (self.ramp_thread != None):
+            self.ramp_thread.stop()
+            self.ramp_thread = None
             self.running_ramp = False
-            return
-        hv1_start = self.hv1
-        hv2_start = self.hv2
-        dv1 = hv1_v-hv1_start
-        dv2 = hv2_v-hv2_start
-        dt = 0.05
-        dv1dt = (dv1/ramp_time)*dt
-        dv2dt = (dv2/ramp_time)*dt
-        steps = int(ramp_time/dt)
-        for i in range(steps):
-            self.SetHV1(hv1_start+dv1dt*i)
-            self.SetHV2(hv2_start+dv2dt*i)
-            time.sleep(dt)
-        self.SetHV1(hv1_v)
-        self.SetHV2(hv2_v)
-        self.running_ramp = False
+        else:
+            logging.warning("labjackT7 error: No ramp running")

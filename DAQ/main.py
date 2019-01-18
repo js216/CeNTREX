@@ -38,7 +38,7 @@ class Device(threading.Thread):
         # for sending commands to the device
         self.commands = []
 
-        # for warnings about device abnormal condiotion
+        # for warnings about device abnormal condition
         self.warnings = []
 
         # the data and events queues
@@ -189,6 +189,12 @@ class ControlGUI(tk.Frame):
                     ctrls[c]["col"]        = int(params[c]["col"])
                     ctrls[c]["var"]        = tk.BooleanVar()
                     ctrls[c]["var"].set(params[c]["value"])
+
+                elif params[c].get("type") == "Hidden":
+                    ctrls[c] = {}
+                    ctrls[c]["var"] = tk.StringVar()
+                    ctrls[c]["var"].set(params[c]["value"])
+                    ctrls[c]["type"] = "Hidden"
 
                 elif params[c].get("type") == "Button":
                     ctrls[c] = {}

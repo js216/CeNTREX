@@ -16,7 +16,6 @@ class USB6008:
         self.flood_out       = flood_out
 
         self.setpoint        = 0.0
-        self.SetPointControl(self.setpoint)
 
         # make the verification string
         try:
@@ -24,6 +23,9 @@ class USB6008:
             self.verification_string = "operational"
         except:
             self.verification_string = "cannot read"
+
+        if not self.SetPointControl(self.setpoint):
+            self.verification_string = "cannot set setpoint"
 
         # HDF attributes generated when constructor is run
         self.new_attributes = []
@@ -148,4 +150,9 @@ class USB6008:
                 PyDAQmx.DAQmx_Val_Volts,None)
             task.SetSampTimingType(PyDAQmx.DAQmx_Val_OnDemand)
             task.StartTask()
-            task.WriteAnalogScalarF64(True, 1.0, self.setpoint_V, None)
+            try:
+                task.WriteAnalogScalarF64(True, 1.0, self.setpoint_V, None)
+            except PyDAQmx.DAQmxFunctions.PALUSBTransactionErrorError as err:
+                return str(err)
+            else:
+                return True

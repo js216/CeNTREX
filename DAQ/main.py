@@ -122,7 +122,7 @@ class Device(threading.Thread):
                 for c in self.commands:
                     try:
                         ret_val = eval("device." + c.strip())
-                    except (ValueError, AttributeError) as err:
+                    except (ValueError, AttributeError, SyntaxError, TypeError) as err:
                         ret_val = str(err)
                     ret_val = "None" if not ret_val else ret_val
                     last_event = [ time.time()-self.time_offset, c, ret_val ]

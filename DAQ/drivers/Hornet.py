@@ -32,6 +32,9 @@ class Hornet:
         self.dtype = 'f'
         self.shape = (2, )
 
+        # when overpressure turns IG off
+        self.warnings = []
+
     def __enter__(self):
         return self
 
@@ -53,7 +56,9 @@ class Hornet:
         return [time.time()-self.time_offset, self.ReadSystemPressure()]
 
     def GetWarnings(self):
-        return None
+        warnings = self.warnings
+        self.warnings = []
+        return warnings
 
     #################################################################
     ##########           SERIAL COMMANDS                   ##########
@@ -79,12 +84,21 @@ class Hornet:
         *xx_y.yyEzyy<CR> (e.g., *01_1.53E-06<CR>)
         When IG is off: CG only
         """
+        # obtain the pressure measurement
         try:
             pressure = float(self.query("#" + self.address + "RDS")[4:])
         except pyvisa.errors.VisaIOError:
             return np.nan
+
+        # check for overpressure
         if (self.IG_status == "*"+self.address+" 1 IG ON") and (pressure > 1e-3):
+            # turn IG off
             self.TurnIGOff()
+
+            # report the warning
+            warning_dict = {"message" : "turning IG off at pressure = " + str(pressure)}
+            self.warnings.append([time.time(), warning_dict])
+
         return pressure
 
     def ReadCGnPressure(self, n):

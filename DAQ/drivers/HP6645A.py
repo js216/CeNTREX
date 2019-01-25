@@ -50,6 +50,9 @@ class HP6645A:
         except ValueError:
             logging.warning("HP6645A warning in SetVoltage(): invalid parameter " + str(param))
             return np.nan
+        if val > 130:
+            logging.warning("HP6645A warning in SetVoltage(): requested voltage too high:" + str(val))
+            return np.nan
 
         try:
             return self.instr.write('VOLT ' + str(val))
@@ -63,6 +66,9 @@ class HP6645A:
             val = float(param)
         except ValueError:
             logging.warning("HP6645A warning in SetCurrent(): invalid parameter " + str(param))
+            return np.nan
+        if val > 1.5:
+            logging.warning("HP6645A warning in SetCurrent(): requested current too high:" + str(val))
             return np.nan
 
         try:

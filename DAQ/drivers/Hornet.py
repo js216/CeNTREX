@@ -96,7 +96,7 @@ class Hornet:
             self.TurnIGOff()
 
             # report the warning
-            warning_dict = {"message" : "turning IG off at pressure = " + str(pressure)}
+            warning_dict = {"message" : "turning IG off at pressure = " + str(pressure) + " torr"}
             self.warnings.append([time.time(), warning_dict])
 
         return pressure

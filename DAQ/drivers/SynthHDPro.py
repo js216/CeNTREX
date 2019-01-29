@@ -94,3 +94,39 @@ class SynthHDPro:
 
     def RFoff(self):
         self.instr.write('E0r0')
+
+    ############################################
+    # Convenience functions that work on one channel only
+    ############################################
+
+    def SetRFFreqA(self, param):
+        self.ControlChannelA
+        self.SetRFFreq(param)
+
+    def SetRFPowerA(self, param):
+        self.ControlChannelA
+        self.SetRFPower(param)
+
+    def RFonA(self):
+        self.ControlChannelA
+        self.RFon()
+
+    def RFoffA(self):
+        self.ControlChannelA
+        self.RFoff()
+
+    def SetRFFreqB(self, param):
+        self.ControlChannelB
+        self.SetRFFreq(param)
+
+    def SetRFPowerB(self, param):
+        self.ControlChannelB
+        self.SetRFPower(param)
+
+    def RFonB(self):
+        self.ControlChannelB
+        self.RFon()
+
+    def RFoffB(self):
+        self.ControlChannelB
+        self.RFoff()

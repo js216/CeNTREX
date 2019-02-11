@@ -91,6 +91,15 @@ class CTC100:
             return value
 
     def description(self):
+        # clear instrument by attempting to read 10 messages
+        self.instr.timeout = 100
+        for i in range(10):
+            try:
+                self.instr.read()
+            except pyvisa.errors.VisaIOError:
+                break
+
+        # read identification
         try:
             self.instr.write("description")
             time.sleep(1)

@@ -156,7 +156,7 @@ class HiPace700:
     def DrvCurrent(self):
         """Drive current."""
         try:
-            return float(self.query(310))
+            return float(self.query(310))/100
         except ValueError as err:
             logging.warning("HiPace700 warning in DrvCurrent(): " + str(err))
             return np.nan
@@ -164,7 +164,7 @@ class HiPace700:
     def DrvVoltage(self):
         """Drive voltage."""
         try:
-            return float(self.query(313))
+            return float(self.query(313))/100
         except ValueError as err:
             logging.warning("HiPace700 warning in DrvVoltage(): " + str(err))
             return np.nan
@@ -221,7 +221,50 @@ class HiPace700:
         """Name of electronic drive unit."""
         return self.query(349)
 
-    #######################################################
+    def ErrorCode(self):
+        return self.query(303)
+
+    def ErrHis1(self):
+        """Error code history, pos. 1."""
+        return self.query(360)
+
+    def ErrHis2(self):
+        """Error code history, pos. 2."""
+        return self.query(361)
+
+    def ErrHis3(self):
+        """Error code history, pos. 3."""
+        return self.query(362)
+
+    def ErrHis4(self):
+        """Error code history, pos. 4."""
+        return self.query(363)
+
+    def ErrHis5(self):
+        """Error code history, pos. 5."""
+        return self.query(364)
+
+    def ErrHis6(self):
+        """Error code history, pos. 6."""
+        return self.query(365)
+
+    def ErrHis7(self):
+        """Error code history, pos. 7."""
+        return self.query(366)
+
+    def ErrHis8(self):
+        """Error code history, pos. 8."""
+        return self.query(367)
+
+    def ErrHis9(self):
+        """Error code history, pos. 9."""
+        return self.query(368)
+
+    def ErrHis10(self):
+        """Error code history, pos. 10."""
+        return self.query(369)
+
+   #######################################################
     # Control commands
     #######################################################
 

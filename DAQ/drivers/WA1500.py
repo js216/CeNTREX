@@ -54,9 +54,12 @@ class WA1500:
             self.instr.clear()
         except pyvisa.errors.VisaIOError as err:
             logging.warning("WA1500 warning in ReadValue()" + str(err))
+            resp = ""
             return np.nan
 
         # extract measurement
+        if resp[0] != "+":
+            return np.nan
         try:
             return float(resp[1:11])
         except ValueError as err:

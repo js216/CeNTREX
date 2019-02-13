@@ -13,6 +13,7 @@ import gc
 import h5py
 import logging
 from scipy import integrate
+import pickle
 
 class PlotsGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -69,8 +70,55 @@ class PlotsGUI(tk.Frame):
                 command = lambda: self.open_HDF_file("plotting_hdf_fname"))\
                 .grid(row=1, column=6, padx=10, sticky='ew')
 
+        # for saving plot configuration
+        tk.Label(ctrls_f, text="Plot config file:")\
+                .grid(row=2, column=0)
+        tk.Entry(ctrls_f,
+                textvariable=self.parent.config["files"]["plotting_config_fname"])\
+                .grid(row=2, column=1, columnspan=5, padx=10, sticky="ew")
+        tk.Button(ctrls_f, text="Save plots", command = self.save_plots)\
+                .grid(row=2, column=6, padx=10, sticky='ew')
+        tk.Button(ctrls_f, text="Load plots", command = self.load_plots)\
+                .grid(row=2, column=7, padx=10, sticky='ew')
+
         # add one plot
         self.add_plot()
+
+    def save_plots(self):
+        # put essential information about plot configuration in a dictionary
+        plot_config = {}
+        for col, col_plots in self.all_plots.items():
+            plot_config[col] = {}
+            for row, plot in col_plots.items():
+                if plot:
+                    plot_info = {
+                            "device" : plot.dev_var.get(),
+                            "run"    : plot.run_var.get(),
+                            "param"  : plot.param_var.get(),
+                            "xcol"   : plot.xcol_var.get(),
+                            }
+                    plot_config[col][row] = plot_info
+
+        # save this info as a pickled dictionary
+        with open(self.parent.config["files"]["plotting_config_fname"].get(), "wb") as f:
+            pickle.dump(plot_config, f)
+
+    def load_plots(self):
+        # remove all plots
+        #self.delete_all()
+
+        # read pickled plot config
+        with open(self.parent.config["files"]["plotting_config_fname"].get(), "rb") as f:
+            plot_config = pickle.load(f)
+
+        # re-create all plots
+        for col, col_plots in plot_config.items():
+            for row, plot_info in col_plots.items():
+                plot = self.add_plot(row, col)
+                plot.dev_var.set(  plot_info["device"]),
+                plot.run_var.set(  plot_info["run"]),
+                plot.param_var.set(plot_info["param"]),
+                plot.xcol_var.set( plot_info["xcol"]),
 
     def open_HDF_file(self, prop):
         # ask for a file name
@@ -148,13 +196,14 @@ class PlotsGUI(tk.Frame):
                 if plot:
                     plot.refresh_parameter_list(plot.dev_var.get())
 
-    def add_plot(self):
-        # find location for the plot
-        try:
-            col = int(self.col_var.get())
-        except ValueError:
-            col = 0
-        row = max([ r for r in self.all_plots.setdefault(col, {0:None}) ]) + 2
+    def add_plot(self, row=False, col=False):
+        # find location for the plot if not given to the function
+        if (not row) and (not col):
+            try:
+                col = int(self.col_var.get())
+            except ValueError:
+                col = 0
+            row = max([ r for r in self.all_plots.setdefault(col, {0:None}) ]) + 2
 
         # frame for the plot
         fr = tk.LabelFrame(self.f, text="")
@@ -181,6 +230,8 @@ class PlotsGUI(tk.Frame):
                 plot.run_var.set(self.run_list[-1])
         except OSError:
             pass
+
+        return plot
 
     def delete_plot(self, row, col, plot):
         if plot:
@@ -234,8 +285,6 @@ class Plotter(tk.Frame):
         self.xcol_select.configure(width=18)
 
         self.refresh_parameter_list(self.dev_var.get())
-
-
 
         # plot range controls
         num_width = 7 # width of numeric entry boxes

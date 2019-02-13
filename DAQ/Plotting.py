@@ -120,6 +120,8 @@ class PlotsGUI(tk.Frame):
                 plot.param_var.set(plot_info["param"]),
                 plot.xcol_var.set( plot_info["xcol"]),
 
+        self.refresh_run_list(self.parent.config["files"]["plotting_hdf_fname"].get())
+
     def open_HDF_file(self, prop):
         # ask for a file name
         fname = filedialog.askopenfilename(
@@ -599,7 +601,10 @@ class Plotter(tk.Frame):
                         messagebox.showerror("Data error", "Dataset not found in this run.")
                         return None
                     if self.xcol_var.get() == "None":
-                        xunit = dset.attrs["sampling"].split("[")[0]
+                        try:
+                            xunit = dset.attrs["sampling"].split("[")[0]
+                        except KeyError:
+                            xunit = 1
                         continuous_sampling = True
                         x = np.arange(dset.shape[0])*1/int(xunit)
                         xunit = "s"

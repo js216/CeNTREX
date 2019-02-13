@@ -37,7 +37,7 @@ class HP6645A:
     def ReadValue(self):
         voltage = self.MeasureVoltage()
         current = self.MeasureCurrent()
-        power = volt * curr
+        power = voltage * current
 
         return [ time.time() - self.time_offset,
                 voltage,

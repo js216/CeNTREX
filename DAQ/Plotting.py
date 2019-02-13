@@ -213,6 +213,7 @@ class PlotsGUI(tk.Frame):
 
         # place the plot
         plot = Plotter(fr, self.parent)
+        self.all_plots.setdefault(col, {}) # check the column is in the dict, else add it
         self.all_plots[col][row] = plot
 
         # button to delete plot

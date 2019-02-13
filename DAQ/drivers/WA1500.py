@@ -43,6 +43,11 @@ class WA1500:
             self.instr.close()
 
     def ReadValue(self):
+        return [ time.time() - self.time_offset,
+                 self.Measure(),
+               ]
+
+    def Measure(self):
         # obtain value
         try:
             resp = self.instr.read()
@@ -54,9 +59,12 @@ class WA1500:
         # extract measurement
         try:
             return float(resp[1:11])
-        except ValueError:
+        except ValueError as err:
             logging.warning("WA1500 warning in ReadValue()" + str(err))
             return np.nan
+
+    def Units(self):
+        self.instr.write("@\x27")
 
     def GetWarnings(self):
         return None

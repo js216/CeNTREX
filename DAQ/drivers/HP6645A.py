@@ -25,7 +25,7 @@ class HP6645A:
 
         # shape and type of the array of returned data
         self.dtype = 'f'
-        self.shape = (3, )
+        self.shape = (4, )
 
     def __enter__(self):
         return self
@@ -35,9 +35,14 @@ class HP6645A:
             self.instr.close()
 
     def ReadValue(self):
+        voltage = self.MeasureVoltage()
+        current = self.MeasureCurrent()
+        power = volt * curr
+
         return [ time.time() - self.time_offset,
-                 self.MeasureVoltage(),
-                 self.MeasureCurrent()
+                voltage,
+                current,
+                power,
                ]
 
     def GetWarnings(self):

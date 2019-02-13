@@ -222,9 +222,13 @@ class Monitoring(threading.Thread):
                         data = dset[-1]
                 else:
                     rec_num = len(grp) - 1
-                    if rec_num < 1:
+                    if rec_num < 3:
                         return None
-                    data = grp[dev.config["name"] + "_" + str(rec_num)][-1]
+                    try:
+                        data = grp[dev.config["name"] + "_" + str(rec_num)][-1]
+                    except KeyError:
+                        logging.warning("dset doesn't exist: num = " + str(rec_num))
+                        return None
                 return data
 
         # if HDF writing not enabled for this device, get events from the events_queue

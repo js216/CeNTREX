@@ -110,13 +110,13 @@ class Device(threading.Thread):
 
                 # record numerical values
                 last_data = device.ReadValue()
-                if  len(last_data) > 0:
-                    self.data_queue.append(last_data)
-
                 # keep track of the number of NaN returns
                 if isinstance(last_data, float):
                     if np.isnan(last_data):
                         self.nan_count.set( int(self.nan_count.get()) + 1)
+                elif len(last_data) > 0:
+                    self.data_queue.append(last_data)
+
 
                 # send control commands, if any, to the device, and record return values
                 for c in self.commands:

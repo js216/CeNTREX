@@ -96,6 +96,15 @@ class PlotsGUI(tk.Frame):
                             "run"    : plot.run_var.get(),
                             "param"  : plot.param_var.get(),
                             "xcol"   : plot.xcol_var.get(),
+                            "x0"     : plot.x0_var.get(),
+                            "x1"     : plot.x1_var.get(),
+                            "y0"     : plot.y0_var.get(),
+                            "y1"     : plot.y1_var.get(),
+                            "dt"     : plot.dt_var.get(),
+                            "fn"     : plot.fn,
+                            "points" : plot.points,
+                            "log"    : plot.log,
+                            "fft"    : plot.fft,
                             }
                     plot_config[col][row] = plot_info
 
@@ -105,7 +114,7 @@ class PlotsGUI(tk.Frame):
 
     def load_plots(self):
         # remove all plots
-        #self.delete_all()
+        self.delete_all()
 
         # read pickled plot config
         with open(self.parent.config["files"]["plotting_config_fname"].get(), "rb") as f:
@@ -115,10 +124,25 @@ class PlotsGUI(tk.Frame):
         for col, col_plots in plot_config.items():
             for row, plot_info in col_plots.items():
                 plot = self.add_plot(row, col)
-                plot.dev_var.set(  plot_info["device"]),
-                plot.run_var.set(  plot_info["run"]),
-                plot.param_var.set(plot_info["param"]),
-                plot.xcol_var.set( plot_info["xcol"]),
+                plot.dev_var.set(   plot_info["device"] )
+                plot.run_var.set(   plot_info["run"]    )
+                plot.param_var.set( plot_info["param"]  )
+                plot.xcol_var.set(  plot_info["xcol"]   )
+                plot.x0_var.set(    plot_info["x0"]     )
+                plot.x1_var.set(    plot_info["x1"]     )
+                plot.y0_var.set(    plot_info["y0"]     )
+                plot.y1_var.set(    plot_info["y1"]     )
+                plot.dt_var.set(    plot_info["dt"]     )
+                plot.change_animation_dt()
+                if plot_info["fn"]:
+                    plot.toggle_fn()
+                if plot_info["points"]:
+                    plot.toggle_points()
+                if plot_info["log"]:
+                    plot.toggle_log()
+                if plot_info["fft"]:
+                    plot.toggle_fft()
+                plot.start_animation()
 
         self.refresh_run_list(self.parent.config["files"]["plotting_hdf_fname"].get())
 
@@ -213,6 +237,7 @@ class PlotsGUI(tk.Frame):
 
         # place the plot
         plot = Plotter(fr, self.parent)
+        self.all_plots.setdefault(col, {0:None})
         self.all_plots[col][row] = plot
 
         # button to delete plot

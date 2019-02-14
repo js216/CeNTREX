@@ -126,6 +126,7 @@ class PlotsGUI(tk.Frame):
                 plot = self.add_plot(row, col)
                 plot.dev_var.set(   plot_info["device"] )
                 plot.run_var.set(   plot_info["run"]    )
+                plot.refresh_parameter_list(plot_info["device"])
                 plot.param_var.set( plot_info["param"]  )
                 plot.xcol_var.set(  plot_info["xcol"]   )
                 plot.x0_var.set(    plot_info["x0"]     )

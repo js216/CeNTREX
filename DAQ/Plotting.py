@@ -102,6 +102,7 @@ class PlotsGUI(tk.Frame):
                             "y1"     : plot.y1_var.get(),
                             "dt"     : plot.dt_var.get(),
                             "fn"     : plot.fn,
+                            "fn_var" : plot.fn_var.get(),
                             "points" : plot.points,
                             "log"    : plot.log,
                             }
@@ -135,6 +136,7 @@ class PlotsGUI(tk.Frame):
                 plot.dt_var.set(    plot_info["dt"]     )
                 plot.change_animation_dt()
                 if plot_info["fn"]:
+                    plot.fn_var.set(plot_info["fn_var"])
                     plot.toggle_fn()
                 if plot_info["points"]:
                     plot.toggle_points()

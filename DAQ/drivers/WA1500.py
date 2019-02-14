@@ -19,7 +19,7 @@ class WA1500:
         self.instr.stop_bits = pyvisa.constants.StopBits.one
         self.instr.term_char = '\r\n'
         self.instr.read_termination = '\r\n'
-        self.instr.timeout = 1000
+        self.instr.timeout = 5000
 
         ## make the verification string
         #try:

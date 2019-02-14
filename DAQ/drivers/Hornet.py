@@ -1,6 +1,7 @@
 import pyvisa
 import numpy as np
 import time
+import logging
 
 class Hornet:
     def __init__(self, time_offset, resource_name, address='01'):
@@ -30,7 +31,7 @@ class Hornet:
 
         # shape and type of the array of returned data
         self.dtype = 'f'
-        self.shape = (2, )
+        self.shape = (4, )
 
         # when overpressure turns IG off
         self.warnings = []
@@ -53,7 +54,12 @@ class Hornet:
             return np.nan
 
     def ReadValue(self):
-        return [time.time()-self.time_offset, self.ReadSystemPressure()]
+        return [ 
+                time.time()-self.time_offset,
+                self.ReadSystemPressure(),
+                self.ReadCGnPressure(1),
+                self.ReadCGnPressure(2),
+               ]
 
     def GetWarnings(self):
         warnings = self.warnings
@@ -64,19 +70,6 @@ class Hornet:
     ##########           SERIAL COMMANDS                   ##########
     #################################################################
 
-    def ReadIonGaugePressure(self):
-        """Read the current displayed pressure of the ion gauge in Torr.
-
-        Returns:
-        *xx_y.yyEzpp<CR> where y.yy = mantissa, z = sign of the exponent, i.e.,
-        +/- and pp = the exponent.  (e.g., *01_1.53E-06<CR>)
-        When IG is off: *01_9.90E+09
-        """
-        try:
-            return self.query("#" + self.address + "RD")
-        except pyvisa.errors.VisaIOError:
-            return np.nan
-
     def ReadSystemPressure(self):
         """Read the current IG pressure and CG pressure (IG+CG1 combined).
 
@@ -84,10 +77,17 @@ class Hornet:
         *xx_y.yyEzyy<CR> (e.g., *01_1.53E-06<CR>)
         When IG is off: CG only
         """
-        # obtain the pressure measurement
+        # measure the pressure
         try:
-            pressure = float(self.query("#" + self.address + "RDS")[4:])
+            resp = self.query("#" + self.address + "RDS")
         except pyvisa.errors.VisaIOError:
+            return np.nan
+
+        # convert the response to a number
+        try:
+            pressure = float(resp[4:])
+        except ValueError as err:
+            logging.warning("Hornet warning in ReadSystemPressure(): " + str(err))
             return np.nan
 
         # check for overpressure
@@ -108,10 +108,20 @@ class Hornet:
         *xx_ y.yyEzyy <CR> (e.g., *01_7.60E+02<CR>)
         When CG is over-ranged or not plugged in: *01_1.01E+03<CR>
         """
+        # measure the pressure
         try:
-            return self.query("#" + self.address + "RDCG" + str(n))
+            resp = self.query("#" + self.address + "RDCG" + str(n))
         except pyvisa.errors.VisaIOError:
             return np.nan
+
+        # convert the response to a number
+        try:
+            pressure = float(resp[4:])
+        except ValueError as err:
+            logging.warning("Hornet warning in ReadCGnPressure(): " + str(err))
+            return np.nan
+
+        return pressure
 
     def SetAddrOffset(self, uu):
         """Set the communications (RS485) address offset (upper nibble).

@@ -32,7 +32,7 @@ class CTC100:
 
         # shape and type of the array of returned data
         self.dtype = 'f'
-        self.shape = (17, )
+        self.shape = (18, )
 
     def __enter__(self):
         return self
@@ -48,10 +48,12 @@ class CTC100:
         # read the most recent value of all channels
         all_values = self.instr.query('getOutput?').split(",")
 
-        # retain the first 16 values:
+        # retain the first 17 values:
         #    In 1, In 2, PCB 1, In 3, In 4, PCB 2, Out 1, Out 1 I, Out 1 V, 
-        #    Out 1 R, PCB 3, Out 2, Out 2 I, Out 2 V, Out 2 R, PCB 4
-        for i in range(16):
+        #    Out 1 R, PCB 3, Out 2, Out 2 I, Out 2 V, Out 2 R, PCB 4, AIO 1
+        # discard the others:
+        #    AIO 2, AIO 3, AIO 4, DIO, Relays, V1, V2, V3
+        for i in range(17):
             try:
                 ret_val.append(float(all_values[i]))
             except ValueError:

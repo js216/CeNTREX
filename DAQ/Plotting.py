@@ -104,7 +104,6 @@ class PlotsGUI(tk.Frame):
                             "fn"     : plot.fn,
                             "points" : plot.points,
                             "log"    : plot.log,
-                            "fft"    : plot.fft,
                             }
                     plot_config[col][row] = plot_info
 
@@ -141,8 +140,6 @@ class PlotsGUI(tk.Frame):
                     plot.toggle_points()
                 if plot_info["log"]:
                     plot.toggle_log()
-                if plot_info["fft"]:
-                    plot.toggle_fft()
                 plot.start_animation()
 
         self.refresh_run_list(self.parent.config["files"]["plotting_hdf_fname"].get())
@@ -356,24 +353,10 @@ class Plotter(tk.Frame):
         self.fn_entry = tk.Entry(self.f, textvariable=self.fn_var)
         self.fn_clear_button = tk.Button(self.f, text="Clear", command=self.clear_fn)
 
-        self.fft = False
-        tk.Button(self.f, text="fft", command=self.toggle_fft).grid(row=0, column=4, padx=0)
-
     def clear_fn(self):
         """Clear the arrays of past evaluations of the custom function on the data."""
         if self.fn:
             self.x, self.y = [], []
-
-    def toggle_fft(self):
-        """
-        Toggle fft for plot.
-        """
-        if self.new_plot():
-            self.play_pause_button.configure(text="\u23f8", command=self.stop_animation)
-        else:
-            self.start_animation()
-        # toggle the fn flag
-        self.fft = not self.fft
 
     def toggle_fn(self):
         """Toggle controls for applying a custom function to the data."""
@@ -550,9 +533,6 @@ class Plotter(tk.Frame):
                 self.stop_animation()
                 return None
 
-        # bool to check if data is sampled at a set frequency for fft
-        continuous_sampling = False
-
         # get data
         with h5py.File(self.parent.config["files"]["hdf_fname"].get(), 'r') as f:
             grp = f[self.run_var.get() + "/" + dev.config["path"]]
@@ -663,17 +643,7 @@ class Plotter(tk.Frame):
             dset_len = len(x)
             slice_length = (i2 if i2>=0 else dset_len+i2) - (i1 if i1>=0 else dset_len+i1)
             stride = 1 if slice_length < max_pts else int(slice_length/max_pts)
-            if (self.fft) & (not self.fn) & (continuous_sampling):
-                return self.evaluate_fft(np.diff(x[i1:i2:stride])[0], y[i1:i2:stride])
-            if self.fft:
-                logging.warning("Cannot perform FFT on supplied data.")
-                self.toggle_fft()
             return x[i1:i2:stride], y[i1:i2:stride], xparam, yparam, xunit, yunit
-
-    def evaluate_fft(self, dt, y):
-        fft = np.abs(np.fft.rfft(y))
-        fft_freq = np.fft.rfftfreq(len(y),dt)
-        return fft_freq, fft, "frequency", "", "Hz", ""
 
     def evaluate_fn(self, data):
         fn_var = self.fn_var.get()

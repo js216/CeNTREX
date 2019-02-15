@@ -72,6 +72,7 @@ class Device(threading.Thread):
             if dev.verification_string.strip() == self.config["correct_response"].strip():
                 self.operational = True
             else:
+                logging.warning("verification string warning:" + dev.verification_string + "!=" + self.config["correct_response"].strip)
                 self.operational = False
                 return
 

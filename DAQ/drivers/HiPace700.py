@@ -9,7 +9,7 @@ import numpy as np
 import logging
 
 class HiPace700:
-    def __init__(self, time_offset, resource_name, RS485_address="008"):
+    def __init__(self, time_offset, resource_name, RS485_address="001"):
         self.time_offset = time_offset
         self.RS485_address = RS485_address
         self.rm = pyvisa.ResourceManager()

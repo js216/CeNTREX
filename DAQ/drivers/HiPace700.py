@@ -33,7 +33,7 @@ class HiPace700:
 
         # shape and type of the array of returned data
         self.dtype = 'f'
-        self.shape = (10, )
+        self.shape = (12, )
 
         # for overheating checking
         self.warnings = []
@@ -56,6 +56,8 @@ class HiPace700:
                 self.TempPmpBot(),
                 self.TempBearng(),
                 self.TempMotor(),
+                self.RotorImbalance(),
+                self.BearingWear(),
                ]
 
     def GetWarnings(self):
@@ -215,6 +217,22 @@ class HiPace700:
             return float(self.query(346))
         except ValueError as err:
             logging.warning("HiPace700 warning in TempMotor(): " + str(err))
+            return np.nan
+
+    def RotorImbalance(self):
+        """Rotor imbalance."""
+        try:
+            return float(self.query(358))
+        except ValueError as err:
+            logging.warning("HiPace700 warning in RotorImbalance(): " + str(err))
+            return np.nan
+
+    def BearingWear(self):
+        """Rotor imbalance."""
+        try:
+            return float(self.query(329))
+        except ValueError as err:
+            logging.warning("HiPace700 warning in BearingWear(): " + str(err))
             return np.nan
 
     def ElecName(self):

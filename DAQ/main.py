@@ -66,9 +66,13 @@ class Device(threading.Thread):
 
         with self.config["driver"](*self.constr_params) as dev:
             # verify the device responds correctly
+            if not isinstance(dev.verification_string, str):
+                self.operational = False
+                return
             if dev.verification_string.strip() == self.config["correct_response"].strip():
                 self.operational = True
             else:
+                logging.warning("verification string warning:" + dev.verification_string + "!=" + self.config["correct_response"].strip)
                 self.operational = False
                 return
 
@@ -110,13 +114,13 @@ class Device(threading.Thread):
 
                 # record numerical values
                 last_data = device.ReadValue()
-                if  len(last_data) > 0:
-                    self.data_queue.append(last_data)
-
                 # keep track of the number of NaN returns
                 if isinstance(last_data, float):
                     if np.isnan(last_data):
                         self.nan_count.set( int(self.nan_count.get()) + 1)
+                elif len(last_data) > 0:
+                    self.data_queue.append(last_data)
+
 
                 # send control commands, if any, to the device, and record return values
                 for c in self.commands:

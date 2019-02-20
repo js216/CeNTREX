@@ -210,6 +210,10 @@ class Monitoring(threading.Thread):
             self.influxdb_client.write_points(json_body, time_precision='ms')
 
     def get_last_row_of_data(self, dev):
+        # check device enabled
+        if not dev.config["controls"]["enabled"]["var"].get():
+            return
+
         # if HDF writing enabled for this device, get data from the HDF file
         if dev.config["controls"]["HDF_enabled"]["var"].get():
             with h5py.File(self.parent.config["files"]["hdf_fname"].get(), 'r') as f:
@@ -222,12 +226,16 @@ class Monitoring(threading.Thread):
                         data = dset[-1]
                 else:
                     rec_num = len(grp) - 1
-                    if rec_num < 1:
+                    if rec_num < 3:
                         return None
-                    data = grp[dev.config["name"] + "_" + str(rec_num)][-1]
+                    try:
+                        data = grp[dev.config["name"] + "_" + str(rec_num)][-1]
+                    except KeyError:
+                        logging.warning("dset doesn't exist: num = " + str(rec_num))
+                        return None
                 return data
 
-        # if HDF writing not enabled for this device, get events from the events_queue
+        # if HDF writing not enabled for this device, get data from the events_queue
         else:
             try:
                 return dev.data_queue.pop()
@@ -235,6 +243,10 @@ class Monitoring(threading.Thread):
                 return None
 
     def display_last_event(self, dev):
+        # check device enabled
+        if not dev.config["controls"]["enabled"]["var"].get():
+            return
+
         # if HDF writing enabled for this device, get events from the HDF file
         if dev.config["controls"]["HDF_enabled"]["var"].get():
             with h5py.File(self.parent.config["files"]["hdf_fname"].get(), 'r') as f:

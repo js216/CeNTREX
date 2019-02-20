@@ -13,6 +13,7 @@ import gc
 import h5py
 import logging
 from scipy import integrate
+import pickle
 
 class PlotsGUI(tk.Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -69,8 +70,81 @@ class PlotsGUI(tk.Frame):
                 command = lambda: self.open_HDF_file("plotting_hdf_fname"))\
                 .grid(row=1, column=6, padx=10, sticky='ew')
 
+        # for saving plot configuration
+        tk.Label(ctrls_f, text="Plot config file:")\
+                .grid(row=2, column=0)
+        tk.Entry(ctrls_f,
+                textvariable=self.parent.config["files"]["plotting_config_fname"])\
+                .grid(row=2, column=1, columnspan=5, padx=10, sticky="ew")
+        tk.Button(ctrls_f, text="Save plots", command = self.save_plots)\
+                .grid(row=2, column=6, padx=10, sticky='ew')
+        tk.Button(ctrls_f, text="Load plots", command = self.load_plots)\
+                .grid(row=2, column=7, padx=10, sticky='ew')
+
         # add one plot
         self.add_plot()
+
+    def save_plots(self):
+        # put essential information about plot configuration in a dictionary
+        plot_config = {}
+        for col, col_plots in self.all_plots.items():
+            plot_config[col] = {}
+            for row, plot in col_plots.items():
+                if plot:
+                    plot_info = {
+                            "device" : plot.dev_var.get(),
+                            "run"    : plot.run_var.get(),
+                            "param"  : plot.param_var.get(),
+                            "xcol"   : plot.xcol_var.get(),
+                            "x0"     : plot.x0_var.get(),
+                            "x1"     : plot.x1_var.get(),
+                            "y0"     : plot.y0_var.get(),
+                            "y1"     : plot.y1_var.get(),
+                            "dt"     : plot.dt_var.get(),
+                            "fn"     : plot.fn,
+                            "fn_var" : plot.fn_var.get(),
+                            "points" : plot.points,
+                            "log"    : plot.log,
+                            }
+                    plot_config[col][row] = plot_info
+
+        # save this info as a pickled dictionary
+        with open(self.parent.config["files"]["plotting_config_fname"].get(), "wb") as f:
+            pickle.dump(plot_config, f)
+
+    def load_plots(self):
+        # remove all plots
+        self.delete_all()
+
+        # read pickled plot config
+        with open(self.parent.config["files"]["plotting_config_fname"].get(), "rb") as f:
+            plot_config = pickle.load(f)
+
+        # re-create all plots
+        for col, col_plots in plot_config.items():
+            for row, plot_info in col_plots.items():
+                plot = self.add_plot(row, col)
+                plot.dev_var.set(   plot_info["device"] )
+                plot.run_var.set(   plot_info["run"]    )
+                plot.refresh_parameter_list(plot_info["device"])
+                plot.param_var.set( plot_info["param"]  )
+                plot.xcol_var.set(  plot_info["xcol"]   )
+                plot.x0_var.set(    plot_info["x0"]     )
+                plot.x1_var.set(    plot_info["x1"]     )
+                plot.y0_var.set(    plot_info["y0"]     )
+                plot.y1_var.set(    plot_info["y1"]     )
+                plot.dt_var.set(    plot_info["dt"]     )
+                plot.change_animation_dt()
+                if plot_info["fn"]:
+                    plot.fn_var.set(plot_info["fn_var"])
+                    plot.toggle_fn()
+                if plot_info["points"]:
+                    plot.toggle_points()
+                if plot_info["log"]:
+                    plot.toggle_log()
+                plot.start_animation()
+
+        self.refresh_run_list(self.parent.config["files"]["plotting_hdf_fname"].get())
 
     def open_HDF_file(self, prop):
         # ask for a file name
@@ -148,13 +222,14 @@ class PlotsGUI(tk.Frame):
                 if plot:
                     plot.refresh_parameter_list(plot.dev_var.get())
 
-    def add_plot(self):
-        # find location for the plot
-        try:
-            col = int(self.col_var.get())
-        except ValueError:
-            col = 0
-        row = max([ r for r in self.all_plots.setdefault(col, {0:None}) ]) + 2
+    def add_plot(self, row=False, col=False):
+        # find location for the plot if not given to the function
+        if (not row) and (not col):
+            try:
+                col = int(self.col_var.get())
+            except ValueError:
+                col = 0
+            row = max([ r for r in self.all_plots.setdefault(col, {0:None}) ]) + 2
 
         # frame for the plot
         fr = tk.LabelFrame(self.f, text="")
@@ -162,6 +237,7 @@ class PlotsGUI(tk.Frame):
 
         # place the plot
         plot = Plotter(fr, self.parent)
+        self.all_plots.setdefault(col, {0:None}) # check the column is in the dict, else add it
         self.all_plots[col][row] = plot
 
         # button to delete plot
@@ -181,6 +257,8 @@ class PlotsGUI(tk.Frame):
                 plot.run_var.set(self.run_list[-1])
         except OSError:
             pass
+
+        return plot
 
     def delete_plot(self, row, col, plot):
         if plot:
@@ -235,8 +313,6 @@ class Plotter(tk.Frame):
 
         self.refresh_parameter_list(self.dev_var.get())
 
-
-
         # plot range controls
         num_width = 7 # width of numeric entry boxes
         self.x0_var = tk.StringVar()
@@ -279,24 +355,10 @@ class Plotter(tk.Frame):
         self.fn_entry = tk.Entry(self.f, textvariable=self.fn_var)
         self.fn_clear_button = tk.Button(self.f, text="Clear", command=self.clear_fn)
 
-        self.fft = False
-        tk.Button(self.f, text="fft", command=self.toggle_fft).grid(row=0, column=4, padx=0)
-
     def clear_fn(self):
         """Clear the arrays of past evaluations of the custom function on the data."""
         if self.fn:
             self.x, self.y = [], []
-
-    def toggle_fft(self):
-        """
-        Toggle fft for plot.
-        """
-        if self.new_plot():
-            self.play_pause_button.configure(text="\u23f8", command=self.stop_animation)
-        else:
-            self.start_animation()
-        # toggle the fn flag
-        self.fft = not self.fft
 
     def toggle_fn(self):
         """Toggle controls for applying a custom function to the data."""
@@ -473,9 +535,6 @@ class Plotter(tk.Frame):
                 self.stop_animation()
                 return None
 
-        # bool to check if data is sampled at a set frequency for fft
-        continuous_sampling = False
-
         # get data
         with h5py.File(self.parent.config["files"]["hdf_fname"].get(), 'r') as f:
             grp = f[self.run_var.get() + "/" + dev.config["path"]]
@@ -550,7 +609,10 @@ class Plotter(tk.Frame):
                         messagebox.showerror("Data error", "Dataset not found in this run.")
                         return None
                     if self.xcol_var.get() == "None":
-                        xunit = dset.attrs["sampling"].split("[")[0]
+                        try:
+                            xunit = dset.attrs["sampling"].split("[")[0]
+                        except KeyError:
+                            xunit = 1
                         continuous_sampling = True
                         x = np.arange(dset.shape[0])*1/int(xunit)
                         xunit = "s"
@@ -583,17 +645,7 @@ class Plotter(tk.Frame):
             dset_len = len(x)
             slice_length = (i2 if i2>=0 else dset_len+i2) - (i1 if i1>=0 else dset_len+i1)
             stride = 1 if slice_length < max_pts else int(slice_length/max_pts)
-            if (self.fft) & (not self.fn) & (continuous_sampling):
-                return self.evaluate_fft(np.diff(x[i1:i2:stride])[0], y[i1:i2:stride])
-            if self.fft:
-                logging.warning("Cannot perform FFT on supplied data.")
-                self.toggle_fft()
             return x[i1:i2:stride], y[i1:i2:stride], xparam, yparam, xunit, yunit
-
-    def evaluate_fft(self, dt, y):
-        fft = np.abs(np.fft.rfft(y))
-        fft_freq = np.fft.rfftfreq(len(y),dt)
-        return fft_freq, fft, "frequency", "", "Hz", ""
 
     def evaluate_fn(self, data):
         fn_var = self.fn_var.get()

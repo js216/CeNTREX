@@ -17,6 +17,7 @@ class SynthHDPro:
         # make the verification string
         try:
             self.verification_string = self.instr.query('-')[:-1]
+            print(self.verification_string)
         except pyvisa.errors.VisaIOError:
             self.verification_string = "False"
 

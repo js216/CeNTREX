@@ -66,9 +66,13 @@ class Device(threading.Thread):
 
         with self.config["driver"](*self.constr_params) as dev:
             # verify the device responds correctly
+            if not isinstance(dev.verification_string, str):
+                self.operational = False
+                return
             if dev.verification_string.strip() == self.config["correct_response"].strip():
                 self.operational = True
             else:
+                logging.warning("verification string warning:" + dev.verification_string + "!=" + self.config["correct_response"].strip)
                 self.operational = False
                 return
 

@@ -58,7 +58,10 @@ class WA1500:
             return np.nan
 
         # extract measurement
-        if resp[0] != "+":
+        try:
+            if resp[0] != "+":
+                return np.nan
+        except IndexError:
             return np.nan
         try:
             return float(resp[1:11])

@@ -11,7 +11,13 @@ import logging
 
 class PXIe5171:
     def __init__(self, time_offset, COM_port, record, sample, trigger, edge, channels):
-        self.session = niscope.Session(COM_port)
+        try:
+            self.session = niscope.Session(COM_port)
+        except niscope.errors.DriverError as err:
+            logging.error("PXIe5171 error in __init__(): " + str(err))
+            self.verification_string = "cannot open session"
+            self.instr = False
+            return
         self.time_offset = time_offset
 
         # verify operation
@@ -110,7 +116,10 @@ class PXIe5171:
         return self
 
     def __exit__(self, *exc):
-        self.session.close()
+        try:
+            self.session.close()
+        except AttributeError:
+            pass
 
     def ReadValue(self):
         # the structures for reading waveform data into

@@ -12,12 +12,11 @@ This is the software to control and record the parameters of the Centrex experim
 ## Program organization
 
 The program's code is divided between classes that make up the graphical user
-interface, contained in `GUI.py`, and control classes in `Control.py` which make
-use of driver classes (these in turn are contained in the `drivers` directory)
-to communicate with physical instruments. In addition, all program configuration
-is contained in `.ini` files in the `config` directory, allowing for simple
-modification and extension of the DAQ system without changing the main program
-code.
+interface, and control classes which make use of driver classes (contained in
+the `drivers` directory) to communicate with physical instruments. In addition,
+all program configuration is contained in `.ini` files in subdirectories of the
+`config` directory, allowing for simple modification and extension of the DAQ
+system without changing the main program code.
 
 There are three control classes:
 
@@ -37,26 +36,50 @@ There are three control classes:
 - `HDF_writer` writes all the data collected by `Device` objects to an HDF file
   for future reference and analysis.
 
-The graphical user interface likewise consists of three parts. The user
-controls the devices through the `ControlGUI`, which is a canvas for control of
-recording and external devices such as temperature controllers and pulse tube
-compressors. As detailed in the next section, the information in device config
-files is automatically read and translated into usable controls that appear in
-the GUI. `PlotsGUI` and `MonitoringGUI` are used, respectively, to make plots
-about the data currently being collected, and to display the latest values
-measured.
+The graphical user interface likewise consists of three parts. The user controls
+the devices through the `ControlGUI`, which is a canvas for control of recording
+and external devices such as temperature controllers and pulse tube compressors.
+As detailed in the next section, the information in device config files is
+automatically read and translated into usable controls that appear in the GUI.
+`PlotsGUI` and `MonitoringGUI` are used, respectively, to make plots about the
+data currently being collected, and to display the latest values measured. The
+three parts of the GUI are held together by the `CentrexGUI` class which
+instantiates them when the program is started.
 
 The program is thus generic enough to make it easy to add capabilities to
 control any number of new devices by simply (1) writing a device driver, and (2)
-the device config file. The easiest way to do both of these things is to copy a
-pre-existing driver and config files, and adapting to fit the new device.
+a device config file. The easiest way to do both of these things is to copy a
+pre-existing driver and config file, and adapting to fit the new device.
 
 ## Configuration files
 
-Upon starting, the program reads the general configuration file
+Upon starting, the program reads the main configuration file
 `config/settings.ini` that defines general program settings; the values are read
-into the `config` dictionary.
+into the `config` dictionary of the `CentrexGUI` class. In particular, the main
+config file has to contain the following sections and fields:
 
+      [general]
+      run_name = 
+      hdf_loop_delay = 
+
+      [files]
+      config_dir = 
+      hdf_fname = 
+      plotting_hdf_fname = 
+      plotting_config_fname = 
+
+      [influxdb]
+      enabled = 
+      host = 
+      port = 
+      username = 
+      password = 
+      database = 
+
+The `config` dictionary will contain this and other information. In particular,
+it keeps track of the `time_offset` (see section on Data structure). Other GUI
+classes may also have a `config` dictionary to contain metadata specific to
+them.  
 Device configurations are read from `.ini` files in the chosen directory. (Thus
 choosing a different directory allows for a different set of devices or device
 configurations to be loaded.) These files have the structure:

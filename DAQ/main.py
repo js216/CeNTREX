@@ -26,12 +26,17 @@ from influxdb import InfluxDBClient
 ##########################################################################
 ##########################################################################
 
-def LabelFrame(parent, label, col=None, row=None):
+def LabelFrame(parent, label, col=None, row=None, type="grid"):
     box = qt.QGroupBox(label)
-    grid = qt.QGridLayout()
+    if type == "grid":
+        grid = qt.QGridLayout()
+    elif type == "hbox":
+        grid = qt.QHBoxLayout()
+    elif type == "vbox":
+        grid = qt.QVBoxLayout()
     box.setLayout(grid)
     if row and col:
-        parent.addWidget(box, col, row)
+        parent.addWidget(box, row, col)
     else:
         parent.addWidget(box)
     return grid
@@ -747,122 +752,150 @@ class MonitoringGUI(qt.QWidget):
     def __init__(self, parent):
         super(qt.QWidget, self).__init__(parent)
         self.parent = parent
-        #self.place_GUI_elements()
+        self.place_GUI_elements()
+        self.place_device_specific_items()
 
     def place_GUI_elements(self):
         # main frame for all MonitoringGUI elements
-        self.frame = tk.Frame(self.parent.nb)
-        self.parent.nb.add(self.frame, text="Monitoring")
-
-        self.place_device_specific_items()
+        self.main_frame = qt.QVBoxLayout()
+        self.setLayout(self.main_frame)
 
         # monitoring controls frame
-        self.ctrls_f = tk.Frame(self.frame)
-        self.ctrls_f.grid(row=0, column=0, padx=10, pady=10)
+        control_frame = LabelFrame(self.main_frame, "Controls", type="hbox")
 
         # general monitoring controls
-        self.gen_f = tk.LabelFrame(self.ctrls_f, text="General")
-        self.gen_f.grid(row=0, column=0, padx=10, pady=10, sticky='nsew')
-        tk.Label(self.gen_f, text="Loop delay [s]:").grid(row=0, column=0)
-        self.parent.config["monitoring_dt"] = tk.StringVar()
-        self.parent.config["monitoring_dt"].set("1")
-        tk.Entry(self.gen_f, textvariable=self.parent.config["monitoring_dt"]).grid(row=0, column=1)
-        tk.Label(self.gen_f, text="InfluxDB enabled:").grid(row=1, column=0)
-        tk.Checkbutton(
-                self.gen_f,
-                variable=self.parent.config["influxdb"]["enabled"],
-                onvalue = "True",
-                offvalue = "False",
-            ).grid(row=1, column=1, sticky='w')
+        gen_f = LabelFrame(control_frame, "General")
+        gen_f.addWidget(
+                qt.QLabel("Loop delay [s]:"),
+                0, 0
+            )
+        gen_f.addWidget(
+                qt.QLineEdit(),
+                0, 1
+            )
+        gen_f.addWidget(
+                qt.QCheckBox("InfluxDB enabled"),
+                1, 0
+            )
 
         # InfluxDB controls
-        conf = self.parent.config["influxdb"]
-        self.db_f = tk.LabelFrame(self.ctrls_f, text="InfluxDB")
-        self.db_f.grid(row=0, column=1, padx=10, pady=10, sticky='nsew')
-        tk.Label(self.db_f, text="Host IP").grid(row=0, column=0, sticky='e')
-        tk.Entry(self.db_f, textvariable=conf["host"]).grid(row=0, column=1, sticky='w')
-        tk.Label(self.db_f, text="Port").grid(row=1, column=0, sticky='e')
-        tk.Entry(self.db_f, textvariable=conf["port"]).grid(row=1, column=1, sticky='w')
-        tk.Label(self.db_f, text="Username").grid(row=2, column=0, sticky='e')
-        tk.Entry(self.db_f, textvariable=conf["username"]).grid(row=2, column=1, sticky='w')
-        tk.Label(self.db_f, text="Pasword").grid(row=3, column=0, sticky='e')
-        tk.Entry(self.db_f, textvariable=conf["password"]).grid(row=3, column=1, sticky='w')
+        db_f = LabelFrame(control_frame, "InfluxDB")
+        db_f.addWidget(
+                qt.QLabel("Host IP"),
+                0, 0
+            )
+        db_f.addWidget(
+                qt.QLineEdit(),
+                0, 1
+            )
+        db_f.addWidget(
+                qt.QLabel("Port"),
+                1, 0
+            )
+        db_f.addWidget(
+                qt.QLineEdit(),
+                1, 1
+            )
+        db_f.addWidget(
+                qt.QLabel("Username"),
+                2, 0
+            )
+        db_f.addWidget(
+                qt.QLineEdit(),
+                2, 1
+            )
+        db_f.addWidget(
+                qt.QLabel("Password"),
+                3, 0
+            )
+        db_f.addWidget(
+                qt.QLineEdit(),
+                3, 1
+            )
 
         # for displaying warnings
-        self.w_f = tk.LabelFrame(self.ctrls_f, text="Warnings")
-        self.w_f.grid(row=0, column=2, padx=10, pady=10, sticky='nsew')
-        self.last_warning = tk.StringVar()
-        self.last_warning.set("no warning")
-        tk.Label(self.w_f, textvariable=self.last_warning).grid()
+        w_f = LabelFrame(control_frame, "Warnings")
+        w_f.addWidget(
+                qt.QLabel("(no warnings)"),
+                3, 0
+            )
 
     def place_device_specific_items(self):
         # frame for device data
-        self.dev_f = tk.LabelFrame(self.frame, text="Devices")
-        self.dev_f.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+        self.dev_f = LabelFrame(self.main_frame, "Devices")
 
         # device-specific text
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
-            fd = tk.LabelFrame(self.dev_f, text=dev.config["label"])
-            fd.grid(padx=10, pady=10, sticky="nsew",
-                    row=dev.config["monitoring_row"], column=dev.config["monitoring_column"])
+            df = LabelFrame(
+                    self.dev_f, dev.config["label"],
+                    row=dev.config["monitoring_row"],
+                    col=dev.config["monitoring_column"]
+                )
 
             # length of the data queue
-            dev.qsize = tk.StringVar()
-            dev.qsize.set(0)
-            tk.Label(fd, text="Queue length:").grid(row=0, column=0, sticky='ne')
-            tk.Label(fd, textvariable=dev.qsize).grid(row=0, column=1, sticky='nw')
+            df.addWidget(
+                    qt.QLabel("Queue length:"),
+                    0, 0,
+                    alignment = PyQt5.QtCore.Qt.AlignRight,
+                )
+            df.addWidget(
+                    qt.QLabel("0"),
+                    0, 1,
+                    alignment = PyQt5.QtCore.Qt.AlignLeft,
+                )
 
             # NaN count
-            tk.Label(fd, text="NaN count:").grid(row=1, column=0, sticky='ne')
-            tk.Label(fd, textvariable=dev.nan_count).grid(row=1, column=1, sticky='nw')
+            df.addWidget(
+                    qt.QLabel("NaN count:"),
+                    1, 0,
+                    alignment = PyQt5.QtCore.Qt.AlignRight,
+                )
+            df.addWidget(
+                    qt.QLabel("0"),
+                    1, 1,
+                    alignment = PyQt5.QtCore.Qt.AlignLeft,
+                )
 
             # column names
             dev.col_names_list = dev.config["attributes"]["column_names"].split(',')
             dev.col_names_list = [x.strip() for x in dev.col_names_list]
-            dev.column_names = tk.StringVar()
-            dev.column_names.set("\n".join(dev.col_names_list))
-            tk.Message(fd, textvariable=dev.column_names, anchor='ne', justify="right", width=350)\
-                    .grid(row=2, column=0, sticky='nsew')
+            dev.column_names = "\n".join(dev.col_names_list)
+            df.addWidget(
+                    qt.QLabel(
+                        dev.column_names,
+                        alignment = PyQt5.QtCore.Qt.AlignRight,
+                        ),
+                    2, 0,
+                )
 
             # data
-            dev.last_data = tk.StringVar()
-            tk.Message(fd, textvariable=dev.last_data, anchor='nw', width=350)\
-                    .grid(row=2, column=1, sticky='nsew')
+            df.addWidget(
+                    qt.QLabel("(no data)"),
+                    2, 1,
+                    alignment = PyQt5.QtCore.Qt.AlignLeft,
+                )
 
             # units
             units = dev.config["attributes"]["units"].split(',')
             units = [x.strip() for x in units]
-            dev.units = tk.StringVar()
-            dev.units.set("\n".join(units))
-            tk.Message(fd, textvariable=dev.units, anchor='nw', width=350)\
-                    .grid(row=2, column=2, sticky='nsew')
+            dev.units = "\n".join(units)
+            df.addWidget(
+                    qt.QLabel(dev.units),
+                    2, 2,
+                    alignment = PyQt5.QtCore.Qt.AlignLeft,
+                )
 
             # latest event / command sent to device & its return value
-            tk.Label(fd, text="Last event:").grid(row=3, column=0, sticky='ne')
-            dev.last_event = tk.StringVar()
-            tk.Message(fd, textvariable=dev.last_event, anchor='nw', width=150)\
-                    .grid(row=3, column=1, columnspan=2, sticky='nw')
-
-    def refresh_column_names_and_units(self):
-        for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
-            # column names
-            col_names = dev.config["attributes"]["column_names"].split(',')
-            col_names = [x.strip() for x in col_names]
-            dev.column_names.set("\n".join(col_names))
-
-            # units
-            units = dev.config["attributes"]["units"].split(',')
-            units = [x.strip() for x in units]
-            dev.units.set("\n".join(units))
-
-    def start_monitoring(self):
-        self.monitoring = Monitoring(self.parent)
-        self.monitoring.active.set()
-        self.monitoring.start()
-
-    def stop_monitoring(self):
-        if self.monitoring.active.is_set():
-            self.monitoring.active.clear()
+            df.addWidget(
+                    qt.QLabel("Last event:"),
+                    3, 0,
+                    alignment = PyQt5.QtCore.Qt.AlignRight,
+                )
+            df.addWidget(
+                    qt.QLabel("(no event)"),
+                    3, 1,
+                    alignment = PyQt5.QtCore.Qt.AlignLeft,
+                )
 
 class PlotsGUI(qt.QWidget):
     def __init__(self, parent):

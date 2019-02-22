@@ -1,21 +1,13 @@
-import PyQt5.QtWidgets as qt
-import PyQt5.QtGui as QtGui
 import PyQt5
-import configparser
-import sys, os, glob, importlib
+import h5py
+import time
 import logging
-
-import tkinter as tk
-from tkinter import ttk
-from tkinter import filedialog
-from tkinter import messagebox
-import h5py
-import time
-import tkinter as tk
 import threading
+import configparser
+import PyQt5.QtGui as QtGui
+import PyQt5.QtWidgets as qt
 from collections import deque
-import time
-import h5py
+import sys, os, glob, importlib
 from influxdb import InfluxDBClient
 
 ##########################################################################

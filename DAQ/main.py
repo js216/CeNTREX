@@ -603,7 +603,7 @@ class ControlGUI(qt.QWidget):
         # files
         ########################################
 
-        files_frame = self.LabelFrame(self.main_frame, "Files")
+        files_frame = LabelFrame(self.main_frame, "Files")
 
         # config dir
         files_frame.addWidget(
@@ -657,7 +657,7 @@ class ControlGUI(qt.QWidget):
         # devices
         ########################################
 
-        cmd_frame = self.LabelFrame(self.main_frame, "Send a custom command")
+        cmd_frame = LabelFrame(self.main_frame, "Send a custom command")
 
         # the control to send a custom command to a specified device
         cmd_frame.addWidget(
@@ -682,11 +682,11 @@ class ControlGUI(qt.QWidget):
                 0, 4
             )
 
-        devices_frame = self.LabelFrame(self.main_frame, "Devices")
+        devices_frame = LabelFrame(self.main_frame, "Devices")
 
         # make GUI elements for all devices
         for dev_name, dev in self.parent.devices.items():
-            df = self.LabelFrame(
+            df = LabelFrame(
                     devices_frame,
                     dev.config["label"],
                     dev.config["column"],

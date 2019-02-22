@@ -1,4 +1,6 @@
 import PyQt5.QtWidgets as qt
+import PyQt5.QtGui as QtGui
+import PyQt5
 import configparser
 import sys, os, glob, importlib
 import logging
@@ -15,6 +17,24 @@ from collections import deque
 import time
 import h5py
 from influxdb import InfluxDBClient
+
+##########################################################################
+##########################################################################
+#######                                                 ##################
+#######            CONVENIENCE FUNCTIONS                ##################
+#######                                                 ##################
+##########################################################################
+##########################################################################
+
+def LabelFrame(parent, label, col=None, row=None):
+    box = qt.QGroupBox(label)
+    grid = qt.QGridLayout()
+    box.setLayout(grid)
+    if row and col:
+        parent.addWidget(box, col, row)
+    else:
+        parent.addWidget(box)
+    return grid
 
 ##########################################################################
 ##########################################################################
@@ -463,16 +483,16 @@ class ControlGUI(qt.QWidget):
             # read general device options
             try:
                 dev_config = self.read_device_config_options(params)
-            except IndexError as err:
+            except (IndexError, ValueError) as err:
                 logging.error("Cannot read device config file: " + str(err))
                 return
 
-            ## populate the list of device controls
-            #try:
-            #    self.read_device_controls(params)
-            #except IndexError as err:
-            #    logging.error("Cannot read device config file: " + str(err))
-            #    return
+            # populate the list of device controls
+            try:
+                dev_config["controls"] = self.read_device_controls(params)
+            except (IndexError, ValueError, TypeError, KeyError) as err:
+                logging.error("Cannot read device config file" + f + " : " + str(err))
+                return
 
             # make a Device object
             self.parent.devices[params["device"]["name"]] = Device(dev_config)
@@ -484,512 +504,244 @@ class ControlGUI(qt.QWidget):
                     "path"              : params["device"]["path"],
                     "correct_response"  : params["device"]["correct_response"],
                     "single_dataset"    : True if params["device"]["single_dataset"]=="True" else False,
-                    "row"               : params["device"]["row"],
-                    "rowspan"           : params["device"]["rowspan"],
-                    "monitoring_row"    : params["device"]["monitoring_row"],
-                    "column"            : params["device"]["column"],
-                    "columnspan"        : params["device"]["columnspan"],
-                    "monitoring_column" : params["device"]["monitoring_column"],
+                    "row"               : int(params["device"]["row"]),
+                    "rowspan"           : int(params["device"]["rowspan"]),
+                    "monitoring_row"    : int(params["device"]["monitoring_row"]),
+                    "column"            : int(params["device"]["column"]),
+                    "columnspan"        : int(params["device"]["columnspan"]),
+                    "monitoring_column" : int(params["device"]["monitoring_column"]),
                     "constr_params"     : [x.strip() for x in params["device"]["constr_params"].split(",")],
                     "attributes"        : params["attributes"],
                 }
 
-    def read_device_controls(self):
+    def read_device_controls(self, params):
             ctrls = {}
             for c in params.sections():
-                if params[c].get("type") == "Checkbutton":
-                    ctrls[c] = {}
-                    ctrls[c]["label"]      = params[c]["label"]
-                    ctrls[c]["type"]       = params[c]["type"]
-                    ctrls[c]["row"]        = int(params[c]["row"])
-                    ctrls[c]["col"]        = int(params[c]["col"])
-                    ctrls[c]["var"]        = tk.BooleanVar()
-                    ctrls[c]["var"].set(params[c]["value"])
+                if params[c].get("type") == "QCheckBox":
+                    ctrls[c] = {
+                            "label"      : params[c]["label"],
+                            "type"       : params[c]["type"],
+                            "row"        : int(params[c]["row"]),
+                            "col"        : int(params[c]["col"]),
+                            "value"      : params[c]["value"],
+                        }
 
                 elif params[c].get("type") == "Hidden":
-                    ctrls[c] = {}
-                    ctrls[c]["var"] = tk.StringVar()
-                    ctrls[c]["var"].set(params[c]["value"])
-                    ctrls[c]["type"] = "Hidden"
+                    ctrls[c] = {
+                            "value"      : params[c]["value"],
+                            "type"       : "Hidden",
+                        }
 
-                elif params[c].get("type") == "Button":
-                    ctrls[c] = {}
-                    ctrls[c]["label"]      = params[c]["label"]
-                    ctrls[c]["type"]       = params[c]["type"]
-                    ctrls[c]["row"]        = int(params[c]["row"])
-                    ctrls[c]["col"]        = int(params[c]["col"])
-                    ctrls[c]["command"]    = params[c].get("command")
-                    ctrls[c]["argument"]   = params[c]["argument"]
-                    ctrls[c]["align"]      = params[c].get("align")
+                elif params[c].get("type") == "QPushButton":
+                    ctrls[c] = {
+                            "label"      : params[c]["label"],
+                            "type"       : params[c]["type"],
+                            "row"        : int(params[c]["row"]),
+                            "col"        : int(params[c]["col"]),
+                            "command"    : params[c].get("command"),
+                            "argument"   : params[c]["argument"],
+                            "align"      : params[c].get("align"),
+                        }
 
-                elif params[c].get("type") == "Entry":
-                    ctrls[c] = {}
-                    ctrls[c]["label"]      = params[c]["label"]
-                    ctrls[c]["type"]       = params[c]["type"]
-                    ctrls[c]["row"]        = int(params[c]["row"])
-                    ctrls[c]["col"]        = int(params[c]["col"])
-                    ctrls[c]["width"]      = params[c].get("width")
-                    ctrls[c]["enter_cmd"]  = params[c].get("enter_command")
-                    ctrls[c]["var"]        = tk.StringVar()
-                    ctrls[c]["var"].set(params[c]["value"])
+                elif params[c].get("type") == "QLineEdit":
+                    ctrls[c] = {
+                            "label"      : params[c]["label"],
+                            "type"       : params[c]["type"],
+                            "row"        : int(params[c]["row"]),
+                            "col"        : int(params[c]["col"]),
+                            "enter_cmd"  : params[c].get("enter_command"),
+                            "value"      : params[c]["value"],
+                        }
 
-                elif params[c].get("type") == "OptionMenu":
-                    ctrls[c] = {}
-                    ctrls[c]["label"]      = params[c]["label"]
-                    ctrls[c]["type"]       = params[c]["type"]
-                    ctrls[c]["row"]        = int(params[c]["row"])
-                    ctrls[c]["col"]        = int(params[c]["col"])
-                    ctrls[c]["command"]    = params[c]["command"]
-                    ctrls[c]["options"]    = [x.strip() for x in params[c]["options"].split(",")]
-                    ctrls[c]["var"]        = tk.StringVar()
-                    ctrls[c]["var"].set(params[c]["value"])
+                elif params[c].get("type") == "QComboBox":
+                    ctrls[c] = {
+                            "label"      : params[c]["label"],
+                            "type"       : params[c]["type"],
+                            "row"        : int(params[c]["row"]),
+                            "col"        : int(params[c]["col"]),
+                            "command"    : params[c]["command"],
+                            "options"    : [x.strip() for x in params[c]["options"].split(",")],
+                            "value"      : params[c]["value"],
+                        }
 
-                elif params[c].get("type") == "ControlsRow":
-                    ctrls[c] = {}
-                    ctrls[c]["label"]           = params[c]["label"]
-                    ctrls[c]["type"]            = params[c]["type"]
-                    ctrls[c]["row"]             = int(params[c]["row"])
-                    ctrls[c]["col"]             = int(params[c]["col"])
-                    ctrls[c]["control_names"]   = [x.strip() for x in params[c]["control_names"].split(",")]
-                    ctrls[c]["control_labels"]  = [x.strip() for x in params[c]["control_labels"].split(",")]
-                    ctrls[c]["control_types"]   = [x.strip() for x in params[c]["control_types"].split(",")]
-                    ctrls[c]["control_widths"] = params[c].get("control_widths")
-                    if ctrls[c]["control_widths"]:
-                        ctrls[c]["control_widths"] = [int(x) for x in ctrls[c]["control_widths"].split(",")]
-                    ctrls[c]["control_commands"] = params[c].get("control_commands")
-                    if ctrls[c]["control_commands"]:
-                        ctrls[c]["control_commands"] = ctrls[c]["control_commands"].split(",")
-                    ctrls[c]["control_options"] = []
-                    control_options = params[c].get("control_options")
-                    if not control_options:
-                        control_options = ""
-                    for c_o in control_options.split(";"):
-                        ctrls[c]["control_options"].append([x.strip() for x in c_o.split(",")])
-                    ctrls[c]["control_values"]   = {}
-                    for name, val in zip(ctrls[c]["control_names"], params[c]["control_values"].split(",")):
-                        ctrls[c]["control_values"][name] = tk.StringVar()
-                        ctrls[c]["control_values"][name].set(val.strip())
+                elif params[c].get("type"):
+                    logging.warning("Control type not supported: " + params[c].get("type"))
 
-                elif params[c].get("type") == "ControlsTable":
-                    ctrls[c] = {}
-                    ctrls[c]["label"]         = params[c]["label"]
-                    ctrls[c]["type"]          = params[c]["type"]
-                    ctrls[c]["row"]           = int(params[c]["row"])
-                    ctrls[c]["col"]           = int(params[c]["col"])
-                    ctrls[c]["rowspan"]       = int(params[c]["rowspan"])
-                    ctrls[c]["columnspan"]    = int(params[c]["columnspan"])
-                    ctrls[c]["column_names"]  = [x.strip() for x in params[c]["column_names"].split(",")]
-                    ctrls[c]["row_ids"]  = [x.strip() for x in params[c]["row_ids"].split(",")]
-                    ctrls[c]["column_labels"] = [x.strip() for x in params[c]["column_labels"].split(",")]
-                    ctrls[c]["column_types"]  = [x.strip() for x in params[c]["column_types"].split(",")]
-                    ctrls[c]["column_widths"] = params[c].get("column_widths")
-                    if ctrls[c]["column_widths"]:
-                        ctrls[c]["column_widths"] = [int(x) for x in ctrls[c]["column_widths"].split(",")]
-                    ctrls[c]["column_commands"] = params[c].get("column_commands")
-                    if ctrls[c]["column_commands"]:
-                        ctrls[c]["column_commands"] = ctrls[c]["column_commands"].split(",")
-                    ctrls[c]["column_options"] = []
-                    for c_v in params[c].get("column_options").split(";"):
-                        ctrls[c]["column_options"].append([x.strip() for x in c_v.split(",")])
-                    ctrls[c]["column_values"] = []
-                    for c_v in params[c].get("column_values").split(";"):
-                        ctrls[c]["column_values"].append([])
-                        for val in c_v.split(","):
-                            ctrls[c]["column_values"][-1].append(tk.StringVar())
-                            ctrls[c]["column_values"][-1][-1].set(val.strip())
             return ctrls
 
     def place_GUI_elements(self):
         # main frame for all ControlGUI elements
-        self.cgf = tk.Frame(self.parent.nb)
-        self.parent.nb.add(self.cgf, text="Control")
-        self.parent.rowconfigure(0, weight=1)
-        self.cgf.rowconfigure(2, weight=1)
+        self.main_frame = qt.QVBoxLayout()
+        self.setLayout(self.main_frame)
 
         ########################################
         # control and status
         ########################################
 
-        control_frame = tk.LabelFrame(self.cgf)
-        control_frame.grid(row=0, padx=10, pady=10, sticky="nsew")
-        control_frame.grid_columnconfigure(index=2, weight=1)
+        control_frame = qt.QGridLayout()
+        self.main_frame.addLayout(control_frame)
 
         # control start/stop buttons
-        control_button = tk.Button(control_frame,
-                text="\u26ab Start control", command = self.start_control)\
-                .grid(row=0, column=0, sticky="nsew")
-        stop_button = tk.Button(control_frame,
-                text="\u2b1b Stop control", command = self.stop_control)\
-                .grid(row=0, column=1, sticky="nsew")
+        control_frame.addWidget(
+                qt.QPushButton("\u26ab Start control"),
+                0, 0,
+            )
+        control_frame.addWidget(
+                qt.QPushButton("\u2b1b Stop control"),
+                0, 1,
+            )
 
         # the status label
-        self.status = "stopped"
-        self.status_message = tk.StringVar()
-        self.status_message.set("Ready to start")
-        self.status_label = tk.Label(control_frame, textvariable=self.status_message,
-                font=("Helvetica", 16),anchor='e')\
-                .grid(row=0, column=3, sticky='nsew')
+        status_label = qt.QLabel(
+                "Ready to start",
+                alignment = PyQt5.QtCore.Qt.AlignRight,
+            )
+        status_label.setFont(QtGui.QFont("Helvetica", 16))
+        control_frame.addWidget(status_label, 0, 2)
 
         ########################################
         # files
         ########################################
 
-        files_frame = tk.LabelFrame(self.cgf, text="Files")
-        files_frame.grid(row=1, padx=10, pady=10, sticky="ew")
+        files_frame = self.LabelFrame(self.main_frame, "Files")
 
         # config dir
-        tk.Label(files_frame, text="Config dir:")\
-                .grid(row=0, column=0, sticky=tk.E)
-        tk.Entry(files_frame, width=64,
-                textvariable=self.parent.config["files"]["config_dir"])\
-                .grid(row=0, column=1, sticky="ew")
-        tk.Button(files_frame, text="Open...",
-                command = self.set_config_dir)\
-                .grid(row=0, column=2, sticky=tk.W)
+        files_frame.addWidget(
+                qt.QLabel("Config dir:"),
+                0, 0
+            )
+        files_frame.addWidget(
+                qt.QLineEdit(),
+                0, 1
+            )
+        files_frame.addWidget(
+                qt.QPushButton("Open ..."),
+                0, 2
+            )
 
         # HDF file
-        tk.Label(files_frame, text="HDF file:")\
-                .grid(row=1, column=0, sticky=tk.E)
-        tk.Entry(files_frame, width=64,
-                textvariable=self.parent.config["files"]["hdf_fname"])\
-                .grid(row=1, column=1, sticky="ew")
-        tk.Button(files_frame, text="Open...",
-                command = lambda: self.open_file("hdf_fname"))\
-                .grid(row=1, column=2, sticky=tk.W)
+        files_frame.addWidget(
+                qt.QLabel("HDF file:"),
+                1, 0
+            )
+        files_frame.addWidget(
+                qt.QLineEdit(),
+                1, 1
+            )
+        files_frame.addWidget(
+                qt.QPushButton("Open ..."),
+                1, 2
+            )
 
         # HDF writer loop delay
-        tk.Label(files_frame, text="HDF writer loop delay:")\
-                .grid(row=2, column=0, sticky=tk.E)
-        tk.Entry(files_frame,
-                textvariable=self.parent.config["general"]["hdf_loop_delay"])\
-                .grid(row=2, column=1, sticky="nsew")
+        files_frame.addWidget(
+                qt.QLabel("HDF writer loop delay:"),
+                2, 0
+            )
+        files_frame.addWidget(
+                qt.QLineEdit(),
+                2, 1
+            )
 
         # run name
-        tk.Label(files_frame, text="Run name:")\
-                .grid(row=3, column=0, sticky=tk.E)
-        run_name_entry = tk.Entry(files_frame,
-                textvariable=self.parent.config["general"]["run_name"])\
-                .grid(row=3, column=1, sticky="nsew")
+        files_frame.addWidget(
+                qt.QLabel("Run name:"),
+                3, 0
+            )
+        files_frame.addWidget(
+                qt.QLineEdit(),
+                3, 1
+            )
 
         ########################################
         # devices
         ########################################
 
+        cmd_frame = self.LabelFrame(self.main_frame, "Send a custom command")
+
         # the control to send a custom command to a specified device
-        fc = tk.LabelFrame(self.cgf, text="Send a custom command", padx=10, pady=10)
-        fc.grid(row=2, padx=10, pady=10, sticky='ew')
-        custom_command = tk.StringVar(fc, value='Enter command ...')
-        cmd_entry = tk.Entry(fc, textvariable=custom_command, width=30)
-        cmd_entry.grid(row=0, column=0, sticky='nsew')
-        custom_dev = tk.StringVar(fc, value='Select device ...')
-        dev_list = [dev_name for dev_name in self.parent.devices]
-        if not dev_list:
-            dev_list = ["(no devices)"]
-        dev_selection = tk.OptionMenu(fc, custom_dev, *dev_list)
-        dev_selection.grid(row=0, column=1, sticky="e")
-        custom_button = tk.Button(fc, text="Send",
-                command=lambda: self.queue_custom_command(custom_dev.get(), custom_command.get()))
-        custom_button.grid(row=0, column=2, sticky='e')
+        cmd_frame.addWidget(
+                qt.QLabel("Cmd:"),
+                0, 0
+            )
+        cmd_frame.addWidget(
+                qt.QLineEdit(),
+                0, 1
+            )
+        device_selector = qt.QComboBox()
+        device_selector.addItem("Select device ...")
+        cmd_frame.addWidget(device_selector, 0, 2)
+        cmd_frame.addWidget(
+                qt.QPushButton("Send"),
+                0, 3
+            )
 
         # button to refresh the list of COM ports
-        tk.Button(fc, text="Refresh COM ports", command=self.refresh_COM_ports)\
-                        .grid(row=0, column=3, padx=30, sticky='e')
+        cmd_frame.addWidget(
+                qt.QPushButton("Refresh COM ports"),
+                0, 4
+            )
 
-        # all device-specific controls
-        self.place_device_controls()
-
-    def place_device_controls(self):
-        self.fr = tk.LabelFrame(self.cgf, text="Devices")
-        self.fr.grid(row=4, padx=10, pady=10, sticky='nsew')
+        devices_frame = self.LabelFrame(self.main_frame, "Devices")
 
         # make GUI elements for all devices
         for dev_name, dev in self.parent.devices.items():
-            fd = tk.LabelFrame(self.fr, text=dev.config["label"])
-            fd.grid(padx=10, pady=10, sticky="nsew",
-                    row=dev.config["row"], column=dev.config["column"],
-                    rowspan=dev.config["rowspan"], columnspan=dev.config["columnspan"])
+            df = self.LabelFrame(
+                    devices_frame,
+                    dev.config["label"],
+                    dev.config["column"],
+                    dev.config["row"]
+                )
 
             # the button to reload attributes
-            attr_b = tk.Button(fd, text="Attrs", command=lambda dev=dev: self.reload_attrs(dev))
-            attr_b.grid(row=0, column=20, sticky="nsew")
+            df.addWidget(
+                    qt.QPushButton("Attrs"),
+                    0, 20
+                )
 
             # device-specific controls
             for c_name, c in dev.config["controls"].items():
-                if c_name == "LabelFrame":
-                    continue
 
-                # place Checkbuttons
-                if c["type"] == "Checkbutton":
-                    c["Checkbutton"] = tk.Checkbutton(fd, variable=c["var"])
-                    c["Checkbutton"].grid(row=c["row"], column=c["col"], sticky=tk.W)
-                    c["Label"] = tk.Label(fd, text=c["label"])
-                    c["Label"].grid(row=c["row"], column=c["col"]-1, sticky=tk.E)
+                # place QCheckBoxes
+                if c["type"] == "QCheckBox":
+                    df.addWidget(
+                            qt.QCheckBox(c["label"]),
+                            c["row"], c["col"],
+                        )
 
-                # place Buttons
-                if c["type"] == "Button":
-                    # determine the button command
-                    if c["argument"] == "":
-                        command = lambda dev=dev, cmd=c["command"]+"()": self.queue_command(dev, cmd)
-                    else:
-                        command = lambda dev=dev, cmd=c["command"],\
-                                    arg=dev.config["controls"][c["argument"]]["var"]:\
-                                    self.queue_command(dev, cmd+"("+arg.get()+")")
-                    # place the button with that command
-                    c["Button"] = tk.Button(fd, text=c["label"], command=command)
-                    if c.get("align") == None:
-                        c["Button"].grid(row=c["row"], column=c["col"], sticky=tk.W)
-                    else:
-                        c["Button"].grid(row=c["row"], column=c["col"], sticky=c["align"])
+                # place QPushButtons
+                elif c["type"] == "QPushButton":
+                    df.addWidget(
+                            qt.QPushButton(c["label"]),
+                            c["row"], c["col"],
+                        )
 
-                # place Entries
-                elif c["type"] == "Entry":
-                    if c["width"]:
-                        c["Entry"] = tk.Entry(fd, textvariable=c["var"], width=c["width"])
-                        c["Entry"].grid(row=c["row"], column=c["col"],sticky="w")
-                    else:
-                        c["Entry"] = tk.Entry(fd, textvariable=c["var"])
-                        c["Entry"].grid(row=c["row"], column=c["col"],sticky="nsew")
-                    c["Label"] = tk.Label(fd, text=c["label"])
-                    c["Label"].grid(row=c["row"], column=c["col"]-1, sticky=tk.E)
-                    if c["enter_cmd"]:
-                        command = lambda x, dev=dev, cmd=c["enter_cmd"], arg=c["var"]:\
-                                    self.queue_command(dev, cmd+"("+arg.get()+")")
-                        c["Entry"].bind("<Return>", command)
+                # place QLineEdits
+                elif c["type"] == "QLineEdit":
+                    df.addWidget(
+                            qt.QLabel(c["label"]),
+                            c["row"], c["col"] - 1,
+                            alignment = PyQt5.QtCore.Qt.AlignRight,
+                        )
+                    df.addWidget(
+                            qt.QLineEdit(),
+                            c["row"], c["col"],
+                        )
 
-                # place OptionMenus
-                elif c["type"] == "OptionMenu":
-                    if c["command"] == "":
-                        c["OptionMenu"] = tk.OptionMenu(fd, c["var"], *c["options"])
-                    else:
-                        c["OptionMenu"] = tk.OptionMenu(fd, c["var"], *c["options"],
-                                command= lambda x, dev=dev, cmd=c["command"]:
-                                    self.queue_command(dev, cmd+"('"+x.strip()+"')"))
-                    c["OptionMenu"].grid(row=c["row"], column=c["col"], sticky=tk.W)
-                    c["Label"] = tk.Label(fd, text=c["label"])
-                    c["Label"].grid(row=c["row"], column=c["col"]-1, sticky=tk.E)
-
-                # place ControlsRows
-                elif c["type"] == "ControlsRow":
-                    c["Frame"] = tk.Frame(fd)
-                    c["Frame"].grid(row=c["row"], column=c["col"], sticky='w', pady=10)
-                    c["Label"] = tk.Label(fd, text=c["label"])
-                    c["Label"].grid(row=c["row"], column=c["col"]-1, sticky=tk.E)
-                    controls_row_args = dict((name, c["control_values"][name]) for name in c["control_names"] if c["control_values"][name].get() != '')
-                    for i, name in enumerate(c["control_names"]):
-                        c["ctrls"] = {}
-                        if c["control_types"][i] == "Entry":
-                            c["ctrls"][name] = tk.Entry(c["Frame"],
-                                    width=c["control_widths"][i], textvariable=c["control_values"][name])
-                        elif c["control_types"][i] == "Button":
-                            c["ctrls"][name] = tk.Button(
-                                    c["Frame"], width = c["control_widths"][i],
-                                    text=c["control_values"][name].get(),
-                                    command=lambda dev=dev, args = controls_row_args,
-                                        cmd=c["control_commands"][i]: self.queue_command(dev, cmd+"(**"+str(dict((n,v.get()) for n,v in args.items()))+")")
-                                )
-                        elif c["control_types"][i] == "OptionMenu":
-                            c["ctrls"][name] = tk.OptionMenu(c["Frame"],
-                                    c["control_values"][name], *c["control_options"][i])
-                        elif c["control_types"][i] == "Checkbutton":
-                            c["ctrls"][name] = \
-                            tk.Checkbutton(c["Frame"], variable=c["control_values"][name])
-                        elif c["control_types"][i] == "CheckbuttonCmd":
-                            c["ctrls"][name] = \
-                            tk.Checkbutton(c["Frame"], variable=c["control_values"][name],
-                                           command=lambda dev=dev, arg = c["control_values"][name],
-                                           cmd=c["control_commands"][i]: self.queue_command(dev, cmd+"("+arg.get()+")"))
-
-                        c["ctrls"][name].grid(row=1, column=i+1, sticky="nsew", padx=5)
-                        tk.Label(c["Frame"], text=c["control_labels"][i])\
-                                .grid(row=0, column=i+1)
-
-                # place ControlsTables
-                elif c["type"] == "ControlsTable":
-                    c["Frame"] = tk.LabelFrame(fd, text=c["label"])
-                    c["Frame"].grid(row=c["row"], column=c["col"],
-                            columnspan=c["columnspan"], rowspan=c["rowspan"], sticky='w', pady=10, padx=3)
-                    for i, name in enumerate(c["column_names"]):
-                        tk.Label(c["Frame"], text=c["column_labels"][i]).grid(row=0, column=i)
-                        for j, var in enumerate(c["column_values"][i]):
-                            cmd = c["column_commands"][i] if c["column_commands"] else None
-                            if c["column_types"][i] == "Checkbutton":
-                                if cmd:
-                                    arg = "('" + c["row_ids"][j] + "', " + var.get() + ")"
-                                    cmd_fn = lambda dev=dev, cmd=cmd: self.queue_command(dev, cmd+arg)
-                                    tk.Checkbutton(c["Frame"], variable=var, command=cmd_fn).\
-                                                    grid(row=j+1, column=i)
-                                else:
-                                    tk.Checkbutton(c["Frame"], variable=var).grid(row=j+1, column=i)
-                            elif c["column_types"][i] == "Entry":
-                                tk.Entry(c["Frame"], textvariable=var,
-                                        width=c["column_widths"][i]).grid(row=j+1, column=i)
-                                if cmd_fn:
-                                    pass # TODO
-                            elif c["column_types"][i] == "Label":
-                                tk.Label(c["Frame"], textvariable=var).grid(row=j+1, column=i)
-                            elif c["column_types"][i] == "OptionMenu":
-                                if cmd:
-                                    arg = "(" + c["row_ids"][j] + ", " + var.get() + ")"
-                                    cmd_fn = lambda dev=dev, cmd=cmd: self.queue_command(dev, cmd+arg)
-                                    om = tk.OptionMenu(
-                                            c["Frame"], var,
-                                            *c["column_options"][i],
-                                            command=cmd_fn
-                                        )
-                                else:
-                                    om = tk.OptionMenu(c["Frame"], var, *c["column_options"][i])
-                                om.config(width=c["column_widths"][i])
-                                om.grid(row=j+1, column=i)
-
-    def set_config_dir(self):
-        self.open_dir("config_dir")
-        self.read_device_config()
-
-        # update device controls
-        self.fr.destroy()
-        self.place_device_controls()
-
-        # update device data in MonitoringGUI
-        self.parent.monitoring.dev_f.destroy()
-        self.parent.monitoring.place_device_specific_items()
-
-    def queue_custom_command(self, dev_name, command):
-        # check the command is valid
-        cmd = command.strip()
-        search = re.compile(r'[^A-Za-z0-9()]').search
-        if bool(search(cmd)):
-            messagebox.showerror("Command error", "Invalid command.")
-            return
-
-        # check the device is valid
-        dev = self.parent.devices.get(dev_name)
-        if not dev:
-            messagebox.showerror("Device error", "Device not found.")
-            return
-        if not dev.operational:
-            messagebox.showerror("Device error", "Device not operational.")
-            return
-
-        self.queue_command(dev, cmd)
-
-    def queue_command(self, dev, command):
-        dev.commands.append(command)
-
-    def reload_attrs(self, dev):
-        # read attributes from file
-        params = configparser.ConfigParser()
-        params.read(dev.config["config_fname"])
-        dev.config["attributes"] = params["attributes"]
-
-        # update the column names in MonitoringGUI
-        col_names = dev.config["attributes"]["column_names"].split(',')
-        col_names = [x.strip() for x in col_names]
-        dev.column_names.set("\n".join(col_names))
-
-        # display the new attributes in a message box
-        attrs = ""
-        for attr_name,attr in dev.config["attributes"].items():
-            attrs += attr_name + ": " + str(attr) + "\n\n"
-        messagebox.showinfo("Device attributes", attrs)
-
-    def refresh_COM_ports(self):
-        rl = pyvisa.ResourceManager().list_resources()
-        for dev_name, dev in self.parent.devices.items():
-            # check device has a COM_port control
-            if not dev.config["controls"].get("COM_port"):
-                continue
-
-            # update the menu of COM_port options
-            menu = dev.config["controls"].get("COM_port")["OptionMenu"]["menu"]
-            COM_var = dev.config["controls"].get("COM_port")["var"]
-            menu.delete(0, "end")
-            for string in rl:
-                menu.add_command(label=string,
-                        command=lambda value=string, COM_var=COM_var: COM_var.set(value))
-
-    def open_file(self, prop):
-        fname = filedialog.asksaveasfilename(
-                initialdir = self.parent.config["files"][prop].get(),
-                title = "Select file",
-                filetypes = (("HDF files","*.h5"),("all files","*.*")))
-        if not fname:
-            return
-        else:
-            self.parent.config["files"][prop].set(fname)
-
-    def open_dir(self, prop):
-        fname = filedialog.askdirectory(
-                initialdir = self.parent.config["files"][prop].get(),
-                title = "Select directory")
-        if not fname:
-            return
-        else:
-            self.parent.config["files"][prop].set(fname)
-
-    def start_control(self):
-        # check we're not running already
-        if self.status == "running":
-            return
-
-        # select the time offset
-        self.parent.config["time_offset"] = time.time()
-
-        # setup & check connections of all devices
-        for dev_name, dev in self.parent.devices.items():
-            if dev.config["controls"]["enabled"]["var"].get():
-                dev.setup_connection(self.parent.config["time_offset"])
-                if not dev.operational:
-                    messagebox.showerror("Device error",
-                            "Error: " + dev.config["label"] + " not responding correctly, or cannot access the directory for data storage.")
-                    self.status_message.set("Device configuration error")
-                    return
-
-        # start the thread that writes to HDF
-        self.HDF_writer = HDF_writer(self.parent)
-        self.HDF_writer.start()
-
-        # start control for all devices
-        for dev_name, dev in self.parent.devices.items():
-            if dev.config["controls"]["enabled"]["var"].get():
-                dev.clear_queues()
-                dev.start()
-
-        # update and start the monitoring thread
-        self.parent.monitoring.refresh_column_names_and_units()
-        self.parent.monitoring.start_monitoring()
-
-        # update program status
-        self.status = "running"
-        self.status_message.set("Running")
-
-        # make all plots display the current run and file and update parameters
-        HDF_fname = self.parent.config["files"]["hdf_fname"].get()
-        self.parent.plots.refresh_run_list(HDF_fname)
-        self.parent.config["files"]["plotting_hdf_fname"].set(HDF_fname)
-        self.parent.plots.refresh_all_parameter_lists()
-
-    def stop_control(self):
-        # check we're not stopped already
-        if self.status == "stopped":
-            return
-
-        # stop devices, waiting for threads to finish
-        for dev_name, dev in self.parent.devices.items():
-            if dev.active.is_set():
-                dev.active.clear()
-
-        # stop HDF writer
-        if self.HDF_writer.active.is_set():
-            self.HDF_writer.active.clear()
-
-        # stop monitoring
-        self.parent.monitoring.stop_monitoring()
-
-        # stop all plots
-        self.parent.plots.stop_all()
-
-        self.status = "stopped"
-        self.status_message.set("Recording finished")
+                # place QComboBoxes
+                elif c["type"] == "QComboBox":
+                    df.addWidget(
+                            qt.QLabel(c["label"]),
+                            c["row"], c["col"] - 1,
+                            alignment = PyQt5.QtCore.Qt.AlignRight,
+                        )
+                    combo_box = qt.QComboBox()
+                    for option in c["options"]:
+                        combo_box.addItem(option)
+                    df.addWidget(
+                            combo_box,
+                            c["row"], c["col"],
+                        )
 
 class MonitoringGUI(qt.QWidget):
     def __init__(self, parent):

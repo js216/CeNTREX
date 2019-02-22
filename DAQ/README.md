@@ -1,43 +1,55 @@
-# CeNTREX slow DAQ software
+# CeNTREX data acquisition software
 
-   > "Still, I was accumulating experience and information,
-   > and I never threw anything away. I kept files on
-   > everything. [...] I had a strict rule, which I think
-   > secret services follow, too: No piece of information is
-   > superior to any other. Power lies in having them all on
-   > file and then finding the connections.  There are always
-   > connections; you have only to want to find them.
-   > [Umberto Ecco: Foucault's Pendulum] 
+   > "Still, I was accumulating experience and information, and I never threw
+   > anything away. I kept files on everything. [...] I had a strict rule, which
+   > I think secret services follow, too: No piece of information is superior to
+   > any other. Power lies in having them all on file and then finding the
+   > connections.  There are always connections; you have only to want to find
+   > them.  [Umberto Ecco: Foucault's Pendulum] 
 
 This is the software to control and record the parameters of the Centrex experiment.
 
 ## Program organization
 
-The main program is an object of the `CentrexGUI` class. It reads the
-configuration files when it starts, then instantiates the classes that draw the
-graphical user interface. Note that the program does not write to its
-configuration files.
+The program's code is divided between classes that make up the graphical user
+interface, contained in `GUI.py`, and control classes in `Control.py` which make
+use of driver classes (these in turn are contained in the `drivers` directory)
+to communicate with physical instruments. In addition, all program configuration
+is contained in `.ini` files in the `config` directory, allowing for simple
+modification and extension of the DAQ system without changing the main program
+code.
 
-The user controls the devices through the `ControlGUI`, which is a canvas for
-control of recording and external devices such as temperature controllers and
-pulse tube compressors. As detailed in the next section, the information in
-device config files is automatically read and translated into usable controls
-that appear in the GUI.
+There are three control classes:
 
-However, the controls in `ControlGUI` do not access the drivers, let alone the
-devices, directly. Instead, `ControlGUI` instantiates `Device` objects that in
-communicate with the drivers to record parameters and pass commands to the
-external devices. This enables thread-based parallelism; each `Device` instance
-runs in a separate thread for quasi-synchronous control of devices. The data
-returned from each device is put in a FIFO queue; there is one such queue
-(`dev.data_queue`) per device.
+- `Device` objects run each with its own thread, instantiate device drivers, and
+  poll devices at regular intervals for data as well as check for normal
+  operation insofar as supported by the driver, pushing this information into
+  data and events queues specific to each device. In addition, these objects
+  serve as an unified abstract interface to all the drivers and related
+  information, especially through the `config` dictionary.
 
-In addition to the `Device` objects, when the user starts control, an
-`HDF_writer` object is instantiated. In its thread, it periodically reads all
-the data from the device data queues and writes it to HDF datasets.
+- `Monitoring`: While the `Device` objects collect information from the physical
+  devices, they neither record it nor notify the user if any abnormal condition
+  obtains. Thus the main program instantiates one `Monitoring` object to read
+  some of the data, display it in the main interface, and send it to an external
+  central database.
 
-`PlotsGUI` and `MonitoringGUI` are used, respectively, to make plots about the
-data currently being collected, and to display the latest values measured.
+- `HDF_writer` writes all the data collected by `Device` objects to an HDF file
+  for future reference and analysis.
+
+The graphical user interface likewise consists of three parts. The user
+controls the devices through the `ControlGUI`, which is a canvas for control of
+recording and external devices such as temperature controllers and pulse tube
+compressors. As detailed in the next section, the information in device config
+files is automatically read and translated into usable controls that appear in
+the GUI. `PlotsGUI` and `MonitoringGUI` are used, respectively, to make plots
+about the data currently being collected, and to display the latest values
+measured.
+
+The program is thus generic enough to make it easy to add capabilities to
+control any number of new devices by simply (1) writing a device driver, and (2)
+the device config file. The easiest way to do both of these things is to copy a
+pre-existing driver and config files, and adapting to fit the new device.
 
 ## Configuration files
 
@@ -95,6 +107,22 @@ Most elements here are already explained above. The `controls` dictionary is to
 contain everything related to the control of the device: the GUI elements, the
 related variables, etc.
 
+## Program operation
+
+When the program is started, `ControlGUI` attempts to read the configuration
+files in order to build the graphical user interface consisting of controls for
+individual devices. The program does not check the config files for syntax and
+its behaviour under improperly formatted config files is undefined.
+
+When the user starts control, the program attempts to talk to each of the
+enabled devices to see if the expected response is received. Following that, it
+starts the `HDF_writer` thread, which is thereby made ready to accept the data
+that flows to it through the corresponding queues, and write it to the selected
+HDF file. Then, each of the `Device` threads is started, cycling through a loop
+of checking the device for abnormal conditions, recording numerical values, and
+sending control commands to the device (and reading the values these commands
+return). Finally, the `Monitoring` thread starts.
+
 ## Data structure
 
 The data from each run is initially stored in a series of CSV files for
@@ -127,23 +155,21 @@ current setting).
 
 The drivers are Python modules stored in `drivers`.
 
-- **Lakeshore 330 temperature controller:** Python wrapper for all the
-  IEEE-488/serial commands supported by the Lake Shore Model 330 Autotuning
-  Temperature Controller.
-- **Lakeshore 218 temperature monitor:** Python wrapper for all the serial
-  commands supported by the Lake Shore Model 330 eight input temperature
-  monitor.
-- **Big Sky Laser CFR 200 (ablation laser):** Python wrapper for all the serial
-  commands supported by the Big Sky Laser CFR 200 Nd:YAG Laser System.
-- **Tektronix 2014B scope:** a subset of the interface described in the
-  Programmer Manual.
-- **Cryomech CPA1110:** the entire interface from the manual.
-- **MKS 1179C:** Python interface for all the control lines of the MKS 1179C
-  General Purpose Mass-Flo® Controller, as controlled by a NI USB-6008
-  Multifunction I/O Device.
-- **Hornet IGM402:** Python wrapper for all the RS485 serial commands (using the
-  ASCII protocol) supported by the Hot Cathode Ionization Vacuum Gauge With Dual
-  Convection IGM402 Module, The Hornet.
+- `CPA1110`, the compressor for pulse tube refrigerators
+- `CTC100`, the thermal controller from Stanford instruments
+- `HiPace700`, or any Pfeiffer pump using the TC 400 controller
+- `Hornet`, the Instrutech pressure gauge
+- `HP6645A`, the GPIB-enabled power supply used for some constant heaters within
+  the beam source
+- `labjackT7`, the DAQ device used for controlling the high-voltage
+  electrostatic lens electronics
+- `LakeShore218`, thermometer controller
+- `nXDS` for Edwards scroll pumps
+- `PCIe5171` for the NI scope for the fast data acquisition
+- `SynthHDPro`, used for generating microwaves for rotational cooling etc.
+- `USB6008`, the NI DAQ device used for controlling the MKS 1179C mass flow
+  controller, as well as a flood detector for the water-cooled PT compressors
+- `WA1500`, the Burleigh wavemeter
 
 Each driver, in addition to implementing all or some of the features of the
 remote interface of the instrument, also defines the following functions:

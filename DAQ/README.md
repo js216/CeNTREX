@@ -77,29 +77,29 @@ config file has to contain the following sections and fields:
       database = 
 
 The `config` dictionary will contain this and other information. In particular,
-it keeps track of the `time_offset` (see section on Data structure). Other GUI
-classes may also have a `config` dictionary to contain metadata specific to
-them.  
+it also keeps track of the `time_offset` (see section on Data structure), as
+well as whether control is currently running. Other GUI classes may also have a
+`config` dictionary to contain metadata specific to them.  
+
 Device configurations are read from `.ini` files in the chosen directory. (Thus
 choosing a different directory allows for a different set of devices or device
 configurations to be loaded.) These files have the structure:
 
     [device]
-    name = Hornet               # name of device as used internally by the program
-    label = Hornet              # name of the device as displayed by the program
-    path = beam_source/pressure # where to store the numerical CSV/HDF data
-    driver = Hornet             # name of the driver class
-    constr_params = COM_port    # parameters to be passed to the driver constructor
-    correct_response = True     # for connection testing
-    row = 0                     # row in the main program to place the controls in
-    column = 0                  # column for the same
+    ...
     
-    [attributes]                # attributes to be stored with the HDF dataset
+    [attributes]
     column_names = time, IG pressure
     units = s, torr
     ...
 
-    [...]                      # any number of further controls for the device
+    [...]
+
+The `[device]` section has to contain the parameters specified in the
+`ControlGUI.read_device_config_options()` function. The `[attributes]` are
+copied verbatim into the HDF file, and displayed in the `MonitoringGUI`. Any
+following config file sections specify the controls to be displayed in
+`ControlGUI`.
 
 Four types of controls are supported: `Checkbutton`, `Entry`, `OptionMenu`, and
 `Button`. All controls require a label (for `Button`s, it gets placed on the
@@ -110,32 +110,17 @@ controls for a given device. Some controls require other options (e.g.,
 pressed); see configuration files in `config/devices` for examples.
 
 The information in these files is passed as a dictionary (named `config`) to the
-constructor of `Device` objects:
-
-    config = {
-       "name"              : ...,
-       "label"             : ...,
-       "config_fname"      : ....,  # name of the device config file
-       "current_run_dir"   : ...,   # where the CSV files are to be stored
-       "path"              : ...,
-       "correct_response"  : ...,
-       "row"               : ...,
-       "column"            : ...,
-       "driver"            : ...,
-       "attributes"        : ...,   # dictionary of above-listed attributes
-       "controls"          : ...,
-    }
-
-Most elements here are already explained above. The `controls` dictionary is to
-contain everything related to the control of the device: the GUI elements, the
-related variables, etc.
+constructor of `Device` objects. The dictionary itself is created when the
+program initially reads the device configuration; see the function
+`ControlGUI.read_device_config()` for details.
 
 ## Program operation
 
-When the program is started, `ControlGUI` attempts to read the configuration
-files in order to build the graphical user interface consisting of controls for
-individual devices. The program does not check the config files for syntax and
-its behaviour under improperly formatted config files is undefined.
+When the program is started, `ControlGUI` calls the `read_device_config()`
+member function to attempt to read the configuration files in order to build the
+graphical user interface consisting of controls for individual devices. The
+program does not check the config files for syntax and its behaviour under
+improperly formatted config files is undefined.
 
 When the user starts control, the program attempts to talk to each of the
 enabled devices to see if the expected response is received. Following that, it
@@ -145,6 +130,20 @@ HDF file. Then, each of the `Device` threads is started, cycling through a loop
 of checking the device for abnormal conditions, recording numerical values, and
 sending control commands to the device (and reading the values these commands
 return). Finally, the `Monitoring` thread starts.
+
+## Error handling
+
+If a function has to stop due to an error condition, it should report the error
+using the `logging.error()` function giving a descriptive message of what went
+wrong, and return nothing:
+
+    def myfunc():
+       if error:
+          logging.error("ERROR: an error has occurred.")
+          return
+
+If there is an abnormal condition that does not require the program to
+terminate, it should be reported via the `logging.warning()` function.
 
 ## Data structure
 

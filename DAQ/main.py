@@ -1,21 +1,28 @@
 import PyQt5.QtWidgets as qt
 import configparser
-import sys
+import sys, os, glob, importlib
+import logging
 
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
 from tkinter import messagebox
-import os, glob, importlib
 import h5py
 import time
 import tkinter as tk
 import threading
 from collections import deque
-import logging
 import time
 import h5py
 from influxdb import InfluxDBClient
+
+##########################################################################
+##########################################################################
+#######                                                 ##################
+#######            CONTROL CLASSES                      ##################
+#######                                                 ##################
+##########################################################################
+##########################################################################
 
 class Device(threading.Thread):
     def __init__(self, config):
@@ -40,8 +47,7 @@ class Device(threading.Thread):
         self.events_queue = deque()
 
         # the variable for counting the number of NaN returns
-        self.nan_count = tk.StringVar()
-        self.nan_count.set(0)
+        self.nan_count = 0
 
     def setup_connection(self, time_offset):
         threading.Thread.__init__(self)
@@ -413,22 +419,36 @@ class HDF_writer(threading.Thread):
                 break
         return data
 
+##########################################################################
+##########################################################################
+#######                                                 ##################
+#######            GUI CLASSES                          ##################
+#######                                                 ##################
+##########################################################################
+##########################################################################
+
 class ControlGUI(qt.QWidget):
     def __init__(self, parent):
         super(qt.QWidget, self).__init__(parent)
         self.parent = parent
+        self.read_device_config()
+        self.place_GUI_elements()
 
     def read_device_config(self):
         self.parent.devices = {}
 
-        if not os.path.isdir(self.parent.config["files"]["config_dir"].get()):
+        # check the config dict specifies a directory with device configuration files
+        if not os.path.isdir(self.parent.config["files"]["config_dir"]):
+            logging.error("Directory with device configuration files not specified.")
             return
 
-        for f in glob.glob(self.parent.config["files"]["config_dir"].get() + "/*.ini"):
+        # iterate over all device config files
+        for f in glob.glob(self.parent.config["files"]["config_dir"] + "/*.ini"):
+            # config file sanity check
             params = configparser.ConfigParser()
             params.read(f)
-
             if not "device" in params:
+                logging.warning("The device config file " + f + " does not have a [device] section.")
                 continue
 
             # import the device driver
@@ -441,27 +461,41 @@ class ControlGUI(qt.QWidget):
             driver = getattr(driver_module, params["device"]["driver"])
 
             # read general device options
-            dev_config = {
-                        "name"              : params["device"]["name"],
-                        "label"             : params["device"]["label"],
-                        "config_fname"      : f,
-                        "path"              : params["device"]["path"],
-                        "correct_response"  : params["device"]["correct_response"],
-                        "single_dataset"    : True if params["device"]["single_dataset"]=="True" else False,
-                        "row"               : params["device"]["row"],
-                        "rowspan"           : params["device"]["rowspan"],
-                        "monitoring_row"    : params["device"]["monitoring_row"],
-                        "column"            : params["device"]["column"],
-                        "columnspan"        : params["device"]["columnspan"],
-                        "monitoring_column" : params["device"]["monitoring_column"],
-                        "driver"            : driver,
-                        "constr_params"     : [x.strip() for x in params["device"]["constr_params"].split(",")],
-                        "attributes"        : params["attributes"],
-                        "controls"          : {},
-                    }
+            try:
+                dev_config = self.read_device_config_options(params)
+            except IndexError as err:
+                logging.error("Cannot read device config file: " + str(err))
+                return
 
-            # populate the list of device controls
-            ctrls = dev_config["controls"]
+            ## populate the list of device controls
+            #try:
+            #    self.read_device_controls(params)
+            #except IndexError as err:
+            #    logging.error("Cannot read device config file: " + str(err))
+            #    return
+
+            # make a Device object
+            self.parent.devices[params["device"]["name"]] = Device(dev_config)
+
+    def read_device_config_options(self, params):
+        return {
+                    "name"              : params["device"]["name"],
+                    "label"             : params["device"]["label"],
+                    "path"              : params["device"]["path"],
+                    "correct_response"  : params["device"]["correct_response"],
+                    "single_dataset"    : True if params["device"]["single_dataset"]=="True" else False,
+                    "row"               : params["device"]["row"],
+                    "rowspan"           : params["device"]["rowspan"],
+                    "monitoring_row"    : params["device"]["monitoring_row"],
+                    "column"            : params["device"]["column"],
+                    "columnspan"        : params["device"]["columnspan"],
+                    "monitoring_column" : params["device"]["monitoring_column"],
+                    "constr_params"     : [x.strip() for x in params["device"]["constr_params"].split(",")],
+                    "attributes"        : params["attributes"],
+                }
+
+    def read_device_controls(self):
+            ctrls = {}
             for c in params.sections():
                 if params[c].get("type") == "Checkbutton":
                     ctrls[c] = {}
@@ -563,9 +597,7 @@ class ControlGUI(qt.QWidget):
                         for val in c_v.split(","):
                             ctrls[c]["column_values"][-1].append(tk.StringVar())
                             ctrls[c]["column_values"][-1][-1].set(val.strip())
-
-            # make a Device object
-            self.parent.devices[params["device"]["name"]] = Device(dev_config)
+            return ctrls
 
     def place_GUI_elements(self):
         # main frame for all ControlGUI elements

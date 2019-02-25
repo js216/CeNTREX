@@ -1,8 +1,11 @@
+import re
 import PyQt5
 import h5py
 import time
+import pyvisa
 import logging
 import threading
+import numpy as np
 import configparser
 import PyQt5.QtGui as QtGui
 import PyQt5.QtWidgets as qt
@@ -33,6 +36,22 @@ def LabelFrame(parent, label, col=None, row=None, type="grid"):
         parent.addWidget(box)
     return grid
 
+def message_box(title, text, message=""):
+    msg = qt.QMessageBox()
+    msg.setIcon(qt.QMessageBox.Information)
+    msg.setWindowTitle(title)
+    msg.setText(text)
+    msg.setInformativeText(message)
+    msg.exec_()
+
+def error_box(title, text, message=""):
+    msg = qt.QMessageBox()
+    msg.setIcon(qt.QMessageBox.Critical)
+    msg.setWindowTitle(title)
+    msg.setText(text)
+    msg.setInformativeText(message)
+    msg.exec_()
+
 ##########################################################################
 ##########################################################################
 #######                                                 ##################
@@ -52,6 +71,7 @@ class Device(threading.Thread):
 
         # whether the connection to the device was successful
         self.operational = False
+        self.error_message = ""
 
         # for sending commands to the device
         self.commands = []
@@ -73,23 +93,20 @@ class Device(threading.Thread):
         # get the parameters that are to be passed to the driver constructor
         self.constr_params = [self.time_offset]
         for cp in self.config["constr_params"]:
-            cp_obj = self.config["controls"][cp]
-            if cp_obj["type"] == "ControlsRow":
-                self.constr_params.append( cp_obj["control_values"] )
-            elif cp_obj["type"] == "ControlsTable":
-                self.constr_params.append( cp_obj["column_values"] )
-            else:
-                self.constr_params.append( self.config["controls"][cp]["var"].get() )
+            self.constr_params.append(self.config["controls"][cp]["value"])
 
+        # verify the device responds correctly
         with self.config["driver"](*self.constr_params) as dev:
-            # verify the device responds correctly
             if not isinstance(dev.verification_string, str):
                 self.operational = False
+                self.error_message = "verification_string is not of type str"
                 return
             if dev.verification_string.strip() == self.config["correct_response"].strip():
                 self.operational = True
             else:
-                logging.warning("verification string warning:" + dev.verification_string + "!=" + self.config["correct_response"].strip())
+                self.error_message = "verification string warning:" +\
+                        dev.verification_string + "!=" + self.config["correct_response"].strip()
+                logging.warning(self.error_message)
                 self.operational = False
                 return
 
@@ -116,12 +133,12 @@ class Device(threading.Thread):
             while self.active.is_set():
                 # loop delay
                 try:
-                    time.sleep(float(self.config["controls"]["dt"]["var"].get()))
+                    time.sleep(float(self.config["controls"]["dt"]["value"]))
                 except ValueError:
                     time.sleep(1)
 
                 # check device is enabled
-                if not self.config["controls"]["enabled"]["var"].get():
+                if not self.config["controls"]["enabled"]["value"]:
                     continue
 
                 # check device for abnormal conditions
@@ -134,7 +151,7 @@ class Device(threading.Thread):
                 # keep track of the number of NaN returns
                 if isinstance(last_data, float):
                     if np.isnan(last_data):
-                        self.nan_count.set( int(self.nan_count.get()) + 1)
+                        self.nan_count.set( int(self.nan_count) + 1)
                 elif len(last_data) > 0:
                     self.data_queue.append(last_data)
 
@@ -159,12 +176,12 @@ class Monitoring(threading.Thread):
         # connect to InfluxDB
         conf = self.parent.config["influxdb"]
         self.influxdb_client = InfluxDBClient(
-                host     = conf["host"].get(),
-                port     = conf["port"].get(),
-                username = conf["username"].get(),
-                password = conf["password"].get(),
+                host     = conf["host"],
+                port     = conf["port"],
+                username = conf["username"],
+                password = conf["password"],
             )
-        self.influxdb_client.switch_database(self.parent.config["influxdb"]["database"].get())
+        self.influxdb_client.switch_database(self.parent.config["influxdb"]["database"])
 
     def run(self):
         while self.active.is_set():
@@ -179,11 +196,11 @@ class Monitoring(threading.Thread):
                     for warning in dev.warnings:
                         logging.warning(str(warning))
                         self.push_warnings_to_influxdb(dev_name, warning)
-                        self.parent.monitoring.last_warning.set(str(warning))
+                        self.parent.GUI_elements["Monitoring"].update_warnings(str(warning))
                     dev.warnings = []
 
                 # find out and display the data queue length
-                dev.qsize.set(len(dev.data_queue))
+                dev.monitoring_GUI_elements["qsize"].setText(str(len(dev.data_queue)))
 
                 # get the last event (if any) of the device
                 self.display_last_event(dev)
@@ -191,26 +208,26 @@ class Monitoring(threading.Thread):
                 # get the last row of data in the HDF dataset
                 data = self.get_last_row_of_data(dev)
                 if not isinstance(data, type(None)):
-                    # format display the data in a tkinter variable
+                    # display the data in a tkinter variable
                     formatted_data = [np.format_float_scientific(x, precision=3) for x in data]
-                    dev.last_data.set("\n".join(formatted_data))
+                    dev.monitoring_GUI_elements["data"].setText("\n".join(formatted_data))
 
                     # write slow data to InfluxDB
                     self.write_to_influxdb(dev, data)
 
                 # if writing to HDF is disabled, empty the queues
-                if not dev.config["controls"]["HDF_enabled"]["var"].get():
+                if not dev.config["controls"]["HDF_enabled"]["value"]:
                     dev.events_queue.clear()
                     dev.data_queue.clear()
 
             # loop delay
             try:
-                time.sleep(float(self.parent.config["monitoring_dt"].get()))
+                time.sleep(float(self.parent.config["general"]["monitoring_dt"]))
             except ValueError:
                 time.sleep(1)
 
     def write_to_influxdb(self, dev, data):
-        if self.parent.config["influxdb"]["enabled"].get().strip() == "False":
+        if self.parent.config["influxdb"]["enabled"].strip() == "False":
             return
         if not dev.config["single_dataset"]:
             return
@@ -231,12 +248,12 @@ class Monitoring(threading.Thread):
 
     def get_last_row_of_data(self, dev):
         # check device enabled
-        if not dev.config["controls"]["enabled"]["var"].get():
+        if not dev.config["controls"]["enabled"]["value"]:
             return
 
         # if HDF writing enabled for this device, get data from the HDF file
-        if dev.config["controls"]["HDF_enabled"]["var"].get():
-            with h5py.File(self.parent.config["files"]["hdf_fname"].get(), 'r') as f:
+        if dev.config["controls"]["HDF_enabled"]["value"]:
+            with h5py.File(self.parent.config["files"]["hdf_fname"], 'r') as f:
                 grp = f[self.parent.run_name + "/" + dev.config["path"]]
                 if dev.config["single_dataset"]:
                     dset = grp[dev.config["name"]]
@@ -264,23 +281,23 @@ class Monitoring(threading.Thread):
 
     def display_last_event(self, dev):
         # check device enabled
-        if not dev.config["controls"]["enabled"]["var"].get():
+        if not dev.config["controls"]["enabled"]["value"]:
             return
 
         # if HDF writing enabled for this device, get events from the HDF file
-        if dev.config["controls"]["HDF_enabled"]["var"].get():
-            with h5py.File(self.parent.config["files"]["hdf_fname"].get(), 'r') as f:
+        if dev.config["controls"]["HDF_enabled"]["value"]:
+            with h5py.File(self.parent.config["files"]["hdf_fname"], 'r') as f:
                 grp = f[self.parent.run_name + "/" + dev.config["path"]]
                 events_dset = grp[dev.config["name"] + "_events"]
                 if events_dset.shape[0] == 0:
-                    dev.last_event.set("(no event)")
+                    dev.monitoring_GUI_elements["events"].setText("(no event)")
                 else:
-                    dev.last_event.set(str(events_dset[-1]))
+                    dev.monitoring_GUI_elements["events"].setText(str(events_dset[-1]))
 
         # if HDF writing not enabled for this device, get events from the events_queue
         else:
             try:
-                dev.last_event.set(str(dev.events_queue.pop()))
+                dev.monitoring_GUI_elements["events"].setText(str(dev.events_queue.pop()))
             except IndexError:
                 return
 
@@ -305,8 +322,8 @@ class HDF_writer(threading.Thread):
         self.active = threading.Event()
 
         # configuration parameters
-        self.filename = self.parent.config["files"]["hdf_fname"].get()
-        self.parent.run_name = str(int(time.time())) + " " + self.parent.config["general"]["run_name"].get()
+        self.filename = self.parent.config["files"]["hdf_fname"]
+        self.parent.run_name = str(int(time.time())) + " " + self.parent.config["general"]["run_name"]
 
         # create/open HDF file, groups, and datasets
         with h5py.File(self.filename, 'a') as f:
@@ -314,11 +331,11 @@ class HDF_writer(threading.Thread):
             root.attrs["time_offset"] = self.parent.config["time_offset"]
             for dev_name, dev in self.parent.devices.items():
                 # check device is enabled
-                if not dev.config["controls"]["enabled"]["var"].get():
+                if not dev.config["controls"]["enabled"]:
                     continue
 
                 # check writing to HDF is enabled for this device
-                if not dev.config["controls"]["HDF_enabled"]["var"].get():
+                if not dev.config["controls"]["HDF_enabled"]:
                     continue
 
                 grp = root.require_group(dev.config["path"])
@@ -355,7 +372,7 @@ class HDF_writer(threading.Thread):
 
             # loop delay
             try:
-                time.sleep(float(self.parent.config["general"]["hdf_loop_delay"].get()))
+                time.sleep(float(self.parent.config["general"]["hdf_loop_delay"]))
             except ValueError:
                 time.sleep(0.1)
 
@@ -374,7 +391,7 @@ class HDF_writer(threading.Thread):
                     continue
 
                 # check writing to HDF is enabled for this device
-                if not dev.config["controls"]["HDF_enabled"]["var"].get():
+                if not dev.config["controls"]["HDF_enabled"]["value"]:
                     continue
 
                 # get events, if any, and write them to HDF
@@ -479,7 +496,9 @@ class ControlGUI(qt.QWidget):
 
             # read general device options
             try:
-                dev_config = self.read_device_config_options(params)
+                dev_config = self.read_device_config_options(f, params)
+                dev_config["config_fname"] = f
+                dev_config["driver"] = driver
             except (IndexError, ValueError) as err:
                 logging.error("Cannot read device config file: " + str(err))
                 return
@@ -494,7 +513,7 @@ class ControlGUI(qt.QWidget):
             # make a Device object
             self.parent.devices[params["device"]["name"]] = Device(dev_config)
 
-    def read_device_config_options(self, params):
+    def read_device_config_options(self, f, params):
         return {
                     "name"              : params["device"]["name"],
                     "label"             : params["device"]["label"],
@@ -520,7 +539,7 @@ class ControlGUI(qt.QWidget):
                             "type"       : params[c]["type"],
                             "row"        : int(params[c]["row"]),
                             "col"        : int(params[c]["col"]),
-                            "value"      : params[c]["value"],
+                            "value"      : True if params[c]["value"] in ["0", "True"] else False
                         }
 
                 elif params[c].get("type") == "Hidden":
@@ -535,7 +554,7 @@ class ControlGUI(qt.QWidget):
                             "type"       : params[c]["type"],
                             "row"        : int(params[c]["row"]),
                             "col"        : int(params[c]["col"]),
-                            "command"    : params[c].get("command"),
+                            "cmd"        : params[c].get("command"),
                             "argument"   : params[c]["argument"],
                             "align"      : params[c].get("align"),
                         }
@@ -579,22 +598,21 @@ class ControlGUI(qt.QWidget):
         self.main_frame.addLayout(control_frame)
 
         # control start/stop buttons
-        control_frame.addWidget(
-                qt.QPushButton("\u26ab Start control"),
-                0, 0,
-            )
-        control_frame.addWidget(
-                qt.QPushButton("\u2b1b Stop control"),
-                0, 1,
-            )
+        pb = qt.QPushButton("\u26ab Start control")
+        pb.clicked[bool].connect(self.start_control)
+        control_frame.addWidget(pb, 0, 0)
+
+        pb = qt.QPushButton("\u2b1b Stop control")
+        pb.clicked[bool].connect(self.stop_control)
+        control_frame.addWidget(pb, 0, 1)
 
         # the status label
-        status_label = qt.QLabel(
+        self.status_label = qt.QLabel(
                 "Ready to start",
                 alignment = PyQt5.QtCore.Qt.AlignRight,
             )
-        status_label.setFont(QtGui.QFont("Helvetica", 16))
-        control_frame.addWidget(status_label, 0, 2)
+        self.status_label.setFont(QtGui.QFont("Helvetica", 16))
+        control_frame.addWidget(self.status_label, 0, 2)
 
         ########################################
         # files
@@ -603,52 +621,44 @@ class ControlGUI(qt.QWidget):
         files_frame = LabelFrame(self.main_frame, "Files")
 
         # config dir
-        files_frame.addWidget(
-                qt.QLabel("Config dir:"),
-                0, 0
-            )
-        files_frame.addWidget(
-                qt.QLineEdit(),
-                0, 1
-            )
-        files_frame.addWidget(
-                qt.QPushButton("Open..."),
-                0, 2
-            )
+        files_frame.addWidget(qt.QLabel("Config dir:"), 0, 0)
+
+        qle = qt.QLineEdit()
+        qle.setText(self.parent.config["files"]["config_dir"])
+        qle.textChanged[str].connect(lambda val: self.change_config("files", "config_dir", val))
+        files_frame.addWidget(qle, 0, 1)
+
+        pb = qt.QPushButton("Open...")
+        pb.clicked[bool].connect(lambda val, qle=qle: self.open_dir("files", "config_dir", qle))
+        files_frame.addWidget(pb, 0, 2)
 
         # HDF file
-        files_frame.addWidget(
-                qt.QLabel("HDF file:"),
-                1, 0
-            )
-        files_frame.addWidget(
-                qt.QLineEdit(),
-                1, 1
-            )
-        files_frame.addWidget(
-                qt.QPushButton("Open..."),
-                1, 2
-            )
+        files_frame.addWidget(qt.QLabel("HDF file:"), 1, 0)
+
+        qle = qt.QLineEdit()
+        qle.setText(self.parent.config["files"]["hdf_fname"])
+        qle.textChanged[str].connect(lambda val: self.change_config("files", "hdf_file", val))
+        files_frame.addWidget(qle, 1, 1)
+
+        pb = qt.QPushButton("Open...")
+        pb.clicked[bool].connect(lambda val, qle=qle: self.open_file("files", "hdf_file", qle))
+        files_frame.addWidget(pb, 1, 2)
 
         # HDF writer loop delay
-        files_frame.addWidget(
-                qt.QLabel("HDF writer loop delay:"),
-                2, 0
-            )
-        files_frame.addWidget(
-                qt.QLineEdit(),
-                2, 1
-            )
+        files_frame.addWidget(qt.QLabel("HDF writer loop delay:"), 2, 0)
+
+        qle = qt.QLineEdit()
+        qle.setText(self.parent.config["general"]["hdf_loop_delay"])
+        qle.textChanged[str].connect(lambda val: self.change_config("general", "hdf_loop_delay", val))
+        files_frame.addWidget(qle, 2, 1)
 
         # run name
-        files_frame.addWidget(
-                qt.QLabel("Run name:"),
-                3, 0
-            )
-        files_frame.addWidget(
-                qt.QLineEdit(),
-                3, 1
-            )
+        files_frame.addWidget(qt.QLabel("Run name:"), 3, 0)
+
+        qle = qt.QLineEdit()
+        qle.setText(self.parent.config["general"]["run_name"])
+        qle.textChanged[str].connect(lambda val: self.change_config("general", "run_name", val))
+        files_frame.addWidget(qle, 3, 1)
 
         ########################################
         # devices
@@ -657,27 +667,32 @@ class ControlGUI(qt.QWidget):
         cmd_frame = LabelFrame(self.main_frame, "Send a custom command")
 
         # the control to send a custom command to a specified device
-        cmd_frame.addWidget(
-                qt.QLabel("Cmd:"),
-                0, 0
-            )
-        cmd_frame.addWidget(
-                qt.QLineEdit(),
-                0, 1
-            )
-        device_selector = qt.QComboBox()
-        device_selector.addItem("Select device ...")
-        cmd_frame.addWidget(device_selector, 0, 2)
-        cmd_frame.addWidget(
-                qt.QPushButton("Send"),
-                0, 3
-            )
+        cmd_frame.addWidget(qt.QLabel("Cmd:"), 0, 0)
+
+        qle = qt.QLineEdit()
+        qle.setText(self.parent.config["general"]["custom_command"])
+        qle.textChanged[str].connect(lambda val: self.change_config("general", "custom_command", val))
+        cmd_frame.addWidget(qle, 0, 1)
+
+        cbx = qt.QComboBox()
+        dev_list = [dev_name for dev_name in self.parent.devices]
+        cbx.addItem(self.parent.config["general"]["custom_device"])
+        if not dev_list:
+            cbx.addItem("No devices!")
+        else:
+            for dev_name in dev_list:
+                cbx.addItem(dev_name)
+        cbx.activated[str].connect(lambda val: self.change_config("general", "custom_device", val))
+        cmd_frame.addWidget(cbx, 0, 2)
+
+        pb = qt.QPushButton("Send")
+        pb.clicked[bool].connect(self.queue_custom_command)
+        cmd_frame.addWidget(pb, 0, 3)
 
         # button to refresh the list of COM ports
-        cmd_frame.addWidget(
-                qt.QPushButton("Refresh COM ports"),
-                0, 4
-            )
+        pb = qt.QPushButton("Refresh COM ports")
+        pb.clicked[bool].connect(self.refresh_COM_ports)
+        cmd_frame.addWidget(pb, 0, 4)
 
         devices_frame = LabelFrame(self.main_frame, "Devices")
 
@@ -691,27 +706,32 @@ class ControlGUI(qt.QWidget):
                 )
 
             # the button to reload attributes
-            df.addWidget(
-                    qt.QPushButton("Attrs"),
-                    0, 20
-                )
+            pb = qt.QPushButton("Attrs")
+            pb.clicked[bool].connect(lambda val, dev=dev : self.reload_attrs(dev))
+            df.addWidget(pb, 0, 20)
 
             # device-specific controls
             for c_name, c in dev.config["controls"].items():
 
                 # place QCheckBoxes
                 if c["type"] == "QCheckBox":
-                    df.addWidget(
-                            qt.QCheckBox(c["label"]),
-                            c["row"], c["col"],
+                    c["QCheckBox"] = qt.QCheckBox(c["label"])
+                    c["QCheckBox"].setCheckState(c["value"])
+                    c["QCheckBox"].setTristate(False)
+                    c["QCheckBox"].stateChanged[int].connect(
+                            lambda state, dev=dev, config=c_name:
+                                self.change_dev_control(dev, config, state)
                         )
+                    df.addWidget(c["QCheckBox"], c["row"], c["col"])
 
                 # place QPushButtons
                 elif c["type"] == "QPushButton":
-                    df.addWidget(
-                            qt.QPushButton(c["label"]),
-                            c["row"], c["col"],
+                    c["QPushButton"] = qt.QPushButton(c["label"])
+                    c["QPushButton"].clicked[bool].connect(
+                            lambda state, dev=dev, cmd=c["cmd"]:
+                                self.queue_command(dev, cmd)
                         )
+                    df.addWidget(c["QPushButton"], c["row"], c["col"])
 
                 # place QLineEdits
                 elif c["type"] == "QLineEdit":
@@ -720,10 +740,13 @@ class ControlGUI(qt.QWidget):
                             c["row"], c["col"] - 1,
                             alignment = PyQt5.QtCore.Qt.AlignRight,
                         )
-                    df.addWidget(
-                            qt.QLineEdit(),
-                            c["row"], c["col"],
+                    c["QLineEdit"] = qt.QLineEdit()
+                    c["QLineEdit"].setText(c["value"])
+                    c["QLineEdit"].textChanged[str].connect(
+                            lambda text, dev=dev, config=c_name:
+                                self.change_dev_control(dev, config, text)
                         )
+                    df.addWidget(c["QLineEdit"], c["row"], c["col"])
 
                 # place QComboBoxes
                 elif c["type"] == "QComboBox":
@@ -732,13 +755,145 @@ class ControlGUI(qt.QWidget):
                             c["row"], c["col"] - 1,
                             alignment = PyQt5.QtCore.Qt.AlignRight,
                         )
-                    combo_box = qt.QComboBox()
-                    for option in c["options"]:
-                        combo_box.addItem(option)
-                    df.addWidget(
-                            combo_box,
-                            c["row"], c["col"],
+
+                    c["QComboBox"] = qt.QComboBox()
+                    c["QComboBox"].setEditable(True)
+                    if len(c["options"]) < 1:
+                        c["QComboBox"].addItem(c["value"])
+                    else:
+                        for option in c["options"]:
+                            c["QComboBox"].addItem(option)
+                    c["QComboBox"].setCurrentText(c["value"])
+                    c["QComboBox"].activated[str].connect(
+                            lambda text, dev=dev, config=c_name:
+                                self.change_dev_control(dev, config, text)
                         )
+                    df.addWidget(c["QComboBox"], c["row"], c["col"])
+
+    def change_config(self, sect, config, val):
+        self.parent.config[sect][config] = val
+
+    def change_dev_control(self, dev, config, val):
+        dev.config["controls"][config]["value"] = val
+
+    def open_file(self, sect, config, qle):
+        val = qt.QFileDialog.getSaveFileName(self, "Select file")[0]
+        if not val:
+           return
+        self.parent.config[sect][config] = val
+        qle.setText(val)
+
+    def open_dir(self, sect, config, qle):
+        val = str(qt.QFileDialog.getExistingDirectory(self, "Select Directory"))
+        if not val:
+           return
+        self.parent.config[sect][config] = val
+        qle.setText(val)
+
+    def queue_custom_command(self):
+        # check the command is valid
+        cmd = self.parent.config["general"]["custom_command"]
+        search = re.compile(r'[^A-Za-z0-9()]').search
+        if bool(search(cmd)):
+            error_box("Command error", "Invalid command.")
+            return
+
+        # check the device is valid
+        dev_name = self.parent.config["general"]["custom_device"]
+        dev = self.parent.devices.get(dev_name)
+        if not dev:
+            error_box("Device error", "Device not found.")
+            return
+        if not dev.operational:
+            error_box("Device error", "Device not operational.")
+            return
+
+        self.queue_command(dev, cmd)
+
+    def queue_command(self, dev, cmd):
+        dev.commands.append(cmd)
+
+    def refresh_COM_ports(self, button_pressed):
+        rl = pyvisa.ResourceManager().list_resources()
+        for dev_name, dev in self.parent.devices.items():
+            # check device has a COM_port control
+            if not dev.config["controls"].get("COM_port"):
+                continue
+
+            # update the QComboBox of COM_port options
+            cbx = dev.config["controls"]["COM_port"]["QComboBox"]
+            COM_var = cbx.currentText()
+            cbx.clear()
+            for string in rl:
+                cbx.addItem(string)
+            cbx.setCurrentText(COM_var)
+
+    def reload_attrs(self, dev):
+        # read attributes from file
+        params = configparser.ConfigParser()
+        params.read(dev.config["config_fname"])
+        dev.config["attributes"] = params["attributes"]
+
+        # display the new attributes in a message box
+        attrs = ""
+        for attr_name,attr in dev.config["attributes"].items():
+            attrs += attr_name + ": " + str(attr) + "\n\n"
+        message_box("Device attributes", "New device attributes:", attrs)
+
+    def start_control(self):
+        # check we're not running already
+        if self.parent.config['control_active']:
+            return
+
+        # select the time offset
+        self.parent.config["time_offset"] = time.time()
+
+        # setup & check connections of all devices
+        for dev_name, dev in self.parent.devices.items():
+            if dev.config["controls"]["enabled"]["value"]:
+                dev.setup_connection(self.parent.config["time_offset"])
+                if not dev.operational:
+                    error_box("Device error", "Error: " + dev.config["label"] +\
+                            " not responding.", dev.error_message)
+                    self.status_label.setText("Device configuration error")
+                    return
+
+        # start the thread that writes to HDF
+        self.HDF_writer = HDF_writer(self.parent)
+        self.HDF_writer.start()
+
+        # start control for all devices
+        for dev_name, dev in self.parent.devices.items():
+            if dev.config["controls"]["enabled"]["value"]:
+                dev.clear_queues()
+                dev.start()
+
+        # update and start the monitoring thread
+        self.parent.GUI_elements["Monitoring"].start_monitoring()
+
+        # update program status
+        self.parent.config['control_active'] = True
+        self.status_label.setText("Running")
+
+    def stop_control(self):
+        # check we're not stopped already
+        if not self.parent.config['control_active']:
+            return
+
+        # stop devices, waiting for threads to finish
+        for dev_name, dev in self.parent.devices.items():
+            if dev.active.is_set():
+                dev.active.clear()
+
+        # stop HDF writer
+        if self.HDF_writer.active.is_set():
+            self.HDF_writer.active.clear()
+
+        # stop monitoring
+        self.parent.GUI_elements["Monitoring"].stop_monitoring()
+
+        self.parent.config['control_active'] = False
+        self.status_label.setText("Recording finished")
 
 class MonitoringGUI(qt.QWidget):
     def __init__(self, parent):
@@ -757,60 +912,67 @@ class MonitoringGUI(qt.QWidget):
 
         # general monitoring controls
         gen_f = LabelFrame(control_frame, "General")
-        gen_f.addWidget(
-                qt.QLabel("Loop delay [s]:"),
-                0, 0
+        gen_f.addWidget(qt.QLabel("Loop delay [s]:"), 0, 0)
+
+        qle = qt.QLineEdit()
+        qle.setText(self.parent.config["general"]["monitoring_dt"])
+        qle.textChanged[str].connect(
+                lambda val: self.change_config("general", "monitoring_dt", val)
             )
-        gen_f.addWidget(
-                qt.QLineEdit(),
-                0, 1
+        gen_f.addWidget(qle, 0, 1)
+
+        qcb = qt.QCheckBox("InfluxDB enabled")
+        qcb.setCheckState(True if self.parent.config["influxdb"]["enabled"] in ["1", "True"] else False)
+        qcb.stateChanged[int].connect(
+                lambda val: self.change_config("influxdb", "enabled", val)
             )
-        gen_f.addWidget(
-                qt.QCheckBox("InfluxDB enabled"),
-                1, 0
-            )
+        gen_f.addWidget(qcb, 1, 0)
 
         # InfluxDB controls
         db_f = LabelFrame(control_frame, "InfluxDB")
-        db_f.addWidget(
-                qt.QLabel("Host IP"),
-                0, 0
+
+        db_f.addWidget(qt.QLabel("Host IP"), 0, 0)
+        qle = qt.QLineEdit()
+        qle.setText(self.parent.config["influxdb"]["host"])
+        qle.textChanged[str].connect(
+                lambda val: self.change_config("influxdb", "host", val)
             )
-        db_f.addWidget(
-                qt.QLineEdit(),
-                0, 1
+        db_f.addWidget(qle, 0, 1)
+
+        db_f.addWidget(qt.QLabel("Port"), 1, 0)
+        qle = qt.QLineEdit()
+        qle.setText(self.parent.config["influxdb"]["port"])
+        qle.textChanged[str].connect(
+                lambda val: self.change_config("influxdb", "port", val)
             )
-        db_f.addWidget(
-                qt.QLabel("Port"),
-                1, 0
+        db_f.addWidget(qle, 1, 1)
+
+        db_f.addWidget(qt.QLabel("Username"), 2, 0)
+        qle = qt.QLineEdit()
+        qle.setText(self.parent.config["influxdb"]["username"])
+        qle.textChanged[str].connect(
+                lambda val: self.change_config("influxdb", "username", val)
             )
-        db_f.addWidget(
-                qt.QLineEdit(),
-                1, 1
+        db_f.addWidget(qle, 2, 1)
+
+        db_f.addWidget(qt.QLabel("Password"), 3, 0)
+        qle = qt.QLineEdit()
+        qle.setText(self.parent.config["influxdb"]["password"])
+        qle.textChanged[str].connect(
+                lambda val: self.change_config("influxdb", "password", val)
             )
-        db_f.addWidget(
-                qt.QLabel("Username"),
-                2, 0
-            )
-        db_f.addWidget(
-                qt.QLineEdit(),
-                2, 1
-            )
-        db_f.addWidget(
-                qt.QLabel("Password"),
-                3, 0
-            )
-        db_f.addWidget(
-                qt.QLineEdit(),
-                3, 1
-            )
+        db_f.addWidget(qle, 3, 1)
 
         # for displaying warnings
         w_f = LabelFrame(control_frame, "Warnings")
-        w_f.addWidget(
-                qt.QLabel("(no warnings)"),
-                3, 0
-            )
+        self.warnings_label = qt.QLabel("(no warnings)")
+        w_f.addWidget(self.warnings_label, 3, 0)
+
+    def change_config(self, sect, config, val):
+        self.parent.config[sect][config] = val
+
+    def update_warnings(self, warnings):
+        self.warnings_label.setText(warnings)
 
     def place_device_specific_items(self):
         # frame for device data
@@ -818,6 +980,7 @@ class MonitoringGUI(qt.QWidget):
 
         # device-specific text
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
+            dev.monitoring_GUI_elements = {}
             df = LabelFrame(
                     self.dev_f, dev.config["label"],
                     row=dev.config["monitoring_row"],
@@ -830,8 +993,9 @@ class MonitoringGUI(qt.QWidget):
                     0, 0,
                     alignment = PyQt5.QtCore.Qt.AlignRight,
                 )
+            dev.monitoring_GUI_elements["qsize"] = qt.QLabel("N/A")
             df.addWidget(
-                    qt.QLabel("0"),
+                    dev.monitoring_GUI_elements["qsize"],
                     0, 1,
                     alignment = PyQt5.QtCore.Qt.AlignLeft,
                 )
@@ -842,8 +1006,9 @@ class MonitoringGUI(qt.QWidget):
                     1, 0,
                     alignment = PyQt5.QtCore.Qt.AlignRight,
                 )
+            dev.monitoring_GUI_elements["NaN_count"] = qt.QLabel("N/A")
             df.addWidget(
-                    qt.QLabel("0"),
+                    dev.monitoring_GUI_elements["qsize"],
                     1, 1,
                     alignment = PyQt5.QtCore.Qt.AlignLeft,
                 )
@@ -861,8 +1026,9 @@ class MonitoringGUI(qt.QWidget):
                 )
 
             # data
+            dev.monitoring_GUI_elements["data"] = qt.QLabel("(no data)")
             df.addWidget(
-                    qt.QLabel("(no data)"),
+                    dev.monitoring_GUI_elements["data"],
                     2, 1,
                     alignment = PyQt5.QtCore.Qt.AlignLeft,
                 )
@@ -883,11 +1049,21 @@ class MonitoringGUI(qt.QWidget):
                     3, 0,
                     alignment = PyQt5.QtCore.Qt.AlignRight,
                 )
+            dev.monitoring_GUI_elements["events"] = qt.QLabel("(no events)")
             df.addWidget(
-                    qt.QLabel("(no event)"),
+                    dev.monitoring_GUI_elements["events"],
                     3, 1,
                     alignment = PyQt5.QtCore.Qt.AlignLeft,
                 )
+
+    def start_monitoring(self):
+        self.monitoring = Monitoring(self.parent)
+        self.monitoring.active.set()
+        self.monitoring.start()
+
+    def stop_monitoring(self):
+        if self.monitoring.active.is_set():
+            self.monitoring.active.clear()
 
 class PlotsGUI(qt.QWidget):
     def __init__(self, parent):
@@ -1111,10 +1287,14 @@ class CentrexGUI(qt.QTabWidget):
                 self.config[config_group][key] = val
 
         # GUI elements in a tabbed interface
+        self.GUI_elements = {
+                "Control"    : ControlGUI(self),
+                "Monitoring" : MonitoringGUI(self),
+                "Plots"      : PlotsGUI(self),
+                }
         self.setWindowTitle('CENTREX DAQ')
-        self.addTab(ControlGUI(self), "Control")
-        self.addTab(MonitoringGUI(self), "Monitoring")
-        self.addTab(PlotsGUI(self), "Plots")
+        for e_name, e in self.GUI_elements.items():
+            self.addTab(e, e_name)
         self.show()
 
     def closeEvent(self, event):
@@ -1122,6 +1302,7 @@ class CentrexGUI(qt.QTabWidget):
             if qt.QMessageBox.question(self, 'Confirm quit',
                 "Control running. Do you really want to quit?", qt.QMessageBox.Yes |
                 qt.QMessageBox.No, qt.QMessageBox.No) == qt.QMessageBox.Yes:
+                self.GUI_elements["Control"].stop_control()
                 event.accept()
             else:
                 event.ignore()

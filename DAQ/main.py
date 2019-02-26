@@ -1224,6 +1224,7 @@ class PlotsGUI(qt.QWidget):
             for row, plot in col_plots.items():
                 if plot:
                     plot.change_config("dt", dt)
+                    plot.dt_qle.setText(str(dt))
 
     def refresh_all_run_lists(self):
         # get list of runs
@@ -1327,30 +1328,35 @@ class Plotter(qt.QWidget):
         qle.textChanged[str].connect(lambda val: self.change_config("y1", val))
 
         # plot refresh rate
-        qle = qt.QLineEdit()
-        qle.setText(str(self.config["dt"]))
-        qle.textChanged[str].connect(lambda val: self.change_config("dt", val))
-        self.f.addWidget(qle, 1, 6)
+        self.dt_qle = qt.QLineEdit()
+        self.dt_qle.setText(str(self.config["dt"]))
+        self.dt_qle.textChanged[str].connect(lambda val: self.change_config("dt", val))
+        self.f.addWidget(self.dt_qle, 1, 6)
 
-        # start/stop button
-        pb = qt.QPushButton("\u25b6")
+        # start button
+        pb = qt.QPushButton("Start")
         pb.clicked[bool].connect(self.start_animation)
         self.f.addWidget(pb, 0, 2)
+
+        # stop button
+        pb = qt.QPushButton("Stop")
+        pb.clicked[bool].connect(self.stop_animation)
+        self.f.addWidget(pb, 0, 3)
 
         # toggle log/lin
         pb = qt.QPushButton("Log/Lin")
         pb.clicked[bool].connect(self.toggle_log_lin)
-        self.f.addWidget(pb, 0, 3)
+        self.f.addWidget(pb, 0, 4)
 
         # toggle lines/points
         pb = qt.QPushButton("\u26ab / \u2014")
         pb.clicked[bool].connect(self.toggle_points)
-        self.f.addWidget(pb, 0, 4)
+        self.f.addWidget(pb, 0, 5)
 
         # for displaying a function of the data
         pb = qt.QPushButton("f(y)")
         pb.clicked[bool].connect(self.toggle_fn)
-        self.f.addWidget(pb, 0, 5)
+        self.f.addWidget(pb, 0, 6)
 
         # button to delete plot
         pb = qt.QPushButton("\u274c")
@@ -1472,6 +1478,11 @@ class Plotter(qt.QWidget):
                     x0, x1 = 0, -1
             if x1 >= dset.shape[0] - 1:
                 x0, y1 = 0, -1
+
+            # verify data shape
+            if not x.shape == y.shape:
+                logging.warning("Plot error: data shapes not matching.")
+                return None
 
             return x[x0:x1], y[x0:x1]
 

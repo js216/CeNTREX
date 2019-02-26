@@ -22,7 +22,7 @@ from influxdb import InfluxDBClient
 ##########################################################################
 ##########################################################################
 
-def LabelFrame(parent, label, col=None, row=None, type="grid"):
+def LabelFrame(parent, label, col=None, row=None, rowspan=1, colspan=1, type="grid"):
     box = qt.QGroupBox(label)
     if type == "grid":
         grid = qt.QGridLayout()
@@ -31,8 +31,8 @@ def LabelFrame(parent, label, col=None, row=None, type="grid"):
     elif type == "vbox":
         grid = qt.QVBoxLayout()
     box.setLayout(grid)
-    if row and col:
-        parent.addWidget(box, row, col)
+    if row or col:
+        parent.addWidget(box, row, col, rowspan, colspan)
     else:
         parent.addWidget(box)
     return grid
@@ -144,9 +144,13 @@ class Device(threading.Thread):
             while self.active.is_set():
                 # loop delay
                 try:
+                    dt = float(self.config["controls"]["dt"]["value"])
+                    if dt < 0.002:
+                        logging.warning("Device dt too small.")
+                        raise ValueError
                     time.sleep(float(self.config["controls"]["dt"]["value"]))
                 except ValueError:
-                    time.sleep(1)
+                    time.sleep(0.1)
 
                 # check device is enabled
                 if not self.config["controls"]["enabled"]["value"]:
@@ -383,9 +387,13 @@ class HDF_writer(threading.Thread):
 
             # loop delay
             try:
-                time.sleep(float(self.parent.config["general"]["hdf_loop_delay"]))
+                dt = float(self.parent.config["general"]["hdf_loop_delay"])
+                if dt < 0.002:
+                    logging.warning("Plot dt too small.")
+                    raise ValueError
+                time.sleep(dt)
             except ValueError:
-                time.sleep(0.1)
+                time.sleep(float(self.parent.config["general"]["default_hdf_dt"]))
 
         # make sure everything is written to HDF when the thread terminates
         try:
@@ -740,7 +748,7 @@ class ControlGUI(qt.QWidget):
                     c["QPushButton"] = qt.QPushButton(c["label"])
                     c["QPushButton"].clicked[bool].connect(
                             lambda state, dev=dev, cmd=c["cmd"]:
-                                self.queue_command(dev, cmd)
+                                self.queue_command(dev, cmd+"()")
                         )
                     df.addWidget(c["QPushButton"], c["row"], c["col"])
 
@@ -1109,7 +1117,7 @@ class PlotsGUI(qt.QWidget):
         qle = qt.QLineEdit()
         qle.setText("plot refresh rate")
         qle.textChanged[str].connect(self.set_all_dt)
-        ctrls_f.addWidget(qle, 0, 2)
+        ctrls_f.addWidget(qle, 0, 3)
 
         # button to add plot in the specified column
         qle = qt.QLineEdit()
@@ -1203,10 +1211,19 @@ class PlotsGUI(qt.QWidget):
                     plot.destroy()
 
     def set_all_dt(self, dt):
+        # sanity check
+        try:
+            dt = float(dt)
+            if dt < 0.002:
+                logging.warning("Plot dt too small.")
+                raise ValueError
+        except ValueError:
+            dt = float(self.parent.config["general"]["default_plot_dt"])
+
         for col, col_plots in self.all_plots.items():
             for row, plot in col_plots.items():
                 if plot:
-                    plot.set_dt(dt)
+                    plot.change_config("dt", dt)
 
     def refresh_all_run_lists(self):
         # get list of runs
@@ -1251,7 +1268,7 @@ class Plotter(qt.QWidget):
                 "x1"                : "Select x1 value ...",
                 "y0"                : "Select y0 value ...",
                 "y1"                : "Select y1 value ...",
-                "dt"                : 1.0,
+                "dt"                : float(self.parent.config["general"]["default_plot_dt"]),
             }
         self.place_GUI_elements()
 
@@ -1473,7 +1490,7 @@ class Plotter(qt.QWidget):
         # plot data
         if not self.plot:
             self.plot = pg.PlotWidget()
-            self.f.addWidget(self.plot, 2, 0)
+            self.f.addWidget(self.plot, 2, 0, 1, 9)
             self.curve = self.plot.plot(*data)
         else:
             self.curve.setData(*data)
@@ -1481,7 +1498,8 @@ class Plotter(qt.QWidget):
     class PlotUpdater(PyQt5.QtCore.QThread):
         signal = PyQt5.QtCore.pyqtSignal()
 
-        def __init__(self, config):
+        def __init__(self, parent, config):
+            self.parent = parent
             self.config = config
             super().__init__()
 
@@ -1492,12 +1510,15 @@ class Plotter(qt.QWidget):
                 # loop delay
                 try:
                     dt = float(self.config["dt"])
+                    if dt < 0.002:
+                        logging.warning("Plot dt too small.")
+                        raise ValueError
                 except ValueError:
-                    dt = 1.0
+                    dt = float(self.parent.config["general"]["default_plot_dt"])
                 time.sleep(dt)
 
     def start_animation(self):
-        self.thread = self.PlotUpdater(self.config)
+        self.thread = self.PlotUpdater(self.parent, self.config)
         self.config["active"] = True
         self.thread.start()
         self.thread.signal.connect(self.replot)
@@ -1507,9 +1528,6 @@ class Plotter(qt.QWidget):
 
     def destroy(self):
         self.setParent(None)
-
-    def set_dt(self):
-        pass # TODO
 
     def toggle_log_lin(self):
         pass # TODO

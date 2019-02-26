@@ -1298,11 +1298,12 @@ class Plotter(qt.QWidget):
         self.f = frame
         self.parent = parent
         self.plot = None
+        self.curve = None
         self.config = {
                 "active"            : False,
                 "fn"                : False,
                 "log"               : False,
-                "points"            : False,
+                "symbol"            : None,
                 "plot_drawn"        : False,
                 "animation_running" : False,
                 "device"            : "Select device ...",
@@ -1562,7 +1563,8 @@ class Plotter(qt.QWidget):
         if not self.plot:
             self.plot = pg.PlotWidget()
             self.f.addWidget(self.plot, 2, 0, 1, 9)
-            self.curve = self.plot.plot(*data)
+        if not self.curve:
+            self.curve = self.plot.plot(*data, symbol=self.config["symbol"])
         else:
             self.curve.setData(*data)
 
@@ -1609,7 +1611,14 @@ class Plotter(qt.QWidget):
             self.plot.setLogMode(False, False)
 
     def toggle_points(self):
-        pass # TODO
+        if not self.config["symbol"]:
+            self.curve.clear()
+            self.curve = None
+            self.config["symbol"] = 'o'
+        else:
+            self.curve.clear()
+            self.curve = None
+            self.config["symbol"] = None
 
     def toggle_fn(self):
         pass # TODO

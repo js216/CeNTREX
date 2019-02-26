@@ -1309,6 +1309,7 @@ class Plotter(qt.QWidget):
                 "run"               : "Select run ...",
                 "x"                 : "Select x value ...",
                 "y"                 : "Select y value ...",
+                "z"                 : "Select z value ...",
                 "x0"                : "Select x0 value ...",
                 "x1"                : "Select x1 value ...",
                 "y0"                : "Select y0 value ...",
@@ -1342,7 +1343,7 @@ class Plotter(qt.QWidget):
             )
         self.f.addWidget(self.run_cbx, 0, 1)
 
-        # select x and y
+        # select x, y, and z
 
         self.x_cbx = qt.QComboBox()
         self.x_cbx.activated[str].connect(lambda val: self.change_config("x", val))
@@ -1352,30 +1353,34 @@ class Plotter(qt.QWidget):
         self.y_cbx.activated[str].connect(lambda val: self.change_config("y", val))
         self.f.addWidget(self.y_cbx, 1, 1)
 
+        self.z_cbx = qt.QComboBox()
+        self.z_cbx.activated[str].connect(lambda val: self.change_config("z", val))
+        self.f.addWidget(self.z_cbx, 1, 2)
+
         self.refresh_parameter_lists()
 
         # plot range controls
         qle = qt.QLineEdit()
-        self.f.addWidget(qle, 1, 2)
+        self.f.addWidget(qle, 1, 3)
         qle.textChanged[str].connect(lambda val: self.change_config("x0", val))
 
         qle = qt.QLineEdit()
-        self.f.addWidget(qle, 1, 3)
+        self.f.addWidget(qle, 1, 4)
         qle.textChanged[str].connect(lambda val: self.change_config("x1", val))
 
         qle = qt.QLineEdit()
-        self.f.addWidget(qle, 1, 4)
+        self.f.addWidget(qle, 1, 5)
         qle.textChanged[str].connect(lambda val: self.change_config("y0", val))
 
         qle = qt.QLineEdit()
-        self.f.addWidget(qle, 1, 5)
+        self.f.addWidget(qle, 1, 6)
         qle.textChanged[str].connect(lambda val: self.change_config("y1", val))
 
         # plot refresh rate
         self.dt_qle = qt.QLineEdit()
         self.dt_qle.setText(str(self.config["dt"]))
         self.dt_qle.textChanged[str].connect(lambda val: self.change_config("dt", val))
-        self.f.addWidget(self.dt_qle, 1, 6)
+        self.f.addWidget(self.dt_qle, 1, 7)
 
         # start button
         pb = qt.QPushButton("Start")
@@ -1427,21 +1432,28 @@ class Plotter(qt.QWidget):
             logging.warning("Plot error: No parameters to plot.")
             return
 
-        # update x and y QComboBoxes
+        # select x, y, and z
         self.config["x"] = self.param_list[0]
+        if len(self.param_list) > 1:
+            self.config["y"] = self.param_list[1]
+        else:
+            self.config["y"] = self.param_list[0]
+
+        # update x, y, and z QComboBoxes
         update_QComboBox(
                 cbx     = self.x_cbx,
                 options = self.param_list,
                 value   = self.config["x"]
             )
-        if len(self.param_list) > 1:
-            self.config["y"] = self.param_list[1]
-        else:
-            self.config["y"] = self.param_list[0]
         update_QComboBox(
                 cbx     = self.y_cbx,
                 options = self.param_list,
                 value   = self.config["y"]
+            )
+        update_QComboBox(
+                cbx     = self.z_cbx,
+                options = ["divide by?"] + self.param_list,
+                value   = "divide by?"
             )
 
     def clear_fn(self):
@@ -1527,6 +1539,10 @@ class Plotter(qt.QWidget):
             if not x.shape == y.shape:
                 logging.warning("Plot error: data shapes not matching.")
                 return None
+
+            # divide y by z (if applicable)
+            if self.config["z"] in self.param_list:
+                y /= dset[:, self.param_list.index(self.config["z"])]
 
             return x[x0:x1], y[x0:x1]
 

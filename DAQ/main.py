@@ -932,9 +932,10 @@ class ControlGUI(qt.QWidget):
         self.parent.config['control_active'] = True
         self.status_label.setText("Running")
 
-        # make all plots display the current run and file
+        # make all plots display the current run and file, and clear f(y) for fast data
         self.parent.config["files"]["plotting_hdf_fname"] = self.parent.config["files"]["hdf_fname"]
         self.parent.PlotsGUI.refresh_all_run_lists()
+        self.parent.PlotsGUI.clear_all_fast_y()
 
     def stop_control(self):
         # check we're not stopped already
@@ -1286,6 +1287,12 @@ class PlotsGUI(qt.QWidget):
                             value   = runs[-1]
                         )
 
+    def clear_all_fast_y(self):
+        for col, col_plots in self.all_plots.items():
+            for row, plot in col_plots.items():
+                if plot:
+                    plot.fast_y = []
+
     def save_plots(self, dt):
         pass # TODO
 
@@ -1585,7 +1592,7 @@ class Plotter(qt.QWidget):
             if not self.dev.config["slow_data"]:
                 try:
                     y_fn = eval(self.config["f(y)"])
-                    if not isinstance(y_fn, float)
+                    if not isinstance(y_fn, float):
                         raise TypeError("isinstance(y_fn, float) == False")
                 except Exception as err:
                     logging.warning(str(err))
@@ -1672,6 +1679,7 @@ class Plotter(qt.QWidget):
             self.config["fn"] = True
         else:
             self.config["fn"] = False
+            self.fast_y = []
 
 class CentrexGUI(qt.QTabWidget):
     def __init__(self, app):

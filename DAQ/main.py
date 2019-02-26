@@ -558,7 +558,7 @@ class ControlGUI(qt.QWidget):
                             "type"       : params[c]["type"],
                             "row"        : int(params[c]["row"]),
                             "col"        : int(params[c]["col"]),
-                            "value"      : True if params[c]["value"] in ["0", "True"] else False
+                            "value"      : True if params[c]["value"] in ["1", "True"] else False
                         }
 
                 elif params[c].get("type") == "Hidden":

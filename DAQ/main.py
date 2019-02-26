@@ -23,9 +23,13 @@ from influxdb import InfluxDBClient
 ##########################################################################
 
 def LabelFrame(frame, label, col=None, row=None, rowspan=1, colspan=1,
-        type="grid", scrollable=False):
+        type="grid", maxWidth=None):
     # make a framed box
     box = qt.QGroupBox(label)
+
+    # box size
+    if maxWidth:
+        box.setMaximumWidth(maxWidth)
 
     # select type of layout
     if type == "grid":
@@ -36,13 +40,6 @@ def LabelFrame(frame, label, col=None, row=None, rowspan=1, colspan=1,
         layout = qt.QVBoxLayout()
     box.setLayout(layout)
 
-    # select whether to provide scrollbars
-    if scrollable:
-        sa = qt.QScrollArea()
-        sa.setWidgetResizable(True)
-        sa.setWidget(box)
-        box = sa
-
     # add the box to the parent container
     if row or col:
         frame.addWidget(box, row, col, rowspan, colspan)
@@ -50,6 +47,35 @@ def LabelFrame(frame, label, col=None, row=None, rowspan=1, colspan=1,
         frame.addWidget(box)
 
     return layout
+
+def ScrollableLabelFrame(frame, label, col=None, row=None, rowspan=1, colspan=1):
+    # make the outer (framed) box
+    outer_box = qt.QGroupBox(label)
+    outer_layout = qt.QGridLayout()
+    outer_box.setLayout(outer_layout)
+
+    # make the inner grid
+    inner_box = qt.QWidget()
+    inner_layout = qt.QGridLayout()
+    inner_layout.setContentsMargins(0,0,0,0)
+    inner_box.setLayout(inner_layout)
+
+    # make a scrollable area, and add the inner area to it
+    sa = qt.QScrollArea()
+    sa.setFrameStyle(16)
+    sa.setWidgetResizable(True)
+    sa.setWidget(inner_box)
+
+    # add the scrollable area to the outer (framed) box
+    outer_layout.addWidget(sa)
+
+    # add the outer (framed) box to the parent container
+    if row or col:
+        frame.addWidget(outer_box, row, col, rowspan, colspan)
+    else:
+        frame.addWidget(outer_box)
+
+    return inner_layout
 
 def message_box(title, text, message=""):
     msg = qt.QMessageBox()
@@ -727,7 +753,7 @@ class ControlGUI(qt.QWidget):
         pb.clicked[bool].connect(self.refresh_COM_ports)
         cmd_frame.addWidget(pb, 0, 4)
 
-        devices_frame = LabelFrame(self.main_frame, "Devices", scrollable=True)
+        devices_frame = ScrollableLabelFrame(self.main_frame, "Devices")
 
         # make GUI elements for all devices
         for dev_name, dev in self.parent.devices.items():
@@ -936,6 +962,7 @@ class MonitoringGUI(qt.QWidget):
         self.parent = parent
         self.place_GUI_elements()
         self.place_device_specific_items()
+        self.main_frame.addStretch()
 
     def place_GUI_elements(self):
         # main frame for all MonitoringGUI elements
@@ -946,7 +973,7 @@ class MonitoringGUI(qt.QWidget):
         control_frame = LabelFrame(self.main_frame, "Controls", type="hbox")
 
         # general monitoring controls
-        gen_f = LabelFrame(control_frame, "General")
+        gen_f = LabelFrame(control_frame, "General", maxWidth=200)
         gen_f.addWidget(qt.QLabel("Loop delay [s]:"), 0, 0)
 
         qle = qt.QLineEdit()
@@ -964,7 +991,7 @@ class MonitoringGUI(qt.QWidget):
         gen_f.addWidget(qcb, 1, 0)
 
         # InfluxDB controls
-        db_f = LabelFrame(control_frame, "InfluxDB")
+        db_f = LabelFrame(control_frame, "InfluxDB", maxWidth=200)
 
         db_f.addWidget(qt.QLabel("Host IP"), 0, 0)
         qle = qt.QLineEdit()
@@ -1011,7 +1038,7 @@ class MonitoringGUI(qt.QWidget):
 
     def place_device_specific_items(self):
         # frame for device data
-        self.dev_f = LabelFrame(self.main_frame, "Devices")
+        self.dev_f = ScrollableLabelFrame(self.main_frame, "Devices")
 
         # device-specific text
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
@@ -1173,6 +1200,9 @@ class PlotsGUI(qt.QWidget):
 
         # frame to place all the plots in
         self.plots_f = LabelFrame(self.main_frame, "Plots")
+
+        # prevent the above from being stretched across the whole screen
+        self.main_frame.addStretch()
 
         # add one plot
         self.add_plot()

@@ -1297,8 +1297,11 @@ class Plotter(qt.QWidget):
         super(qt.QWidget, self).__init__()
         self.f = frame
         self.parent = parent
+
         self.plot = None
         self.curve = None
+        self.fast_y = []
+
         self.config = {
                 "active"            : False,
                 "fn"                : False,
@@ -1306,6 +1309,7 @@ class Plotter(qt.QWidget):
                 "symbol"            : None,
                 "plot_drawn"        : False,
                 "animation_running" : False,
+                "f(y)"              : "2*y",
                 "device"            : "Select device ...",
                 "run"               : "Select run ...",
                 "x"                 : "Select x value ...",
@@ -1317,6 +1321,7 @@ class Plotter(qt.QWidget):
                 "y1"                : "Select y1 value ...",
                 "dt"                : float(self.parent.config["general"]["default_plot_dt"]),
             }
+
         self.place_GUI_elements()
 
     def place_GUI_elements(self):
@@ -1362,54 +1367,69 @@ class Plotter(qt.QWidget):
 
         # plot range controls
         qle = qt.QLineEdit()
+        qle.setMaximumWidth(50)
         self.f.addWidget(qle, 1, 3)
         qle.textChanged[str].connect(lambda val: self.change_config("x0", val))
 
         qle = qt.QLineEdit()
+        qle.setMaximumWidth(50)
         self.f.addWidget(qle, 1, 4)
         qle.textChanged[str].connect(lambda val: self.change_config("x1", val))
 
         qle = qt.QLineEdit()
+        qle.setMaximumWidth(50)
         self.f.addWidget(qle, 1, 5)
         qle.textChanged[str].connect(lambda val: self.change_config("y0", val))
 
         qle = qt.QLineEdit()
+        qle.setMaximumWidth(50)
         self.f.addWidget(qle, 1, 6)
         qle.textChanged[str].connect(lambda val: self.change_config("y1", val))
 
         # plot refresh rate
         self.dt_qle = qt.QLineEdit()
+        self.dt_qle.setMaximumWidth(50)
         self.dt_qle.setText(str(self.config["dt"]))
         self.dt_qle.textChanged[str].connect(lambda val: self.change_config("dt", val))
         self.f.addWidget(self.dt_qle, 1, 7)
 
         # start button
         pb = qt.QPushButton("Start")
+        pb.setMaximumWidth(50)
         pb.clicked[bool].connect(self.start_animation)
-        self.f.addWidget(pb, 0, 2)
+        self.f.addWidget(pb, 0, 3)
 
         # stop button
         pb = qt.QPushButton("Stop")
+        pb.setMaximumWidth(50)
         pb.clicked[bool].connect(self.stop_animation)
-        self.f.addWidget(pb, 0, 3)
+        self.f.addWidget(pb, 0, 4)
 
         # toggle log/lin
         pb = qt.QPushButton("Log/Lin")
+        pb.setMaximumWidth(50)
         pb.clicked[bool].connect(self.toggle_log_lin)
-        self.f.addWidget(pb, 0, 4)
+        self.f.addWidget(pb, 0, 5)
 
         # toggle lines/points
         pb = qt.QPushButton("\u26ab / \u2014")
+        pb.setMaximumWidth(50)
         pb.clicked[bool].connect(self.toggle_points)
-        self.f.addWidget(pb, 0, 5)
+        self.f.addWidget(pb, 0, 6)
 
         # for displaying a function of the data
+        qle = qt.QLineEdit()
+        qle.setText(self.config["f(y)"])
+        qle.textChanged[str].connect(lambda val: self.change_config("f(y)", val))
+        self.f.addWidget(qle, 0, 2)
         pb = qt.QPushButton("f(y)")
+        pb.setMaximumWidth(50)
         pb.clicked[bool].connect(self.toggle_fn)
-        self.f.addWidget(pb, 0, 6)
+        self.f.addWidget(pb, 0, 7)
 
         # button to delete plot
         pb = qt.QPushButton("\u274c")
+        pb.setMaximumWidth(50)
         self.f.addWidget(pb, 0, 8)
         pb.clicked[bool].connect(lambda val: self.destroy())
 
@@ -1524,7 +1544,7 @@ class Plotter(qt.QWidget):
                 x = np.arange(dset.shape[0])
                 y = dset[:, self.param_list.index(self.config["y"])]
 
-            # return subset of the data
+            # select indices for subsetting
             try:
                 x0 = int(float(self.config["x0"]))
                 x1 = int(float(self.config["x1"]))
@@ -1545,7 +1565,34 @@ class Plotter(qt.QWidget):
             if self.config["z"] in self.param_list:
                 y /= dset[:, self.param_list.index(self.config["z"])]
 
-            return x[x0:x1], y[x0:x1]
+            # if not applying f(y), return the data ...
+            if not self.config["fn"]:
+                return x[x0:x1], y[x0:x1]
+
+            # ... else apply f(y) to the data
+
+            if self.dev.config["slow_data"]:
+                try:
+                    y_fn = eval(self.config["f(y)"])
+                    if not x.shape == y_fn.shape:
+                        raise ValueError("x.shape != y_fn.shape")
+                except Exception as err:
+                    logging.warning(str(err))
+                    y_fn = y
+                else:
+                    return x[x0:x1], y_fn[x0:x1]
+
+            if not self.dev.config["slow_data"]:
+                try:
+                    y_fn = eval(self.config["f(y)"])
+                    if not isinstance(y_fn, float)
+                        raise TypeError("isinstance(y_fn, float) == False")
+                except Exception as err:
+                    logging.warning(str(err))
+                    return x[x0:x1], y[x0:x1]
+                else:
+                    self.fast_y.append()
+                    return np.arange(len(self.fast_y)), np.array(self.fast_y)
 
     def replot(self):
         # check parameters
@@ -1621,7 +1668,10 @@ class Plotter(qt.QWidget):
             self.config["symbol"] = None
 
     def toggle_fn(self):
-        pass # TODO
+        if not self.config["fn"]:
+            self.config["fn"] = True
+        else:
+            self.config["fn"] = False
 
 class CentrexGUI(qt.QTabWidget):
     def __init__(self, app):

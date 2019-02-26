@@ -7,6 +7,7 @@ import logging
 import threading
 import numpy as np
 import configparser
+import pyqtgraph as pg
 import PyQt5.QtGui as QtGui
 import PyQt5.QtWidgets as qt
 from collections import deque
@@ -52,6 +53,16 @@ def error_box(title, text, message=""):
     msg.setInformativeText(message)
     msg.exec_()
 
+def update_QComboBox(cbx, options, value):
+    # update the QComboBox with new runs
+    cbx.clear()
+    for option in options:
+        cbx.addItem(option)
+
+    # select the last run by default
+    cbx.setCurrentText(value)
+
+
 ##########################################################################
 ##########################################################################
 #######                                                 ##################
@@ -62,6 +73,7 @@ def error_box(title, text, message=""):
 
 class Device(threading.Thread):
     def __init__(self, config):
+        threading.Thread.__init__(self)
         self.config = config
 
         # whether the thread is running
@@ -87,7 +99,6 @@ class Device(threading.Thread):
         self.nan_count = 0
 
     def setup_connection(self, time_offset):
-        threading.Thread.__init__(self)
         self.time_offset = time_offset
 
         # get the parameters that are to be passed to the driver constructor
@@ -196,7 +207,7 @@ class Monitoring(threading.Thread):
                     for warning in dev.warnings:
                         logging.warning(str(warning))
                         self.push_warnings_to_influxdb(dev_name, warning)
-                        self.parent.GUI_elements["Monitoring"].update_warnings(str(warning))
+                        self.MonitoringGUI.update_warnings(str(warning))
                     dev.warnings = []
 
                 # find out and display the data queue length
@@ -229,7 +240,7 @@ class Monitoring(threading.Thread):
     def write_to_influxdb(self, dev, data):
         if self.parent.config["influxdb"]["enabled"].strip() == "False":
             return
-        if not dev.config["single_dataset"]:
+        if not dev.config["slow_data"]:
             return
         fields = {}
         for col,val in zip(dev.col_names_list[1:], data[1:]):
@@ -255,7 +266,7 @@ class Monitoring(threading.Thread):
         if dev.config["controls"]["HDF_enabled"]["value"]:
             with h5py.File(self.parent.config["files"]["hdf_fname"], 'r') as f:
                 grp = f[self.parent.run_name + "/" + dev.config["path"]]
-                if dev.config["single_dataset"]:
+                if dev.config["slow_data"]:
                     dset = grp[dev.config["name"]]
                     if dset.shape[0] == 0:
                         return None
@@ -342,7 +353,7 @@ class HDF_writer(threading.Thread):
 
                 # create dataset for data if only one is needed
                 # (fast devices create a new dataset for each acquisition)
-                if dev.config["single_dataset"]:
+                if dev.config["slow_data"]:
                     dset = grp.create_dataset(
                             dev.config["name"],
                             (0, *dev.config["shape"]),
@@ -410,7 +421,7 @@ class HDF_writer(threading.Thread):
                 grp = root.require_group(dev.config["path"])
 
                 # if writing all data from a single device to one dataset
-                if dev.config["single_dataset"]:
+                if dev.config["slow_data"]:
                     dset = grp[dev.config["name"]]
                     # check if one queue entry has multiple rows
                     if np.ndim(data) == 3:
@@ -519,7 +530,7 @@ class ControlGUI(qt.QWidget):
                     "label"             : params["device"]["label"],
                     "path"              : params["device"]["path"],
                     "correct_response"  : params["device"]["correct_response"],
-                    "single_dataset"    : True if params["device"]["single_dataset"]=="True" else False,
+                    "slow_data"         : True if params["device"]["slow_data"]=="True" else False,
                     "row"               : int(params["device"]["row"]),
                     "rowspan"           : int(params["device"]["rowspan"]),
                     "monitoring_row"    : int(params["device"]["monitoring_row"]),
@@ -814,19 +825,17 @@ class ControlGUI(qt.QWidget):
         dev.commands.append(cmd)
 
     def refresh_COM_ports(self, button_pressed):
-        rl = pyvisa.ResourceManager().list_resources()
         for dev_name, dev in self.parent.devices.items():
             # check device has a COM_port control
             if not dev.config["controls"].get("COM_port"):
                 continue
 
             # update the QComboBox of COM_port options
-            cbx = dev.config["controls"]["COM_port"]["QComboBox"]
-            COM_var = cbx.currentText()
-            cbx.clear()
-            for string in rl:
-                cbx.addItem(string)
-            cbx.setCurrentText(COM_var)
+            update_QComboBox(
+                    cbx     = dev.config["controls"]["COM_port"]["QComboBox"],
+                    options = pyvisa.ResourceManager().list_resources(),
+                    value   = cbx.currentText()
+                )
 
     def reload_attrs(self, dev):
         # read attributes from file
@@ -869,11 +878,15 @@ class ControlGUI(qt.QWidget):
                 dev.start()
 
         # update and start the monitoring thread
-        self.parent.GUI_elements["Monitoring"].start_monitoring()
+        self.parent.MonitoringGUI.start_monitoring()
 
         # update program status
         self.parent.config['control_active'] = True
         self.status_label.setText("Running")
+
+        # make all plots display the current run and file
+        self.parent.config["files"]["plotting_hdf_fname"] = self.parent.config["files"]["hdf_fname"]
+        self.parent.PlotsGUI.refresh_all_run_lists()
 
     def stop_control(self):
         # check we're not stopped already
@@ -890,7 +903,7 @@ class ControlGUI(qt.QWidget):
             self.HDF_writer.active.clear()
 
         # stop monitoring
-        self.parent.GUI_elements["Monitoring"].stop_monitoring()
+        self.parent.MonitoringGUI.stop_monitoring()
 
         self.parent.config['control_active'] = False
         self.status_label.setText("Recording finished")
@@ -1079,77 +1092,62 @@ class PlotsGUI(qt.QWidget):
 
         # controls for all plots
         ctrls_f = LabelFrame(self.main_frame, "Controls")
-        ctrls_f.addWidget(
-                qt.QPushButton("Start all"),
-                0, 0
-            )
-        ctrls_f.addWidget(
-                qt.QPushButton("Stop all"),
-                0, 1
-            )
-        ctrls_f.addWidget(
-                qt.QPushButton("Delete all"),
-                0, 2
-            )
+
+        pb = qt.QPushButton("Start all")
+        pb.clicked[bool].connect(self.start_all_plots)
+        ctrls_f.addWidget(pb, 0, 0)
+
+        pb = qt.QPushButton("Stop all")
+        pb.clicked[bool].connect(self.stop_all_plots)
+        ctrls_f.addWidget(pb, 0, 1)
+
+        pb = qt.QPushButton("Delete all")
+        pb.clicked[bool].connect(self.destroy_all_plots)
+        ctrls_f.addWidget(pb, 0, 2)
 
         # for setting refresh rate of all plots
-        ctrls_f.addWidget(
-                qt.QLineEdit(),
-                0, 3
-            )
+        qle = qt.QLineEdit()
+        qle.setText("plot refresh rate")
+        qle.textChanged[str].connect(self.set_all_dt)
+        ctrls_f.addWidget(qle, 0, 2)
 
-        # control to select how many data points to display in a graph (to speed up plotting)
-        ctrls_f.addWidget(
-                qt.QLineEdit(),
-                0, 4
-            )
-
-        # button to add add plot in the specified column
-        self.col_for_new_plots = 0
-        ctrls_f.addWidget(
-                qt.QLineEdit(),
-                0, 5
-            )
-        ctrls_f.addWidget(
-                qt.QPushButton("New plot ..."),
-                0, 6
-            )
+        # button to add plot in the specified column
+        qle = qt.QLineEdit()
+        qle.setText("col for new plots")
+        ctrls_f.addWidget(qle, 0, 4)
+        pb = qt.QPushButton("New plot ...")
+        ctrls_f.addWidget(pb, 0, 5)
+        pb.clicked[bool].connect(lambda val, qle=qle : self.add_plot(col=qle.text()))
 
         # the HDF file we're currently plotting from
-        ctrls_f.addWidget(
-                qt.QLabel("HDF file"),
-                1, 0
-            )
-        ctrls_f.addWidget(
-                qt.QLineEdit(),
-                1, 1
-            )
-        ctrls_f.addWidget(
-                qt.QPushButton("Open...."),
-                1, 2
-            )
+        ctrls_f.addWidget(qt.QLabel("HDF file"), 1, 0)
+        qle = qt.QLineEdit()
+        qle.setText(self.parent.config["files"]["plotting_hdf_fname"])
+        qle.textChanged[str].connect(lambda val: self.change_config("files", "plotting_hdf_fname", val))
+        ctrls_f.addWidget(qle, 1, 1)
+        pb = qt.QPushButton("Open....")
+        ctrls_f.addWidget(pb, 1, 2)
+        pb.clicked[bool].connect(lambda val, qle=qle: self.open_file("files", "plotting_hdf_fname", qle))
 
         # for saving plot configuration
-        ctrls_f.addWidget(
-                qt.QLabel("Plot config file:"),
-                2, 0
-            )
-        ctrls_f.addWidget(
-                qt.QLineEdit(),
-                2, 1
-            )
-        ctrls_f.addWidget(
-                qt.QPushButton("Open...."),
-                2, 2
-            )
-        ctrls_f.addWidget(
-                qt.QPushButton("Save plots"),
-                2, 3
-            )
-        ctrls_f.addWidget(
-                qt.QPushButton("Load plots"),
-                2, 4
-            )
+        ctrls_f.addWidget(qt.QLabel("Plot config file:"), 2, 0)
+
+        qle = qt.QLineEdit()
+        qle.setText(self.parent.config["files"]["plotting_config_fname"])
+        qle.textChanged[str].connect(lambda val: self.change_config("files", "plotting_config_fname", val))
+        ctrls_f.addWidget(qle, 2, 1)
+
+        pb = qt.QPushButton("Open....")
+        ctrls_f.addWidget(pb, 2, 2)
+        pb.clicked[bool].connect(lambda val, qle=qle: self.open_file("files", "plotting_config_fname", qle))
+
+        pb = qt.QPushButton("Save plots")
+        ctrls_f.addWidget(pb, 2, 3)
+        pb.clicked[bool].connect(lambda val, fname=qle.text(): self.save_plots(fname))
+
+        pb = qt.QPushButton("Load plots")
+        ctrls_f.addWidget(pb, 2, 4)
+        pb.clicked[bool].connect(lambda val, fname=qle.text(): self.load_plots(fname))
 
         # frame to place all the plots in
         self.plots_f = LabelFrame(self.main_frame, "Plots")
@@ -1157,11 +1155,17 @@ class PlotsGUI(qt.QWidget):
         # add one plot
         self.add_plot()
 
-    def add_plot(self, row=False, col=False):
+    def add_plot(self, row=None, col=None):
         # find location for the plot if not given to the function
-        if (not row) and (not col):
-            col = self.col_for_new_plots
-            row = max([ r for r in self.all_plots.setdefault(col, {0:None}) ]) + 2
+        try:
+            col = int(col)
+        except (ValueError, TypeError):
+            col = 0
+        try:
+            row = int(row) if row else max([ r for r in self.all_plots.setdefault(col, {0:None}) ]) + 2
+        except ValueError:
+            logging.error("Row name not valid.")
+            return
 
         # frame for the plot
         fr = LabelFrame(self.plots_f, "", row=row, col=col)
@@ -1171,103 +1175,350 @@ class PlotsGUI(qt.QWidget):
         self.all_plots.setdefault(col, {0:None}) # check the column is in the dict, else add it
         self.all_plots[col][row] = plot
 
-        # button to delete plot
-        plot.f.addWidget(
-                qt.QPushButton("\u274c"),
-                0, 8
-            )
-
         return plot
+
+    def open_file(self, sect, config, qle):
+        val = qt.QFileDialog.getSaveFileName(self, "Select file")[0]
+        if not val:
+           return
+        self.parent.config[sect][config] = val
+        qle.setText(val)
+
+    def start_all_plots(self):
+        for col, col_plots in self.all_plots.items():
+            for row, plot in col_plots.items():
+                if plot:
+                    plot.start_animation()
+
+    def stop_all_plots(self):
+        for col, col_plots in self.all_plots.items():
+            for row, plot in col_plots.items():
+                if plot:
+                    plot.stop_animation()
+
+    def destroy_all_plots(self):
+        for col, col_plots in self.all_plots.items():
+            for row, plot in col_plots.items():
+                if plot:
+                    plot.destroy()
+
+    def set_all_dt(self, dt):
+        for col, col_plots in self.all_plots.items():
+            for row, plot in col_plots.items():
+                if plot:
+                    plot.set_dt(dt)
+
+    def refresh_all_run_lists(self):
+        # get list of runs
+        with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], 'r') as f:
+            runs = list(f.keys())
+
+        # update all run QComboBoxes
+        for col, col_plots in self.all_plots.items():
+            for row, plot in col_plots.items():
+                if plot:
+                    plot.refresh_parameter_lists()
+                    update_QComboBox(
+                            cbx     = plot.run_cbx,
+                            options = runs,
+                            value   = runs[-1]
+                        )
+
+    def save_plots(self, dt):
+        pass # TODO
+
+    def load_plots(self, dt):
+        pass # TODO
 
 class Plotter(qt.QWidget):
     def __init__(self, frame, parent):
+        super(qt.QWidget, self).__init__()
         self.f = frame
         self.parent = parent
+        self.plot = None
+        self.config = {
+                "active"            : False,
+                "fn"                : False,
+                "log"               : False,
+                "points"            : False,
+                "plot_drawn"        : False,
+                "animation_running" : False,
+                "device"            : "Select device ...",
+                "run"               : "Select run ...",
+                "x"                 : "Select x value ...",
+                "y"                 : "Select y value ...",
+                "x0"                : "Select x0 value ...",
+                "x1"                : "Select x1 value ...",
+                "y0"                : "Select y0 value ...",
+                "y1"                : "Select y1 value ...",
+                "dt"                : 1.0,
+            }
+        self.place_GUI_elements()
 
-        # plot settings
-        self.fn = False
-        self.log = False
-        self.points = False
-        self.plot_drawn = False
-        self.animation_running = False
-
+    def place_GUI_elements(self):
         # select device
-        self.dev_list = [dev_name.strip() for dev_name in self.parent.devices]
-        if not self.dev_list:
-            self.dev_list = ["Select device ..."]
-        dev_select = qt.QComboBox()
-        for dev in self.dev_list:
-            dev_select.addItem(dev)
-        self.f.addWidget(
-                dev_select,
-                0, 0
+        self.dev_cbx = qt.QComboBox()
+        self.dev_cbx.activated[str].connect(lambda val: self.change_config("device", val))
+        update_QComboBox(
+                cbx     = self.dev_cbx,
+                options = [dev_name.strip() for dev_name in self.parent.devices],
+                value   = self.config["device"]
             )
+        self.f.addWidget(self.dev_cbx, 0, 0)
+
+        # get list of runs
+        with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], 'r') as f:
+            runs = list(f.keys())
 
         # select run
-        self.run_list = ["Select run ..."]
-        run_select = qt.QComboBox()
-        for run in self.run_list:
-            run_select.addItem(run)
-        self.f.addWidget(
-                run_select,
-                0, 1
+        self.run_cbx = qt.QComboBox()
+        self.run_cbx.activated[str].connect(lambda val: self.change_config("run", val))
+        update_QComboBox(
+                cbx     = self.run_cbx,
+                options = runs,
+                value   = runs[-1]
             )
+        self.f.addWidget(self.run_cbx, 0, 1)
 
-        # select xcol
-        self.xcol_list = ["(select device first)"]
-        xcol_select = qt.QComboBox()
-        for xcol in self.xcol_list:
-            xcol_select.addItem(xcol)
-        self.f.addWidget(
-                xcol_select,
-                1, 0
-            )
+        # select x and y
 
-        # select ycol
-        self.ycol_list = ["(select device first)"]
-        ycol_select = qt.QComboBox()
-        for ycol in self.ycol_list:
-            ycol_select.addItem(ycol)
-        self.f.addWidget(
-                ycol_select,
-                1, 1
-            )
+        self.x_cbx = qt.QComboBox()
+        self.x_cbx.activated[str].connect(lambda val: self.change_config("x", val))
+        self.f.addWidget(self.x_cbx, 1, 0)
+
+        self.y_cbx = qt.QComboBox()
+        self.y_cbx.activated[str].connect(lambda val: self.change_config("y", val))
+        self.f.addWidget(self.y_cbx, 1, 1)
+
+        self.refresh_parameter_lists()
 
         # plot range controls
-        x0 = qt.QLineEdit()
-        self.f.addWidget(x0, 1, 2)
-        x1 = qt.QLineEdit()
-        self.f.addWidget(x1, 1, 3)
-        y0 = qt.QLineEdit()
-        self.f.addWidget(y0, 1, 4)
-        y1 = qt.QLineEdit()
-        self.f.addWidget(y1, 1, 5)
+        qle = qt.QLineEdit()
+        self.f.addWidget(qle, 1, 2)
+        qle.textChanged[str].connect(lambda val: self.change_config("x0", val))
 
-        # control buttons
-        dt = qt.QLineEdit()
-        self.f.addWidget(dt, 1, 6)
-        self.f.addWidget(
-                qt.QPushButton("\u25b6"),
-                0, 2
-            )
-        self.f.addWidget(
-                qt.QPushButton("Log/Lin"),
-                0, 3
-            )
-        self.f.addWidget(
-                qt.QPushButton("\u26ab / \u2014"),
-                0, 4
-            )
+        qle = qt.QLineEdit()
+        self.f.addWidget(qle, 1, 3)
+        qle.textChanged[str].connect(lambda val: self.change_config("x1", val))
+
+        qle = qt.QLineEdit()
+        self.f.addWidget(qle, 1, 4)
+        qle.textChanged[str].connect(lambda val: self.change_config("y0", val))
+
+        qle = qt.QLineEdit()
+        self.f.addWidget(qle, 1, 5)
+        qle.textChanged[str].connect(lambda val: self.change_config("y1", val))
+
+        # plot refresh rate
+        qle = qt.QLineEdit()
+        qle.setText(str(self.config["dt"]))
+        qle.textChanged[str].connect(lambda val: self.change_config("dt", val))
+        self.f.addWidget(qle, 1, 6)
+
+        # start/stop button
+        pb = qt.QPushButton("\u25b6")
+        pb.clicked[bool].connect(self.start_animation)
+        self.f.addWidget(pb, 0, 2)
+
+        # toggle log/lin
+        pb = qt.QPushButton("Log/Lin")
+        pb.clicked[bool].connect(self.toggle_log_lin)
+        self.f.addWidget(pb, 0, 3)
+
+        # toggle lines/points
+        pb = qt.QPushButton("\u26ab / \u2014")
+        pb.clicked[bool].connect(self.toggle_points)
+        self.f.addWidget(pb, 0, 4)
 
         # for displaying a function of the data
-        self.f.addWidget(
-                qt.QPushButton("f(y)"),
-                0, 5
+        pb = qt.QPushButton("f(y)")
+        pb.clicked[bool].connect(self.toggle_fn)
+        self.f.addWidget(pb, 0, 5)
+
+        # button to delete plot
+        pb = qt.QPushButton("\u274c")
+        self.f.addWidget(pb, 0, 8)
+        pb.clicked[bool].connect(lambda val: self.destroy())
+
+    def refresh_parameter_lists(self):
+        # check device is valid, else select the first device on the list
+        if self.config["device"] in self.parent.devices:
+            self.dev = self.parent.devices[self.config["device"]]
+        else:
+            self.config["device"] = list(self.parent.devices.keys())[0]
+            self.dev_cbx.setCurrentText(self.config["device"])
+            self.dev = self.parent.devices[self.config["device"]]
+
+        # select latest run
+        with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], 'r') as f:
+            self.config["run"] = list(f.keys())[-1]
+            self.run_cbx.setCurrentText(self.config["run"])
+
+        # get parameters
+        self.param_list = [x.strip() for x in self.dev.config["attributes"]["column_names"].split(',')]
+        if not self.param_list:
+            logging.warning("Plot error: No parameters to plot.")
+            return
+
+        # update x and y QComboBoxes
+        self.config["x"] = self.param_list[0]
+        update_QComboBox(
+                cbx     = self.x_cbx,
+                options = self.param_list,
+                value   = self.config["x"]
+            )
+        if len(self.param_list) > 1:
+            self.config["y"] = self.param_list[1]
+        else:
+            self.config["y"] = self.param_list[0]
+        update_QComboBox(
+                cbx     = self.y_cbx,
+                options = self.param_list,
+                value   = self.config["y"]
             )
 
     def clear_fn(self):
         """Clear the arrays of past evaluations of the custom function on the data."""
         self.x, self.y = [], []
+
+    def change_config(self, config, val):
+        self.config[config] = val
+
+    def parameters_good(self):
+        # check device is valid
+        if self.config["device"] in self.parent.devices:
+            self.dev = self.parent.devices[self.config["device"]]
+        else:
+            self.stop_animation()
+            logging.warning("Plot error: Invalid device: " + self.config["device"])
+            return False
+
+        # check run is valid
+        try:
+            with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], 'r') as f:
+                if not self.config["run"] in f.keys():
+                    self.stop_animation()
+                    logging.warning("Plot error: Run not found in the HDF file:" + self.config["run"])
+                    return False
+        except OSError:
+                self.stop_animation()
+                logging.warning("Plot error: Not a valid HDF file.")
+                return False
+
+        # check dataset exists in the run
+        with h5py.File(self.parent.config["files"]["hdf_fname"], 'r') as f:
+            try:
+                grp = f[self.config["run"] + "/" + self.dev.config["path"]]
+            except KeyError:
+                if time.time() - self.parent.config["time_offset"] > 5:
+                    logging.warning("Plot error: Dataset not found in this run.")
+                self.stop_animation()
+                return False
+
+        # check parameters are valid
+        if not self.config["x"] in self.param_list:
+            logging.warning("Plot warning: x not valid.")
+            return False
+
+        if not self.config["y"] in self.param_list:
+            logging.warning("Plot error: y not valid.")
+            return False
+
+        # return 
+        return True
+
+    def get_data(self):
+        with h5py.File(self.parent.config["files"]["hdf_fname"], 'r') as f:
+            # get raw data
+            grp = f[self.config["run"] + "/" + self.dev.config["path"]]
+
+            if self.dev.config["slow_data"]:
+                dset = grp[self.dev.config["name"]]
+                x = dset[:, self.param_list.index(self.config["x"])]
+                y = dset[:, self.param_list.index(self.config["y"])]
+
+            if not self.dev.config["slow_data"]:
+                rec_num = len(grp) - 1
+                self.record_number.set(rec_num)
+                dset = grp[self.dev.config["name"] + "_" + str(rec_num)]
+                x = np.arange(dset.shape[0])
+                y = dset[:, self.param_list.index(self.config["y"])]
+
+            # return subset of the data
+            try:
+                x0 = int(float(self.config["x0"]))
+                x1 = int(float(self.config["x1"]))
+            except ValueError as err:
+                x0, x1 = 0, -1
+            if x0 >= x1:
+                if x1 >= 0:
+                    x0, x1 = 0, -1
+            if x1 >= dset.shape[0] - 1:
+                x0, y1 = 0, -1
+
+            return x[x0:x1], y[x0:x1]
+
+    def replot(self):
+        # check parameters
+        if not self.parameters_good():
+            logging.warning("Plot warning: bad parameters.")
+            return
+
+        # get data
+        data = self.get_data()
+        if not data:
+            logging.warning("Plot warning: no data returned.")
+            return
+
+        # plot data
+        if not self.plot:
+            self.plot = pg.PlotWidget()
+            self.f.addWidget(self.plot, 2, 0)
+            self.curve = self.plot.plot(*data)
+        else:
+            self.curve.setData(*data)
+
+    class PlotUpdater(PyQt5.QtCore.QThread):
+        signal = PyQt5.QtCore.pyqtSignal()
+
+        def __init__(self, config):
+            self.config = config
+            super().__init__()
+
+        def run(self):
+            while self.config["active"]:
+                self.signal.emit()
+
+                # loop delay
+                try:
+                    dt = float(self.config["dt"])
+                except ValueError:
+                    dt = 1.0
+                time.sleep(dt)
+
+    def start_animation(self):
+        self.thread = self.PlotUpdater(self.config)
+        self.config["active"] = True
+        self.thread.start()
+        self.thread.signal.connect(self.replot)
+
+    def stop_animation(self):
+        self.config["active"] = False
+
+    def destroy(self):
+        self.setParent(None)
+
+    def set_dt(self):
+        pass # TODO
+
+    def toggle_log_lin(self):
+        pass # TODO
+
+    def toggle_points(self):
+        pass # TODO
+
+    def toggle_fn(self):
+        pass # TODO
 
 class CentrexGUI(qt.QTabWidget):
     def __init__(self, app):
@@ -1286,15 +1537,16 @@ class CentrexGUI(qt.QTabWidget):
             for key, val in configs.items():
                 self.config[config_group][key] = val
 
-        # GUI elements in a tabbed interface
-        self.GUI_elements = {
-                "Control"    : ControlGUI(self),
-                "Monitoring" : MonitoringGUI(self),
-                "Plots"      : PlotsGUI(self),
-                }
+        # GUI elements
+        self.ControlGUI = ControlGUI(self)
+        self.MonitoringGUI = MonitoringGUI(self)
+        self.PlotsGUI = PlotsGUI(self)
+
+        # put them in tabbed interface
         self.setWindowTitle('CENTREX DAQ')
-        for e_name, e in self.GUI_elements.items():
-            self.addTab(e, e_name)
+        self.addTab(self.ControlGUI, "Control")
+        self.addTab(self.MonitoringGUI, "Monitoring")
+        self.addTab(self.PlotsGUI, "Plots")
         self.show()
 
     def closeEvent(self, event):
@@ -1302,7 +1554,7 @@ class CentrexGUI(qt.QTabWidget):
             if qt.QMessageBox.question(self, 'Confirm quit',
                 "Control running. Do you really want to quit?", qt.QMessageBox.Yes |
                 qt.QMessageBox.No, qt.QMessageBox.No) == qt.QMessageBox.Yes:
-                self.GUI_elements["Control"].stop_control()
+                self.ControlGUI.stop_control()
                 event.accept()
             else:
                 event.ignore()

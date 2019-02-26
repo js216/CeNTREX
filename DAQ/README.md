@@ -79,7 +79,9 @@ config file has to contain the following sections and fields:
 The `config` dictionary will contain this and other information. In particular,
 it also keeps track of the `time_offset` (see section on Data structure), as
 well as whether control is currently running. Other GUI classes may also have a
-`config` dictionary to contain metadata specific to them.  
+`config` dictionary to contain metadata specific to them; for instance, the
+`config` in `Plotter` contains the data about a particular plot: data range,
+log/lin axis, etc.
 
 Device configurations are read from `.ini` files in the chosen directory. (Thus
 choosing a different directory allows for a different set of devices or device

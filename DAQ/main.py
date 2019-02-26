@@ -1601,7 +1601,12 @@ class Plotter(qt.QWidget):
         self.setParent(None)
 
     def toggle_log_lin(self):
-        pass # TODO
+        if not self.config["log"]:
+            self.config["log"] = True
+            self.plot.setLogMode(False, True)
+        else:
+            self.config["log"] = False
+            self.plot.setLogMode(False, False)
 
     def toggle_points(self):
         pass # TODO

@@ -22,20 +22,34 @@ from influxdb import InfluxDBClient
 ##########################################################################
 ##########################################################################
 
-def LabelFrame(parent, label, col=None, row=None, rowspan=1, colspan=1, type="grid"):
+def LabelFrame(frame, label, col=None, row=None, rowspan=1, colspan=1,
+        type="grid", scrollable=False):
+    # make a framed box
     box = qt.QGroupBox(label)
+
+    # select type of layout
     if type == "grid":
-        grid = qt.QGridLayout()
+        layout = qt.QGridLayout()
     elif type == "hbox":
-        grid = qt.QHBoxLayout()
+        layout = qt.QHBoxLayout()
     elif type == "vbox":
-        grid = qt.QVBoxLayout()
-    box.setLayout(grid)
+        layout = qt.QVBoxLayout()
+    box.setLayout(layout)
+
+    # select whether to provide scrollbars
+    if scrollable:
+        sa = qt.QScrollArea()
+        sa.setWidgetResizable(True)
+        sa.setWidget(box)
+        box = sa
+
+    # add the box to the parent container
     if row or col:
-        parent.addWidget(box, row, col, rowspan, colspan)
+        frame.addWidget(box, row, col, rowspan, colspan)
     else:
-        parent.addWidget(box)
-    return grid
+        frame.addWidget(box)
+
+    return layout
 
 def message_box(title, text, message=""):
     msg = qt.QMessageBox()
@@ -713,7 +727,7 @@ class ControlGUI(qt.QWidget):
         pb.clicked[bool].connect(self.refresh_COM_ports)
         cmd_frame.addWidget(pb, 0, 4)
 
-        devices_frame = LabelFrame(self.main_frame, "Devices")
+        devices_frame = LabelFrame(self.main_frame, "Devices", scrollable=True)
 
         # make GUI elements for all devices
         for dev_name, dev in self.parent.devices.items():

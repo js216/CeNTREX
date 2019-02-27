@@ -1351,6 +1351,7 @@ class Plotter(qt.QWidget):
                 "symbol"            : None,
                 "plot_drawn"        : False,
                 "animation_running" : False,
+                "n_average"         : 1,
                 "f(y)"              : "2*y",
                 "device"            : "Select device ...",
                 "run"               : "Select run ...",
@@ -1411,27 +1412,31 @@ class Plotter(qt.QWidget):
         qle = qt.QLineEdit()
         qle.setMaximumWidth(50)
         self.f.addWidget(qle, 1, 3)
+        qle.setText("x0")
         qle.textChanged[str].connect(lambda val: self.change_config("x0", val))
 
         qle = qt.QLineEdit()
         qle.setMaximumWidth(50)
         self.f.addWidget(qle, 1, 4)
+        qle.setText("x1")
         qle.textChanged[str].connect(lambda val: self.change_config("x1", val))
 
         qle = qt.QLineEdit()
         qle.setMaximumWidth(50)
         self.f.addWidget(qle, 1, 5)
+        qle.setText("y0")
         qle.textChanged[str].connect(lambda val: self.change_config("y0", val))
 
         qle = qt.QLineEdit()
         qle.setMaximumWidth(50)
         self.f.addWidget(qle, 1, 6)
+        qle.setText("y1")
         qle.textChanged[str].connect(lambda val: self.change_config("y1", val))
 
         # plot refresh rate
         self.dt_qle = qt.QLineEdit()
         self.dt_qle.setMaximumWidth(50)
-        self.dt_qle.setText(str(self.config["dt"]))
+        self.dt_qle.setText("dt")
         self.dt_qle.textChanged[str].connect(lambda val: self.change_config("dt", val))
         self.f.addWidget(self.dt_qle, 1, 7)
 
@@ -1468,6 +1473,13 @@ class Plotter(qt.QWidget):
         pb.setMaximumWidth(50)
         pb.clicked[bool].connect(self.toggle_fn)
         self.f.addWidget(pb, 0, 7)
+
+        # for averaging last n curves
+        self.dt_qle = qt.QLineEdit()
+        self.dt_qle.setMaximumWidth(50)
+        self.dt_qle.setText("avg?")
+        self.dt_qle.textChanged[str].connect(lambda val: self.change_config("n_average", val, typ=int))
+        self.f.addWidget(self.dt_qle, 1, 8)
 
         # button to delete plot
         pb = qt.QPushButton("\u274c")
@@ -1523,8 +1535,14 @@ class Plotter(qt.QWidget):
         """Clear the arrays of past evaluations of the custom function on the data."""
         self.x, self.y = [], []
 
-    def change_config(self, config, val):
-        self.config[config] = val
+    def change_config(self, config, val, typ=str):
+        if typ == str:
+            self.config[config] = val
+        else:
+            try:
+                self.config[config] = typ(val)
+            except (TypeError,ValueError) as err:
+                logging.warning("Plot error: Invalid parameter: " + str(err))
 
     def parameters_good(self):
         # check device is valid
@@ -1580,11 +1598,20 @@ class Plotter(qt.QWidget):
                 y = dset[:, self.param_list.index(self.config["y"])]
 
             if not self.dev.config["slow_data"]:
+                # find the latest record
                 rec_num = len(grp) - 1
                 self.record_number.set(rec_num)
+
+                # get the latest curve
                 dset = grp[self.dev.config["name"] + "_" + str(rec_num)]
                 x = np.arange(dset.shape[0])
                 y = dset[:, self.param_list.index(self.config["y"])]
+
+                # average last n curves
+                for i in range(self.config["n_average"] - 1):
+                    dset = grp[self.dev.config["name"] + "_" + str(rec_num-i)]
+                    y += dset[:, self.param_list.index(self.config["y"])]
+                y /= self.config["n_average"]
 
             # select indices for subsetting
             try:

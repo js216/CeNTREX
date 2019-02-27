@@ -985,6 +985,10 @@ class ControlGUI(qt.QWidget):
         # stop monitoring
         self.parent.MonitoringGUI.stop_monitoring()
 
+        # stop all plots
+        self.parent.PlotsGUI.stop_all_plots()
+
+        # update status
         self.parent.config['control_active'] = False
         self.status_label.setText("Recording finished")
 
@@ -1647,6 +1651,7 @@ class Plotter(qt.QWidget):
         # plot data
         if not self.plot:
             self.plot = pg.PlotWidget()
+            self.plot.showGrid(True, True)
             self.f.addWidget(self.plot, 2, 0, 1, 9)
         if not self.curve:
             self.curve = self.plot.plot(*data, symbol=self.config["symbol"])

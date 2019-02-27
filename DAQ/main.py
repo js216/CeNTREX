@@ -766,7 +766,7 @@ class ControlGUI(qt.QWidget):
 
             # the button to reload attributes
             pb = qt.QPushButton("Attrs")
-            pb.clicked[bool].connect(lambda val, dev=dev : self.reload_attrs(dev))
+            pb.clicked[bool].connect(lambda val, dev=dev : self.edit_attrs(dev))
             df.addWidget(pb, 0, 20)
 
             # device-specific controls
@@ -916,17 +916,91 @@ class ControlGUI(qt.QWidget):
                     value   = cbx.currentText()
                 )
 
-    def reload_attrs(self, dev):
-        # read attributes from file
-        params = configparser.ConfigParser()
-        params.read(dev.config["config_fname"])
-        dev.config["attributes"] = params["attributes"]
+    class AttrEditor(QtGui.QDialog):
+        def __init__(self, parent, dev):
+            super().__init__()
+            self.dev = dev
 
-        # display the new attributes in a message box
-        attrs = ""
-        for attr_name,attr in dev.config["attributes"].items():
-            attrs += attr_name + ": " + str(attr) + "\n\n"
-        message_box("Device attributes", "New device attributes:", attrs)
+            # layout for GUI elements
+            self.frame = qt.QGridLayout()
+            self.setLayout(self.frame)
+
+            # draw the table
+            self.qtw = qt.QTableWidget(len(self.dev.config["attributes"]),2)
+            self.frame.addWidget(self.qtw, 0, 0, 1, 2)
+
+            # put the attributes into the table
+            for row, (key, val) in enumerate(self.dev.config["attributes"].items()):
+                self.qtw.setItem(row, 0, qt.QTableWidgetItem( key ))
+                self.qtw.setItem(row, 1, qt.QTableWidgetItem( val ))
+
+            # button to read attrs from file
+            pb = qt.QPushButton("Reload attributes from config file")
+            pb.clicked[bool].connect(self.reload_attrs_from_file)
+            self.frame.addWidget(pb, 1, 0, 1, 2)
+
+            # buttons to add/remove rows
+            pb = qt.QPushButton("Add one row")
+            pb.clicked[bool].connect(self.add_row)
+            self.frame.addWidget(pb, 2, 0)
+
+            pb = qt.QPushButton("Delete last row")
+            pb.clicked[bool].connect(self.delete_last_row)
+            self.frame.addWidget(pb, 2, 1)
+
+            # buttons to accept or reject the edits
+            pb = qt.QPushButton("Accept")
+            pb.clicked[bool].connect(lambda state : self.check_attributes())
+            self.accepted.connect(self.change_dev_attrs)
+            self.frame.addWidget(pb, 3, 0)
+
+            pb = qt.QPushButton("Reject")
+            pb.clicked[bool].connect(lambda state : self.reject())
+            self.frame.addWidget(pb, 3, 1)
+
+        def reload_attrs_from_file(self, state):
+            # reload attributes
+            params = configparser.ConfigParser()
+            params.read(self.dev.config["config_fname"])
+            self.dev.config["attributes"] = params["attributes"]
+
+            # rewrite the table contents
+            self.qtw.clear()
+            self.qtw.setRowCount(len(self.dev.config["attributes"]))
+            for row, (key, val) in enumerate(self.dev.config["attributes"].items()):
+                self.qtw.setItem(row, 0, qt.QTableWidgetItem( key ))
+                self.qtw.setItem(row, 1, qt.QTableWidgetItem( val ))
+
+        def add_row(self, arg):
+            self.qtw.insertRow(self.qtw.rowCount())
+
+        def delete_last_row(self, arg):
+            self.qtw.removeRow(self.qtw.rowCount()-1)
+
+        def check_attributes(self):
+            for row in range(self.qtw.rowCount()):
+                if not self.qtw.item(row, 0):
+                    logging.warning("Attr warning: key not given.")
+                    error_box("Attr warning", "Key not given.")
+                    return
+                if not self.qtw.item(row, 1):
+                    logging.warning("Attr warning: value not given.")
+                    error_box("Attr warning", "Value not given.")
+                    return
+            self.accept()
+
+        def change_dev_attrs(self):
+            self.dev.config["attributes"] = {}
+            for row in range(self.qtw.rowCount()):
+                    key = self.qtw.item(row, 0).text()
+                    val = self.qtw.item(row, 1).text()
+                    self.dev.config["attributes"][key] = val
+
+    def edit_attrs(self, dev):
+        # open the AttrEditor dialog window
+        w = self.AttrEditor(self, dev)
+        w.setWindowTitle("Attributes for " + dev.config["name"])
+        w.exec_()
 
     def start_control(self):
         # check we're not running already

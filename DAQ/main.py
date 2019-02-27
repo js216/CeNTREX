@@ -611,7 +611,8 @@ class ControlGUI(qt.QWidget):
                             "type"       : params[c]["type"],
                             "row"        : int(params[c]["row"]),
                             "col"        : int(params[c]["col"]),
-                            "value"      : True if params[c]["value"] in ["1", "True"] else False
+                            "value"      : True if params[c]["value"] in ["1", "True"] else False,
+                            "tooltip"    : params[c].get("tooltip"),
                         }
 
                 elif params[c].get("type") == "Hidden":
@@ -629,6 +630,7 @@ class ControlGUI(qt.QWidget):
                             "cmd"        : params[c].get("command"),
                             "argument"   : params[c]["argument"],
                             "align"      : params[c].get("align"),
+                            "tooltip"    : params[c].get("tooltip"),
                         }
 
                 elif params[c].get("type") == "QLineEdit":
@@ -639,6 +641,7 @@ class ControlGUI(qt.QWidget):
                             "col"        : int(params[c]["col"]),
                             "enter_cmd"  : params[c].get("enter_command"),
                             "value"      : params[c]["value"],
+                            "tooltip"    : params[c].get("tooltip"),
                         }
 
                 elif params[c].get("type") == "QComboBox":
@@ -696,6 +699,7 @@ class ControlGUI(qt.QWidget):
         files_frame.addWidget(qt.QLabel("Config dir:"), 0, 0)
 
         qle = qt.QLineEdit()
+        qle.setToolTip("Directory with .ini files with device configurations.")
         qle.setText(self.parent.config["files"]["config_dir"])
         qle.textChanged[str].connect(lambda val: self.change_config("files", "config_dir", val))
         files_frame.addWidget(qle, 0, 1)
@@ -708,6 +712,7 @@ class ControlGUI(qt.QWidget):
         files_frame.addWidget(qt.QLabel("HDF file:"), 1, 0)
 
         qle = qt.QLineEdit()
+        qle.setToolTip("HDF file for storing all acquired data.")
         qle.setText(self.parent.config["files"]["hdf_fname"])
         qle.textChanged[str].connect(lambda val: self.change_config("files", "hdf_fname", val))
         files_frame.addWidget(qle, 1, 1)
@@ -720,6 +725,7 @@ class ControlGUI(qt.QWidget):
         files_frame.addWidget(qt.QLabel("HDF writer loop delay:"), 3, 0)
 
         qle = qt.QLineEdit()
+        qle.setToolTip("The loop delay determines how frequently acquired data is written to the HDF file.")
         qle.setText(self.parent.config["general"]["hdf_loop_delay"])
         qle.textChanged[str].connect(lambda val: self.change_config("general", "hdf_loop_delay", val))
         files_frame.addWidget(qle, 3, 1)
@@ -728,6 +734,7 @@ class ControlGUI(qt.QWidget):
         files_frame.addWidget(qt.QLabel("Run name:"), 4, 0)
 
         qle = qt.QLineEdit()
+        qle.setToolTip("The name given to the HDF group containing all data for this run.")
         qle.setText(self.parent.config["general"]["run_name"])
         qle.textChanged[str].connect(lambda val: self.change_config("general", "run_name", val))
         files_frame.addWidget(qle, 4, 1)
@@ -742,6 +749,7 @@ class ControlGUI(qt.QWidget):
         cmd_frame.addWidget(qt.QLabel("Cmd:"), 0, 0)
 
         qle = qt.QLineEdit()
+        qle.setToolTip("Enter a command corresponding to a function in the selected device driver.")
         qle.setText(self.parent.config["general"]["custom_command"])
         qle.textChanged[str].connect(lambda val: self.change_config("general", "custom_command", val))
         cmd_frame.addWidget(qle, 0, 1)
@@ -763,6 +771,7 @@ class ControlGUI(qt.QWidget):
 
         # button to refresh the list of COM ports
         pb = qt.QPushButton("Refresh COM ports")
+        pb.setToolTip("Click this to populate all the COM port dropdown menus.")
         pb.clicked[bool].connect(self.refresh_COM_ports)
         cmd_frame.addWidget(pb, 0, 4)
 
@@ -779,6 +788,7 @@ class ControlGUI(qt.QWidget):
 
             # the button to reload attributes
             pb = qt.QPushButton("Attrs")
+            pb.setToolTip("Display or edit device attributes that are written with the data to the HDF file.")
             pb.clicked[bool].connect(lambda val, dev=dev : self.edit_attrs(dev))
             df.addWidget(pb, 0, 20)
 
@@ -793,6 +803,10 @@ class ControlGUI(qt.QWidget):
                     c["QCheckBox"].setTristate(False)
                     df.addWidget(c["QCheckBox"], c["row"], c["col"])
 
+                    # tooltip
+                    if c.get("tooltip"):
+                        c["QCheckBox"].setToolTip(c["tooltip"])
+
                     # commands for the QCheckBox
                     c["QCheckBox"].stateChanged[int].connect(
                             lambda state, dev=dev, config=c_name:
@@ -804,6 +818,10 @@ class ControlGUI(qt.QWidget):
                     # the QPushButton
                     c["QPushButton"] = qt.QPushButton(c["label"])
                     df.addWidget(c["QPushButton"], c["row"], c["col"])
+
+                    # tooltip
+                    if c.get("tooltip"):
+                        c["QPushButton"].setToolTip(c["tooltip"])
 
                     # commands for the QPushButton
                     if c.get("argument"):
@@ -836,6 +854,10 @@ class ControlGUI(qt.QWidget):
                         )
                     df.addWidget(c["QLineEdit"], c["row"], c["col"])
 
+                    # tooltip
+                    if c.get("tooltip"):
+                        c["QLineEdit"].setToolTip(c["tooltip"])
+
                     # commands for the QLineEdit
                     if c.get("enter_cmd"):
                         c["QLineEdit"].returnPressed.connect(
@@ -861,6 +883,10 @@ class ControlGUI(qt.QWidget):
                         )
                     c["QComboBox"].setCurrentText(c["value"])
                     df.addWidget(c["QComboBox"], c["row"], c["col"])
+
+                    # tooltip
+                    if c.get("tooltip"):
+                        c["QComboBox"].setToolTip(c["tooltip"])
 
                     # commands for the QComboBox
                     c["QComboBox"].activated[str].connect(
@@ -1285,14 +1311,17 @@ class PlotsGUI(qt.QWidget):
         # for setting refresh rate of all plots
         qle = qt.QLineEdit()
         qle.setText("plot refresh rate")
+        qle.setToolTip("Delay between updating all plots, i.e. smaller dt means faster plot refresh rate.")
         qle.textChanged[str].connect(self.set_all_dt)
         ctrls_f.addWidget(qle, 0, 3)
 
         # button to add plot in the specified column
         qle = qt.QLineEdit()
         qle.setText("col for new plots")
+        qle.setToolTip("Column to place new plots in.")
         ctrls_f.addWidget(qle, 0, 4)
         pb = qt.QPushButton("New plot ...")
+        pb.setToolTip("Add a new plot in the specified column.")
         ctrls_f.addWidget(pb, 0, 5)
         pb.clicked[bool].connect(lambda val, qle=qle : self.add_plot(col=qle.text()))
 
@@ -1487,14 +1516,17 @@ class Plotter(qt.QWidget):
         # select x, y, and z
 
         self.x_cbx = qt.QComboBox()
+        self.x_cbx.setToolTip("Select the independent variable.")
         self.x_cbx.activated[str].connect(lambda val: self.change_config("x", val))
         self.f.addWidget(self.x_cbx, 1, 0)
 
         self.y_cbx = qt.QComboBox()
+        self.y_cbx.setToolTip("Select the dependent variable.")
         self.y_cbx.activated[str].connect(lambda val: self.change_config("y", val))
         self.f.addWidget(self.y_cbx, 1, 1)
 
         self.z_cbx = qt.QComboBox()
+        self.z_cbx.setToolTip("Select the variable to divide y by.")
         self.z_cbx.activated[str].connect(lambda val: self.change_config("z", val))
         self.f.addWidget(self.z_cbx, 1, 2)
 
@@ -1505,30 +1537,35 @@ class Plotter(qt.QWidget):
         qle.setMaximumWidth(50)
         self.f.addWidget(qle, 1, 3)
         qle.setText("x0")
+        qle.setToolTip("x0 = index of first point to plot")
         qle.textChanged[str].connect(lambda val: self.change_config("x0", val))
 
         qle = qt.QLineEdit()
         qle.setMaximumWidth(50)
         self.f.addWidget(qle, 1, 4)
         qle.setText("x1")
+        qle.setToolTip("x1 = index of last point to plot")
         qle.textChanged[str].connect(lambda val: self.change_config("x1", val))
 
         qle = qt.QLineEdit()
         qle.setMaximumWidth(50)
         self.f.addWidget(qle, 1, 5)
         qle.setText("y0")
+        qle.setToolTip("y0 = lower y limit")
         qle.textChanged[str].connect(lambda val: self.change_config("y0", val))
 
         qle = qt.QLineEdit()
         qle.setMaximumWidth(50)
         self.f.addWidget(qle, 1, 6)
         qle.setText("y1")
+        qle.setToolTip("y1 = upper y limit")
         qle.textChanged[str].connect(lambda val: self.change_config("y1", val))
 
         # plot refresh rate
         self.dt_qle = qt.QLineEdit()
         self.dt_qle.setMaximumWidth(50)
         self.dt_qle.setText("dt")
+        self.dt_qle.setToolTip("Delay between updating the plot, i.e. smaller dt means faster plot refresh rate.")
         self.dt_qle.textChanged[str].connect(lambda val: self.change_config("dt", val))
         self.f.addWidget(self.dt_qle, 1, 7)
 
@@ -1559,9 +1596,11 @@ class Plotter(qt.QWidget):
         # for displaying a function of the data
         qle = qt.QLineEdit()
         qle.setText(self.config["f(y)"])
+        qle.setToolTip("Apply the specified function before plotting the data.")
         qle.textChanged[str].connect(lambda val: self.change_config("f(y)", val))
         self.f.addWidget(qle, 0, 2)
         pb = qt.QPushButton("f(y)")
+        pb.setToolTip("Apply the specified function before plotting the data.")
         pb.setMaximumWidth(50)
         pb.clicked[bool].connect(self.toggle_fn)
         self.f.addWidget(pb, 0, 7)
@@ -1569,6 +1608,7 @@ class Plotter(qt.QWidget):
         # for averaging last n curves
         self.dt_qle = qt.QLineEdit()
         self.dt_qle.setMaximumWidth(50)
+        self.dt_qle.setToolTip("Enter the number of traces to average. Default = 1, i.e. no averaging.")
         self.dt_qle.setText("avg?")
         self.dt_qle.textChanged[str].connect(lambda val: self.change_config("n_average", val, typ=int))
         self.f.addWidget(self.dt_qle, 1, 8)
@@ -1576,6 +1616,7 @@ class Plotter(qt.QWidget):
         # button to delete plot
         pb = qt.QPushButton("\u274c")
         pb.setMaximumWidth(50)
+        pb.setToolTip("Delete the plot")
         self.f.addWidget(pb, 0, 8)
         pb.clicked[bool].connect(lambda val: self.destroy())
 

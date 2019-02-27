@@ -7,6 +7,7 @@ import logging
 import threading
 import numpy as np
 import configparser
+import wmi, pythoncom
 import pyqtgraph as pg
 import PyQt5.QtGui as QtGui
 import PyQt5.QtWidgets as qt
@@ -240,6 +241,18 @@ class Monitoring(threading.Thread):
 
     def run(self):
         while self.active.is_set():
+            # check the amount of free disk space
+            pythoncom.CoInitialize()
+            c = wmi.WMI ()
+            for d in c.Win32_LogicalDisk():
+                if d.Caption == self.parent.config["files"]["hdf_fname"][0:2]:
+                    size_MB = float(d.Size) / 1024/1024
+                    free_MB = float(d.FreeSpace) / 1024/1024
+                    self.parent.MonitoringGUI.free_qpb.setMinimum(0)
+                    self.parent.MonitoringGUI.free_qpb.setMaximum(size_MB)
+                    self.parent.MonitoringGUI.free_qpb.setValue(size_MB - free_MB)
+
+            # monitor operation of individual devices
             for dev_name, dev in self.parent.devices.items():
                 # check device running
                 if not dev.control_started:
@@ -696,28 +709,28 @@ class ControlGUI(qt.QWidget):
 
         qle = qt.QLineEdit()
         qle.setText(self.parent.config["files"]["hdf_fname"])
-        qle.textChanged[str].connect(lambda val: self.change_config("files", "hdf_file", val))
+        qle.textChanged[str].connect(lambda val: self.change_config("files", "hdf_fname", val))
         files_frame.addWidget(qle, 1, 1)
 
         pb = qt.QPushButton("Open...")
-        pb.clicked[bool].connect(lambda val, qle=qle: self.open_file("files", "hdf_file", qle))
+        pb.clicked[bool].connect(lambda val, qle=qle: self.open_file("files", "hdf_fname", qle))
         files_frame.addWidget(pb, 1, 2)
 
         # HDF writer loop delay
-        files_frame.addWidget(qt.QLabel("HDF writer loop delay:"), 2, 0)
+        files_frame.addWidget(qt.QLabel("HDF writer loop delay:"), 3, 0)
 
         qle = qt.QLineEdit()
         qle.setText(self.parent.config["general"]["hdf_loop_delay"])
         qle.textChanged[str].connect(lambda val: self.change_config("general", "hdf_loop_delay", val))
-        files_frame.addWidget(qle, 2, 1)
+        files_frame.addWidget(qle, 3, 1)
 
         # run name
-        files_frame.addWidget(qt.QLabel("Run name:"), 3, 0)
+        files_frame.addWidget(qt.QLabel("Run name:"), 4, 0)
 
         qle = qt.QLineEdit()
         qle.setText(self.parent.config["general"]["run_name"])
         qle.textChanged[str].connect(lambda val: self.change_config("general", "run_name", val))
-        files_frame.addWidget(qle, 3, 1)
+        files_frame.addWidget(qle, 4, 1)
 
         ########################################
         # devices
@@ -1139,6 +1152,11 @@ class MonitoringGUI(qt.QWidget):
         w_f = LabelFrame(control_frame, "Warnings")
         self.warnings_label = qt.QLabel("(no warnings)")
         w_f.addWidget(self.warnings_label, 3, 0)
+
+        # disk space usage
+        w_f.addWidget(qt.QLabel("Disk usage:"), 2, 0)
+        self.free_qpb = qt.QProgressBar()
+        w_f.addWidget(self.free_qpb, 2, 1)
 
     def change_config(self, sect, config, val):
         self.parent.config[sect][config] = val

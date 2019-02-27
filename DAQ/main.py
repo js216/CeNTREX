@@ -774,31 +774,47 @@ class ControlGUI(qt.QWidget):
 
                 # place QCheckBoxes
                 if c["type"] == "QCheckBox":
+                    # the QCheckBox
                     c["QCheckBox"] = qt.QCheckBox(c["label"])
                     c["QCheckBox"].setCheckState(c["value"])
                     c["QCheckBox"].setTristate(False)
+                    df.addWidget(c["QCheckBox"], c["row"], c["col"])
+
+                    # commands for the QCheckBox
                     c["QCheckBox"].stateChanged[int].connect(
                             lambda state, dev=dev, config=c_name:
                                 self.change_dev_control(dev, config, state)
                         )
-                    df.addWidget(c["QCheckBox"], c["row"], c["col"])
 
                 # place QPushButtons
                 elif c["type"] == "QPushButton":
+                    # the QPushButton
                     c["QPushButton"] = qt.QPushButton(c["label"])
-                    c["QPushButton"].clicked[bool].connect(
-                            lambda state, dev=dev, cmd=c["cmd"]:
-                                self.queue_command(dev, cmd+"()")
-                        )
                     df.addWidget(c["QPushButton"], c["row"], c["col"])
+
+                    # commands for the QPushButton
+                    if c.get("argument"):
+                        c["QPushButton"].clicked[bool].connect(
+                                lambda state, dev=dev, cmd=c["cmd"],
+                                arg=dev.config["controls"][c["argument"]]:
+                                    self.queue_command(dev, cmd+"("+arg["value"]+")")
+                            )
+                    else:
+                        c["QPushButton"].clicked[bool].connect(
+                                lambda state, dev=dev, cmd=c["cmd"]:
+                                    self.queue_command(dev, cmd+"()")
+                            )
 
                 # place QLineEdits
                 elif c["type"] == "QLineEdit":
+                    # the label
                     df.addWidget(
                             qt.QLabel(c["label"]),
                             c["row"], c["col"] - 1,
                             alignment = PyQt5.QtCore.Qt.AlignRight,
                         )
+
+                    # the QLineEdit
                     c["QLineEdit"] = qt.QLineEdit()
                     c["QLineEdit"].setText(c["value"])
                     c["QLineEdit"].textChanged[str].connect(
@@ -807,27 +823,42 @@ class ControlGUI(qt.QWidget):
                         )
                     df.addWidget(c["QLineEdit"], c["row"], c["col"])
 
+                    # commands for the QLineEdit
+                    if c.get("enter_cmd"):
+                        c["QLineEdit"].returnPressed.connect(
+                                lambda dev=dev, cmd=c["enter_cmd"], qle=c["QLineEdit"]:
+                                self.queue_command(dev, cmd+"("+qle.text()+")")
+                            )
+
                 # place QComboBoxes
                 elif c["type"] == "QComboBox":
+                    # the label
                     df.addWidget(
                             qt.QLabel(c["label"]),
                             c["row"], c["col"] - 1,
                             alignment = PyQt5.QtCore.Qt.AlignRight,
                         )
 
+                    # the QComboBox
                     c["QComboBox"] = qt.QComboBox()
-                    c["QComboBox"].setEditable(True)
-                    if len(c["options"]) < 1:
-                        c["QComboBox"].addItem(c["value"])
-                    else:
-                        for option in c["options"]:
-                            c["QComboBox"].addItem(option)
+                    update_QComboBox(
+                            cbx     = c["QComboBox"],
+                            options = list(set(c["options"]) | set([c["value"]])),
+                            value   = "divide by?"
+                        )
                     c["QComboBox"].setCurrentText(c["value"])
+                    df.addWidget(c["QComboBox"], c["row"], c["col"])
+
+                    # commands for the QComboBox
                     c["QComboBox"].activated[str].connect(
                             lambda text, dev=dev, config=c_name:
                                 self.change_dev_control(dev, config, text)
                         )
-                    df.addWidget(c["QComboBox"], c["row"], c["col"])
+                    if c.get("command"):
+                        c["QComboBox"].activated[str].connect(
+                                lambda text, dev=dev, cmd=c["command"], qcb=c["QComboBox"]:
+                                    self.queue_command(dev, cmd+"('"+qcb.currentText()+"')")
+                            )
 
     def change_config(self, sect, config, val):
         self.parent.config[sect][config] = val

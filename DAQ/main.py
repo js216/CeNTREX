@@ -5,6 +5,7 @@ import time
 import pyvisa
 import logging
 import threading
+import qdarkstyle
 import numpy as np
 import configparser
 import wmi, pythoncom
@@ -739,6 +740,16 @@ class ControlGUI(qt.QWidget):
         qle.textChanged[str].connect(lambda val: self.change_config("general", "run_name", val))
         files_frame.addWidget(qle, 4, 1)
 
+        # for dark/light stylesheets
+        pb = qt.QPushButton("Light")
+        pb.setToolTip("Change style to light mode.")
+        pb.clicked[bool].connect(self.light_mode)
+        files_frame.addWidget(pb, 3, 2)
+        pb = qt.QPushButton("Dark")
+        pb.setToolTip("Change style to dark mode.")
+        pb.clicked[bool].connect(self.dark_mode)
+        files_frame.addWidget(pb, 4, 2)
+
         ########################################
         # devices
         ########################################
@@ -904,6 +915,12 @@ class ControlGUI(qt.QWidget):
 
     def change_dev_control(self, dev, config, val):
         dev.config["controls"][config]["value"] = val
+
+    def light_mode(self, state):
+        self.parent.app.setStyleSheet("")
+
+    def dark_mode(self, state):
+        self.parent.app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
 
     def open_file(self, sect, config, qle):
         val = qt.QFileDialog.getSaveFileName(self, "Select file")[0]

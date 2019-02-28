@@ -104,6 +104,9 @@ def update_QComboBox(cbx, options, value):
     # select the last run by default
     cbx.setCurrentText(value)
 
+def clear_layout(layout):
+    for i in reversed(range(layout.count())):
+        layout.itemAt(i).widget().setParent(None)
 
 ##########################################################################
 ##########################################################################
@@ -770,16 +773,17 @@ class ControlGUI(qt.QWidget):
         qle.textChanged[str].connect(lambda val: self.change_config("general", "custom_command", val))
         cmd_frame.addWidget(qle, 0, 1)
 
-        cbx = qt.QComboBox()
+        self.custom_dev_cbx = qt.QComboBox()
         dev_list = [dev_name for dev_name in self.parent.devices]
-        cbx.addItem(self.parent.config["general"]["custom_device"])
-        if not dev_list:
-            cbx.addItem("No devices!")
-        else:
-            for dev_name in dev_list:
-                cbx.addItem(dev_name)
-        cbx.activated[str].connect(lambda val: self.change_config("general", "custom_device", val))
-        cmd_frame.addWidget(cbx, 0, 2)
+        update_QComboBox(
+                cbx     = self.custom_dev_cbx,
+                options = list(set(dev_list) | set([ self.parent.config["general"]["custom_device"] ])),
+                value   = self.parent.config["general"]["custom_device"],
+            )
+        self.custom_dev_cbx.activated[str].connect(
+                lambda val: self.change_config("general", "custom_device", val)
+            )
+        cmd_frame.addWidget(self.custom_dev_cbx, 0, 2)
 
         pb = qt.QPushButton("Send")
         pb.clicked[bool].connect(self.queue_custom_command)
@@ -982,19 +986,22 @@ class ControlGUI(qt.QWidget):
         # ask the user to select a directory
         self.open_dir("files", "config_dir", self.config_dir_qle)
 
-        # remove all old device controls
-        for i in reversed(range(self.devices_frame.count())):
-            self.devices_frame.itemAt(i).widget().setParent(None)
-
-        # place updated device controls
+        # update device controls
+        clear_layout(self.devices_frame)
         self.read_device_config()
         self.place_device_controls()
 
         # update device data in MonitoringGUI
-        # TODO
+        clear_layout(self.parent.MonitoringGUI.dev_f)
+        self.parent.MonitoringGUI.place_device_specific_items()
 
         # changes the list of devices in send custom command
-        # TODO
+        dev_list = [dev_name for dev_name in self.parent.devices]
+        update_QComboBox(
+                cbx     = self.custom_dev_cbx,
+                options = list(set(dev_list) | set([ self.parent.config["general"]["custom_device"] ])),
+                value   = self.parent.config["general"]["custom_device"],
+            )
 
     def queue_custom_command(self):
         # check the command is valid
@@ -1188,7 +1195,6 @@ class MonitoringGUI(qt.QWidget):
         self.parent = parent
         self.place_GUI_elements()
         self.place_device_specific_items()
-        self.main_frame.addStretch()
 
     def place_GUI_elements(self):
         # main frame for all MonitoringGUI elements
@@ -1261,6 +1267,9 @@ class MonitoringGUI(qt.QWidget):
         self.free_qpb = qt.QProgressBar()
         w_f.addWidget(self.free_qpb, 2, 1)
 
+        # frame for device data
+        self.dev_f = ScrollableLabelFrame(self.main_frame, "Devices")
+
     def change_config(self, sect, config, val):
         self.parent.config[sect][config] = val
 
@@ -1268,9 +1277,6 @@ class MonitoringGUI(qt.QWidget):
         self.warnings_label.setText(warnings)
 
     def place_device_specific_items(self):
-        # frame for device data
-        self.dev_f = ScrollableLabelFrame(self.main_frame, "Devices")
-
         # device-specific text
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
             dev.monitoring_GUI_elements = {}

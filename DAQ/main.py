@@ -540,6 +540,7 @@ class ControlGUI(qt.QWidget):
         self.parent = parent
         self.read_device_config()
         self.place_GUI_elements()
+        self.place_device_controls()
 
     def read_device_config(self):
         self.parent.devices = {}
@@ -699,14 +700,14 @@ class ControlGUI(qt.QWidget):
         # config dir
         files_frame.addWidget(qt.QLabel("Config dir:"), 0, 0)
 
-        qle = qt.QLineEdit()
-        qle.setToolTip("Directory with .ini files with device configurations.")
-        qle.setText(self.parent.config["files"]["config_dir"])
-        qle.textChanged[str].connect(lambda val: self.change_config("files", "config_dir", val))
-        files_frame.addWidget(qle, 0, 1)
+        self.config_dir_qle = qt.QLineEdit()
+        self.config_dir_qle.setToolTip("Directory with .ini files with device configurations.")
+        self.config_dir_qle.setText(self.parent.config["files"]["config_dir"])
+        self.config_dir_qle.textChanged[str].connect(lambda val: self.change_config("files", "config_dir", val))
+        files_frame.addWidget(self.config_dir_qle, 0, 1)
 
         pb = qt.QPushButton("Open...")
-        pb.clicked[bool].connect(lambda val, qle=qle: self.open_dir("files", "config_dir", qle))
+        pb.clicked[bool].connect(self.set_config_dir)
         files_frame.addWidget(pb, 0, 2)
 
         # HDF file
@@ -719,7 +720,9 @@ class ControlGUI(qt.QWidget):
         files_frame.addWidget(self.hdf_fname_qle, 1, 1)
 
         pb = qt.QPushButton("Open...")
-        pb.clicked[bool].connect(lambda val, qle=qle: self.open_file("files", "hdf_fname", self.hdf_fname_qle))
+        pb.clicked[bool].connect(
+                lambda val, qle=self.hdf_fname_qle: self.open_file("files", "hdf_fname", self.hdf_fname_qle)
+            )
         files_frame.addWidget(pb, 1, 2)
 
         # HDF writer loop delay
@@ -788,15 +791,16 @@ class ControlGUI(qt.QWidget):
         pb.clicked[bool].connect(self.refresh_COM_ports)
         cmd_frame.addWidget(pb, 0, 4)
 
-        devices_frame = ScrollableLabelFrame(self.main_frame, "Devices")
+        # frame for device-specific controls
+        self.devices_frame = ScrollableLabelFrame(self.main_frame, "Devices")
 
-        # make GUI elements for all devices
+    def place_device_controls(self):
         for dev_name, dev in self.parent.devices.items():
             df = LabelFrame(
-                    devices_frame,
+                    self.devices_frame,
                     dev.config["label"],
                     dev.config["column"],
-                    dev.config["row"]
+                    dev.config["row"],
                 )
 
             # the button to reload attributes
@@ -944,19 +948,53 @@ class ControlGUI(qt.QWidget):
         # update the QLineEdit
         self.hdf_fname_qle.setText(path)
 
-    def open_file(self, sect, config, qle):
+    def open_file(self, sect, config, qle=None):
+        # ask the user to select a file
         val = qt.QFileDialog.getSaveFileName(self, "Select file")[0]
         if not val:
            return
-        self.parent.config[sect][config] = val
-        qle.setText(val)
 
-    def open_dir(self, sect, config, qle):
+        # set the config entry
+        self.parent.config[sect][config] = val
+
+        # update the QLineEdit if given
+        if qle:
+            qle.setText(val)
+
+        return val
+
+    def open_dir(self, sect, config, qle=None):
+        # ask the user to select a directory
         val = str(qt.QFileDialog.getExistingDirectory(self, "Select Directory"))
         if not val:
            return
+
+        # set the config entry
         self.parent.config[sect][config] = val
-        qle.setText(val)
+
+        # update the QLineEdit if given
+        if qle:
+            qle.setText(val)
+
+        return val
+
+    def set_config_dir(self, state):
+        # ask the user to select a directory
+        self.open_dir("files", "config_dir", self.config_dir_qle)
+
+        # remove all old device controls
+        for i in reversed(range(self.devices_frame.count())):
+            self.devices_frame.itemAt(i).widget().setParent(None)
+
+        # place updated device controls
+        self.read_device_config()
+        self.place_device_controls()
+
+        # update device data in MonitoringGUI
+        # TODO
+
+        # changes the list of devices in send custom command
+        # TODO
 
     def queue_custom_command(self):
         # check the command is valid

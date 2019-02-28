@@ -1043,6 +1043,7 @@ class ControlGUI(qt.QWidget):
         def __init__(self, parent, dev):
             super().__init__()
             self.dev = dev
+            self.parent = parent
 
             # layout for GUI elements
             self.frame = qt.QGridLayout()
@@ -1113,11 +1114,15 @@ class ControlGUI(qt.QWidget):
             self.accept()
 
         def change_dev_attrs(self):
+            # write the new attributes to the config dict
             self.dev.config["attributes"] = {}
             for row in range(self.qtw.rowCount()):
                     key = self.qtw.item(row, 0).text()
                     val = self.qtw.item(row, 1).text()
                     self.dev.config["attributes"][key] = val
+
+            # update the column names and units in MonitoringGUI
+            self.parent.parent.MonitoringGUI.update_col_names_and_units()
 
     def edit_attrs(self, dev):
         # open the AttrEditor dialog window
@@ -1277,7 +1282,6 @@ class MonitoringGUI(qt.QWidget):
         self.warnings_label.setText(warnings)
 
     def place_device_specific_items(self):
-        # device-specific text
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
             dev.monitoring_GUI_elements = {}
             df = LabelFrame(
@@ -1316,13 +1320,10 @@ class MonitoringGUI(qt.QWidget):
             dev.col_names_list = dev.config["attributes"]["column_names"].split(',')
             dev.col_names_list = [x.strip() for x in dev.col_names_list]
             dev.column_names = "\n".join(dev.col_names_list)
-            df.addWidget(
-                    qt.QLabel(
-                        dev.column_names,
-                        alignment = PyQt5.QtCore.Qt.AlignRight,
-                        ),
-                    2, 0,
+            dev.monitoring_GUI_elements["col_names"] = qt.QLabel(
+                    dev.column_names, alignment = PyQt5.QtCore.Qt.AlignRight
                 )
+            df.addWidget(dev.monitoring_GUI_elements["col_names"], 2, 0)
 
             # data
             dev.monitoring_GUI_elements["data"] = qt.QLabel("(no data)")
@@ -1336,11 +1337,8 @@ class MonitoringGUI(qt.QWidget):
             units = dev.config["attributes"]["units"].split(',')
             units = [x.strip() for x in units]
             dev.units = "\n".join(units)
-            df.addWidget(
-                    qt.QLabel(dev.units),
-                    2, 2,
-                    alignment = PyQt5.QtCore.Qt.AlignLeft,
-                )
+            dev.monitoring_GUI_elements["units"] = qt.QLabel(dev.units)
+            df.addWidget(dev.monitoring_GUI_elements["units"], 2, 2, alignment = PyQt5.QtCore.Qt.AlignLeft)
 
             # latest event / command sent to device & its return value
             df.addWidget(
@@ -1354,6 +1352,20 @@ class MonitoringGUI(qt.QWidget):
                     3, 1,
                     alignment = PyQt5.QtCore.Qt.AlignLeft,
                 )
+
+    def update_col_names_and_units(self):
+        for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
+            # column names
+            dev.col_names_list = dev.config["attributes"]["column_names"].split(',')
+            dev.col_names_list = [x.strip() for x in dev.col_names_list]
+            dev.column_names = "\n".join(dev.col_names_list)
+            dev.monitoring_GUI_elements["col_names"].setText(dev.column_names)
+
+            # units
+            units = dev.config["attributes"]["units"].split(',')
+            units = [x.strip() for x in units]
+            dev.units = "\n".join(units)
+            dev.monitoring_GUI_elements["units"].setText(dev.units)
 
     def start_monitoring(self):
         self.monitoring = Monitoring(self.parent)

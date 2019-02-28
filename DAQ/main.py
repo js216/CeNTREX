@@ -1411,6 +1411,20 @@ class PlotsGUI(qt.QWidget):
         qle.textChanged[str].connect(self.set_all_dt)
         ctrls_f.addWidget(qle, 0, 3)
 
+        #for setting x limits of all plots
+
+        qle = qt.QLineEdit()
+        qle.setText("x0")
+        qle.setToolTip("Set the index of first point to plot for all plots.")
+        qle.textChanged[str].connect(self.set_all_x0)
+        ctrls_f.addWidget(qle, 1, 3)
+
+        qle = qt.QLineEdit()
+        qle.setText("x1")
+        qle.setToolTip("Set the index of last point to plot for all plots.")
+        qle.textChanged[str].connect(self.set_all_x1)
+        ctrls_f.addWidget(qle, 1, 4)
+
         # button to add plot in the specified column
         qle = qt.QLineEdit()
         qle.setText("col for new plots")
@@ -1507,6 +1521,34 @@ class PlotsGUI(qt.QWidget):
                 if plot:
                     plot.destroy()
 
+    def set_all_x0(self, x0):
+        # sanity check
+        try:
+            x0 = int(x0)
+        except ValueError:
+            x0 = 0
+
+        # set the value
+        for col, col_plots in self.all_plots.items():
+            for row, plot in col_plots.items():
+                if plot:
+                    plot.change_config("x0", x0)
+                    plot.x0_qle.setText(str(x0))
+
+    def set_all_x1(self, x1):
+        # sanity check
+        try:
+            x1 = int(x1)
+        except ValueError:
+            x1 = -1
+
+        # set the value
+        for col, col_plots in self.all_plots.items():
+            for row, plot in col_plots.items():
+                if plot:
+                    plot.change_config("x1", x1)
+                    plot.x1_qle.setText(str(x1))
+
     def set_all_dt(self, dt):
         # sanity check
         try:
@@ -1517,6 +1559,7 @@ class PlotsGUI(qt.QWidget):
         except ValueError:
             dt = float(self.parent.config["general"]["default_plot_dt"])
 
+        # set the value
         for col, col_plots in self.all_plots.items():
             for row, plot in col_plots.items():
                 if plot:
@@ -1653,19 +1696,19 @@ class Plotter(qt.QWidget):
         self.refresh_parameter_lists()
 
         # plot range controls
-        qle = qt.QLineEdit()
-        qle.setMaximumWidth(50)
-        self.f.addWidget(qle, 1, 3)
-        qle.setText("x0")
-        qle.setToolTip("x0 = index of first point to plot")
-        qle.textChanged[str].connect(lambda val: self.change_config("x0", val))
+        self.x0_qle = qt.QLineEdit()
+        self.x0_qle.setMaximumWidth(50)
+        self.f.addWidget(self.x0_qle, 1, 3)
+        self.x0_qle.setText("x0")
+        self.x0_qle.setToolTip("x0 = index of first point to plot")
+        self.x0_qle.textChanged[str].connect(lambda val: self.change_config("x0", val))
 
-        qle = qt.QLineEdit()
-        qle.setMaximumWidth(50)
-        self.f.addWidget(qle, 1, 4)
-        qle.setText("x1")
-        qle.setToolTip("x1 = index of last point to plot")
-        qle.textChanged[str].connect(lambda val: self.change_config("x1", val))
+        self.x1_qle = qt.QLineEdit()
+        self.x1_qle.setMaximumWidth(50)
+        self.f.addWidget(self.x1_qle, 1, 4)
+        self.x1_qle.setText("x1")
+        self.x1_qle.setToolTip("x1 = index of last point to plot")
+        self.x1_qle.textChanged[str].connect(lambda val: self.change_config("x1", val))
 
         qle = qt.QLineEdit()
         qle.setMaximumWidth(50)

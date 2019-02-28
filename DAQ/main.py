@@ -712,14 +712,14 @@ class ControlGUI(qt.QWidget):
         # HDF file
         files_frame.addWidget(qt.QLabel("HDF file:"), 1, 0)
 
-        qle = qt.QLineEdit()
-        qle.setToolTip("HDF file for storing all acquired data.")
-        qle.setText(self.parent.config["files"]["hdf_fname"])
-        qle.textChanged[str].connect(lambda val: self.change_config("files", "hdf_fname", val))
-        files_frame.addWidget(qle, 1, 1)
+        self.hdf_fname_qle = qt.QLineEdit()
+        self.hdf_fname_qle.setToolTip("HDF file for storing all acquired data.")
+        self.hdf_fname_qle.setText(self.parent.config["files"]["hdf_fname"])
+        self.hdf_fname_qle.textChanged[str].connect(lambda val: self.change_config("files", "hdf_fname", val))
+        files_frame.addWidget(self.hdf_fname_qle, 1, 1)
 
         pb = qt.QPushButton("Open...")
-        pb.clicked[bool].connect(lambda val, qle=qle: self.open_file("files", "hdf_fname", qle))
+        pb.clicked[bool].connect(lambda val, qle=qle: self.open_file("files", "hdf_fname", self.hdf_fname_qle))
         files_frame.addWidget(pb, 1, 2)
 
         # HDF writer loop delay
@@ -740,15 +740,17 @@ class ControlGUI(qt.QWidget):
         qle.textChanged[str].connect(lambda val: self.change_config("general", "run_name", val))
         files_frame.addWidget(qle, 4, 1)
 
-        # for dark/light stylesheets
-        pb = qt.QPushButton("Light")
-        pb.setToolTip("Change style to light mode.")
-        pb.clicked[bool].connect(self.light_mode)
+        # for giving the HDF file new names
+        pb = qt.QPushButton("Rename HDF")
+        pb.setToolTip("Give the HDF file a new name based on current time.")
+        pb.clicked[bool].connect(self.rename_HDF)
         files_frame.addWidget(pb, 3, 2)
-        pb = qt.QPushButton("Dark")
-        pb.setToolTip("Change style to dark mode.")
-        pb.clicked[bool].connect(self.dark_mode)
-        files_frame.addWidget(pb, 4, 2)
+
+        # for dark/light stylesheets
+        self.style_pb = qt.QPushButton("Dark")
+        self.style_pb.setToolTip("Change style to dark mode.")
+        self.style_pb.clicked[bool].connect(self.toggle_style)
+        files_frame.addWidget(self.style_pb, 4, 2)
 
         ########################################
         # devices
@@ -916,11 +918,31 @@ class ControlGUI(qt.QWidget):
     def change_dev_control(self, dev, config, val):
         dev.config["controls"][config]["value"] = val
 
-    def light_mode(self, state):
-        self.parent.app.setStyleSheet("")
+    def toggle_style(self, state):
+        if self.style_pb.text() == "Dark":
+            self.parent.app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
+            self.style_pb.setText("Light")
+            self.style_pb.setToolTip("Change style to light mode.")
+        else:
+            self.parent.app.setStyleSheet("")
+            self.style_pb.setText("Dark")
+            self.style_pb.setToolTip("Change style to dark mode.")
 
-    def dark_mode(self, state):
-        self.parent.app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
+    def rename_HDF(self, state):
+        # get old file path
+        old_fname = self.parent.config["files"]["hdf_fname"]
+
+        # strip the old name from the full path
+        path = "/".join( old_fname.split('/')[0:-1] )
+
+        # add the new filename
+        path += "/" + str( int(time.time()) ) + ".hdf"
+
+        # set the hdf_fname to the new path
+        self.parent.config["files"]["hdf_fname"] = path
+
+        # update the QLineEdit
+        self.hdf_fname_qle.setText(path)
 
     def open_file(self, sect, config, qle):
         val = qt.QFileDialog.getSaveFileName(self, "Select file")[0]

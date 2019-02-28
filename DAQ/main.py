@@ -1491,6 +1491,7 @@ class PlotsGUI(qt.QWidget):
 
         # place the plot
         plot = Plotter(fr, self.parent)
+        plot.config["row"], plot.config["col"] = row, col
         self.all_plots.setdefault(col, {0:None}) # check the column is in the dict, else add it
         self.all_plots[col][row] = plot
 
@@ -2013,7 +2014,8 @@ class Plotter(qt.QWidget):
         self.config["active"] = False
 
     def destroy(self):
-        self.setParent(None)
+        self.parent.PlotsGUI.plots_f.itemAtPosition(self.config["row"],
+                self.config["col"]).widget().setParent(None)
 
     def toggle_log_lin(self):
         if not self.config["log"]:

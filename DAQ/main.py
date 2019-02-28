@@ -1,7 +1,8 @@
 import re
-import PyQt5
 import h5py
 import time
+import PyQt5
+import pickle
 import pyvisa
 import logging
 import threading
@@ -1545,10 +1546,34 @@ class PlotsGUI(qt.QWidget):
                     plot.fast_y = []
 
     def save_plots(self, dt):
-        pass # TODO
+        # put essential information about plot configuration in a dictionary
+        plot_configs = {}
+        for col, col_plots in self.all_plots.items():
+            plot_configs[col] = {}
+            for row, plot in col_plots.items():
+                if plot:
+                    plot_configs[col][row] = plot.config
+
+        # save this info as a pickled dictionary
+        with open(self.parent.config["files"]["plotting_config_fname"].get(), "wb") as f:
+            pickle.dump(plot_configs, f)
 
     def load_plots(self, dt):
-        pass # TODO
+        # remove all plots
+        self.destroy_all_plots()
+
+        # read pickled plot config
+        with open(self.parent.config["files"]["plotting_config_fname"].get(), "rb") as f:
+            plot_configs = pickle.load(f)
+
+        # re-create all plots
+        for col, col_plots in plot_configs.items():
+            for row, config in col_plots.items():
+                plot = self.add_plot(row, col)
+                plot.config = config
+                plot.start_animation()
+
+        self.refresh_all_run_lists()
 
 class Plotter(qt.QWidget):
     def __init__(self, frame, parent):

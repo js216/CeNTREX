@@ -1144,6 +1144,11 @@ class ControlGUI(qt.QWidget):
         # setup & check connections of all devices
         for dev_name, dev in self.parent.devices.items():
             if dev.config["controls"]["enabled"]["value"]:
+                # update the status label
+                self.status_label.setText("Starting " + dev_name + " ...")
+                self.parent.app.processEvents()
+
+                # setup connection
                 dev.setup_connection(self.parent.config["time_offset"])
                 if not dev.operational:
                     error_box("Device error", "Error: " + dev.config["label"] +\

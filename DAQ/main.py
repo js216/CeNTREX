@@ -1398,6 +1398,7 @@ class PlotsGUI(qt.QWidget):
 
         # controls for all plots
         ctrls_f = LabelFrame(self.main_frame, "Controls")
+        ctrls_f.setColumnStretch(1, 1)
 
         pb = qt.QPushButton("Start all")
         pb.clicked[bool].connect(self.start_all_plots)

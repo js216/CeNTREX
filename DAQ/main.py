@@ -44,7 +44,7 @@ def LabelFrame(label, type="grid", maxWidth=None):
 
     return box, layout
 
-def ScrollableLabelFrame(frame, label, col=None, row=None, rowspan=1, colspan=1):
+def ScrollableLabelFrame(label):
     # make the outer (framed) box
     outer_box = qt.QGroupBox(label)
     outer_layout = qt.QGridLayout()
@@ -65,13 +65,7 @@ def ScrollableLabelFrame(frame, label, col=None, row=None, rowspan=1, colspan=1)
     # add the scrollable area to the outer (framed) box
     outer_layout.addWidget(sa)
 
-    # add the outer (framed) box to the parent container
-    if row or col:
-        frame.addWidget(outer_box, row, col, rowspan, colspan)
-    else:
-        frame.addWidget(outer_box)
-
-    return inner_layout
+    return outer_box, inner_layout
 
 def message_box(title, text, message=""):
     msg = qt.QMessageBox()
@@ -830,6 +824,16 @@ class ControlGUI(qt.QWidget):
         self.status_label.setFont(QtGui.QFont("Helvetica", 16))
         control_frame.addWidget(self.status_label, 0, 2)
 
+        # buttons to show/hide monitoring and plots
+
+        self.monitoring_pb = qt.QPushButton("Show monitoring")
+        self.monitoring_pb.clicked[bool].connect(self.toggle_monitoring)
+        control_frame.addWidget(self.monitoring_pb, 1, 0)
+
+        self.plots_pb = qt.QPushButton("Show plots")
+        self.plots_pb.clicked[bool].connect(self.toggle_plots)
+        control_frame.addWidget(self.plots_pb, 1, 1)
+
         ########################################
         # files
         ########################################
@@ -940,7 +944,28 @@ class ControlGUI(qt.QWidget):
         cmd_frame.addWidget(pb, 0, 3)
 
         # frame for device-specific controls
-        self.devices_frame = ScrollableLabelFrame(self.main_frame, "Devices")
+        box, self.devices_frame = ScrollableLabelFrame("Devices")
+        self.main_frame.addWidget(box)
+
+    def toggle_monitoring(self, val):
+        if not self.parent.config["monitoring_visible"]:
+            self.parent.config["monitoring_visible"] = True
+            self.parent.MonitoringGUI.show()
+            self.monitoring_pb.setText("Hide monitoring")
+        else:
+            self.parent.config["monitoring_visible"] = False
+            self.parent.MonitoringGUI.hide()
+            self.monitoring_pb.setText("Show monitoring")
+
+    def toggle_plots(self, val):
+        if not self.parent.config["plots_visible"]:
+            self.parent.config["plots_visible"] = True
+            self.parent.PlotsGUI.show()
+            self.plots_pb.setText("Hide plots")
+        else:
+            self.parent.config["plots_visible"] = False
+            self.parent.PlotsGUI.hide()
+            self.plots_pb.setText("Show plots")
 
     def edit_run_attrs(self, dev):
         # open the AttrEditor dialog window
@@ -1162,6 +1187,9 @@ class ControlGUI(qt.QWidget):
                 value   = self.parent.config["general"]["custom_device"],
             )
 
+        # update the available devices for plotting
+        self.parent.PlotsGUI.refresh_all_run_lists()
+
     def get_dev_list(self):
         dev_list = []
         for dev_name, dev in self.parent.devices.items():
@@ -1370,7 +1398,9 @@ class MonitoringGUI(qt.QWidget):
         w_f.addWidget(self.free_qpb, 2, 1)
 
         # frame for device data
-        self.dev_f = ScrollableLabelFrame(self.main_frame, "Devices")
+        box, self.dev_f = ScrollableLabelFrame("Devices")
+        self.dev_f.setSizeConstraint(qt.QLayout.SetFixedSize)
+        self.main_frame.addWidget(box)
 
     def change_config(self, sect, config, val):
         self.parent.config[sect][config] = val
@@ -1470,21 +1500,21 @@ class MonitoringGUI(qt.QWidget):
         if self.monitoring.active.is_set():
             self.monitoring.active.clear()
 
-class PlotsGUI(qt.QWidget):
+class PlotsGUI(qt.QSplitter):
     def __init__(self, parent):
         super(qt.QWidget, self).__init__(parent)
         self.parent = parent
         self.all_plots = {}
         self.place_GUI_elements()
 
-    def place_GUI_elements(self):
-        # main frame for all PlotsGUI elements
-        self.main_frame = qt.QVBoxLayout()
-        self.setLayout(self.main_frame)
+        # QSplitter options
+        self.setSizes([1,10000])
+        self.setOrientation(PyQt5.QtCore.Qt.Vertical)
 
+    def place_GUI_elements(self):
         # controls for all plots
         box, ctrls_f = LabelFrame("Controls")
-        self.main_frame.addWidget(box)
+        self.addWidget(box)
         ctrls_f.setColumnStretch(1, 1)
 
         pb = qt.QPushButton("Start all")
@@ -1562,10 +1592,7 @@ class PlotsGUI(qt.QWidget):
 
         # frame to place all the plots in
         box, self.plots_f = LabelFrame("Plots")
-        self.main_frame.addWidget(box)
-
-        # prevent the above from being stretched across the whole screen
-        self.main_frame.addStretch()
+        self.addWidget(box)
 
         # add one plot
         self.add_plot()
@@ -1591,11 +1618,12 @@ class PlotsGUI(qt.QWidget):
             return
 
         # frame for the plot
-        box, grid = LabelFrame("")
+        box = qt.QSplitter()
+        box.setOrientation(PyQt5.QtCore.Qt.Vertical)
         self.plots_f.addWidget(box, row, col)
 
         # place the plot
-        plot = Plotter(grid, self.parent)
+        plot = Plotter(box, self.parent)
         plot.config["row"], plot.config["col"] = row, col
         self.all_plots.setdefault(col, {0:None}) # check the column is in the dict, else add it
         self.all_plots[col][row] = plot
@@ -1769,6 +1797,11 @@ class Plotter(qt.QWidget):
         self.place_GUI_elements()
 
     def place_GUI_elements(self):
+        # scrollable area for controls
+        box, ctrls_f = ScrollableLabelFrame("")
+        ctrls_f.setSizeConstraint(qt.QLayout.SetFixedSize)
+        self.f.addWidget(box)
+
         # select device
         self.dev_cbx = qt.QComboBox()
         self.dev_cbx.activated[str].connect(lambda val: self.change_config("device", val))
@@ -1778,7 +1811,7 @@ class Plotter(qt.QWidget):
                 options = self.parent.ControlGUI.get_dev_list(),
                 value   = self.config["device"]
             )
-        self.f.addWidget(self.dev_cbx, 0, 0)
+        ctrls_f.addWidget(self.dev_cbx, 0, 0)
 
         # get list of runs
         with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], 'r') as f:
@@ -1792,45 +1825,45 @@ class Plotter(qt.QWidget):
                 options = runs,
                 value   = runs[-1]
             )
-        self.f.addWidget(self.run_cbx, 0, 1)
+        ctrls_f.addWidget(self.run_cbx, 0, 1)
 
         # select x, y, and z
 
         self.x_cbx = qt.QComboBox()
         self.x_cbx.setToolTip("Select the independent variable.")
         self.x_cbx.activated[str].connect(lambda val: self.change_config("x", val))
-        self.f.addWidget(self.x_cbx, 1, 0)
+        ctrls_f.addWidget(self.x_cbx, 1, 0)
 
         self.y_cbx = qt.QComboBox()
         self.y_cbx.setToolTip("Select the dependent variable.")
         self.y_cbx.activated[str].connect(lambda val: self.change_config("y", val))
-        self.f.addWidget(self.y_cbx, 1, 1)
+        ctrls_f.addWidget(self.y_cbx, 1, 1)
 
         self.z_cbx = qt.QComboBox()
         self.z_cbx.setToolTip("Select the variable to divide y by.")
         self.z_cbx.activated[str].connect(lambda val: self.change_config("z", val))
-        self.f.addWidget(self.z_cbx, 1, 2)
+        ctrls_f.addWidget(self.z_cbx, 1, 2)
 
         self.refresh_parameter_lists()
 
         # plot range controls
         self.x0_qle = qt.QLineEdit()
         self.x0_qle.setMaximumWidth(50)
-        self.f.addWidget(self.x0_qle, 1, 3)
+        ctrls_f.addWidget(self.x0_qle, 1, 3)
         self.x0_qle.setText(self.config["x0"])
         self.x0_qle.setToolTip("x0 = index of first point to plot")
         self.x0_qle.textChanged[str].connect(lambda val: self.change_config("x0", val))
 
         self.x1_qle = qt.QLineEdit()
         self.x1_qle.setMaximumWidth(50)
-        self.f.addWidget(self.x1_qle, 1, 4)
+        ctrls_f.addWidget(self.x1_qle, 1, 4)
         self.x1_qle.setText(self.config["x1"])
         self.x1_qle.setToolTip("x1 = index of last point to plot")
         self.x1_qle.textChanged[str].connect(lambda val: self.change_config("x1", val))
 
         self.y0_qle = qt.QLineEdit()
         self.y0_qle.setMaximumWidth(50)
-        self.f.addWidget(self.y0_qle, 1, 5)
+        ctrls_f.addWidget(self.y0_qle, 1, 5)
         self.y0_qle.setText(self.config["y0"])
         self.y0_qle.setToolTip("y0 = lower y limit")
         self.y0_qle.textChanged[str].connect(lambda val: self.change_config("y0", val))
@@ -1838,7 +1871,7 @@ class Plotter(qt.QWidget):
 
         self.y1_qle = qt.QLineEdit()
         self.y1_qle.setMaximumWidth(50)
-        self.f.addWidget(self.y1_qle, 1, 6)
+        ctrls_f.addWidget(self.y1_qle, 1, 6)
         self.y1_qle.setText(self.config["y1"])
         self.y1_qle.setToolTip("y1 = upper y limit")
         self.y1_qle.textChanged[str].connect(lambda val: self.change_config("y1", val))
@@ -1850,32 +1883,32 @@ class Plotter(qt.QWidget):
         self.dt_qle.setText("dt")
         self.dt_qle.setToolTip("Delay between updating the plot, i.e. smaller dt means faster plot refresh rate.")
         self.dt_qle.textChanged[str].connect(lambda val: self.change_config("dt", val))
-        self.f.addWidget(self.dt_qle, 1, 7)
+        ctrls_f.addWidget(self.dt_qle, 1, 7)
 
         # start button
         self.start_pb = qt.QPushButton("Start")
         self.start_pb.setMaximumWidth(50)
         self.start_pb.clicked[bool].connect(self.start_animation)
-        self.f.addWidget(self.start_pb, 0, 3)
+        ctrls_f.addWidget(self.start_pb, 0, 3)
 
         # HDF/Queue
         self.HDF_pb = qt.QPushButton("HDF")
         self.HDF_pb.setToolTip("Force reading the data from HDF instead of the queue.")
         self.HDF_pb.setMaximumWidth(50)
         self.HDF_pb.clicked[bool].connect(self.toggle_HDF_or_queue)
-        self.f.addWidget(self.HDF_pb, 0, 4)
+        ctrls_f.addWidget(self.HDF_pb, 0, 4)
 
         # toggle log/lin
         pb = qt.QPushButton("Log/Lin")
         pb.setMaximumWidth(50)
         pb.clicked[bool].connect(self.toggle_log_lin)
-        self.f.addWidget(pb, 0, 5)
+        ctrls_f.addWidget(pb, 0, 5)
 
         # toggle lines/points
         pb = qt.QPushButton("\u26ab / \u2014")
         pb.setMaximumWidth(50)
         pb.clicked[bool].connect(self.toggle_points)
-        self.f.addWidget(pb, 0, 6)
+        ctrls_f.addWidget(pb, 0, 6)
 
         # for displaying a function of the data
 
@@ -1883,13 +1916,13 @@ class Plotter(qt.QWidget):
         self.fn_qle.setText(self.config["f(y)"])
         self.fn_qle.setToolTip("Apply the specified function before plotting the data.")
         self.fn_qle.textChanged[str].connect(lambda val: self.change_config("f(y)", val))
-        self.f.addWidget(self.fn_qle, 0, 2)
+        ctrls_f.addWidget(self.fn_qle, 0, 2)
 
         self.fn_pb = qt.QPushButton("f(y)")
         self.fn_pb.setToolTip("Apply the specified function before plotting the data. Double click to clear the old calculations for fast data.")
         self.fn_pb.setMaximumWidth(50)
         self.fn_pb.clicked[bool].connect(self.toggle_fn)
-        self.f.addWidget(self.fn_pb, 0, 7)
+        ctrls_f.addWidget(self.fn_pb, 0, 7)
 
         # for averaging last n curves
         self.avg_qle = qt.QLineEdit()
@@ -1897,13 +1930,13 @@ class Plotter(qt.QWidget):
         self.avg_qle.setToolTip("Enter the number of traces to average. Default = 1, i.e. no averaging.")
         self.avg_qle.setText("avg?")
         self.avg_qle.textChanged[str].connect(lambda val: self.change_config("n_average", val, typ=int))
-        self.f.addWidget(self.avg_qle, 1, 8)
+        ctrls_f.addWidget(self.avg_qle, 1, 8)
 
         # button to delete plot
         pb = qt.QPushButton("\u274c")
         pb.setMaximumWidth(50)
         pb.setToolTip("Delete the plot")
-        self.f.addWidget(pb, 0, 8)
+        ctrls_f.addWidget(pb, 0, 8)
         pb.clicked[bool].connect(lambda val: self.destroy())
 
     def refresh_parameter_lists(self, select_defaults=True):
@@ -2151,7 +2184,7 @@ class Plotter(qt.QWidget):
         if not self.plot:
             self.plot = pg.PlotWidget()
             self.plot.showGrid(True, True)
-            self.f.addWidget(self.plot, 2, 0, 1, 9)
+            self.f.addWidget(self.plot)
         if not self.curve:
             self.curve = self.plot.plot(*data, symbol=self.config["symbol"])
         else:
@@ -2266,15 +2299,18 @@ class Plotter(qt.QWidget):
             self.fn_pb.setText("f(y)")
             self.fn_pb.setToolTip("Apply the specified function before plotting the data. Double click to clear the old calculations for fast data.")
 
-class CentrexGUI(qt.QTabWidget):
+class CentrexGUI(qt.QMainWindow):
     def __init__(self, app):
         super().__init__()
         self.app = app
+        self.setWindowTitle('CENTREX DAQ')
 
         # read program configuration
         self.config = {
-                "time_offset"    : 0,
-                "control_active" : False,
+                "time_offset"        : 0,
+                "control_active"     : False,
+                "monitoring_visible" : False,
+                "plots_visible"      : False,
                 }
         settings = configparser.ConfigParser()
         settings.read("config/settings.ini")
@@ -2288,11 +2324,15 @@ class CentrexGUI(qt.QTabWidget):
         self.MonitoringGUI = MonitoringGUI(self)
         self.PlotsGUI = PlotsGUI(self)
 
-        # put them in tabbed interface
-        self.setWindowTitle('CENTREX DAQ')
-        self.addTab(self.ControlGUI, "Control")
-        self.addTab(self.MonitoringGUI, "Monitoring")
-        self.addTab(self.PlotsGUI, "Plots")
+        # put GUI elements in a QSplitter
+        qs = qt.QSplitter()
+        self.setCentralWidget(qs)
+        qs.addWidget(self.ControlGUI)
+        qs.addWidget(self.MonitoringGUI)
+        self.MonitoringGUI.hide()
+        qs.addWidget(self.PlotsGUI)
+        self.PlotsGUI.hide()
+
         self.show()
 
     def closeEvent(self, event):

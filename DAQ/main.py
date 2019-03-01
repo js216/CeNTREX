@@ -572,9 +572,15 @@ class AttrEditor(QtGui.QDialog):
             self.qtw.setItem(row, 1, qt.QTableWidgetItem( val ))
 
         # button to read attrs from file
-        pb = qt.QPushButton("Reload attributes from config file")
+        pb = qt.QPushButton("Read config file")
         pb.clicked[bool].connect(self.reload_attrs_from_file)
-        self.frame.addWidget(pb, 1, 0, 1, 2)
+        self.frame.addWidget(pb, 1, 0)
+
+        # button to write attrs to file
+        if not self.dev:
+            pb = qt.QPushButton("Write config file")
+            pb.clicked[bool].connect(self.write_attrs_to_file)
+            self.frame.addWidget(pb, 1, 1)
 
         # buttons to add/remove rows
         pb = qt.QPushButton("Add one row")
@@ -611,6 +617,20 @@ class AttrEditor(QtGui.QDialog):
         for row, (key, val) in enumerate(new_attrs.items()):
             self.qtw.setItem(row, 0, qt.QTableWidgetItem( key ))
             self.qtw.setItem(row, 1, qt.QTableWidgetItem( val ))
+
+    def write_attrs_to_file(self, state):
+        # do a sanity check of attributes and change corresponding config dicts
+        self.check_attributes()
+
+        if not self.dev:
+            # collect new configuration parameters to be written
+            config = configparser.ConfigParser()
+            for sect in ["general", "run_attributes", "files", "influxdb"]:
+                config[sect] = self.parent.config[sect]
+
+            # write them to file
+            with open("config/settings.ini", 'w') as f:
+                config.write(f)
 
     def add_row(self, arg):
         self.qtw.insertRow(self.qtw.rowCount())

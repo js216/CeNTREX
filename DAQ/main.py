@@ -139,7 +139,7 @@ class Device(threading.Thread):
 
         # the data and events queues
         self.data_queue = deque()
-        self.plots_queue = deque(maxlen=self.config["plots_queue_maxlen"])
+        self.config["plots_queue"] = deque(maxlen=self.config["plots_queue_maxlen"])
         self.events_queue = deque()
 
         # the variable for counting the number of NaN returns
@@ -173,6 +173,16 @@ class Device(threading.Thread):
             self.config["dtype"] = dev.dtype
             for attr_name, attr_val in dev.new_attributes:
                 self.config["attributes"][attr_name] = attr_val
+
+    def change_plots_queue_maxlen(self, maxlen):
+        # sanity check
+        try:
+            self.config["plots_queue_maxlen"] = int(maxlen)
+        except ValueError:
+            return
+
+        # create a new deque with a different maxlen
+        self.config["plots_queue"] = deque(maxlen=self.config["plots_queue_maxlen"])
 
     def clear_queues(self):
         self.data_queue.clear()
@@ -216,7 +226,7 @@ class Device(threading.Thread):
                         self.nan_count.set(self.nan_count + 1)
                 elif len(last_data) > 0:
                     self.data_queue.append(last_data)
-                    self.plots_queue.append(last_data)
+                    self.config["plots_queue"].append(last_data)
 
                 # send control commands, if any, to the device, and record return values
                 for c in self.commands:
@@ -898,7 +908,7 @@ class ControlGUI(qt.QWidget):
         files_frame.addWidget(pb, 1, 3)
 
         # button to edit run attributes
-        pb = qt.QPushButton("Attrs")
+        pb = qt.QPushButton("Attrs...")
         pb.setToolTip("Display or edit device attributes that are written with the data to the HDF file.")
         pb.clicked[bool].connect(self.edit_run_attrs)
         files_frame.addWidget(pb, 4, 2)
@@ -945,18 +955,28 @@ class ControlGUI(qt.QWidget):
 
     def place_device_controls(self):
         for dev_name, dev in self.parent.devices.items():
+            # frame for device controls
             df = LabelFrame(
                     self.devices_frame,
                     dev.config["label"],
                     dev.config["column"],
                     dev.config["row"],
                 )
+            df.setColumnStretch(1, 1)
+            df.setColumnStretch(20, 0)
 
             # the button to reload attributes
-            pb = qt.QPushButton("Attrs")
+            pb = qt.QPushButton("Attrs...")
             pb.setToolTip("Display or edit device attributes that are written with the data to the HDF file.")
             pb.clicked[bool].connect(lambda val, dev=dev : self.edit_attrs(dev))
-            df.addWidget(pb, 0, 20)
+            df.addWidget(pb, 0, 1)
+
+            # for changing plots_queue maxlen
+            qle = qt.QLineEdit()
+            qle.setToolTip("Change plots_queue maxlen.")
+            qle.setText(str(dev.config["plots_queue_maxlen"]))
+            qle.textChanged[str].connect(lambda maxlen, dev=dev: dev.change_plots_queue_maxlen(maxlen))
+            df.addWidget(qle, 1, 1)
 
             # device-specific controls
             for c_name, c in dev.config["controls"].items():
@@ -1067,6 +1087,9 @@ class ControlGUI(qt.QWidget):
 
     def change_config(self, sect, config, val):
         self.parent.config[sect][config] = val
+
+    def change_dev_config(self, dev, config, val):
+        dev.config[config] = val
 
     def change_dev_control(self, dev, config, val):
         dev.config["controls"][config]["value"] = val
@@ -2038,13 +2061,15 @@ class Plotter(qt.QWidget):
     def get_raw_data_from_queue(self):
         # for slow data: copy the queue contents into a np array
         if self.dev.config["slow_data"]:
-            dset = np.array(self.dev.plots_queue)
+            dset = np.array(self.dev.config["plots_queue"])
+            if len(dset.shape) < 2:
+                return None
             x = dset[:, self.param_list.index(self.config["x"])]
             y = dset[:, self.param_list.index(self.config["y"])]
 
         # for fast data: return only the latest value
         if not self.dev.config["slow_data"]:
-            dset = self.dev.plots_queue.popleft()
+            dset = self.dev.config["plots_queue"].popleft()
             x = np.arange(dset.shape[0])
             y = dset[:, self.param_list.index(self.config["y"])]
 
@@ -2063,7 +2088,11 @@ class Plotter(qt.QWidget):
         else:
             data = self.get_raw_data_from_queue()
 
-        x, y = data[0], data[1]
+        if data:
+            x, y = data[0], data[1]
+        else:
+            logging.warning("Plot error: no data.")
+            return None
 
         # select indices for subsetting
         try:

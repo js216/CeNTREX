@@ -139,6 +139,7 @@ class Device(threading.Thread):
 
         # the data and events queues
         self.data_queue = deque()
+        self.plots_queue = deque(maxlen=self.config["plots_queue_maxlen"])
         self.events_queue = deque()
 
         # the variable for counting the number of NaN returns
@@ -212,10 +213,10 @@ class Device(threading.Thread):
                 # keep track of the number of NaN returns
                 if isinstance(last_data, float):
                     if np.isnan(last_data):
-                        self.nan_count.set( int(self.nan_count) + 1)
+                        self.nan_count.set(self.nan_count + 1)
                 elif len(last_data) > 0:
                     self.data_queue.append(last_data)
-
+                    self.plots_queue.append(last_data)
 
                 # send control commands, if any, to the device, and record return values
                 for c in self.commands:
@@ -593,19 +594,20 @@ class ControlGUI(qt.QWidget):
 
     def read_device_config_options(self, f, params):
         return {
-                    "name"              : params["device"]["name"],
-                    "label"             : params["device"]["label"],
-                    "path"              : params["device"]["path"],
-                    "correct_response"  : params["device"]["correct_response"],
-                    "slow_data"         : True if params["device"]["slow_data"]=="True" else False,
-                    "row"               : int(params["device"]["row"]),
-                    "rowspan"           : int(params["device"]["rowspan"]),
-                    "monitoring_row"    : int(params["device"]["monitoring_row"]),
-                    "column"            : int(params["device"]["column"]),
-                    "columnspan"        : int(params["device"]["columnspan"]),
-                    "monitoring_column" : int(params["device"]["monitoring_column"]),
-                    "constr_params"     : [x.strip() for x in params["device"]["constr_params"].split(",")],
-                    "attributes"        : params["attributes"],
+                    "name"               : params["device"]["name"],
+                    "label"              : params["device"]["label"],
+                    "path"               : params["device"]["path"],
+                    "correct_response"   : params["device"]["correct_response"],
+                    "plots_queue_maxlen" : int(params["device"]["plots_queue_maxlen"]),
+                    "slow_data"          : True if params["device"]["slow_data"]=="True" else False,
+                    "row"                : int(params["device"]["row"]),
+                    "rowspan"            : int(params["device"]["rowspan"]),
+                    "monitoring_row"     : int(params["device"]["monitoring_row"]),
+                    "column"             : int(params["device"]["column"]),
+                    "columnspan"         : int(params["device"]["columnspan"]),
+                    "monitoring_column"  : int(params["device"]["monitoring_column"]),
+                    "constr_params"      : [x.strip() for x in params["device"]["constr_params"].split(",")],
+                    "attributes"         : params["attributes"],
                 }
 
     def read_device_controls(self, params):
@@ -1646,6 +1648,7 @@ class Plotter(qt.QWidget):
                 "symbol"            : None,
                 "plot_drawn"        : False,
                 "animation_running" : False,
+                "from_HDF"          : False,
                 "n_average"         : 1,
                 "f(y)"              : "2*y",
                 "device"            : "Select device ...",
@@ -1745,16 +1748,17 @@ class Plotter(qt.QWidget):
         self.f.addWidget(self.dt_qle, 1, 7)
 
         # start button
-        pb = qt.QPushButton("Start")
-        pb.setMaximumWidth(50)
-        pb.clicked[bool].connect(self.start_animation)
-        self.f.addWidget(pb, 0, 3)
+        self.start_pb = qt.QPushButton("Start")
+        self.start_pb.setMaximumWidth(50)
+        self.start_pb.clicked[bool].connect(self.start_animation)
+        self.f.addWidget(self.start_pb, 0, 3)
 
-        # stop button
-        pb = qt.QPushButton("Stop")
-        pb.setMaximumWidth(50)
-        pb.clicked[bool].connect(self.stop_animation)
-        self.f.addWidget(pb, 0, 4)
+        # HDF/Queue
+        self.HDF_pb = qt.QPushButton("HDF")
+        self.HDF_pb.setToolTip("Force reading the data from HDF instead of the queue.")
+        self.HDF_pb.setMaximumWidth(50)
+        self.HDF_pb.clicked[bool].connect(self.toggle_HDF_or_queue)
+        self.f.addWidget(self.HDF_pb, 0, 4)
 
         # toggle log/lin
         pb = qt.QPushButton("Log/Lin")
@@ -1896,15 +1900,18 @@ class Plotter(qt.QWidget):
         # return 
         return True
 
-    def get_data(self):
+    def get_raw_data_from_HDF(self):
         with h5py.File(self.parent.config["files"]["hdf_fname"], 'r') as f:
-            # get raw data
             grp = f[self.config["run"] + "/" + self.dev.config["path"]]
 
             if self.dev.config["slow_data"]:
                 dset = grp[self.dev.config["name"]]
                 x = dset[:, self.param_list.index(self.config["x"])]
                 y = dset[:, self.param_list.index(self.config["y"])]
+
+                # divide y by z (if applicable)
+                if self.config["z"] in self.param_list:
+                    y /= dset[:, self.param_list.index(self.config["z"])]
 
             if not self.dev.config["slow_data"]:
                 # find the latest record
@@ -1916,61 +1923,99 @@ class Plotter(qt.QWidget):
                 x = np.arange(dset.shape[0])
                 y = dset[:, self.param_list.index(self.config["y"])]
 
-                # average last n curves
+                # divide y by z (if applicable)
+                if self.config["z"] in self.param_list:
+                    y /= dset[:, self.param_list.index(self.config["z"])]
+
+                # average last n curves (if applicable)
                 for i in range(self.config["n_average"] - 1):
                     dset = grp[self.dev.config["name"] + "_" + str(rec_num-i)]
-                    y += dset[:, self.param_list.index(self.config["y"])]
+                    if self.config["z"] in self.param_list:
+                        y += dset[:, self.param_list.index(self.config["y"])] \
+                                / dset[:, self.param_list.index(self.config["z"])]
+                    else:
+                        y += dset[:, self.param_list.index(self.config["y"])]
                 y /= self.config["n_average"]
 
-            # select indices for subsetting
-            try:
-                x0 = int(float(self.config["x0"]))
-                x1 = int(float(self.config["x1"]))
-            except ValueError as err:
+        return x, y
+
+    def get_raw_data_from_queue(self):
+        # for slow data: copy the queue contents into a np array
+        if self.dev.config["slow_data"]:
+            dset = np.empty((len(self.dev.plots_queue), *self.dev.config["shape"]))
+            for i in range(len(self.dev.plots_queue)):
+                dset[i] = self.dev.plots_queue[i]
+            x = dset[:, self.param_list.index(self.config["x"])]
+            y = dset[:, self.param_list.index(self.config["y"])]
+
+        # for fast data: return only the latest value
+        if not self.dev.config["slow_data"]:
+            dset = self.dev.plots_queue.popleft()
+            x = np.arange(dset.shape[0])
+            y = dset[:, self.param_list.index(self.config["y"])]
+
+        # divide y by z (if applicable)
+        if self.config["z"] in self.param_list:
+            y /= dset[:, self.param_list.index(self.config["z"])]
+
+        return x, y
+
+    def get_data(self):
+        # decide where to get data from
+        if self.dev.config["plots_queue_maxlen"] < 1\
+                or not self.parent.config['control_active']\
+                or self.config["from_HDF"]:
+            data = self.get_raw_data_from_HDF()
+        else:
+            data = self.get_raw_data_from_queue()
+
+        x, y = data[0], data[1]
+
+        # select indices for subsetting
+        try:
+            x0 = int(float(self.config["x0"]))
+            x1 = int(float(self.config["x1"]))
+        except ValueError as err:
+            x0, x1 = 0, -1
+        if x0 >= x1:
+            if x1 >= 0:
                 x0, x1 = 0, -1
-            if x0 >= x1:
-                if x1 >= 0:
-                    x0, x1 = 0, -1
-            if x1 >= dset.shape[0] - 1:
-                x0, y1 = 0, -1
+        if x1 >= len(x) - 1:
+            x0, y1 = 0, -1
 
-            # verify data shape
-            if not x.shape == y.shape:
-                logging.warning("Plot error: data shapes not matching.")
-                return None
+        # verify data shape
+        if not x.shape == y.shape:
+            logging.warning("Plot error: data shapes not matching.")
+            return None
 
-            # divide y by z (if applicable)
-            if self.config["z"] in self.param_list:
-                y /= dset[:, self.param_list.index(self.config["z"])]
+        # if not applying f(y), return the data ...
+        if not self.config["fn"]:
+            return x[x0:x1], y[x0:x1]
 
-            # if not applying f(y), return the data ...
-            if not self.config["fn"]:
+        # ... else apply f(y) to the data
+
+        if self.dev.config["slow_data"]:
+            try:
+                y_fn = eval(self.config["f(y)"])
+                if not x.shape == y_fn.shape:
+                    raise ValueError("x.shape != y_fn.shape")
+            except Exception as err:
+                logging.warning(str(err))
+                y_fn = y
+            else:
+                return x[x0:x1], y_fn[x0:x1]
+
+        if not self.dev.config["slow_data"]:
+            try:
+                y_fn = eval(self.config["f(y)"])
+                if not isinstance(y_fn, float):
+                    raise TypeError("isinstance(y_fn, float) == False")
+            except Exception as err:
+                logging.warning(str(err))
                 return x[x0:x1], y[x0:x1]
-
-            # ... else apply f(y) to the data
-
-            if self.dev.config["slow_data"]:
-                try:
-                    y_fn = eval(self.config["f(y)"])
-                    if not x.shape == y_fn.shape:
-                        raise ValueError("x.shape != y_fn.shape")
-                except Exception as err:
-                    logging.warning(str(err))
-                    y_fn = y
-                else:
-                    return x[x0:x1], y_fn[x0:x1]
-
-            if not self.dev.config["slow_data"]:
-                try:
-                    y_fn = eval(self.config["f(y)"])
-                    if not isinstance(y_fn, float):
-                        raise TypeError("isinstance(y_fn, float) == False")
-                except Exception as err:
-                    logging.warning(str(err))
-                    return x[x0:x1], y[x0:x1]
-                else:
-                    self.fast_y.append()
-                    return np.arange(len(self.fast_y)), np.array(self.fast_y)
+            else:
+                self.fast_y.append()
+                return np.arange(len(self.fast_y)), np.array(self.fast_y)
 
     def replot(self):
         # check parameters
@@ -2017,13 +2062,27 @@ class Plotter(qt.QWidget):
                 time.sleep(dt)
 
     def start_animation(self):
+        # start animation
         self.thread = self.PlotUpdater(self.parent, self.config)
-        self.config["active"] = True
         self.thread.start()
         self.thread.signal.connect(self.replot)
 
+        # update status
+        self.config["active"] = True
+
+        # change the "Start" button into a "Stop" button
+        self.start_pb.setText("Stop")
+        self.start_pb.disconnect()
+        self.start_pb.clicked[bool].connect(self.stop_animation)
+
     def stop_animation(self):
+        # stop animation
         self.config["active"] = False
+
+        # change the "Stop" button into a "Start" button
+        self.start_pb.setText("Start")
+        self.start_pb.disconnect()
+        self.start_pb.clicked[bool].connect(self.start_animation)
 
     def destroy(self):
         # get the position of the plot
@@ -2034,6 +2093,18 @@ class Plotter(qt.QWidget):
 
         # remove the GUI elements related to the plot
         self.parent.PlotsGUI.plots_f.itemAtPosition(row, col).widget().setParent(None)
+
+    def toggle_HDF_or_queue(self, state):
+        # toggle the config flag
+        self.change_config("from_HDF", self.config["from_HDF"]==False)
+
+        # change the button appearance
+        if self.config["from_HDF"]:
+            self.HDF_pb.setText("Queue")
+            self.HDF_pb.setToolTip("Force reading the data from the Queue instead of the HDF file.")
+        else:
+            self.HDF_pb.setText("HDF")
+            self.HDF_pb.setToolTip("Force reading the data from HDF instead of the queue.")
 
     def toggle_log_lin(self):
         if not self.config["log"]:

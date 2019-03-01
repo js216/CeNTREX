@@ -952,7 +952,7 @@ class ControlGUI(qt.QWidget):
         for dev_name, dev in self.parent.devices.items():
             # frame for device controls
             box, df = LabelFrame(dev.config["label"])
-            self.devices_frame.addWidget(box, dev.config["column"], dev.config["row"])
+            self.devices_frame.addWidget(box, dev.config["row"], dev.config["column"])
             df.setColumnStretch(1, 1)
             df.setColumnStretch(20, 0)
 

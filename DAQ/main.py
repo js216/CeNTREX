@@ -1816,6 +1816,7 @@ class Plotter(qt.QWidget):
         self.y0_qle.setText(self.config["y0"])
         self.y0_qle.setToolTip("y0 = lower y limit")
         self.y0_qle.textChanged[str].connect(lambda val: self.change_config("y0", val))
+        self.y0_qle.textChanged[str].connect(lambda val: self.change_y_limits())
 
         self.y1_qle = qt.QLineEdit()
         self.y1_qle.setMaximumWidth(50)
@@ -1823,6 +1824,7 @@ class Plotter(qt.QWidget):
         self.y1_qle.setText(self.config["y1"])
         self.y1_qle.setToolTip("y1 = upper y limit")
         self.y1_qle.textChanged[str].connect(lambda val: self.change_config("y1", val))
+        self.y1_qle.textChanged[str].connect(lambda val: self.change_y_limits())
 
         # plot refresh rate
         self.dt_qle = qt.QLineEdit()
@@ -2131,7 +2133,7 @@ class Plotter(qt.QWidget):
         else:
             self.curve.setData(*data)
 
-        # set y limits
+    def change_y_limits(self):
         try:
             y0 = float(self.config["y0"])
             y1 = float(self.config["y1"])

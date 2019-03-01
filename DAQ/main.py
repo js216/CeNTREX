@@ -2039,6 +2039,15 @@ class Plotter(qt.QWidget):
         else:
             self.curve.setData(*data)
 
+        # set y limits
+        try:
+            y0 = float(self.config["y0"])
+            y1 = float(self.config["y1"])
+        except ValueError:
+            self.plot.enableAutoRange()
+        else:
+            self.plot.setYRange(y0, y1)
+
     class PlotUpdater(PyQt5.QtCore.QThread):
         signal = PyQt5.QtCore.pyqtSignal()
 

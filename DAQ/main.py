@@ -818,9 +818,9 @@ class ControlGUI(qt.QWidget):
         self.main_frame.addLayout(control_frame)
 
         # control start/stop buttons
-        pb = qt.QPushButton("\u26ab Start control")
-        pb.clicked[bool].connect(self.start_control)
-        control_frame.addWidget(pb, 0, 0)
+        self.start_pb = qt.QPushButton("\u26ab Start control")
+        self.start_pb.clicked[bool].connect(self.start_control)
+        control_frame.addWidget(self.start_pb, 0, 0)
 
         pb = qt.QPushButton("\u2b1b Stop control")
         pb.clicked[bool].connect(self.stop_control)
@@ -1272,8 +1272,8 @@ class ControlGUI(qt.QWidget):
                 self.status_label.setText("Starting " + dev_name + " ...")
                 self.parent.app.processEvents()
 
-                # reinstantiate the thread (since Python only allows threads to
-                # be started once, this is necessary to allow stopping and restarting control)
+                ## reinstantiate the thread (since Python only allows threads to
+                ## be started once, this is necessary to allow stopping and restarting control)
                 self.parent.devices[dev_name] = Device(dev.config)
                 dev = self.parent.devices[dev_name]
 
@@ -1284,6 +1284,10 @@ class ControlGUI(qt.QWidget):
                             " not responding.", dev.error_message)
                     self.status_label.setText("Device configuration error")
                     return
+
+        # update device controls with new instances of Devices
+        clear_layout(self.devices_frame)
+        self.place_device_controls()
 
         # start the thread that writes to HDF
         self.HDF_writer = HDF_writer(self.parent)
@@ -2151,10 +2155,10 @@ class Plotter(qt.QWidget):
 
         try:
             x, y = data[0], data[1]
-            if len(x) < 1 or len(y) < 1:
+            if len(x) < 5: # require at least five datapoints
                 raise ValueError
         except (ValueError, TypeError):
-            logging.warning("Plot error: no data.")
+            logging.warning("Plot error: not enough data.")
             return None
 
         # select indices for subsetting

@@ -1289,6 +1289,10 @@ class ControlGUI(qt.QWidget):
         clear_layout(self.devices_frame)
         self.place_device_controls()
 
+        # update monitoring with new instances of Devices
+        clear_layout(self.parent.MonitoringGUI.dev_f)
+        self.parent.MonitoringGUI.place_device_specific_items()
+
         # start the thread that writes to HDF
         self.HDF_writer = HDF_writer(self.parent)
         self.HDF_writer.start()
@@ -1657,8 +1661,6 @@ class PlotsGUI(qt.QSplitter):
         box = qt.QSplitter()
         box.setOrientation(PyQt5.QtCore.Qt.Vertical)
         self.plots_f.addWidget(box, row, col)
-        self.plots_f.setColumnStretch(col, 1)
-        self.plots_f.setRowStretch(row, 1)
 
         # place the plot
         plot = Plotter(box, self.parent)

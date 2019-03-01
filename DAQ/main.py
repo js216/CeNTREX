@@ -1148,6 +1148,13 @@ class ControlGUI(qt.QWidget):
                 value   = self.parent.config["general"]["custom_device"],
             )
 
+    def get_dev_list(self):
+        dev_list = []
+        for dev_name, dev in self.parent.devices.items():
+            if dev.config["controls"]["enabled"]["value"]:
+                dev_list.append(dev_name)
+        return dev_list
+
     def queue_custom_command(self):
         # check the command is valid
         cmd = self.parent.config["general"]["custom_command"]
@@ -1750,7 +1757,7 @@ class Plotter(qt.QWidget):
         self.dev_cbx.activated[str].connect(lambda val: self.refresh_parameter_lists())
         update_QComboBox(
                 cbx     = self.dev_cbx,
-                options = [dev_name.strip() for dev_name in self.parent.devices],
+                options = self.parent.ControlGUI.get_dev_list(),
                 value   = self.config["device"]
             )
         self.f.addWidget(self.dev_cbx, 0, 0)
@@ -1880,13 +1887,20 @@ class Plotter(qt.QWidget):
         pb.clicked[bool].connect(lambda val: self.destroy())
 
     def refresh_parameter_lists(self, select_defaults=True):
+        # update the list of available devices
+        update_QComboBox(
+                cbx     = self.dev_cbx,
+                options = self.parent.ControlGUI.get_dev_list(),
+                value   = self.config["device"]
+            )
+
         # check device is valid, else select the first device on the list
         if self.config["device"] in self.parent.devices:
             self.dev = self.parent.devices[self.config["device"]]
         else:
             self.config["device"] = list(self.parent.devices.keys())[0]
-            self.dev_cbx.setCurrentText(self.config["device"])
             self.dev = self.parent.devices[self.config["device"]]
+        self.dev_cbx.setCurrentText(self.config["device"])
 
         # select latest run
         with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], 'r') as f:

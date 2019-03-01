@@ -7,6 +7,8 @@ monitoring_dt = 1.0
 custom_command = Enter command ...
 custom_device = Select device ...
 
+[run_attributes]
+
 [files]
 config_dir = C:/Users/Jakob Kastelic/Documents/temp/CENTREX Jakob/0 common/software/DAQ/config/rotational_cooling
 hdf_fname = C:/Users/Jakob Kastelic/Documents/temp/test.hdf
@@ -20,3 +22,4 @@ port = 8086
 username = bsmonitor
 password = molecules
 database = beamsource
+

@@ -25,7 +25,7 @@ from influxdb import InfluxDBClient
 ##########################################################################
 ##########################################################################
 
-def LabelFrame(label, type="grid", maxWidth=None):
+def LabelFrame(label, type="grid", maxWidth=None, fixed=False):
     # make a framed box
     box = qt.QGroupBox(label)
 
@@ -42,9 +42,12 @@ def LabelFrame(label, type="grid", maxWidth=None):
         layout = qt.QVBoxLayout()
     box.setLayout(layout)
 
+    if fixed:
+        layout.setSizeConstraint(qt.QLayout.SetFixedSize)
+
     return box, layout
 
-def ScrollableLabelFrame(label):
+def ScrollableLabelFrame(label, type="grid", fixed=False):
     # make the outer (framed) box
     outer_box = qt.QGroupBox(label)
     outer_layout = qt.QGridLayout()
@@ -52,7 +55,12 @@ def ScrollableLabelFrame(label):
 
     # make the inner grid
     inner_box = qt.QWidget()
-    inner_layout = qt.QGridLayout()
+    if type == "grid":
+        inner_layout = qt.QGridLayout()
+    elif type == "hbox":
+        inner_layout = qt.QHBoxLayout()
+    elif type == "vbox":
+        inner_layout = qt.QVBoxLayout()
     inner_layout.setContentsMargins(0,0,0,0)
     inner_box.setLayout(inner_layout)
 
@@ -64,6 +72,9 @@ def ScrollableLabelFrame(label):
 
     # add the scrollable area to the outer (framed) box
     outer_layout.addWidget(sa)
+
+    if fixed:
+        inner_layout.setSizeConstraint(qt.QLayout.SetFixedSize)
 
     return outer_box, inner_layout
 
@@ -244,16 +255,8 @@ class Monitoring(threading.Thread):
 
     def run(self):
         while self.active.is_set():
-            # check the amount of free disk space
-            pythoncom.CoInitialize()
-            c = wmi.WMI ()
-            for d in c.Win32_LogicalDisk():
-                if d.Caption == self.parent.config["files"]["hdf_fname"][0:2]:
-                    size_MB = float(d.Size) / 1024/1024
-                    free_MB = float(d.FreeSpace) / 1024/1024
-                    self.parent.MonitoringGUI.free_qpb.setMinimum(0)
-                    self.parent.MonitoringGUI.free_qpb.setMaximum(size_MB)
-                    self.parent.MonitoringGUI.free_qpb.setValue(size_MB - free_MB)
+            # check amount of remaining free disk space
+            self.parent.MonitoringGUI.check_free_disk_space()
 
             # monitor operation of individual devices
             for dev_name, dev in self.parent.devices.items():
@@ -1315,12 +1318,16 @@ class ControlGUI(qt.QWidget):
         self.parent.config['control_active'] = False
         self.status_label.setText("Recording finished")
 
-class MonitoringGUI(qt.QWidget):
+class MonitoringGUI(qt.QSplitter):
     def __init__(self, parent):
         super(qt.QWidget, self).__init__(parent)
         self.parent = parent
         self.place_GUI_elements()
         self.place_device_specific_items()
+
+        # QSplitter options
+        self.setSizes([1,10000])
+        self.setOrientation(PyQt5.QtCore.Qt.Vertical)
 
     def place_GUI_elements(self):
         # main frame for all MonitoringGUI elements
@@ -1332,7 +1339,7 @@ class MonitoringGUI(qt.QWidget):
         self.main_frame.addWidget(box)
 
         # general monitoring controls
-        box, gen_f = LabelFrame("General", maxWidth=200)
+        box, gen_f = LabelFrame("General", maxWidth=200, fixed=True)
         control_frame.addWidget(box)
         gen_f.addWidget(qt.QLabel("Loop delay [s]:"), 0, 0)
 
@@ -1351,7 +1358,7 @@ class MonitoringGUI(qt.QWidget):
         gen_f.addWidget(qcb, 1, 0)
 
         # InfluxDB controls
-        box, db_f = LabelFrame("InfluxDB", maxWidth=200)
+        box, db_f = LabelFrame("InfluxDB", maxWidth=200, fixed=True)
         control_frame.addWidget(box)
 
         db_f.addWidget(qt.QLabel("Host IP"), 0, 0)
@@ -1387,7 +1394,7 @@ class MonitoringGUI(qt.QWidget):
         db_f.addWidget(qle, 3, 1)
 
         # for displaying warnings
-        box, w_f = LabelFrame("Warnings")
+        box, w_f = LabelFrame("Warnings", fixed=True)
         control_frame.addWidget(box)
         self.warnings_label = qt.QLabel("(no warnings)")
         w_f.addWidget(self.warnings_label, 3, 0)
@@ -1396,11 +1403,23 @@ class MonitoringGUI(qt.QWidget):
         w_f.addWidget(qt.QLabel("Disk usage:"), 2, 0)
         self.free_qpb = qt.QProgressBar()
         w_f.addWidget(self.free_qpb, 2, 1)
+        self.check_free_disk_space()
 
         # frame for device data
-        box, self.dev_f = ScrollableLabelFrame("Devices")
-        self.dev_f.setSizeConstraint(qt.QLayout.SetFixedSize)
+        box, self.dev_f = ScrollableLabelFrame("Devices", fixed=True)
         self.main_frame.addWidget(box)
+
+    def check_free_disk_space(self):
+        pythoncom.CoInitialize()
+        c = wmi.WMI ()
+        for d in c.Win32_LogicalDisk():
+            if d.Caption == self.parent.config["files"]["hdf_fname"][0:2]:
+                size_MB = float(d.Size) / 1024/1024
+                free_MB = float(d.FreeSpace) / 1024/1024
+                self.free_qpb.setMinimum(0)
+                self.free_qpb.setMaximum(size_MB)
+                self.free_qpb.setValue(size_MB - free_MB)
+                self.parent.app.processEvents()
 
     def change_config(self, sect, config, val):
         self.parent.config[sect][config] = val
@@ -1798,8 +1817,7 @@ class Plotter(qt.QWidget):
 
     def place_GUI_elements(self):
         # scrollable area for controls
-        box, ctrls_f = ScrollableLabelFrame("")
-        ctrls_f.setSizeConstraint(qt.QLayout.SetFixedSize)
+        box, ctrls_f = ScrollableLabelFrame("", fixed=True)
         self.f.addWidget(box)
 
         # select device

@@ -274,7 +274,7 @@ class Monitoring(threading.Thread):
                     dev.warnings = []
 
                 # find out and display the data queue length
-                dev.monitoring_GUI_elements["qsize"].setText(str(len(dev.data_queue)))
+                dev.config["monitoring_GUI_elements"]["qsize"].setText(str(len(dev.data_queue)))
 
                 # get the last event (if any) of the device
                 self.display_last_event(dev)
@@ -284,7 +284,7 @@ class Monitoring(threading.Thread):
                 if not isinstance(data, type(None)):
                     # display the data in a tkinter variable
                     formatted_data = [np.format_float_scientific(x, precision=3) for x in data]
-                    dev.monitoring_GUI_elements["data"].setText("\n".join(formatted_data))
+                    dev.config["monitoring_GUI_elements"]["data"].setText("\n".join(formatted_data))
 
                     # write slow data to InfluxDB
                     self.write_to_influxdb(dev, data)
@@ -364,14 +364,14 @@ class Monitoring(threading.Thread):
                 grp = f[self.parent.run_name + "/" + dev.config["path"]]
                 events_dset = grp[dev.config["name"] + "_events"]
                 if events_dset.shape[0] == 0:
-                    dev.monitoring_GUI_elements["events"].setText("(no event)")
+                    dev.config["monitoring_GUI_elements"]["events"].setText("(no event)")
                 else:
-                    dev.monitoring_GUI_elements["events"].setText(str(events_dset[-1]))
+                    dev.config["monitoring_GUI_elements"]["events"].setText(str(events_dset[-1]))
 
         # if HDF writing not enabled for this device, get events from the events_queue
         else:
             try:
-                dev.monitoring_GUI_elements["events"].setText(str(dev.events_queue.pop()))
+                dev.config["monitoring_GUI_elements"]["events"].setText(str(dev.events_queue.pop()))
             except IndexError:
                 return
 
@@ -410,11 +410,11 @@ class HDF_writer(threading.Thread):
 
             for dev_name, dev in self.parent.devices.items():
                 # check device is enabled
-                if not dev.config["controls"]["enabled"]:
+                if not dev.config["controls"]["enabled"]["value"]:
                     continue
 
                 # check writing to HDF is enabled for this device
-                if not dev.config["controls"]["HDF_enabled"]:
+                if not dev.config["controls"]["HDF_enabled"]["value"]:
                     continue
 
                 grp = root.require_group(dev.config["path"])
@@ -1187,6 +1187,11 @@ class ControlGUI(qt.QWidget):
                 self.status_label.setText("Starting " + dev_name + " ...")
                 self.parent.app.processEvents()
 
+                # reinstantiate the thread (since Python only allows threads to
+                # be started once, this is necessary to allow stopping and restarting control)
+                self.parent.devices[dev_name] = Device(dev.config)
+                dev = self.parent.devices[dev_name]
+
                 # setup connection
                 dev.setup_connection(self.parent.config["time_offset"])
                 if not dev.operational:
@@ -1199,7 +1204,7 @@ class ControlGUI(qt.QWidget):
         self.HDF_writer = HDF_writer(self.parent)
         self.HDF_writer.start()
 
-        # start control for all devices
+        # start control for all devices;
         for dev_name, dev in self.parent.devices.items():
             if dev.config["controls"]["enabled"]["value"]:
                 dev.clear_queues()
@@ -1330,7 +1335,7 @@ class MonitoringGUI(qt.QWidget):
 
     def place_device_specific_items(self):
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
-            dev.monitoring_GUI_elements = {}
+            dev.config["monitoring_GUI_elements"] = {}
             df = LabelFrame(
                     self.dev_f, dev.config["label"],
                     row=dev.config["monitoring_row"],
@@ -1343,9 +1348,9 @@ class MonitoringGUI(qt.QWidget):
                     0, 0,
                     alignment = PyQt5.QtCore.Qt.AlignRight,
                 )
-            dev.monitoring_GUI_elements["qsize"] = qt.QLabel("N/A")
+            dev.config["monitoring_GUI_elements"]["qsize"] = qt.QLabel("N/A")
             df.addWidget(
-                    dev.monitoring_GUI_elements["qsize"],
+                    dev.config["monitoring_GUI_elements"]["qsize"],
                     0, 1,
                     alignment = PyQt5.QtCore.Qt.AlignLeft,
                 )
@@ -1356,9 +1361,9 @@ class MonitoringGUI(qt.QWidget):
                     1, 0,
                     alignment = PyQt5.QtCore.Qt.AlignRight,
                 )
-            dev.monitoring_GUI_elements["NaN_count"] = qt.QLabel("N/A")
+            dev.config["monitoring_GUI_elements"]["NaN_count"] = qt.QLabel("N/A")
             df.addWidget(
-                    dev.monitoring_GUI_elements["NaN_count"],
+                    dev.config["monitoring_GUI_elements"]["NaN_count"],
                     1, 1,
                     alignment = PyQt5.QtCore.Qt.AlignLeft,
                 )
@@ -1367,15 +1372,15 @@ class MonitoringGUI(qt.QWidget):
             dev.col_names_list = dev.config["attributes"]["column_names"].split(',')
             dev.col_names_list = [x.strip() for x in dev.col_names_list]
             dev.column_names = "\n".join(dev.col_names_list)
-            dev.monitoring_GUI_elements["col_names"] = qt.QLabel(
+            dev.config["monitoring_GUI_elements"]["col_names"] = qt.QLabel(
                     dev.column_names, alignment = PyQt5.QtCore.Qt.AlignRight
                 )
-            df.addWidget(dev.monitoring_GUI_elements["col_names"], 2, 0)
+            df.addWidget(dev.config["monitoring_GUI_elements"]["col_names"], 2, 0)
 
             # data
-            dev.monitoring_GUI_elements["data"] = qt.QLabel("(no data)")
+            dev.config["monitoring_GUI_elements"]["data"] = qt.QLabel("(no data)")
             df.addWidget(
-                    dev.monitoring_GUI_elements["data"],
+                    dev.config["monitoring_GUI_elements"]["data"],
                     2, 1,
                     alignment = PyQt5.QtCore.Qt.AlignLeft,
                 )
@@ -1384,8 +1389,8 @@ class MonitoringGUI(qt.QWidget):
             units = dev.config["attributes"]["units"].split(',')
             units = [x.strip() for x in units]
             dev.units = "\n".join(units)
-            dev.monitoring_GUI_elements["units"] = qt.QLabel(dev.units)
-            df.addWidget(dev.monitoring_GUI_elements["units"], 2, 2, alignment = PyQt5.QtCore.Qt.AlignLeft)
+            dev.config["monitoring_GUI_elements"]["units"] = qt.QLabel(dev.units)
+            df.addWidget(dev.config["monitoring_GUI_elements"]["units"], 2, 2, alignment = PyQt5.QtCore.Qt.AlignLeft)
 
             # latest event / command sent to device & its return value
             df.addWidget(
@@ -1393,9 +1398,9 @@ class MonitoringGUI(qt.QWidget):
                     3, 0,
                     alignment = PyQt5.QtCore.Qt.AlignRight,
                 )
-            dev.monitoring_GUI_elements["events"] = qt.QLabel("(no events)")
+            dev.config["monitoring_GUI_elements"]["events"] = qt.QLabel("(no events)")
             df.addWidget(
-                    dev.monitoring_GUI_elements["events"],
+                    dev.config["monitoring_GUI_elements"]["events"],
                     3, 1,
                     alignment = PyQt5.QtCore.Qt.AlignLeft,
                 )
@@ -1406,13 +1411,13 @@ class MonitoringGUI(qt.QWidget):
             dev.col_names_list = dev.config["attributes"]["column_names"].split(',')
             dev.col_names_list = [x.strip() for x in dev.col_names_list]
             dev.column_names = "\n".join(dev.col_names_list)
-            dev.monitoring_GUI_elements["col_names"].setText(dev.column_names)
+            dev.config["monitoring_GUI_elements"]["col_names"].setText(dev.column_names)
 
             # units
             units = dev.config["attributes"]["units"].split(',')
             units = [x.strip() for x in units]
             dev.units = "\n".join(units)
-            dev.monitoring_GUI_elements["units"].setText(dev.units)
+            dev.config["monitoring_GUI_elements"]["units"].setText(dev.units)
 
     def start_monitoring(self):
         self.monitoring = Monitoring(self.parent)
@@ -2154,7 +2159,10 @@ class Plotter(qt.QWidget):
         self.parent.PlotsGUI.all_plots[col][row] = None
 
         # remove the GUI elements related to the plot
-        self.parent.PlotsGUI.plots_f.itemAtPosition(row, col).widget().setParent(None)
+        try:
+            self.parent.PlotsGUI.plots_f.itemAtPosition(row, col).widget().setParent(None)
+        except AttributeError:
+            pass
 
     def toggle_HDF_or_queue(self, state):
         # toggle the config flag

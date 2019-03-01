@@ -25,8 +25,7 @@ from influxdb import InfluxDBClient
 ##########################################################################
 ##########################################################################
 
-def LabelFrame(frame, label, col=None, row=None, rowspan=1, colspan=1,
-        type="grid", maxWidth=None):
+def LabelFrame(label, type="grid", maxWidth=None):
     # make a framed box
     box = qt.QGroupBox(label)
 
@@ -43,13 +42,7 @@ def LabelFrame(frame, label, col=None, row=None, rowspan=1, colspan=1,
         layout = qt.QVBoxLayout()
     box.setLayout(layout)
 
-    # add the box to the parent container
-    if row or col:
-        frame.addWidget(box, row, col, rowspan, colspan)
-    else:
-        frame.addWidget(box)
-
-    return layout
+    return box, layout
 
 def ScrollableLabelFrame(frame, label, col=None, row=None, rowspan=1, colspan=1):
     # make the outer (framed) box
@@ -841,7 +834,8 @@ class ControlGUI(qt.QWidget):
         # files
         ########################################
 
-        files_frame = LabelFrame(self.main_frame, "Files")
+        box, files_frame = LabelFrame("Files")
+        self.main_frame.addWidget(box)
 
         # config dir
         files_frame.addWidget(qt.QLabel("Config dir:"), 0, 0)
@@ -917,7 +911,8 @@ class ControlGUI(qt.QWidget):
         # devices
         ########################################
 
-        cmd_frame = LabelFrame(self.main_frame, "Send a custom command")
+        box, cmd_frame = LabelFrame("Send a custom command")
+        self.main_frame.addWidget(box)
 
         # the control to send a custom command to a specified device
         cmd_frame.addWidget(qt.QLabel("Cmd:"), 0, 0)
@@ -956,12 +951,8 @@ class ControlGUI(qt.QWidget):
     def place_device_controls(self):
         for dev_name, dev in self.parent.devices.items():
             # frame for device controls
-            df = LabelFrame(
-                    self.devices_frame,
-                    dev.config["label"],
-                    dev.config["column"],
-                    dev.config["row"],
-                )
+            box, df = LabelFrame(dev.config["label"])
+            self.devices_frame.addWidget(box, dev.config["column"], dev.config["row"])
             df.setColumnStretch(1, 1)
             df.setColumnStretch(20, 0)
 
@@ -1309,10 +1300,12 @@ class MonitoringGUI(qt.QWidget):
         self.setLayout(self.main_frame)
 
         # monitoring controls frame
-        control_frame = LabelFrame(self.main_frame, "Controls", type="hbox")
+        box, control_frame = LabelFrame("Controls", type="hbox")
+        self.main_frame.addWidget(box)
 
         # general monitoring controls
-        gen_f = LabelFrame(control_frame, "General", maxWidth=200)
+        box, gen_f = LabelFrame("General", maxWidth=200)
+        control_frame.addWidget(box)
         gen_f.addWidget(qt.QLabel("Loop delay [s]:"), 0, 0)
 
         qle = qt.QLineEdit()
@@ -1330,7 +1323,8 @@ class MonitoringGUI(qt.QWidget):
         gen_f.addWidget(qcb, 1, 0)
 
         # InfluxDB controls
-        db_f = LabelFrame(control_frame, "InfluxDB", maxWidth=200)
+        box, db_f = LabelFrame("InfluxDB", maxWidth=200)
+        control_frame.addWidget(box)
 
         db_f.addWidget(qt.QLabel("Host IP"), 0, 0)
         qle = qt.QLineEdit()
@@ -1365,7 +1359,8 @@ class MonitoringGUI(qt.QWidget):
         db_f.addWidget(qle, 3, 1)
 
         # for displaying warnings
-        w_f = LabelFrame(control_frame, "Warnings")
+        box, w_f = LabelFrame("Warnings")
+        control_frame.addWidget(box)
         self.warnings_label = qt.QLabel("(no warnings)")
         w_f.addWidget(self.warnings_label, 3, 0)
 
@@ -1386,11 +1381,8 @@ class MonitoringGUI(qt.QWidget):
     def place_device_specific_items(self):
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
             dev.config["monitoring_GUI_elements"] = {}
-            df = LabelFrame(
-                    self.dev_f, dev.config["label"],
-                    row=dev.config["monitoring_row"],
-                    col=dev.config["monitoring_column"]
-                )
+            box, df = LabelFrame(dev.config["label"])
+            self.dev_f.addWidget(box, dev.config["monitoring_row"], dev.config["monitoring_column"])
 
             # length of the data queue
             df.addWidget(
@@ -1491,7 +1483,8 @@ class PlotsGUI(qt.QWidget):
         self.setLayout(self.main_frame)
 
         # controls for all plots
-        ctrls_f = LabelFrame(self.main_frame, "Controls")
+        box, ctrls_f = LabelFrame("Controls")
+        self.main_frame.addWidget(box)
         ctrls_f.setColumnStretch(1, 1)
 
         pb = qt.QPushButton("Start all")
@@ -1568,7 +1561,8 @@ class PlotsGUI(qt.QWidget):
         pb.clicked[bool].connect(lambda val, fname=qle.text(): self.load_plots(fname))
 
         # frame to place all the plots in
-        self.plots_f = LabelFrame(self.main_frame, "Plots")
+        box, self.plots_f = LabelFrame("Plots")
+        self.main_frame.addWidget(box)
 
         # prevent the above from being stretched across the whole screen
         self.main_frame.addStretch()
@@ -1589,7 +1583,7 @@ class PlotsGUI(qt.QWidget):
                 row = int(row)
             else:
                 row = 0
-                for row, plot in self.all_plots.setdefault(col, {0:None}).items():
+                for row_key, plot in self.all_plots.setdefault(col, {0:None}).items():
                     if plot:
                         row += 1
         except ValueError:
@@ -1597,10 +1591,11 @@ class PlotsGUI(qt.QWidget):
             return
 
         # frame for the plot
-        fr = LabelFrame(self.plots_f, "", row=row, col=col)
+        box, grid = LabelFrame("")
+        self.plots_f.addWidget(box, row, col)
 
         # place the plot
-        plot = Plotter(fr, self.parent)
+        plot = Plotter(grid, self.parent)
         plot.config["row"], plot.config["col"] = row, col
         self.all_plots.setdefault(col, {0:None}) # check the column is in the dict, else add it
         self.all_plots[col][row] = plot
@@ -2217,6 +2212,7 @@ class Plotter(qt.QWidget):
         self.start_pb.clicked[bool].connect(self.start_animation)
 
     def destroy(self):
+        self.stop_animation()
         # get the position of the plot
         row, col = self.config["row"], self.config["col"]
 
@@ -2226,8 +2222,8 @@ class Plotter(qt.QWidget):
         # remove the GUI elements related to the plot
         try:
             self.parent.PlotsGUI.plots_f.itemAtPosition(row, col).widget().setParent(None)
-        except AttributeError:
-            pass
+        except AttributeError as err:
+            logging.warning("Plot warning: cannot remove plot: " + str(err))
 
     def toggle_HDF_or_queue(self, state):
         # toggle the config flag

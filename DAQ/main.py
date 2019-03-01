@@ -1405,11 +1405,11 @@ class PlotsGUI(qt.QWidget):
         ctrls_f.addWidget(pb, 0, 2)
 
         # for setting refresh rate of all plots
-        qle = qt.QLineEdit()
-        qle.setText("plot refresh rate")
-        qle.setToolTip("Delay between updating all plots, i.e. smaller dt means faster plot refresh rate.")
-        qle.textChanged[str].connect(self.set_all_dt)
-        ctrls_f.addWidget(qle, 0, 3)
+        self.dt_qle = qt.QLineEdit()
+        self.dt_qle.setText("plot refresh rate")
+        self.dt_qle.setToolTip("Delay between updating all plots, i.e. smaller dt means faster plot refresh rate.")
+        self.dt_qle.textChanged[str].connect(self.set_all_dt)
+        ctrls_f.addWidget(self.dt_qle, 0, 3)
 
         #for setting x limits of all plots
 
@@ -1599,7 +1599,7 @@ class PlotsGUI(qt.QWidget):
                     plot_configs[col][row] = plot.config
 
         # save this info as a pickled dictionary
-        with open(self.parent.config["files"]["plotting_config_fname"].get(), "wb") as f:
+        with open(self.parent.config["files"]["plotting_config_fname"], "wb") as f:
             pickle.dump(plot_configs, f)
 
     def load_plots(self, dt):
@@ -1607,17 +1607,27 @@ class PlotsGUI(qt.QWidget):
         self.destroy_all_plots()
 
         # read pickled plot config
-        with open(self.parent.config["files"]["plotting_config_fname"].get(), "rb") as f:
+        with open(self.parent.config["files"]["plotting_config_fname"], "rb") as f:
             plot_configs = pickle.load(f)
 
         # re-create all plots
         for col, col_plots in plot_configs.items():
             for row, config in col_plots.items():
+                # add a plot
                 plot = self.add_plot(row, col)
-                plot.config = config
-                plot.start_animation()
 
-        self.refresh_all_run_lists()
+                # restore configuration
+                plot.config = config
+
+                # set the GUI elements to the restored values
+                plot.x0_qle.setText(config["x0"])
+                plot.x1_qle.setText(config["x1"])
+                plot.y0_qle.setText(config["y0"])
+                plot.y1_qle.setText(config["y1"])
+                plot.dt_qle.setText(str(config["dt"]))
+                plot.fn_qle.setText(config["f(y)"])
+                plot.avg_qle.setText(str(config["n_average"]))
+                plot.refresh_parameter_lists(select_defaults=False)
 
 class Plotter(qt.QWidget):
     def __init__(self, frame, parent):
@@ -1640,13 +1650,13 @@ class Plotter(qt.QWidget):
                 "f(y)"              : "2*y",
                 "device"            : "Select device ...",
                 "run"               : "Select run ...",
-                "x"                 : "Select x value ...",
-                "y"                 : "Select y value ...",
-                "z"                 : "Select z value ...",
-                "x0"                : "Select x0 value ...",
-                "x1"                : "Select x1 value ...",
-                "y0"                : "Select y0 value ...",
-                "y1"                : "Select y1 value ...",
+                "x"                 : "Select x ...",
+                "y"                 : "Select y ...",
+                "z"                 : "divide by?",
+                "x0"                : "x0",
+                "x1"                : "x1",
+                "y0"                : "y0",
+                "y1"                : "y1",
                 "dt"                : float(self.parent.config["general"]["default_plot_dt"]),
             }
 
@@ -1656,6 +1666,7 @@ class Plotter(qt.QWidget):
         # select device
         self.dev_cbx = qt.QComboBox()
         self.dev_cbx.activated[str].connect(lambda val: self.change_config("device", val))
+        self.dev_cbx.activated[str].connect(lambda val: self.refresh_parameter_lists())
         update_QComboBox(
                 cbx     = self.dev_cbx,
                 options = [dev_name.strip() for dev_name in self.parent.devices],
@@ -1700,30 +1711,30 @@ class Plotter(qt.QWidget):
         self.x0_qle = qt.QLineEdit()
         self.x0_qle.setMaximumWidth(50)
         self.f.addWidget(self.x0_qle, 1, 3)
-        self.x0_qle.setText("x0")
+        self.x0_qle.setText(self.config["x0"])
         self.x0_qle.setToolTip("x0 = index of first point to plot")
         self.x0_qle.textChanged[str].connect(lambda val: self.change_config("x0", val))
 
         self.x1_qle = qt.QLineEdit()
         self.x1_qle.setMaximumWidth(50)
         self.f.addWidget(self.x1_qle, 1, 4)
-        self.x1_qle.setText("x1")
+        self.x1_qle.setText(self.config["x1"])
         self.x1_qle.setToolTip("x1 = index of last point to plot")
         self.x1_qle.textChanged[str].connect(lambda val: self.change_config("x1", val))
 
-        qle = qt.QLineEdit()
-        qle.setMaximumWidth(50)
-        self.f.addWidget(qle, 1, 5)
-        qle.setText("y0")
-        qle.setToolTip("y0 = lower y limit")
-        qle.textChanged[str].connect(lambda val: self.change_config("y0", val))
+        self.y0_qle = qt.QLineEdit()
+        self.y0_qle.setMaximumWidth(50)
+        self.f.addWidget(self.y0_qle, 1, 5)
+        self.y0_qle.setText(self.config["y0"])
+        self.y0_qle.setToolTip("y0 = lower y limit")
+        self.y0_qle.textChanged[str].connect(lambda val: self.change_config("y0", val))
 
-        qle = qt.QLineEdit()
-        qle.setMaximumWidth(50)
-        self.f.addWidget(qle, 1, 6)
-        qle.setText("y1")
-        qle.setToolTip("y1 = upper y limit")
-        qle.textChanged[str].connect(lambda val: self.change_config("y1", val))
+        self.y1_qle = qt.QLineEdit()
+        self.y1_qle.setMaximumWidth(50)
+        self.f.addWidget(self.y1_qle, 1, 6)
+        self.y1_qle.setText(self.config["y1"])
+        self.y1_qle.setToolTip("y1 = upper y limit")
+        self.y1_qle.textChanged[str].connect(lambda val: self.change_config("y1", val))
 
         # plot refresh rate
         self.dt_qle = qt.QLineEdit()
@@ -1758,11 +1769,11 @@ class Plotter(qt.QWidget):
         self.f.addWidget(pb, 0, 6)
 
         # for displaying a function of the data
-        qle = qt.QLineEdit()
-        qle.setText(self.config["f(y)"])
-        qle.setToolTip("Apply the specified function before plotting the data.")
-        qle.textChanged[str].connect(lambda val: self.change_config("f(y)", val))
-        self.f.addWidget(qle, 0, 2)
+        self.fn_qle = qt.QLineEdit()
+        self.fn_qle.setText(self.config["f(y)"])
+        self.fn_qle.setToolTip("Apply the specified function before plotting the data.")
+        self.fn_qle.textChanged[str].connect(lambda val: self.change_config("f(y)", val))
+        self.f.addWidget(self.fn_qle, 0, 2)
         pb = qt.QPushButton("f(y)")
         pb.setToolTip("Apply the specified function before plotting the data.")
         pb.setMaximumWidth(50)
@@ -1770,12 +1781,12 @@ class Plotter(qt.QWidget):
         self.f.addWidget(pb, 0, 7)
 
         # for averaging last n curves
-        self.dt_qle = qt.QLineEdit()
-        self.dt_qle.setMaximumWidth(50)
-        self.dt_qle.setToolTip("Enter the number of traces to average. Default = 1, i.e. no averaging.")
-        self.dt_qle.setText("avg?")
-        self.dt_qle.textChanged[str].connect(lambda val: self.change_config("n_average", val, typ=int))
-        self.f.addWidget(self.dt_qle, 1, 8)
+        self.avg_qle = qt.QLineEdit()
+        self.avg_qle.setMaximumWidth(50)
+        self.avg_qle.setToolTip("Enter the number of traces to average. Default = 1, i.e. no averaging.")
+        self.avg_qle.setText("avg?")
+        self.avg_qle.textChanged[str].connect(lambda val: self.change_config("n_average", val, typ=int))
+        self.f.addWidget(self.avg_qle, 1, 8)
 
         # button to delete plot
         pb = qt.QPushButton("\u274c")
@@ -1784,7 +1795,7 @@ class Plotter(qt.QWidget):
         self.f.addWidget(pb, 0, 8)
         pb.clicked[bool].connect(lambda val: self.destroy())
 
-    def refresh_parameter_lists(self):
+    def refresh_parameter_lists(self, select_defaults=True):
         # check device is valid, else select the first device on the list
         if self.config["device"] in self.parent.devices:
             self.dev = self.parent.devices[self.config["device"]]
@@ -1805,11 +1816,12 @@ class Plotter(qt.QWidget):
             return
 
         # select x, y, and z
-        self.config["x"] = self.param_list[0]
-        if len(self.param_list) > 1:
-            self.config["y"] = self.param_list[1]
-        else:
-            self.config["y"] = self.param_list[0]
+        if select_defaults:
+            self.config["x"] = self.param_list[0]
+            if len(self.param_list) > 1:
+                self.config["y"] = self.param_list[1]
+            else:
+                self.config["y"] = self.param_list[0]
 
         # update x, y, and z QComboBoxes
         update_QComboBox(
@@ -1825,7 +1837,7 @@ class Plotter(qt.QWidget):
         update_QComboBox(
                 cbx     = self.z_cbx,
                 options = ["divide by?"] + self.param_list,
-                value   = "divide by?"
+                value   = self.config["z"]
             )
 
     def clear_fn(self):
@@ -2014,8 +2026,14 @@ class Plotter(qt.QWidget):
         self.config["active"] = False
 
     def destroy(self):
-        self.parent.PlotsGUI.plots_f.itemAtPosition(self.config["row"],
-                self.config["col"]).widget().setParent(None)
+        # get the position of the plot
+        row, col = self.config["row"], self.config["col"]
+
+        # remove the plot from the all_plots dict
+        self.parent.PlotsGUI.all_plots[col][row] = None
+
+        # remove the GUI elements related to the plot
+        self.parent.PlotsGUI.plots_f.itemAtPosition(row, col).widget().setParent(None)
 
     def toggle_log_lin(self):
         if not self.config["log"]:

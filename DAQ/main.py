@@ -850,6 +850,12 @@ class ControlGUI(qt.QWidget):
         self.style_pb.clicked[bool].connect(self.toggle_style)
         control_frame.addWidget(self.style_pb, 1, 2)
 
+        # button to refresh the list of COM ports
+        pb = qt.QPushButton("Refresh COM ports")
+        pb.setToolTip("Click this to populate all the COM port dropdown menus.")
+        pb.clicked[bool].connect(self.refresh_COM_ports)
+        control_frame.addWidget(pb, 2, 0)
+
         ########################################
         # files
         ########################################
@@ -908,12 +914,6 @@ class ControlGUI(qt.QWidget):
         pb.setToolTip("Give the HDF file a new name based on current time.")
         pb.clicked[bool].connect(self.rename_HDF)
         files_frame.addWidget(pb, 3, 2)
-
-        # button to refresh the list of COM ports
-        pb = qt.QPushButton("Refresh COM ports")
-        pb.setToolTip("Click this to populate all the COM port dropdown menus.")
-        pb.clicked[bool].connect(self.refresh_COM_ports)
-        files_frame.addWidget(pb, 1, 3)
 
         # button to edit run attributes
         pb = qt.QPushButton("Attrs...")
@@ -1653,6 +1653,8 @@ class PlotsGUI(qt.QSplitter):
         box = qt.QSplitter()
         box.setOrientation(PyQt5.QtCore.Qt.Vertical)
         self.plots_f.addWidget(box, row, col)
+        self.plots_f.setColumnStretch(col, 1)
+        self.plots_f.setRowStretch(row, 1)
 
         # place the plot
         plot = Plotter(box, self.parent)

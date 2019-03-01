@@ -32,7 +32,11 @@ class SynthHDPro:
     
     def __exit__(self, *exc):
         if self.instr:
-            self.instr.close()
+            # close object
+            try:
+                self.instr.close()
+            except pyvisa.errors.VisaIOError as err:
+                logging.warning("SynthHDPro warning in __exit__(): " + str(err))
 
     def ReadValue(self):
         return [
@@ -46,9 +50,8 @@ class SynthHDPro:
     def DeviceTemp(self):
         try:
             return float(self.instr.query('z')[:-1])
-        except ValueError as err:
-            logging.warning("SynthHDPro warning in DeviceTemp(): " + str(err))
-        except pyvisa.errors.VisaIOError as err:
+        except (pyvisa.errors.VisaIOError, ValueError) as err:
+            return np.nan
             logging.warning("SynthHDPro warning in DeviceTemp(): " + str(err))
 
     def SetReference(self, param):

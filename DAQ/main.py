@@ -1314,7 +1314,7 @@ class MonitoringGUI(qt.QWidget):
                 )
             dev.monitoring_GUI_elements["NaN_count"] = qt.QLabel("N/A")
             df.addWidget(
-                    dev.monitoring_GUI_elements["qsize"],
+                    dev.monitoring_GUI_elements["NaN_count"],
                     1, 1,
                     alignment = PyQt5.QtCore.Qt.AlignLeft,
                 )

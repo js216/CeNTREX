@@ -402,7 +402,12 @@ class HDF_writer(threading.Thread):
         # create/open HDF file, groups, and datasets
         with h5py.File(self.filename, 'a') as f:
             root = f.create_group(self.parent.run_name)
+
+            # write run attributes
             root.attrs["time_offset"] = self.parent.config["time_offset"]
+            for key, val in self.parent.config["run_attributes"].items():
+                root.attrs[key] = val
+
             for dev_name, dev in self.parent.devices.items():
                 # check device is enabled
                 if not dev.config["controls"]["enabled"]:
@@ -538,6 +543,111 @@ class HDF_writer(threading.Thread):
 #######                                                 ##################
 ##########################################################################
 ##########################################################################
+
+class AttrEditor(QtGui.QDialog):
+    def __init__(self, parent, dev=None):
+        super().__init__()
+        self.dev = dev
+        self.parent = parent
+
+        # layout for GUI elements
+        self.frame = qt.QGridLayout()
+        self.setLayout(self.frame)
+
+        # draw the table
+        if self.dev:
+            num_rows = len(self.dev.config["attributes"])
+        else:
+            num_rows = len(self.parent.config["run_attributes"])
+        self.qtw = qt.QTableWidget(num_rows, 2)
+        self.frame.addWidget(self.qtw, 0, 0, 1, 2)
+
+        # put the attributes into the table
+        if self.dev:
+            attrs = self.dev.config["attributes"].items()
+        else:
+            attrs = self.parent.config["run_attributes"].items()
+        for row, (key, val) in enumerate(attrs):
+            self.qtw.setItem(row, 0, qt.QTableWidgetItem( key ))
+            self.qtw.setItem(row, 1, qt.QTableWidgetItem( val ))
+
+        # button to read attrs from file
+        pb = qt.QPushButton("Reload attributes from config file")
+        pb.clicked[bool].connect(self.reload_attrs_from_file)
+        self.frame.addWidget(pb, 1, 0, 1, 2)
+
+        # buttons to add/remove rows
+        pb = qt.QPushButton("Add one row")
+        pb.clicked[bool].connect(self.add_row)
+        self.frame.addWidget(pb, 2, 0)
+
+        pb = qt.QPushButton("Delete last row")
+        pb.clicked[bool].connect(self.delete_last_row)
+        self.frame.addWidget(pb, 2, 1)
+
+        # buttons to accept or reject the edits
+        pb = qt.QPushButton("Accept")
+        pb.clicked[bool].connect(lambda state : self.check_attributes())
+        self.accepted.connect(self.change_attrs)
+        self.frame.addWidget(pb, 3, 0)
+
+        pb = qt.QPushButton("Reject")
+        pb.clicked[bool].connect(lambda state : self.reject())
+        self.frame.addWidget(pb, 3, 1)
+
+    def reload_attrs_from_file(self, state):
+        # reload attributes
+        params = configparser.ConfigParser()
+        if self.dev:
+            params.read(self.dev.config["config_fname"])
+            new_attrs = params["attributes"]
+        else:
+            params.read("config/settings.ini")
+            new_attrs = params["run_attributes"]
+
+        # rewrite the table contents
+        self.qtw.clear()
+        self.qtw.setRowCount(len(new_attrs))
+        for row, (key, val) in enumerate(new_attrs.items()):
+            self.qtw.setItem(row, 0, qt.QTableWidgetItem( key ))
+            self.qtw.setItem(row, 1, qt.QTableWidgetItem( val ))
+
+    def add_row(self, arg):
+        self.qtw.insertRow(self.qtw.rowCount())
+
+    def delete_last_row(self, arg):
+        self.qtw.removeRow(self.qtw.rowCount()-1)
+
+    def check_attributes(self):
+        for row in range(self.qtw.rowCount()):
+            if not self.qtw.item(row, 0):
+                logging.warning("Attr warning: key not given.")
+                error_box("Attr warning", "Key not given.")
+                return
+            if not self.qtw.item(row, 1):
+                logging.warning("Attr warning: value not given.")
+                error_box("Attr warning", "Value not given.")
+                return
+        self.accept()
+
+    def change_attrs(self):
+        if self.dev: # if changing device attributes
+            # write the new attributes to the config dict
+            self.dev.config["attributes"] = {}
+            for row in range(self.qtw.rowCount()):
+                    key = self.qtw.item(row, 0).text()
+                    val = self.qtw.item(row, 1).text()
+                    self.dev.config["attributes"][key] = val
+
+            # update the column names and units in MonitoringGUI
+            self.parent.MonitoringGUI.update_col_names_and_units()
+
+        else: # if changing run attributes
+            self.parent.config["run_attributes"] = {}
+            for row in range(self.qtw.rowCount()):
+                    key = self.qtw.item(row, 0).text()
+                    val = self.qtw.item(row, 1).text()
+                    self.parent.config["run_attributes"][key] = val
 
 class ControlGUI(qt.QWidget):
     def __init__(self, parent):
@@ -759,7 +869,19 @@ class ControlGUI(qt.QWidget):
         self.style_pb = qt.QPushButton("Dark")
         self.style_pb.setToolTip("Change style to dark mode.")
         self.style_pb.clicked[bool].connect(self.toggle_style)
-        files_frame.addWidget(self.style_pb, 4, 2)
+        files_frame.addWidget(self.style_pb, 0, 3)
+
+        # button to refresh the list of COM ports
+        pb = qt.QPushButton("Refresh COM ports")
+        pb.setToolTip("Click this to populate all the COM port dropdown menus.")
+        pb.clicked[bool].connect(self.refresh_COM_ports)
+        files_frame.addWidget(pb, 1, 3)
+
+        # button to edit run attributes
+        pb = qt.QPushButton("Attrs")
+        pb.setToolTip("Display or edit device attributes that are written with the data to the HDF file.")
+        pb.clicked[bool].connect(self.edit_run_attrs)
+        files_frame.addWidget(pb, 4, 2)
 
         ########################################
         # devices
@@ -792,14 +914,14 @@ class ControlGUI(qt.QWidget):
         pb.clicked[bool].connect(self.queue_custom_command)
         cmd_frame.addWidget(pb, 0, 3)
 
-        # button to refresh the list of COM ports
-        pb = qt.QPushButton("Refresh COM ports")
-        pb.setToolTip("Click this to populate all the COM port dropdown menus.")
-        pb.clicked[bool].connect(self.refresh_COM_ports)
-        cmd_frame.addWidget(pb, 0, 4)
-
         # frame for device-specific controls
         self.devices_frame = ScrollableLabelFrame(self.main_frame, "Devices")
+
+    def edit_run_attrs(self, dev):
+        # open the AttrEditor dialog window
+        w = AttrEditor(self.parent)
+        w.setWindowTitle("Run attributes")
+        w.exec_()
 
     def place_device_controls(self):
         for dev_name, dev in self.parent.devices.items():
@@ -1034,102 +1156,19 @@ class ControlGUI(qt.QWidget):
             # check device has a COM_port control
             if not dev.config["controls"].get("COM_port"):
                 continue
+            else:
+                cbx = dev.config["controls"]["COM_port"]["QComboBox"]
 
             # update the QComboBox of COM_port options
             update_QComboBox(
-                    cbx     = dev.config["controls"]["COM_port"]["QComboBox"],
+                    cbx     = cbx,
                     options = pyvisa.ResourceManager().list_resources(),
                     value   = cbx.currentText()
                 )
 
-    class AttrEditor(QtGui.QDialog):
-        def __init__(self, parent, dev):
-            super().__init__()
-            self.dev = dev
-            self.parent = parent
-
-            # layout for GUI elements
-            self.frame = qt.QGridLayout()
-            self.setLayout(self.frame)
-
-            # draw the table
-            self.qtw = qt.QTableWidget(len(self.dev.config["attributes"]),2)
-            self.frame.addWidget(self.qtw, 0, 0, 1, 2)
-
-            # put the attributes into the table
-            for row, (key, val) in enumerate(self.dev.config["attributes"].items()):
-                self.qtw.setItem(row, 0, qt.QTableWidgetItem( key ))
-                self.qtw.setItem(row, 1, qt.QTableWidgetItem( val ))
-
-            # button to read attrs from file
-            pb = qt.QPushButton("Reload attributes from config file")
-            pb.clicked[bool].connect(self.reload_attrs_from_file)
-            self.frame.addWidget(pb, 1, 0, 1, 2)
-
-            # buttons to add/remove rows
-            pb = qt.QPushButton("Add one row")
-            pb.clicked[bool].connect(self.add_row)
-            self.frame.addWidget(pb, 2, 0)
-
-            pb = qt.QPushButton("Delete last row")
-            pb.clicked[bool].connect(self.delete_last_row)
-            self.frame.addWidget(pb, 2, 1)
-
-            # buttons to accept or reject the edits
-            pb = qt.QPushButton("Accept")
-            pb.clicked[bool].connect(lambda state : self.check_attributes())
-            self.accepted.connect(self.change_dev_attrs)
-            self.frame.addWidget(pb, 3, 0)
-
-            pb = qt.QPushButton("Reject")
-            pb.clicked[bool].connect(lambda state : self.reject())
-            self.frame.addWidget(pb, 3, 1)
-
-        def reload_attrs_from_file(self, state):
-            # reload attributes
-            params = configparser.ConfigParser()
-            params.read(self.dev.config["config_fname"])
-            self.dev.config["attributes"] = params["attributes"]
-
-            # rewrite the table contents
-            self.qtw.clear()
-            self.qtw.setRowCount(len(self.dev.config["attributes"]))
-            for row, (key, val) in enumerate(self.dev.config["attributes"].items()):
-                self.qtw.setItem(row, 0, qt.QTableWidgetItem( key ))
-                self.qtw.setItem(row, 1, qt.QTableWidgetItem( val ))
-
-        def add_row(self, arg):
-            self.qtw.insertRow(self.qtw.rowCount())
-
-        def delete_last_row(self, arg):
-            self.qtw.removeRow(self.qtw.rowCount()-1)
-
-        def check_attributes(self):
-            for row in range(self.qtw.rowCount()):
-                if not self.qtw.item(row, 0):
-                    logging.warning("Attr warning: key not given.")
-                    error_box("Attr warning", "Key not given.")
-                    return
-                if not self.qtw.item(row, 1):
-                    logging.warning("Attr warning: value not given.")
-                    error_box("Attr warning", "Value not given.")
-                    return
-            self.accept()
-
-        def change_dev_attrs(self):
-            # write the new attributes to the config dict
-            self.dev.config["attributes"] = {}
-            for row in range(self.qtw.rowCount()):
-                    key = self.qtw.item(row, 0).text()
-                    val = self.qtw.item(row, 1).text()
-                    self.dev.config["attributes"][key] = val
-
-            # update the column names and units in MonitoringGUI
-            self.parent.parent.MonitoringGUI.update_col_names_and_units()
-
     def edit_attrs(self, dev):
         # open the AttrEditor dialog window
-        w = self.AttrEditor(self, dev)
+        w = AttrEditor(self.parent, dev)
         w.setWindowTitle("Attributes for " + dev.config["name"])
         w.exec_()
 

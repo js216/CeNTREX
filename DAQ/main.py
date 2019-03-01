@@ -9,6 +9,7 @@ import threading
 import qdarkstyle
 import numpy as np
 import configparser
+import datetime as dt
 import wmi, pythoncom
 import pyqtgraph as pg
 import PyQt5.QtGui as QtGui
@@ -47,11 +48,17 @@ def LabelFrame(label, type="grid", maxWidth=None, fixed=False):
 
     return box, layout
 
-def ScrollableLabelFrame(label, type="grid", fixed=False):
+def ScrollableLabelFrame(label, type="grid", fixed=False, minWidth=None, minHeight=None):
     # make the outer (framed) box
     outer_box = qt.QGroupBox(label)
     outer_layout = qt.QGridLayout()
     outer_box.setLayout(outer_layout)
+
+    # box size
+    if minHeight:
+        outer_box.setMinimumHeight(minHeight)
+    if minWidth:
+        outer_box.setMinimumWidth(minWidth)
 
     # make the inner grid
     inner_box = qt.QWidget()
@@ -837,6 +844,12 @@ class ControlGUI(qt.QWidget):
         self.plots_pb.clicked[bool].connect(self.toggle_plots)
         control_frame.addWidget(self.plots_pb, 1, 1)
 
+        # for dark/light stylesheets
+        self.style_pb = qt.QPushButton("Dark")
+        self.style_pb.setToolTip("Change style to dark mode.")
+        self.style_pb.clicked[bool].connect(self.toggle_style)
+        control_frame.addWidget(self.style_pb, 1, 2)
+
         ########################################
         # files
         ########################################
@@ -896,12 +909,6 @@ class ControlGUI(qt.QWidget):
         pb.clicked[bool].connect(self.rename_HDF)
         files_frame.addWidget(pb, 3, 2)
 
-        # for dark/light stylesheets
-        self.style_pb = qt.QPushButton("Dark")
-        self.style_pb.setToolTip("Change style to dark mode.")
-        self.style_pb.clicked[bool].connect(self.toggle_style)
-        files_frame.addWidget(self.style_pb, 0, 3)
-
         # button to refresh the list of COM ports
         pb = qt.QPushButton("Refresh COM ports")
         pb.setToolTip("Click this to populate all the COM port dropdown menus.")
@@ -958,6 +965,7 @@ class ControlGUI(qt.QWidget):
         else:
             self.parent.config["monitoring_visible"] = False
             self.parent.MonitoringGUI.hide()
+            #self.parent.setGeometry(640, 300, 471, 634)
             self.monitoring_pb.setText("Show monitoring")
 
     def toggle_plots(self, val):
@@ -1124,6 +1132,11 @@ class ControlGUI(qt.QWidget):
             self.style_pb.setToolTip("Change style to dark mode.")
 
     def rename_HDF(self, state):
+        # check we're not running already
+        if self.parent.config['control_active']:
+            logging.warning("Warning: Cannot rename HDF while control is running.")
+            return
+
         # get old file path
         old_fname = self.parent.config["files"]["hdf_fname"]
 
@@ -1131,7 +1144,7 @@ class ControlGUI(qt.QWidget):
         path = "/".join( old_fname.split('/')[0:-1] )
 
         # add the new filename
-        path += "/" + str( int(time.time()) ) + ".hdf"
+        path += "/" + dt.datetime.strftime(dt.datetime.now(), "%Y_%m_%d") + ".hdf"
 
         # set the hdf_fname to the new path
         self.parent.config["files"]["hdf_fname"] = path
@@ -1335,7 +1348,7 @@ class MonitoringGUI(qt.QSplitter):
         self.setLayout(self.main_frame)
 
         # monitoring controls frame
-        box, control_frame = LabelFrame("Controls", type="hbox")
+        box, control_frame = ScrollableLabelFrame("Controls", type="hbox", minHeight=200)
         self.main_frame.addWidget(box)
 
         # general monitoring controls
@@ -1406,7 +1419,7 @@ class MonitoringGUI(qt.QSplitter):
         self.check_free_disk_space()
 
         # frame for device data
-        box, self.dev_f = ScrollableLabelFrame("Devices", fixed=True)
+        box, self.dev_f = ScrollableLabelFrame("Devices", fixed=True, minWidth=200)
         self.main_frame.addWidget(box)
 
     def check_free_disk_space(self):
@@ -2134,9 +2147,11 @@ class Plotter(qt.QWidget):
         else:
             data = self.get_raw_data_from_queue()
 
-        if data:
+        try:
             x, y = data[0], data[1]
-        else:
+            if len(x) < 1 or len(y) < 1:
+                raise ValueError
+        except (ValueError, TypeError):
             logging.warning("Plot error: no data.")
             return None
 
@@ -2322,6 +2337,7 @@ class CentrexGUI(qt.QMainWindow):
         super().__init__()
         self.app = app
         self.setWindowTitle('CENTREX DAQ')
+        #self.setWindowFlags(PyQt5.QtCore.Qt.Window | PyQt5.QtCore.Qt.FramelessWindowHint)
 
         # read program configuration
         self.config = {

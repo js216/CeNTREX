@@ -1483,13 +1483,21 @@ class PlotsGUI(qt.QWidget):
         self.add_plot()
 
     def add_plot(self, row=None, col=None):
-        # find location for the plot if not given to the function
+        # find column for the plot if not given to the function
         try:
             col = int(col)
         except (ValueError, TypeError):
             col = 0
+
+        # find row for the plot if not given to the function
         try:
-            row = int(row) if row else max([ r for r in self.all_plots.setdefault(col, {0:None}) ]) + 2
+            if row:
+                row = int(row)
+            else:
+                row = 0
+                for row, plot in self.all_plots.setdefault(col, {0:None}).items():
+                    if plot:
+                        row += 1
         except ValueError:
             logging.error("Row name not valid.")
             return
@@ -1779,16 +1787,18 @@ class Plotter(qt.QWidget):
         self.f.addWidget(pb, 0, 6)
 
         # for displaying a function of the data
+
         self.fn_qle = qt.QLineEdit()
         self.fn_qle.setText(self.config["f(y)"])
         self.fn_qle.setToolTip("Apply the specified function before plotting the data.")
         self.fn_qle.textChanged[str].connect(lambda val: self.change_config("f(y)", val))
         self.f.addWidget(self.fn_qle, 0, 2)
-        pb = qt.QPushButton("f(y)")
-        pb.setToolTip("Apply the specified function before plotting the data.")
-        pb.setMaximumWidth(50)
-        pb.clicked[bool].connect(self.toggle_fn)
-        self.f.addWidget(pb, 0, 7)
+
+        self.fn_pb = qt.QPushButton("f(y)")
+        self.fn_pb.setToolTip("Apply the specified function before plotting the data. Double click to clear the old calculations for fast data.")
+        self.fn_pb.setMaximumWidth(50)
+        self.fn_pb.clicked[bool].connect(self.toggle_fn)
+        self.f.addWidget(self.fn_pb, 0, 7)
 
         # for averaging last n curves
         self.avg_qle = qt.QLineEdit()
@@ -1948,9 +1958,7 @@ class Plotter(qt.QWidget):
     def get_raw_data_from_queue(self):
         # for slow data: copy the queue contents into a np array
         if self.dev.config["slow_data"]:
-            dset = np.empty((len(self.dev.plots_queue), *self.dev.config["shape"]))
-            for i in range(len(self.dev.plots_queue)):
-                dset[i] = self.dev.plots_queue[i]
+            dset = np.array(self.dev.plots_queue)
             x = dset[:, self.param_list.index(self.config["x"])]
             y = dset[:, self.param_list.index(self.config["y"])]
 
@@ -2142,9 +2150,13 @@ class Plotter(qt.QWidget):
     def toggle_fn(self):
         if not self.config["fn"]:
             self.config["fn"] = True
+            self.fn_pb.setText("Raw")
+            self.fn_pb.setToolTip("Display raw data and/or clear the old calculations for fast data.")
         else:
             self.config["fn"] = False
             self.fast_y = []
+            self.fn_pb.setText("f(y)")
+            self.fn_pb.setToolTip("Apply the specified function before plotting the data. Double click to clear the old calculations for fast data.")
 
 class CentrexGUI(qt.QTabWidget):
     def __init__(self, app):

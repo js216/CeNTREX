@@ -1183,7 +1183,7 @@ class ControlGUI(qt.QWidget):
                             qle = qt.QLineEdit()
                             qle.setText(c["value"][ctrl])
                             qle.textChanged[str].connect(
-                                    lambda val, dev=dev, config=c_name:
+                                    lambda val, dev=dev, config=c_name, ctrl=ctrl:
                                         self.change_dev_config(dev, "controls", val, config, sub_ctrl=ctrl)
                                 )
                             ctrl_frame.addWidget(qle)
@@ -1191,7 +1191,7 @@ class ControlGUI(qt.QWidget):
                         elif c["ctrl_types"][ctrl] == "QComboBox":
                             cbx = qt.QComboBox()
                             cbx.activated[str].connect(
-                                    lambda val, dev=dev, config=c_name:
+                                    lambda val, dev=dev, config=c_name, ctrl=ctrl:
                                         self.change_dev_config(dev, "controls", val, config, sub_ctrl=ctrl)
                                 )
                             update_QComboBox(
@@ -2154,7 +2154,7 @@ class Plotter(qt.QWidget):
         if self.dev.config["slow_data"]:
             self.param_list = split(self.dev.config["attributes"]["column_names"])
         else:
-            self.param_list = ["none"] + split(self.dev.config["attributes"]["column_names"])
+            self.param_list = split(self.dev.config["attributes"]["column_names"])
         if not self.param_list:
             logging.warning("Plot error: No parameters to plot.")
             return

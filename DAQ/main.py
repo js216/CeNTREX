@@ -325,7 +325,10 @@ class Monitoring(threading.Thread):
                         "fields": fields,
                         }
                     ]
-            self.influxdb_client.write_points(json_body, time_precision='ms')
+            try:
+                self.influxdb_client.write_points(json_body, time_precision='ms')
+            except Exception as err:
+                logging.warning("InfluxDB error: " + str(err))
 
     def get_last_row_of_data(self, dev):
         # check device enabled

@@ -696,6 +696,11 @@ class Plotter(tk.Frame):
         else:
             self.ax.set_xlabel("sample number")
         self.ax.set_ylabel(yparam + " [" + yunit.strip() + "]")
+        self.ax.set_ylabel(yparam + " [" + yunit.strip() + "]")
+        try:
+            self.ax.set_title("last value = " + '%.2f'%y[-1] + " " + yunit.strip())
+        except IndexError:
+            pass
 
         # plot layout
         self.fig.set_tight_layout(True)
@@ -777,7 +782,10 @@ class Plotter(tk.Frame):
             else:
                 if self.parent.devices[self.dev_var.get()].config["single_dataset"]:
                     self.ax.set_xlabel(xparam + " [" + xunit.strip() + "]")
-                    self.ax.set_title("")
+                    try:
+                        self.ax.set_title("last value = " + '%.2f'%y[-1] + " " + yunit.strip())
+                    except IndexError:
+                        self.ax.set_title("")
                 else:
                     self.ax.set_xlabel("sample number")
                     self.ax.set_title("record #"+str(self.record_number.get()))

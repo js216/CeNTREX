@@ -1182,6 +1182,7 @@ class ControlGUI(qt.QWidget):
                         if c["ctrl_types"][ctrl] == "QLineEdit":
                             qle = qt.QLineEdit()
                             qle.setText(c["value"][ctrl])
+                            qle.setToolTip(c["ctrl_labels"][ctrl])
                             qle.textChanged[str].connect(
                                     lambda val, dev=dev, config=c_name, ctrl=ctrl:
                                         self.change_dev_config(dev, "controls", val, config, sub_ctrl=ctrl)
@@ -1190,6 +1191,7 @@ class ControlGUI(qt.QWidget):
 
                         elif c["ctrl_types"][ctrl] == "QComboBox":
                             cbx = qt.QComboBox()
+                            cbx.setToolTip(c["ctrl_labels"][ctrl])
                             cbx.activated[str].connect(
                                     lambda val, dev=dev, config=c_name, ctrl=ctrl:
                                         self.change_dev_config(dev, "controls", val, config, sub_ctrl=ctrl)
@@ -1218,11 +1220,13 @@ class ControlGUI(qt.QWidget):
                         for j, col in enumerate(c["col_names"]):
                             if c["col_types"][col] == "QLabel":
                                 ql = qt.QLabel()
+                                ql.setToolTip(c["col_labels"][col])
                                 ql.setText(c["value"][col][i])
                                 ctrl_frame.addWidget(ql, i, j)
 
                             elif c["col_types"][col] == "QLineEdit":
                                 qle = qt.QLineEdit()
+                                qle.setToolTip(c["col_labels"][col])
                                 qle.setText(c["value"][col][i])
                                 qle.textChanged[str].connect(
                                         lambda val, dev=dev, config=c_name, col=col, row=row:
@@ -1233,6 +1237,7 @@ class ControlGUI(qt.QWidget):
 
                             elif c["col_types"][col] == "QCheckBox":
                                 qch = qt.QCheckBox()
+                                qch.setToolTip(c["col_labels"][col])
                                 qch.setCheckState(int(c["value"][col][i]))
                                 qch.setTristate(False)
                                 qch.stateChanged[int].connect(
@@ -1244,6 +1249,7 @@ class ControlGUI(qt.QWidget):
 
                             elif c["col_types"][col] == "QComboBox":
                                 cbx = qt.QComboBox()
+                                cbx.setToolTip(c["col_labels"][col])
                                 cbx.activated[str].connect(
                                         lambda val, dev=dev, config=c_name, col=col, row=row:
                                             self.change_dev_config(dev, "controls",

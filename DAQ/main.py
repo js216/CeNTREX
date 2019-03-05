@@ -114,6 +114,9 @@ def clear_layout(layout):
     for i in reversed(range(layout.count())):
         layout.itemAt(i).widget().setParent(None)
 
+def split(string, separator=","):
+    return [x.strip() for x in string.split(separator)]
+
 ##########################################################################
 ##########################################################################
 #######                                                 ##################
@@ -726,7 +729,7 @@ class ControlGUI(qt.QWidget):
             try:
                 dev_config["controls"] = self.read_device_controls(params)
             except (IndexError, ValueError, TypeError, KeyError) as err:
-                logging.error("Cannot read device config file" + f + " : " + str(err))
+                logging.error("Cannot read device config file " + f + " : " + str(err))
                 return
 
             # make a Device object
@@ -746,7 +749,7 @@ class ControlGUI(qt.QWidget):
                     "column"             : int(params["device"]["column"]),
                     "columnspan"         : int(params["device"]["columnspan"]),
                     "monitoring_column"  : int(params["device"]["monitoring_column"]),
-                    "constr_params"      : [x.strip() for x in params["device"]["constr_params"].split(",")],
+                    "constr_params"      : split(params["device"]["constr_params"]),
                     "attributes"         : params["attributes"],
                 }
 
@@ -799,8 +802,61 @@ class ControlGUI(qt.QWidget):
                             "row"        : int(params[c]["row"]),
                             "col"        : int(params[c]["col"]),
                             "command"    : params[c]["command"],
-                            "options"    : [x.strip() for x in params[c]["options"].split(",")],
+                            "options"    : split(params[c]["options"]),
                             "value"      : params[c]["value"],
+                        }
+
+                elif params[c].get("type") == "ControlsRow":
+                    ctrls[c] = {
+                            "label"        : params[c]["label"],
+                            "type"         : params[c]["type"],
+                            "row"          : int(params[c]["row"]),
+                            "col"          : int(params[c]["col"]),
+                            "ctrl_names"   : split(params[c]["ctrl_names"]),
+                            "ctrl_labels"  : dict(zip(
+                                                    split(params[c]["ctrl_names"]),
+                                                    split(params[c]["ctrl_labels"])
+                                                )),
+                            "ctrl_types"   : dict(zip(
+                                                    split(params[c]["ctrl_names"]),
+                                                    split(params[c]["ctrl_types"])
+                                                )),
+                            "ctrl_options" : dict(zip(
+                                                    split(params[c]["ctrl_names"]),
+                                                    [split(x) for x in params[c]["ctrl_options"].split(";")]
+                                                )),
+                            "value"        : dict(zip(
+                                                    split(params[c]["ctrl_names"]),
+                                                    split(params[c]["ctrl_values"])
+                                                )),
+                        }
+
+                elif params[c].get("type") == "ControlsTable":
+                    ctrls[c] = {
+                            "label"        : params[c]["label"],
+                            "type"         : params[c]["type"],
+                            "row"          : int(params[c]["row"]),
+                            "col"          : int(params[c]["col"]),
+                            "rowspan"      : int(params[c].get("rowspan")),
+                            "colspan"      : int(params[c].get("colspan")),
+                            "row_ids"      : split(params[c]["row_ids"]),
+                            "col_names"    : split(params[c]["col_names"]),
+                            "col_labels"   : dict(zip(
+                                                    split(params[c]["col_names"]),
+                                                    split(params[c]["col_labels"])
+                                                )),
+                            "col_types"    : dict(zip(
+                                                    split(params[c]["col_names"]),
+                                                    split(params[c]["col_types"])
+                                                )),
+                            "col_options"  : dict(zip(
+                                                    split(params[c]["col_names"]),
+                                                    [split(x) for x in params[c]["col_options"].split(";")]
+                                                )),
+                            "value"        : dict(zip(
+                                                    split(params[c]["col_names"]),
+                                                    [split(x) for x in params[c]["col_values"].split(";")]
+                                                )),
                         }
 
                 elif params[c].get("type"):
@@ -1025,8 +1081,8 @@ class ControlGUI(qt.QWidget):
 
                     # commands for the QCheckBox
                     c["QCheckBox"].stateChanged[int].connect(
-                            lambda state, dev=dev, config=c_name:
-                                self.change_dev_control(dev, config, state)
+                            lambda state, dev=dev, ctrl=c_name:
+                                self.change_dev_config(dev, "controls", state, ctrl, sub_ctrl=None)
                         )
 
                 # place QPushButtons
@@ -1065,8 +1121,8 @@ class ControlGUI(qt.QWidget):
                     c["QLineEdit"] = qt.QLineEdit()
                     c["QLineEdit"].setText(c["value"])
                     c["QLineEdit"].textChanged[str].connect(
-                            lambda text, dev=dev, config=c_name:
-                                self.change_dev_control(dev, config, text)
+                            lambda text, dev=dev, ctrl=c_name:
+                                self.change_dev_config(dev, "controls", text, ctrl, sub_ctrl=None)
                         )
                     df.addWidget(c["QLineEdit"], c["row"], c["col"])
 
@@ -1107,7 +1163,7 @@ class ControlGUI(qt.QWidget):
                     # commands for the QComboBox
                     c["QComboBox"].activated[str].connect(
                             lambda text, dev=dev, config=c_name:
-                                self.change_dev_control(dev, config, text)
+                                self.change_dev_config(dev, "controls", text, ctrl, sub_ctrl=None)
                         )
                     if c.get("command"):
                         c["QComboBox"].activated[str].connect(
@@ -1115,14 +1171,106 @@ class ControlGUI(qt.QWidget):
                                     self.queue_command(dev, cmd+"('"+qcb.currentText()+"')")
                             )
 
+                # place ControlsRows
+                elif c["type"] == "ControlsRow":
+                    # the frame for the row of controls
+                    box, ctrl_frame = LabelFrame(c["label"], type="hbox")
+                    df.addWidget(box, c["row"], c["col"])
+
+                    # the individual controls that compose a ControlsRow
+                    for ctrl in c["ctrl_names"]:
+                        if c["ctrl_types"][ctrl] == "QLineEdit":
+                            qle = qt.QLineEdit()
+                            qle.setText(c["value"][ctrl])
+                            qle.textChanged[str].connect(
+                                    lambda val, dev=dev, config=c_name:
+                                        self.change_dev_config(dev, "controls", val, config, sub_ctrl=ctrl)
+                                )
+                            ctrl_frame.addWidget(qle)
+
+                        elif c["ctrl_types"][ctrl] == "QComboBox":
+                            cbx = qt.QComboBox()
+                            cbx.activated[str].connect(
+                                    lambda val, dev=dev, config=c_name:
+                                        self.change_dev_config(dev, "controls", val, config, sub_ctrl=ctrl)
+                                )
+                            update_QComboBox(
+                                    cbx     = cbx,
+                                    options = c["ctrl_options"][ctrl],
+                                    value   = c["value"][ctrl],
+                                )
+                            ctrl_frame.addWidget(cbx)
+
+                        else:
+                            logging.warning("ControlsRow error: sub-control type not supported: " + c["ctrl_types"][ctrl])
+
+
+                # place ControlsTables
+                elif c["type"] == "ControlsTable":
+                    # the frame for the row of controls
+                    box, ctrl_frame = LabelFrame(c["label"], type="grid")
+                    if c.get("rowspan") and c.get("colspan"):
+                        df.addWidget(box, c["row"], c["col"], c["rowspan"], c["colspan"])
+                    else:
+                        df.addWidget(box, c["row"], c["col"])
+
+                    for i, row in enumerate(c["row_ids"]):
+                        for j, col in enumerate(c["col_names"]):
+                            if c["col_types"][col] == "QLabel":
+                                ql = qt.QLabel()
+                                ql.setText(c["value"][col][i])
+                                ctrl_frame.addWidget(ql, i, j)
+
+                            elif c["col_types"][col] == "QLineEdit":
+                                qle = qt.QLineEdit()
+                                qle.setText(c["value"][col][i])
+                                qle.textChanged[str].connect(
+                                        lambda val, dev=dev, config=c_name, col=col, row=row:
+                                            self.change_dev_config(dev, "controls",
+                                                val, config, sub_ctrl=col, row=row)
+                                    )
+                                ctrl_frame.addWidget(qle, i, j)
+
+                            elif c["col_types"][col] == "QCheckBox":
+                                qch = qt.QCheckBox()
+                                qch.setCheckState(int(c["value"][col][i]))
+                                qch.setTristate(False)
+                                qch.stateChanged[int].connect(
+                                        lambda val, dev=dev, config=c_name, col=col, row=row:
+                                            self.change_dev_config(dev, "controls",
+                                                val, config, sub_ctrl=col, row=row)
+                                    )
+                                ctrl_frame.addWidget(qch, i, j)
+
+                            elif c["col_types"][col] == "QComboBox":
+                                cbx = qt.QComboBox()
+                                cbx.activated[str].connect(
+                                        lambda val, dev=dev, config=c_name, col=col, row=row:
+                                            self.change_dev_config(dev, "controls",
+                                                val, config, sub_ctrl=col, row=row)
+                                    )
+                                update_QComboBox(
+                                        cbx     = cbx,
+                                        options = c["col_options"][col],
+                                        value   = c["value"][col][i],
+                                    )
+                                ctrl_frame.addWidget(cbx, i, j)
+
+                            else:
+                                logging.warning("ControlsRow error: sub-control type not supported: " + c["col_types"][col])
+
     def change_config(self, sect, config, val):
         self.parent.config[sect][config] = val
 
-    def change_dev_config(self, dev, config, val):
-        dev.config[config] = val
-
-    def change_dev_control(self, dev, config, val):
-        dev.config["controls"][config]["value"] = val
+    def change_dev_config(self, dev, config, val, ctrl=None, sub_ctrl=None, row=None):
+        if row: # used in ControlsTables
+            dev.config[config][ctrl]["value"][sub_ctrl][i] = val
+        elif sub_ctrl: # used in ControlsRows
+            dev.config[config][ctrl]["value"][sub_ctrl] = val
+        elif ctrl:
+            dev.config[config][ctrl]["value"] = val
+        else:
+            dev.config[config] = val
 
     def toggle_style(self, state):
         if self.style_pb.text() == "Dark":
@@ -1484,8 +1632,7 @@ class MonitoringGUI(qt.QSplitter):
                 )
 
             # column names
-            dev.col_names_list = dev.config["attributes"]["column_names"].split(',')
-            dev.col_names_list = [x.strip() for x in dev.col_names_list]
+            dev.col_names_list = split(dev.config["attributes"]["column_names"])
             dev.column_names = "\n".join(dev.col_names_list)
             dev.config["monitoring_GUI_elements"]["col_names"] = qt.QLabel(
                     dev.column_names, alignment = PyQt5.QtCore.Qt.AlignRight
@@ -1501,8 +1648,7 @@ class MonitoringGUI(qt.QSplitter):
                 )
 
             # units
-            units = dev.config["attributes"]["units"].split(',')
-            units = [x.strip() for x in units]
+            units = split(dev.config["attributes"]["units"])
             dev.units = "\n".join(units)
             dev.config["monitoring_GUI_elements"]["units"] = qt.QLabel(dev.units)
             df.addWidget(dev.config["monitoring_GUI_elements"]["units"], 2, 2, alignment = PyQt5.QtCore.Qt.AlignLeft)
@@ -1523,14 +1669,12 @@ class MonitoringGUI(qt.QSplitter):
     def update_col_names_and_units(self):
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
             # column names
-            dev.col_names_list = dev.config["attributes"]["column_names"].split(',')
-            dev.col_names_list = [x.strip() for x in dev.col_names_list]
+            dev.col_names_list = split(dev.config["attributes"]["column_names"])
             dev.column_names = "\n".join(dev.col_names_list)
             dev.config["monitoring_GUI_elements"]["col_names"].setText(dev.column_names)
 
             # units
-            units = dev.config["attributes"]["units"].split(',')
-            units = [x.strip() for x in units]
+            units = split(dev.config["attributes"]["units"])
             dev.units = "\n".join(units)
             dev.config["monitoring_GUI_elements"]["units"].setText(dev.units)
 
@@ -1861,6 +2005,7 @@ class Plotter(qt.QWidget):
 
         # select run
         self.run_cbx = qt.QComboBox()
+        self.run_cbx.setMaximumWidth(100)
         self.run_cbx.activated[str].connect(lambda val: self.change_config("run", val))
         update_QComboBox(
                 cbx     = self.run_cbx,
@@ -1992,9 +2137,12 @@ class Plotter(qt.QWidget):
         # check device is valid, else select the first device on the list
         if self.config["device"] in self.parent.devices:
             self.dev = self.parent.devices[self.config["device"]]
-        else:
+        elif len(self.parent.devices) != 0:
             self.config["device"] = list(self.parent.devices.keys())[0]
             self.dev = self.parent.devices[self.config["device"]]
+        else:
+            logging.warning("Plot error: No devices in self.parent.devices.")
+            return
         self.dev_cbx.setCurrentText(self.config["device"])
 
         # select latest run
@@ -2003,7 +2151,10 @@ class Plotter(qt.QWidget):
             self.run_cbx.setCurrentText(self.config["run"])
 
         # get parameters
-        self.param_list = [x.strip() for x in self.dev.config["attributes"]["column_names"].split(',')]
+        if self.dev.config["slow_data"]:
+            self.param_list = split(self.dev.config["attributes"]["column_names"])
+        else:
+            self.param_list = ["none"] + split(self.dev.config["attributes"]["column_names"])
         if not self.param_list:
             logging.warning("Plot error: No parameters to plot.")
             return
@@ -2105,16 +2256,20 @@ class Plotter(qt.QWidget):
             if not self.dev.config["slow_data"]:
                 # find the latest record
                 rec_num = len(grp) - 1
-                self.record_number.set(rec_num)
 
                 # get the latest curve
-                dset = grp[self.dev.config["name"] + "_" + str(rec_num)]
+                try:
+                    dset = grp[self.dev.config["name"] + "_" + str(rec_num)]
+                except KeyError as err:
+                    logging.warning("Plot error: not found in HDF: " + str(err))
+                    return None
+
                 x = np.arange(dset.shape[0])
                 y = dset[:, self.param_list.index(self.config["y"])]
 
                 # divide y by z (if applicable)
                 if self.config["z"] in self.param_list:
-                    y /= dset[:, self.param_list.index(self.config["z"])]
+                    y = y / dset[:, self.param_list.index(self.config["z"])]
 
                 # average last n curves (if applicable)
                 for i in range(self.config["n_average"] - 1):
@@ -2124,7 +2279,7 @@ class Plotter(qt.QWidget):
                                 / dset[:, self.param_list.index(self.config["z"])]
                     else:
                         y += dset[:, self.param_list.index(self.config["y"])]
-                y /= self.config["n_average"]
+                y = y / self.config["n_average"]
 
         return x, y
 
@@ -2139,13 +2294,16 @@ class Plotter(qt.QWidget):
 
         # for fast data: return only the latest value
         if not self.dev.config["slow_data"]:
-            dset = self.dev.config["plots_queue"].popleft()
-            x = np.arange(dset.shape[0])
-            y = dset[:, self.param_list.index(self.config["y"])]
+            try:
+                dset = self.dev.config["plots_queue"][0]
+            except IndexError:
+                return None
+            x = np.arange(dset[0].shape[2])
+            y = dset[0][0, self.param_list.index(self.config["y"])]
 
         # divide y by z (if applicable)
         if self.config["z"] in self.param_list:
-            y /= dset[:, self.param_list.index(self.config["z"])]
+            y = y / dset[0][0, self.param_list.index(self.config["z"])]
 
         return x, y
 
@@ -2163,7 +2321,6 @@ class Plotter(qt.QWidget):
             if len(x) < 5: # require at least five datapoints
                 raise ValueError
         except (ValueError, TypeError):
-            logging.warning("Plot error: not enough data.")
             return None
 
         # select indices for subsetting
@@ -2180,7 +2337,8 @@ class Plotter(qt.QWidget):
 
         # verify data shape
         if not x.shape == y.shape:
-            logging.warning("Plot error: data shapes not matching.")
+            logging.warning("Plot error: data shapes not matching: " +
+                    str(x.shape) + " != " + str(y.shape))
             return None
 
         # if not applying f(y), return the data ...
@@ -2221,7 +2379,6 @@ class Plotter(qt.QWidget):
         # get data
         data = self.get_data()
         if not data:
-            logging.warning("Plot warning: no data returned.")
             return
 
         # plot data

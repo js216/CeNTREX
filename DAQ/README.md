@@ -103,13 +103,22 @@ copied verbatim into the HDF file, and displayed in the `MonitoringGUI`. Any
 following config file sections specify the controls to be displayed in
 `ControlGUI`.
 
-Four types of controls are supported: `Checkbutton`, `Entry`, `OptionMenu`, and
-`Button`. All controls require a label (for `Button`s, it gets placed on the
-button, for other controls, the label will appear to the left of the control),
-the control type, and the `row`/`col` where they are to appear in the list of
-controls for a given device. Some controls require other options (e.g.,
-`Button`s need the device driver function that is called when the button is
-pressed); see configuration files in `config/devices` for examples.
+Several types of controls are supported: `QCheckBox`, `QLineEdit`, `QComboBox`,
+and `QPushButton`. All controls require a label (for `QPushButton`s, it gets
+placed on the button, for other controls, the label will appear to the left of
+the control), the control type, and the `row`/`col` where they are to appear in
+the list of controls for a given device. Some controls require other options
+(e.g., `QPushButton`s need the device driver function that is called when the
+button is pressed); see configuration files in `config/*` for examples.
+
+There are two special kinds of controls, `ControlsRow` and `ControlsTable`,
+which combine any number of the simple controls into a row or table of them,
+respectively. When the information from these is passed to the device driver,
+`ControlsRow` gives a key/value dictionary (key is the individual control name,
+value is the current value of the control). In the corresponding dict for a
+`ControlsTable`, the key is also the control name, but the value is a list, one
+value for each row of the table. See `config/readout/PXIe5171.in` for a usage
+example.
 
 The information in these files is passed as a dictionary (named `config`) to the
 constructor of `Device` objects. The dictionary itself is created when the

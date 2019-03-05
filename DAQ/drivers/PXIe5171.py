@@ -19,26 +19,31 @@ class PXIe5171:
 
         # set record parameters
         try:
-            self.session.max_input_frequency = 1e6 * float(record["bandwidth_MHz"].get())
+            self.session.max_input_frequency = 1e6 * float(record["bandwidth_MHz"])
         except (niscope.errors.DriverError, ValueError):
+            logging.warning("Warning in PXIe5171: invalid max_input_frequency selected: " + str(err))
             self.session.max_input_frequency = 100e6
         try:
-            samplingRate_kSs = float(sample["sample_rate"].get())
+            samplingRate_kSs = float(sample["sample_rate"])
         except ValueError:
+            logging.warning("Warning in PXIe5171: invalid sample rate selected: " + str(err))
             samplingRate_kSs = 20.0
         if samplingRate_kSs > 250e3:
             samplingRate_kSs = 20.0
         try:
-            self.num_samples        = int(float(record["record_length"].get()))
+            self.num_samples        = int(float(record["record_length"]))
         except ValueError:
+            logging.warning("Warning in PXIe5171: invalid record_length selected: " + str(err))
             self.num_samples        = 2000
         try:
-            self.session.binary_sample_width = int(sample["sample_width"].get())
+            self.session.binary_sample_width = int(sample["sample_width"])
         except (niscope.errors.DriverError, ValueError):
+            logging.warning("Warning in PXIe5171: invalid binary_sample_width selected: " + str(err))
             self.session.binary_sample_width = 16
         try:
-            self.num_records = int(float(record["nr_records"].get()))
+            self.num_records = int(float(record["nr_records"]))
         except ValueError:
+            logging.warning("Warning in PXIe5171: invalid nr_records selected: " + str(err))
             self.num_records = 1
         self.session.allow_more_records_than_memory = True
         self.session.configure_horizontal_timing(
@@ -50,36 +55,39 @@ class PXIe5171:
             )
 
         # set trigger configuration
-        if trigger["trigger_type"].get() == "Edge":
+        if trigger["trigger_type"] == "Edge":
             self.session.trigger_type = niscope.TriggerType.EDGE
-        if trigger["trigger_type"].get() == "Immediate":
+        if trigger["trigger_type"] == "Immediate":
             self.session.trigger_type = niscope.TriggerType.IMMEDIATE
-        self.session.trigger_source = edge["trigger_src"].get()
-        if edge["trigger_slope"].get() == "Falling":
+        self.session.trigger_source = edge["trigger_src"]
+        if edge["trigger_slope"] == "Falling":
             self.session.trigger_slope = niscope.TriggerSlope.NEGATIVE
-        elif edge["trigger_slope"].get() == "Rising":
+        elif edge["trigger_slope"] == "Rising":
             self.session.trigger_slope = niscope.TriggerSlope.POSITIVE
         try:
-            self.session.trigger_level = float(edge["trigger_level"].get())
-        except (niscope.errors.DriverError, ValueError):
+            self.session.trigger_level = float(edge["trigger_level"])
+        except (niscope.errors.DriverError, ValueError) as err:
+            logging.warning("Warning in PXIe5171: invalid trigger level selected: " + str(err))
             self.session.trigger_level = 0.0
         try:
-            self.session.trigger_delay_time    = float(trigger["trigger_delay"].get())
+            self.session.trigger_delay_time    = float(trigger["trigger_delay"])
         except (niscope.errors.DriverError, ValueError):
+            logging.warning("Warning in PXIe5171: invalid trigger delay selected: " + str(err))
             self.session.trigger_delay_time    = 0.0
 
         # set channel configuration
         self.active_channels = []
         for ch in [0, 1, 2, 3, 4, 5, 6, 7]:
-            if bool(int(channels[0][ch].get())):
+            if bool(int(channels["enable"][ch])):
                 self.active_channels.append(ch)
                 try:
-                    range_V = float(channels[2][ch].get()[0:-2])
-                except ValueError:
+                    range_V = float(channels["range"][ch][0:-2])
+                except ValueError as err:
+                    logging.warning("Warning in PXIe5171: invalid range selected: " + str(err))
                     range_V = 5.0
-                if channels[3][ch].get() == "AC":
+                if channels["coupling"][ch] == "AC":
                     coupling_setting = niscope.VerticalCoupling.AC
-                elif channels[3][ch].get() == "DC":
+                elif channels["coupling"][ch] == "DC":
                     coupling_setting = niscope.VerticalCoupling.DC
                 else:
                     coupling_setting = niscope.VerticalCoupling.GND

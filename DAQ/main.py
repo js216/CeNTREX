@@ -231,7 +231,7 @@ class Device(threading.Thread):
                 # keep track of the number of NaN returns
                 if isinstance(last_data, float):
                     if np.isnan(last_data):
-                        self.nan_count.set(self.nan_count + 1)
+                        self.nan_count += 1
                 elif len(last_data) > 0:
                     self.data_queue.append(last_data)
                     self.config["plots_queue"].append(last_data)
@@ -1955,6 +1955,9 @@ class PlotsGUI(qt.QSplitter):
                 plot.avg_qle.setText(str(config["n_average"]))
                 plot.refresh_parameter_lists(select_defaults=False)
 
+    def change_config(self, sect, config, val):
+        self.parent.config[sect][config] = val
+
 class Plotter(qt.QWidget):
     def __init__(self, frame, parent):
         super(qt.QWidget, self).__init__()
@@ -1974,7 +1977,7 @@ class Plotter(qt.QWidget):
                 "animation_running" : False,
                 "from_HDF"          : False,
                 "n_average"         : 1,
-                "f(y)"              : "2*y",
+                "f(y)"              : "np.min(y)",
                 "device"            : "Select device ...",
                 "run"               : "Select run ...",
                 "x"                 : "Select x ...",
@@ -2195,13 +2198,10 @@ class Plotter(qt.QWidget):
         self.x, self.y = [], []
 
     def change_config(self, config, val, typ=str):
-        if typ == str:
-            self.config[config] = val
-        else:
-            try:
-                self.config[config] = typ(val)
-            except (TypeError,ValueError) as err:
-                logging.warning("Plot error: Invalid parameter: " + str(err))
+        try:
+            self.config[config] = typ(val)
+        except (TypeError,ValueError) as err:
+            logging.warning("Plot error: Invalid parameter: " + str(err))
 
     def parameters_good(self):
         # check device is valid
@@ -2243,7 +2243,7 @@ class Plotter(qt.QWidget):
             logging.warning("Plot error: y not valid.")
             return False
 
-        # return 
+        # return
         return True
 
     def get_raw_data_from_HDF(self):
@@ -2367,13 +2367,16 @@ class Plotter(qt.QWidget):
         if not self.dev.config["slow_data"]:
             try:
                 y_fn = eval(self.config["f(y)"])
-                if not isinstance(y_fn, float):
-                    raise TypeError("isinstance(y_fn, float) == False")
+                # test the result is a scalar
+                try:
+                    float(y_fn)
+                except Exception as err:
+                    raise TypeError(str(err))
             except Exception as err:
                 logging.warning(str(err))
                 return x[x0:x1], y[x0:x1]
             else:
-                self.fast_y.append()
+                self.fast_y.append(y_fn)
                 return np.arange(len(self.fast_y)), np.array(self.fast_y)
 
     def replot(self):

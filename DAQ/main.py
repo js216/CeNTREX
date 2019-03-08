@@ -2279,13 +2279,18 @@ class Plotter(qt.QWidget):
 
                 # average last n curves (if applicable)
                 for i in range(self.config["n_average"] - 1):
-                    dset = grp[self.dev.config["name"] + "_" + str(rec_num-i)]
+                    try:
+                        dset = grp[self.dev.config["name"] + "_" + str(rec_num-i)]
+                    except KeyError as err:
+                        logging.warning("Plot averaging error: " + str(err))
+                        break
                     if self.config["z"] in self.param_list:
                         y += dset[:, self.param_list.index(self.config["y"])] \
                                 / dset[:, self.param_list.index(self.config["z"])]
                     else:
                         y += dset[:, self.param_list.index(self.config["y"])]
-                y = y / self.config["n_average"]
+                if self.config["n_average"] > 0:
+                    y = y / self.config["n_average"]
 
         return x, y
 
@@ -2469,14 +2474,12 @@ class Plotter(qt.QWidget):
             logging.warning("Plot warning: cannot remove plot: " + str(err))
 
     def toggle_HDF_or_queue(self, state):
-        # toggle the config flag
-        self.change_config("from_HDF", self.config["from_HDF"]==False)
-
-        # change the button appearance
         if self.config["from_HDF"]:
+            self.config["from_HDF"] = False
             self.HDF_pb.setText("Queue")
             self.HDF_pb.setToolTip("Force reading the data from the Queue instead of the HDF file.")
         else:
+            self.config["from_HDF"] = True
             self.HDF_pb.setText("HDF")
             self.HDF_pb.setToolTip("Force reading the data from HDF instead of the queue.")
 

@@ -1,31 +1,28 @@
-import pyvisa
+import telnetlib
 import time
 import numpy as np
 import logging
 
+class Bristol671Error(Exception):
+    pass
+
 class Bristol671A:
-    def __init__(self, time_offset, resource_name):
+    def __init__(self, time_offset, telnet_address, telnet_port):
         self.time_offset = time_offset
-        self.rm = pyvisa.ResourceManager()
         try:
-            self.instr = self.rm.open_resource(resource_name)
-        except pyvisa.errors.VisaIOError:
+            self.instr = telnetlib.Telnet(resource_name, resource_port)
+        except Exception as e:
             self.verification_string = "False"
             self.instr = False
             return
-        self.instr.parity = pyvisa.constants.Parity.none
-        self.instr.data_bits = 8
-        self.instr.baud_rate = 9600
-        self.instr.stop_bits = pyvisa.constants.StopBits.one
-        self.instr.term_char = '\r\n'
-        self.instr.read_termination = '\r\n'
-        self.instr.timeout = 5000
 
         # make the verification string
         try:
            self.verification_string = self.ReadIDN()
-        except pyvisa.errors.VisaIOError:
+        except Bristol671Error:
            self.verification_string = "False"
+
+        self.timeout = 2
 
         # HDF attributes generated when constructor is run
         self.new_attributes = []
@@ -106,19 +103,43 @@ class Bristol671A:
                ]
 
     #######################################################
+    # Write/Query Commands
+    #######################################################
+    
+    def write(self, msg):
+        if msg[-2:] != "\r\n":
+            msg+="\r\n"
+        self.instr.write(msg.encode())
+        if self.instr.read_until(b'\r\n', self.timeout).decode("ASCII").strip('\r\n') ==\
+           'invalid command'
+           raise Bristol671Error('{0}'.format(msg.encode()))
+
+    def query(self, msg):
+        if msg[-2:] != "\r\n":
+            msg+="\r\n"
+        self.instr.write(msg.encode())
+        reply = self.instr.read_until(b'\r\n', self.timeout).decode("ASCII").strip('\r\n')
+        if reply == 'invalid command':
+           raise Bristol671Error('Invalid command : {0}'.format(msg.encode()))
+        elif reply == '':
+            raise Bristol671Error('No value returned : {0}'.format(msg.encode()))
+        else:
+           return reply
+
+    #######################################################
     #   Common Commands
     #######################################################
 
     def CLS(self):
         try:
-            self.instr.write("*CLS")
-        except pyvisa.errors.VisaIOError as err:
+            self.write("*CLS")
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in CLS()" + str(err))
 
     def ReadESE(self):
         try:
-            resp = self.instr.query("*ESE?")
-        except pyvisa.errors.VisaIOError as err:
+            resp = self.query("*ESE?")
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in ReadESE()" + str(err))
         try:
             return int(resp)
@@ -130,14 +151,14 @@ class Bristol671A:
         if not isinstance(mask, int):
             logging.warning("Bristol671A warning in MaskESE() mask not int")
         try:
-            self.instr.write("*ESE {0}".format(mask))
+            self.write("*ESE {0}".format(mask))
         except Exception as e:
             logging.warning("Bristol671A warning in MaskESE()" + str(err))
 
     def ReadESR(self):
         try:
-            resp = self.instr.query("*ESR?")
-        except pyvisa.errors.VisaIOError as err:
+            resp = self.query("*ESR?")
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in ReadESR()" + str(err))
         try:
             return int(resp)
@@ -147,41 +168,41 @@ class Bristol671A:
 
     def ReadIDN(self):
         try:
-            resp = self.instr.query("*IDN?")
-        except pyvisa.errors.VisaIOError as err:
+            resp = self.query("*IDN?")
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in ReadIDN()" + str(err))
         return resp
 
     def QueryOPC(self):
         try:
-            resp = self.instr.query("*OPC?")
-        except pyvisa.errors.VisaIOError as err:
+            resp = self.query("*OPC?")
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in QueryOPC()" + str(err))
             return np.nan
         return resp
 
     def RCL(self):
         try:
-            self.instr.write("*RCL")
-        except pyvisa.errors.VisaIOError as err:
+            self.write("*RCL")
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in RCL()" + str(err))
 
     def RST(self):
         try:
-            self.instr.write("*RST")
-        except pyvisa.errors.VisaIOError as err:
+            self.write("*RST")
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in RST()" + str(err))
 
     def SAV(self):
         try:
-            self.instr.write("*SAV")
-        except pyvisa.errors.VisaIOError as err:
+            self.write("*SAV")
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in SAV()" + str(err))
 
     def ReadSTB(self):
         try:
-            resp = self.instr.query("*STB?")
-        except pyvisa.errors.VisaIOError as err:
+            resp = self.query("*STB?")
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in ReadSTB()" + str(err))
             return np.nan
         return resp
@@ -197,8 +218,8 @@ class Bristol671A:
             return np.nan
         # obtain value
         try:
-            resp = self.instr.query(":FETCH:{0}".format(Q))
-        except pyvisa.errors.VisaIOError as err:
+            resp = self.query(":FETCH:{0}".format(Q))
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in Fetch()" + str(err))
             return np.nan
 
@@ -211,8 +232,8 @@ class Bristol671A:
             return np.nan
         # obtain value
         try:
-            resp = self.instr.query(":READ:{0}".format(Q))
-        except pyvisa.errors.VisaIOError as err:
+            resp = self.query(":READ:{0}".format(Q))
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in Read()" + str(err))
             return np.nan
 
@@ -225,8 +246,8 @@ class Bristol671A:
             return np.nan
         # obtain value
         try:
-            resp = self.instr.query(":MEAS:{0}".format(Q))
-        except pyvisa.errors.VisaIOError as err:
+            resp = self.query(":MEAS:{0}".format(Q))
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in Measure()" + str(err))
             return np.nan
         return resp
@@ -313,16 +334,16 @@ class Bristol671A:
                              valid query".format(Q))
             return np.nan
         try:
-            resp = self.instr.query(":CALC:DATA? {0}".format(Q))
-        except pyvisa.errors.VisaIOError as err:
+            resp = self.query(":CALC:DATA? {0}".format(Q))
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in CalculateData()" + str(err))
             return np.nan
         return float(resp)
 
     def ReadCalculateDeltaMethod(self):
         try:
-            resp = self.instr.query(":CALC:DELT:METH?")
-        except pyvisa.errors.VisaIOError as err:
+            resp = self.query(":CALC:DELT:METH?")
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in ReadCalculateDeltaMethod()"\
                             + str(err))
             return np.nan
@@ -333,22 +354,22 @@ class Bristol671A:
             logging.warning("Bristol671A warning in SetCalculateDeltaMethod() \
                              {0} not a valid method".format(method))
         try:
-            self.instr.write(":CALC:DELT:METH {0}".format(method))
-        except pyvisa.errors.VisaIOError as err:
+            self.write(":CALC:DELT:METH {0}".format(method))
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in SetCalculateDeltaMethod()" \
                             + str(err))
 
     def CalculateReset(self):
         try:
-            self.instr.write(":CALC:RES")
-        except pyvisa.errors.VisaIOError as err:
+            self.write(":CALC:RES")
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in CalculateReset()" \
                             + str(err))
 
     def CalculateTimeElapsed(self):
         try:
-            resp = self.instr.query(":CALC:TIME:ELAP?")
-        except pyvisa.errors.VisaIOError as err:
+            resp = self.query(":CALC:TIME:ELAP?")
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in ReadCalculateTimeElapsed()"\
                             + str(err))
             return np.nan
@@ -360,8 +381,8 @@ class Bristol671A:
 
     def ReadAverageState(self):
         try:
-            resp = self.instr.query(":SENS:AVER:STAT?")
-        except pyvisa.errors.VisaIOError as err:
+            resp = self.query(":SENS:AVER:STAT?")
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in ReadAverageState()" + str(err))
             return np.nan
         return resp
@@ -372,14 +393,14 @@ class Bristol671A:
                              a valdi state".format(state))
             return
         try:
-            self.instr.write(":SENS:AVER:STAT {0}".format(state))
-        except pyvisa.errors.VisaIOError as err:
+            self.write(":SENS:AVER:STAT {0}".format(state))
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in SetAverageState()" + str(err))
 
     def ReadAverageCount(self):
         try:
-            resp = self.instr.query(":SENS:AVER:COUN?")
-        except pyvisa.errors.VisaIOError as err:
+            resp = self.query(":SENS:AVER:COUN?")
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in ReadAverageCount()" + str(err))
             return np.nan
         return int(resp)
@@ -393,10 +414,10 @@ class Bristol671A:
             return
         try:
             if count == 0:
-                self.instr.write(":SENS:AVER:COUN {0}".format("OFF"))
+                self.write(":SENS:AVER:COUN {0}".format("OFF"))
             else:
-                self.instr.write(":SENS:AVER:COUN {0}".format(count))
-        except pyvisa.errors.VisaIOError as err:
+                self.write(":SENS:AVER:COUN {0}".format(count))
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in SetAverageCount()" + str(err))
 
     def ReadAverageData(self, Q="FREQ"):
@@ -406,16 +427,16 @@ class Bristol671A:
             return np.nan
         # obtain value
         try:
-            resp = self.instr.query(":SENS:AVER:DATA? {0}".format(Q))
-        except pyvisa.errors.VisaIOError as err:
+            resp = self.query(":SENS:AVER:DATA? {0}".format(Q))
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in ReadAverageData()" + str(err))
             return np.nan
         return resp
 
     def ReadPowerOffset(self):
         try:
-            resp = self.instr.query(":SENS:POW:OFFS?")
-        except pyvisa.errors.VisaIOError as err:
+            resp = self.query(":SENS:POW:OFFS?")
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in ReadPowerOffset()" + str(err))
             return np.nan
         return resp
@@ -429,10 +450,10 @@ class Bristol671A:
             return
         try:
             if offset == 0:
-                self.instr.write(":SENS:POW:OFFS {0}".format("OFF"))
+                self.write(":SENS:POW:OFFS {0}".format("OFF"))
             else:
-                self.instr.write(":SENS:POW:OFFS {0}".format(offset))
-        except pyvisa.errors.VisaIOError as err:
+                self.write(":SENS:POW:OFFS {0}".format(offset))
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in ReadPowerOffset()" + str(err))
 
     #######################################################
@@ -441,16 +462,16 @@ class Bristol671A:
 
     def ReadQuestionableCondition(self):
         try:
-            resp = self.instr.query(":STAT:QUES:COND?")
-        except pyvisa.errors.VisaIOError as err:
+            resp = self.query(":STAT:QUES:COND?")
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in ReadQuestionableCondition()" + str(err))
             return np.nan
         return int(resp)
 
     def ReadQuestionableEnable(self):
         try:
-            resp = self.instr.query(":STAT:QUES:ENAB?")
-        except pyvisa.errors.VisaIOError as err:
+            resp = self.query(":STAT:QUES:ENAB?")
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in ReadQuestionableEnable()" + str(err))
             return np.nan
         return int(resp)
@@ -465,14 +486,14 @@ class Bristol671A:
                              < value < 2049")
             return
         try:
-            self.instr.write(":STAT:QUES:ENAB {0}".format(value))
-        except pyvisa.errors.VisaIOError as err:
+            self.write(":STAT:QUES:ENAB {0}".format(value))
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in SetQuestionableEnable()" + str(err))
 
     def ReadQuestionableHardwareCondition(self):
         try:
-            resp = self.instr.query(":STAT:QUES:HARD:COND?")
-        except pyvisa.errors.VisaIOError as err:
+            resp = self.query(":STAT:QUES:HARD:COND?")
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in \
                              ReadQuestionableHardwareCondition()" + str(err))
             return np.nan
@@ -484,8 +505,8 @@ class Bristol671A:
 
     def ReadError(self):
         try:
-            resp = self.instr.query(":SYST:ERR?")
-        except pyvisa.errors.VisaIOError as err:
+            resp = self.query(":SYST:ERR?")
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in ReadError()" + str(err))
             return np.nan
         try:
@@ -497,8 +518,8 @@ class Bristol671A:
 
     def Help(self):
         try:
-            resp = self.instr.query(":SYST:HELP:HEAD?")
-        except pyvisa.errors.VisaIOError as err:
+            resp = self.query(":SYST:HELP:HEAD?")
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in Help()" + str(err))
             return np.nan
         return resp
@@ -510,7 +531,7 @@ class Bristol671A:
     def ReadUnitPower(self):
         try:
             resp = self.instr.queary(":UNIT:POW?")
-        except pyvisa.errors.VisaIOError as err:
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in SetUnitPower()" + str(err))
         return resp
 
@@ -519,8 +540,8 @@ class Bristol671A:
             logging.warning("Bristol671A warning in SetUnitPower() unit not \
                              valid")
         try:
-            self.instr.write(":UNIT:POW:{0}".format(unit))
-        except pyvisa.errors.VisaIOError as err:
+            self.write(":UNIT:POW:{0}".format(unit))
+        except Bristol671Error as err:
             logging.warning("Bristol671A warning in SetUnitPower()" + str(err))
 
 

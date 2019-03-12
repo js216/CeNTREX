@@ -6,11 +6,25 @@ import logging
 class Bristol671Error(Exception):
     pass
 
+def decompose_powers_two(number):
+    powers = []
+    i = 1
+    p = 0
+    while i <= x:
+        if i & x:
+            powers.append(p)
+        i <<= 1
+        p += 1
+    return powers
+
 class Bristol671A:
     def __init__(self, time_offset, telnet_address, telnet_port):
         self.time_offset = time_offset
         try:
             self.instr = telnetlib.Telnet(resource_name, resource_port)
+            # need to flush the first replies about the telnet connection
+            for _ in range(5):
+                self.instr.read_until(b'\r\n',1)
         except Exception as e:
             self.verification_string = "False"
             self.instr = False
@@ -18,7 +32,7 @@ class Bristol671A:
 
         # make the verification string
         try:
-           self.verification_string = self.ReadIDN()
+           self.verification_string = self.QueryIDN()
         except Bristol671Error:
            self.verification_string = "False"
 
@@ -105,8 +119,11 @@ class Bristol671A:
     #######################################################
     # Write/Query Commands
     #######################################################
-    
+
     def write(self, msg):
+        """
+        Write an SCPI query over a telnet connection to the Bristol 617A.
+        """
         if msg[-2:] != "\r\n":
             msg+="\r\n"
         self.instr.write(msg.encode())
@@ -115,6 +132,9 @@ class Bristol671A:
            raise Bristol671Error('{0}'.format(msg.encode()))
 
     def query(self, msg):
+        """
+        SCPI query over a telnet connection to the Bristol 617A.
+        """
         if msg[-2:] != "\r\n":
             msg+="\r\n"
         self.instr.write(msg.encode())
@@ -131,23 +151,41 @@ class Bristol671A:
     #######################################################
 
     def CLS(self):
+        """
+        Clear all event registers and the error queue.
+        """
         try:
             self.write("*CLS")
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in CLS()" + str(err))
 
-    def ReadESE(self):
+    def QueryESE(self):
+        """
+        Queries the bits int he standard event status enable registerself.
+        Returns an integer which is the sum of all the bit values for those bits
+        that are set. See the Event Status Register Enable table below.
+        """
         try:
             resp = self.query("*ESE?")
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in ReadESE()" + str(err))
+            logging.warning("Bristol671A warning in QueryESE()" + str(err))
         try:
-            return int(resp)
-        except Exception as e:
-            logging.warning("Bristol671A warning in ReadESE()" + str(err))
+            powers_two = decompose_powers_two(int(resp))
+            resp = [self.ESE_register[val] for val in powers_two]
+            return resp
+        except Exception as err:
+            logging.warning("Bristol671A warning in QueryESR()" + str(err))
             return np.nan
 
     def MaskESE(self, mask):
+        """
+        The *ESE (event status enable) command sets the bits in the event
+        status enable register and enables the corresponding events in the
+        event status register. For each bit that is set (equal to 1), the
+        corresponding bit is enabled in the event status register (ESR).
+        <integer> is an integer value which is the sum of all of the bit values
+        for those bits that are set.
+        """
         if not isinstance(mask, int):
             logging.warning("Bristol671A warning in MaskESE() mask not int")
         try:
@@ -155,25 +193,45 @@ class Bristol671A:
         except Exception as e:
             logging.warning("Bristol671A warning in MaskESE()" + str(err))
 
-    def ReadESR(self):
+    def QueryESR(self):
+        """
+        The *ESR (event status register) query returns a value which encodes
+        the bits in the event status register. If any bits are set in the ESR,
+        then the ESR summary bit will be set in the STB.
+        Returns an integer which is the sum of all the bit values for those bits
+        that are set. See Event Status Register table below.
+        """
         try:
             resp = self.query("*ESR?")
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in ReadESR()" + str(err))
+            logging.warning("Bristol671A warning in QueryESR()" + str(err))
         try:
-            return int(resp)
-        except Exception as e:
-            logging.warning("Bristol671A warning in ReadESR()" + str(err))
+            powers_two = decompose_powers_two(int(resp))
+            resp = [self.ESR_register[val] for val in powers_two]
+            return resp
+        except Exception as err:
+            logging.warning("Bristol671A warning in QueryESR()" + str(err))
             return np.nan
 
-    def ReadIDN(self):
+    def QueryIDN(self):
+        """
+        The *IDN (identification number) query returns a string value which
+        contains the instrument type, serial number, and firmware version. The
+        third value is the instrument serial number. The last value is the
+        imbedded software version.
+        """
         try:
             resp = self.query("*IDN?")
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in ReadIDN()" + str(err))
+            logging.warning("Bristol671A warning in QueryIDN()" + str(err))
         return resp
 
     def QueryOPC(self):
+        """
+        The *OPC (operation complete) query returns OFF when all pending
+        device operations are complete, ON if an operation is pending.
+        Returns OFF or ON.
+        """
         try:
             resp = self.query("*OPC?")
         except Bristol671Error as err:
@@ -182,36 +240,64 @@ class Bristol671A:
         return resp
 
     def RCL(self):
+        """
+        The *RCL (recall) command restores instrument settings.
+        """
         try:
             self.write("*RCL")
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in RCL()" + str(err))
 
     def RST(self):
+        """
+        The *RST (reset) command returns the instrument’s settings to a
+        known state.
+        """
         try:
             self.write("*RST")
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in RST()" + str(err))
 
     def SAV(self):
+        """
+        The *SAV command saves instrument settings.
+        """
         try:
             self.write("*SAV")
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in SAV()" + str(err))
 
-    def ReadSTB(self):
+    def QuerySTB(self):
+        """
+        The *STB (status byte) query returns the current value of the
+        instrument’s status byte.
+        Returns an integer that is the sum of all the bit values for those bits
+        that are set. See the instrument Status Byte table.
+        """
         try:
             resp = self.query("*STB?")
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in ReadSTB()" + str(err))
+            logging.warning("Bristol671A warning in QuerySTB()" + str(err))
             return np.nan
-        return resp
+        try:
+            powers_two = decompose_powers_two(int(resp))
+            resp = [self.STB_register[val] for val in powers_two]
+            return resp
+        except Exception as err:
+            logging.warning("Bristol671A warning in QueryESR()" + str(err))
+            return np.nan
 
     #######################################################
     # Measurement Commands
     #######################################################
 
     def Fetch(self, Q="ALL"):
+        """
+        The :FETCh command will return a reading of the instrument’s current
+        measurement. If :FETCh queries are made faster than the instrument’s
+        update rate, it is possible to get the same reading twice. Duplicate
+        readings are indicated by a bit in the questionable status register.
+        """
         if Q not in ["POW", "ENV", "FREQ", "WAV", "WNUM", "ALL"]:
             logging.warning("Bristol671A warning in Fetch() {0} not a valid \
                              query".format(Q))
@@ -226,6 +312,14 @@ class Bristol671A:
         return resp
 
     def Read(self, Q="ALL"):
+        """
+        The :READ command will return the instrument’s next measurement. The
+        :MEASure command will return the following measurement. The :MEASure and
+        :READ commands guarantee that each reading returned is a new one. To get
+        multiple measurement types from an update (i.e., WAVelength, POWer, etc.)
+        , use the :ALL query. Using separate consecutive :WAVEelength and :POWer
+        queries does not guarantee that they will be from the same measurement.
+        """
         if Q not in ["POW", "ENV", "FREQ", "WAV", "WNUM", "ALL"]:
             logging.warning("Bristol671A warning in Read() {0} not a valid \
                              query".format(Q))
@@ -240,6 +334,15 @@ class Bristol671A:
         return resp
 
     def Measure(self, Q = "ALL"):
+        """
+        The :MEASure command can be considered a macro that executes multiple
+        SCPI commands and is equivalent to:
+
+            :ABORt
+            :INITiate
+            :FETCh[ : <function> ]?
+
+        """
         if Q not in ["POW", "ENV", "FREQ", "WAV", "WNUM", "ALL"]:
             logging.warning("Bristol671A warning in Measure() {0} not a valid \
                              query".format(Q))
@@ -253,74 +356,153 @@ class Bristol671A:
         return resp
 
     def FetchPower(self):
+        """
+        Fetch a power reading in mW or dB, depending on the setting of :UNIT:POW.
+        For clarification on fetching values see Fetch().
+        """
         resp = self.Fetch(Q="POW")
         return float(resp)
 
     def FetchEnvironment(self):
+        """
+        Fetch an environment reading, returns temperature (C) and pressure
+        (mm Hg) separated by a comma.
+        For clarification on fetching values see Fetch().
+        """
         resp = self.Fetch(Q="ENV").split(",")
         return float(resp[0], resp[1])
 
     def FetchFrequency(self):
+        """
+        Fetch a frequency reading in THz.
+        For clarification on fetching values see Fetch().
+        """
         resp = self.Fetch(Q="FREQ")
         return float(resp)
 
     def FetchWavelenght(self):
+        """
+        Fetch a wavelength reading in nm.
+        For clarification on fetching values see Fetch().
+        """
         resp = self.Fetch(Q="WAV")
         return float(resp)
 
     def FetchWavenumber(self):
+        """
+        Fetch a wavenumber reading in 1/cm.
+        For clarification on fetching values see Fetch().
+        """
         resp = self.Fetch(Q="WNUM")
         return float(resp)
 
     def FetchAll(self):
+        """
+        Fetch scan index, instrument status, laser reading in display units  and
+        power reading in display units.
+        For clarification on fetching values see Fetch().
+        """
         resp = self.Fetch(Q="ALL").split(",")
         return int(resp[0]), int(resp[1]), float(resp[2]), float(resp[3])
 
     def ReadPower(self):
+        """
+        Read a power reading in mW or dB, depending on the setting of :UNIT:POW.
+        For clarification on reading values see Read().
+        """
         resp = self.Read(Q="POW")
         return float(resp)
 
     def ReadEnvironment(self):
+        """
+        Read an environment reading, returns temperature (C) and pressure
+        (mm Hg) separated by a comma.
+        For clarification on reading values see Read().
+        """
         resp = self.Read(Q="ENV").split(",")
         return float(resp[0], resp[1])
 
     def ReadFrequency(self):
+        """
+        Read a frequency reading in THz.
+        For clarification on reading values see Read().
+        """
         resp = self.Read(Q="FREQ")
         return float(resp)
 
     def ReadWavelenght(self):
+        """
+        Read a wavelength reading in nm.
+        For clarification on reading values see Read().
+        """
         resp = self.Read(Q="WAV")
         return float(resp)
 
     def ReadWavenumber(self):
+        """
+        Read a wavenumber reading in 1/cm.
+        For clarification on reading values see Read().
+        """
         resp = self.Read(Q="WNUM")
         return float(resp)
 
     def ReadAll(self):
+        """
+        Read scan index, instrument status, laser reading in display units and
+        power reading in display units.
+        For clarification on reading values see Read().
+        """
         resp = self.Read(Q="ALL").split(",")
         return int(resp[0]), int(resp[1]), float(resp[2]), float(resp[3])
 
     def MeasurePower(self):
+        """
+        Measure a power reading in mW or dB, depending on the setting of
+        :UNIT:POW.
+        For clarification on measuring values see Measure().
+        """
         resp = self.Measure(Q="POW")
         return float(resp)
 
     def MeasureEnvironment(self):
+        """
+        Measure an environment reading, returns temperature (C) and pressure
+        (mm Hg) separated by a comma.
+        For clarification on measuring values see Measure().
+        """
         resp = self.Measure(Q="ENV").split(",")
         return float(resp[0], resp[1])
 
     def MeasureFrequency(self):
+        """
+        Measure a frequency reading in THz.
+        For clarification on measuring values see Measure().
+        """
         resp = self.Measure(Q="FREQ")
         return float(resp)
 
     def MeasureWavelenght(self):
+        """
+        Measure a wavelength reading in nm.
+        For clarification on measuring values see Measure().
+        """
         resp = self.Measure(Q="WAV")
         return float(resp)
 
     def MeasureWavenumber(self):
+        """
+        Measure a wavenumber reading in 1/cm.
+        For clarification on measuring values see Measure().
+        """
         resp = self.Measure(Q="WNUM")
         return float(resp)
 
     def MeasureAll(self):
+        """
+        Measure scan index, instrument status, laser reading in display units
+        and power reading in display units.
+        For clarification on measuring values see Measure().
+        """
         resp = self.Measure(Q="ALL").split(",")
         return int(resp[0]), int(resp[1]), float(resp[2]), float(resp[3])
 
@@ -329,6 +511,14 @@ class Bristol671A:
     #######################################################
 
     def CalculateData(self, Q="FREQ"):
+        """
+        Returns a calculated value based on the based on the
+        :DELTa:METHod setting.
+        Returns a numerical value in fixed or scientific notation, depending on
+        the units(see measurement of power, above). The model 671 returns 9
+        significant digits for the FREQuency, WAVelength, or WNUMber
+        readings, and the model 671B returns 8.
+        """
         if Q not in ["POW", "FREQ", "WAV", "WNUM"]:
             logging.warning("Bristol671A warning in CalculateData() {0} not a\
                              valid query".format(Q))
@@ -340,16 +530,24 @@ class Bristol671A:
             return np.nan
         return float(resp)
 
-    def ReadCalculateDeltaMethod(self):
+    def QueryCalculateDeltaMethod(self):
+        """
+        Query the state of the :DELTa:METHod function employed in CalculateData.
+        Returns START for current-start or MAXMIN for max-min.
+        """
         try:
             resp = self.query(":CALC:DELT:METH?")
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in ReadCalculateDeltaMethod()"\
+            logging.warning("Bristol671A warning in QueryCalculateDeltaMethod()"\
                             + str(err))
             return np.nan
         return resp
 
     def SetCalculateDeltaMethod(self, method = "START"):
+        """
+        Set the state of the :DELTa:METHod function employed in CalculateData.
+        Methods are START for current-start or MAXMIN for max-min.
+        """
         if method not in ["START", "MAXMIN"]:
             logging.warning("Bristol671A warning in SetCalculateDeltaMethod() \
                              {0} not a valid method".format(method))
@@ -360,6 +558,11 @@ class Bristol671A:
                             + str(err))
 
     def CalculateReset(self):
+        """
+        Resets the CALCulate subsystem. This command resets the Elapsed
+        Time counter and sets the Min, Max and Start values to the Current
+        Value.
+        """
         try:
             self.write(":CALC:RES")
         except Bristol671Error as err:
@@ -367,10 +570,14 @@ class Bristol671A:
                             + str(err))
 
     def CalculateTimeElapsed(self):
+        """
+        Queries the elapsed time since the instrument was turned on or was
+        reset.
+        """
         try:
             resp = self.query(":CALC:TIME:ELAP?")
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in ReadCalculateTimeElapsed()"\
+            logging.warning("Bristol671A warning in QueryCalculateTimeElapsed()"\
                             + str(err))
             return np.nan
         return resp
@@ -379,15 +586,23 @@ class Bristol671A:
     # Sense Commands
     #######################################################
 
-    def ReadAverageState(self):
+    def QueryAverageState(self):
+        """
+        Queries the state of the averaging status.
+        Return OFF or ON.
+        """
         try:
             resp = self.query(":SENS:AVER:STAT?")
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in ReadAverageState()" + str(err))
+            logging.warning("Bristol671A warning in QueryAverageState()" + str(err))
             return np.nan
         return resp
 
     def SetAverageState(self, state = "ON"):
+        """
+        Sets the state of the averaging status.
+        Valid states are OFF or ON.
+        """
         if state not in ["ON", "OFF"]:
             logging.warning("Bristol671A warning in SetAverageState() {0} not\
                              a valdi state".format(state))
@@ -397,15 +612,25 @@ class Bristol671A:
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in SetAverageState()" + str(err))
 
-    def ReadAverageCount(self):
+    def QueryAverageCount(self):
+        """
+        Queries the number of readings being averaged for wavelength and
+        power values.
+        Returns OFF, 2, 3, 4, ..., 128.
+        """
         try:
             resp = self.query(":SENS:AVER:COUN?")
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in ReadAverageCount()" + str(err))
+            logging.warning("Bristol671A warning in QueryAverageCount()" + str(err))
             return np.nan
         return int(resp)
 
     def SetAverageCount(self, count = 1):
+        """
+        Set the number of readings being averaged for the wavelength and power
+        values.
+        Valid counts are OFF, 2, 3, 4, ..., 128.
+        """
         if not isinstance(count, int):
             logging.warning("Bristol671A warning in SetAverageCount() count requires int")
             return
@@ -420,28 +645,43 @@ class Bristol671A:
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in SetAverageCount()" + str(err))
 
-    def ReadAverageData(self, Q="FREQ"):
+    def QueryAverageData(self, Q="FREQ"):
+        """
+        Returns averaged wavelength or power data for the last N number of
+        measurements. The value of N is set by :AVERage: COUNt command.
+        If averaging is not turned on then the most recent data is returned.
+        """
         if Q not in ["POW", "FREQ", "WAV", "WNUM"]:
-            logging.warning("Bristol671A warning in ReadAverageData() {0} not a\
+            logging.warning("Bristol671A warning in QueryAverageData() {0} not a\
                              valid query".format(Q))
             return np.nan
         # obtain value
         try:
             resp = self.query(":SENS:AVER:DATA? {0}".format(Q))
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in ReadAverageData()" + str(err))
+            logging.warning("Bristol671A warning in QueryAverageData()" + str(err))
             return np.nan
         return resp
 
-    def ReadPowerOffset(self):
+    def QueryPowerOffset(self):
+        """
+        Queries the power offset being added to power values. The power
+        offset is in units of dB.
+        Returns OFF, 1, 2, 3, 4, ..., 20.
+        """
         try:
             resp = self.query(":SENS:POW:OFFS?")
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in ReadPowerOffset()" + str(err))
+            logging.warning("Bristol671A warning in QueryPowerOffset()" + str(err))
             return np.nan
         return resp
 
     def SetPowerOffset(self, offset = 0):
+        """
+        Queries the power offset being added to power values. The power
+        offset is in units of dB.
+        Valid offsets are 0, 1, 2, 3, 4, ..., 20.
+        """
         if not isinstance(offset, int):
             logging.warning("Bristol671A warning in SetPowerOffset() count requires int")
             return
@@ -454,29 +694,56 @@ class Bristol671A:
             else:
                 self.write(":SENS:POW:OFFS {0}".format(offset))
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in ReadPowerOffset()" + str(err))
+            logging.warning("Bristol671A warning in SetPowerOffset()" + str(err))
 
     #######################################################
     # Status Subsystem
     #######################################################
 
-    def ReadQuestionableCondition(self):
+    def QueryQuestionableCondition(self):
+        """
+        Queries the SCPI Questionable Status Register which contains bits
+        that indicate that one or more measurement types are of questionable
+        accuracy. The bits in the register are described in the table below.
+        Returns an integer which is the sum of the bit values for all bits in
+        the register that are set.
+        """
         try:
             resp = self.query(":STAT:QUES:COND?")
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in ReadQuestionableCondition()" + str(err))
+            logging.warning("Bristol671A warning in QueryQuestionableCondition()" + str(err))
             return np.nan
-        return int(resp)
+        try:
+            powers_two = decompose_powers_two(int(resp))
+            resp = [self.QSR_register[val] for val in powers_two]
+            return resp
+        except Exception as err:
+            logging.warning("Bristol671A warning in QueryESR()" + str(err))
+            return np.nan
 
-    def ReadQuestionableEnable(self):
+    def QueryQuestionableEnable(self):
+        """
+        Queries the SCPI Questionable Enable Register.
+        Returns an integer which is the sum of the bit values for all bits in
+        the register that are set.
+        """
         try:
             resp = self.query(":STAT:QUES:ENAB?")
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in ReadQuestionableEnable()" + str(err))
+            logging.warning("Bristol671A warning in QueryQuestionableEnable()" + str(err))
             return np.nan
         return int(resp)
 
     def SetQuestionableEnable(self, value):
+        """
+        Used to set and clear bits in the SCPI Questionable Enable Register.
+        This register contains bits that are used to mask one or more
+        conditions indicated in the Questionable Status Register. Setting a bit
+        causes that condition to be masked so that, even if the condition is
+        true, its associated bit will not get set in the Questionable Status
+        Register. The Questionable Enable Register has the same format as
+        the Questionable Status Register.
+        """
         if not isinstance(value, int):
             logging.warning("Bristol671A warning in SetQuestionableEnable() \
                              count requires int")
@@ -490,33 +757,62 @@ class Bristol671A:
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in SetQuestionableEnable()" + str(err))
 
-    def ReadQuestionableHardwareCondition(self):
+    def QueryQuestionableHardwareCondition(self):
+        """
+        Queries the SCPI Questionable Hardware Condition Register which
+        contains bits that indicate that one or more hardware problems exist.
+        These problems may contribute to invalid or erred measurements.
+        Returns an integer which is the sum of the bit values for all bits in
+        the register that are set.
+        """
         try:
             resp = self.query(":STAT:QUES:HARD:COND?")
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in \
-                             ReadQuestionableHardwareCondition()" + str(err))
+                             QueryQuestionableHardwareCondition()" + str(err))
             return np.nan
-        return int(resp)
+        try:
+            powers_two = decompose_powers_two(int(resp))
+            resp = [self.QHR_register[val] for val in powers_two]
+            return resp
+        except Exception as err:
+            logging.warning("Bristol671A warning in QueryESR()" + str(err))
+            return np.nan
 
     #######################################################
     # System Subsystem
     #######################################################
 
-    def ReadError(self):
+    def QueryError(self):
+        """
+        Reads error strings from the SCPI Error Queue. If the Error Queue has
+        any entries, the Error Queue bit is set in the Status Byte. The
+        instrument has a 30 entry, first-in, first-out queue. Repeatedly sending
+        the query :SYST:ERr? returns the error numbers and descriptions in
+        the order in which they occurred until the queue is empty. Any further
+        queries return "No error" until another error occurs.
+        Returns errors in format <integer>, <string> (e.g., –104, “Data type error”)
+        """
         try:
             resp = self.query(":SYST:ERR?")
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in ReadError()" + str(err))
+            logging.warning("Bristol671A warning in QueryError()" + str(err))
             return np.nan
         try:
             resp = resp.split(",")
             return int(resp[0]), resp[1]
         except Exception as e:
-            logging.warning("Bristol671A warning in ReadError()" + str(err))
+            logging.warning("Bristol671A warning in QueryError()" + str(err))
             return np.nan
 
     def Help(self):
+        """
+        Reads a list of all commands and queries supported by the instrument.
+        Each line of the response is terminated by a linefeed. The first line
+        indicates the number of bytes of help data that follow. The remaining
+        lines are strings of help data. All lines of data must be read before
+        continuing normal operations.
+        """
         try:
             resp = self.query(":SYST:HELP:HEAD?")
         except Bristol671Error as err:
@@ -528,7 +824,12 @@ class Bristol671A:
     # Unit Subsystem
     #######################################################
 
-    def ReadUnitPower(self):
+    def QueryUnitPower(self):
+        """
+        Queries the state of the power units that will be used when the SCPI
+        interface returns power values.
+        Returns DBM or MW.
+        """
         try:
             resp = self.instr.queary(":UNIT:POW?")
         except Bristol671Error as err:
@@ -536,6 +837,11 @@ class Bristol671A:
         return resp
 
     def SetUnitPower(self, unit = "MW"):
+        """
+        Sets the state of the power units that will be used when the SCPI
+        interface returns power values. This setting does not affect the display.
+        Valid units are DBM or MW.
+        """
         if not unit in ["MW", "DBM"]:
             logging.warning("Bristol671A warning in SetUnitPower() unit not \
                              valid")
@@ -543,7 +849,6 @@ class Bristol671A:
             self.write(":UNIT:POW:{0}".format(unit))
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in SetUnitPower()" + str(err))
-
 
     def GetWarnings(self):
         return None

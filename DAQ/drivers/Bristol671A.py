@@ -18,13 +18,15 @@ def decompose_powers_two(number):
     return powers
 
 class Bristol671A:
-    def __init__(self, time_offset, telnet_address, telnet_port):
+    def __init__(self, time_offset, connection):
         self.time_offset = time_offset
+        self.telnet_address = connection['telnet_address']
+        self.telnet_port = connection['telnet_port']
         try:
-            self.instr = telnetlib.Telnet(resource_name, resource_port)
+            self.instr = telnetlib.Telnet(self.telnet_address, self.telnet_port)
             # need to flush the first replies about the telnet connection
-            for _ in range(5):
-                self.instr.read_until(b'\r\n',1)
+            for _ in range(3):
+                self.instr.read_until(b'\n\n',1)
         except Exception as e:
             self.verification_string = "False"
             self.instr = False
@@ -50,8 +52,8 @@ class Bristol671A:
                              2: "Query Error (QYE)",
                              3: "Device Dependent Error (DDE)",
                              4: "Execution Error (EXE)",
-                             5: "Command Error (CME)"
-                             6: "Not Used"
+                             5: "Command Error (CME)",
+                             6: "Not Used",
                              7: "Power On (PON)"}
 
         self.ESR_register = {0: "Operation Complete (OPC)",
@@ -59,8 +61,8 @@ class Bristol671A:
                              2: "Query Error (QYE)",
                              3: "Device Dependent Error (DDE)",
                              4: "Execution Error (EXE)",
-                             5: "Command Error (CME)"
-                             6: "Not Used"
+                             5: "Command Error (CME)",
+                             6: "Not Used",
                              7: "Power On (PON)"}
 
         self.STB_register = {2: "A bit is set in the event status register.",
@@ -72,11 +74,11 @@ class Bristol671A:
                              2: "The previously requested calibration has failed.",
                              3: "The power value is outside the valid range of the instrument.",
                              4: "The temprature value is outside the valid range of the instrument.",
-                             5: "The wavelength value is outside the valid range of the instrument."
-                             6: "NA"
+                             5: "The wavelength value is outside the valid range of the instrument.",
+                             6: "NA",
                              7: "NA",
-                             8: "NA"
-                             9: "The pressure value is outside the valid range of the instrument."
+                             8: "NA",
+                             9: "The pressure value is outside the valid range of the instrument.",
                              10: "Indicates that at least one bit is set in the Questionable Hardware Condition register."}
 
         self.QHC_register = {0: "Reference laser has not stabilized.",
@@ -113,7 +115,7 @@ class Bristol671A:
 
     def ReadValue(self):
         return [ time.time() - self.time_offset,
-                 self.ReadFrequency(),
+                 self.MeasureFrequency(),
                ]
 
     #######################################################
@@ -128,7 +130,7 @@ class Bristol671A:
             msg+="\r\n"
         self.instr.write(msg.encode())
         if self.instr.read_until(b'\r\n', self.timeout).decode("ASCII").strip('\r\n') ==\
-           'invalid command'
+           'invalid command':
            raise Bristol671Error('{0}'.format(msg.encode()))
 
     def query(self, msg):

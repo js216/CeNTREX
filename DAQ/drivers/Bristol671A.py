@@ -22,29 +22,13 @@ class Bristol671A:
         self.time_offset = time_offset
         self.telnet_address = connection['telnet_address']
         self.telnet_port = connection['telnet_port']
-        try:
-            self.instr = telnetlib.Telnet(self.telnet_address, self.telnet_port)
-            # need to flush the first replies about the telnet connection
-            for _ in range(3):
-                self.instr.read_until(b'\n\n',1)
-        except Exception as e:
-            self.verification_string = "False"
-            self.instr = False
-            return
-
-        # make the verification string
-        try:
-           self.verification_string = self.QueryIDN()
-        except Bristol671Error:
-           self.verification_string = "False"
-
         self.timeout = 2
 
         # HDF attributes generated when constructor is run
         self.new_attributes = []
 
         # shape and type of the array of returned data from ReadValue
-        self.dtype = 'f'
+        self.dtype = 'f8'
         self.shape = (2, )
 
         self.ESE_register = {0: "Operation Complete (OPC)",
@@ -106,6 +90,27 @@ class Bristol671A:
                             -222: "Data out of range",
                             -230: "Data corrupt or stale"}
 
+        try:
+            self.instr = telnetlib.Telnet(self.telnet_address, int(self.telnet_port))
+            # need to flush the first replies about the telnet connection
+            for _ in range(3):
+                resp = self.instr.read_until(b'\n\n',1).decode('ASCII').strip('\r\n\n').replace('\r\n','')
+                if resp == 'Sorry, no connections available, already in use?':
+                    raise Bristol671Error(""+str(resp))
+        except Exception as err:
+            logging.warning("Error in initial connection to Bristal 671A : "+str(err))
+            self.verification_string = "False"
+            self.instr = False
+            self.__exit__()
+            return None
+
+        # make the verification string
+        try:
+           self.verification_string = self.QueryIDN()
+        except Bristol671Error as err:
+           logging.warning("Verification error : "+str(err))
+           self.verification_string = "False"
+
     def __enter__(self):
         return self
 
@@ -138,7 +143,9 @@ class Bristol671A:
         SCPI query over a telnet connection to the Bristol 617A.
         """
         if msg[-2:] != "\r\n":
-            msg+="\r\n"
+            if msg[-1] != "?":
+                msg += "?"
+            msg += "\r\n"
         self.instr.write(msg.encode())
         reply = self.instr.read_until(b'\r\n', self.timeout).decode("ASCII").strip('\r\n')
         if reply == 'invalid command':
@@ -306,7 +313,7 @@ class Bristol671A:
             return np.nan
         # obtain value
         try:
-            resp = self.query(":FETCH:{0}".format(Q))
+            resp = self.query(":FETCH:{0}?".format(Q))
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in Fetch()" + str(err))
             return np.nan
@@ -328,9 +335,9 @@ class Bristol671A:
             return np.nan
         # obtain value
         try:
-            resp = self.query(":READ:{0}".format(Q))
+            resp = self.query(":READ:{0}?".format(Q))
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in Read()" + str(err))
+            logging.warning("Bristol671A warning in Read() : " + str(err))
             return np.nan
 
         return resp
@@ -351,9 +358,9 @@ class Bristol671A:
             return np.nan
         # obtain value
         try:
-            resp = self.query(":MEAS:{0}".format(Q))
+            resp = self.query(":MEAS:{0}?".format(Q))
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in Measure()" + str(err))
+            logging.warning("Bristol671A warning in Measure() : " + str(err))
             return np.nan
         return resp
 

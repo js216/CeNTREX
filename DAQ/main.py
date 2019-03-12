@@ -170,7 +170,7 @@ class Device(threading.Thread):
             if dev.verification_string.strip() == self.config["correct_response"].strip():
                 self.operational = True
             else:
-                self.error_message = "verification string warning:" +\
+                self.error_message = "verification string warning: " +\
                         dev.verification_string + "!=" + self.config["correct_response"].strip()
                 logging.warning(self.error_message)
                 self.operational = False
@@ -2404,6 +2404,11 @@ class Plotter(qt.QWidget):
             self.curve = self.plot.plot(*data, symbol=self.config["symbol"])
         else:
             self.curve.setData(*data)
+
+        # set labels
+        self.plot.setLabel("bottom", self.config["x"])
+        self.plot.setLabel("left", self.config["y"])
+        self.plot.setLabel("top", self.config["device"] + "; " + self.config["run"])
 
     def change_y_limits(self):
         try:

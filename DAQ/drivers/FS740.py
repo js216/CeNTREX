@@ -3,10 +3,13 @@ import datetime as dt
 import functools
 import numpy as np
 import time
+from contextlib import contextmanager
+from influxdb import InfluxDBClient
+import logging
 
 def QueryVisaIOError(func):
     @functools.wraps(func)
-    def wrapper():
+    def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
         except pyvisa.errors.VisaIOError as err:
@@ -30,7 +33,7 @@ class FS740:
         self.rm = pyvisa.ResourceManager()
         if protocol == 'RS232':
             self.instr = self.rm.open_resource(resource_name)
-            self.instr.parity = visa.constants.Parity.none
+            self.instr.parity = pyvisa.constants.Parity.none
             self.instr.data_bits = 8
             self.instr.write_termination = '\r\n'
             self.instr.read_termination = '\r\n'
@@ -43,7 +46,7 @@ class FS740:
         self.time_offset = time_offset
 
         self.verification_string = self.VerifyOperation()
-        if np.isnan(self.verification_string):
+        if not isinstance(self.verification_string, str):
             self.verification_string = False
         self.new_attributes = []
         self.dtype = 'f16'
@@ -62,6 +65,11 @@ class FS740:
 
     def write(self, cmd):
         self.instr.write(cmd)
+
+    def GetWarnings(self):
+        warnings = self.warnings
+        self.warnings = []
+        return warnings
 
     def ReadValue(self):
         self.WriteValueINFLUXDB()
@@ -140,12 +148,14 @@ class FS740:
         acquisition software.
         Should transition over at some point.
         """
+        @contextmanager
         def get_connection(*args, **kwargs):
             connection = InfluxDBClient(*args, **kwargs)
             try:
                 yield connection
             finally:
                 connection.close()
+
         tableO, tableS, tableL = 'overview', 'satellites', 'log'
 
         values, descs = self.ReadValueINFLUXDB(full_output = True)
@@ -198,8 +208,8 @@ class FS740:
                            "tags":{"deviceID":'FS740', "label":"event"},
                            "time":ts, "fields":{"message":msg}})
         with get_connection(host = '172.28.82.114', port = 8086,
-                            database = 'clock', user = 'test', password = 'test')\
-            as connection:
+                            database = 'clock', username = 'test', \
+                            password = 'test') as connection:
             connection.write_points([writeO])
             connection.write_points(writeS)
             if len(writeL) > 0:
@@ -457,12 +467,12 @@ class FS740:
         if freq in ['DEF', 'MIN', 'MAX']:
             return True
         if not isinstance(freq, (int, float)):
-            logging.warning("FS740 warning in ValidateFrequency() : \
-                             freq invalid type")
+            logging.warning("FS740 warning in ValidateFrequency() : " +
+                             "freq invalid type")
             return False
         if not ((freq >= 1e-1) and (freq <= 1.5e8)):
-            logging.warning("FS740 warning in ValidateFrequency() : \
-                             freq out of range")
+            logging.warning("FS740 warning in ValidateFrequency() : " +
+                             "freq out of range")
             return False
         return True
 
@@ -945,7 +955,7 @@ class FS740:
         except pyvisa.errors.VisaIOError as err:
             logging.warning('FS740 warning in GPSConfigADelay() : '+str(err))
 
-    def ReadGPSConfigADelay(self):
+    def QueryGPSConfigADelay(self):
         return self.query("GPS:CONF:ADEL?")
 
     def GPSPosition(self):
@@ -1258,7 +1268,7 @@ class FS740:
         freq = float(freq)
         self.Source3Function('PULS')
         self.SourceFrequency(freq, 3)
-        if not freq == float(self.QuerySourceFrequency(freq, 3)):
+        if not freq == float(self.QuerySourceFrequency(3)):
             logging.warning("FS740 warning in SetFrequency() : \
                              Pulse frequency not set")
             return
@@ -1273,29 +1283,35 @@ class FS740:
             return False
         return True
 
-    @staticmethod
-    def ValidateSourceFrequency(freq, output):
-        if ValidateMinDefMax(freq):
+    def ValidateSourceFrequency(self, freq, output):
+        if self.ValidateMinDefMax(freq):
             return True
         if not isinstance(freq, (int, float)):
-            logging.warning("FS740 warning in ValidateSourceFrequency() : \
-                             freq invalid type")
+            logging.warning("FS740 warning in ValidateSourceFrequency() : " +
+                                 "freq invalid type")
             return False
         if output == 1:
             if not ((freq >= 1e-3) and (freq <= 30.1e6)):
-                logging.warning("FS740 warning in ValidateSourceFrequency() : \
-                                 freq out of range")
+                logging.warning("FS740 warning in ValidateSourceFrequency() : " +
+                                 "freq out of range")
                 return False
+            else:
+                return True
+
         elif output == 2:
             if not ((freq >= 1e-3) and (freq <= 1e6)):
-                logging.warning("FS740 warning in ValidateSourceFrequency() : \
-                                 freq out of range")
+                logging.warning("FS740 warning in ValidateSourceFrequency() : " +
+                                 "freq out of range")
                 return False
+            else:
+                return True
         elif output == 3:
             if not ((freq >= 1e-3) and (freq <= 25e6)):
-                logging.warning("FS740 warning in ValidateSourceFrequency() : \
-                                 freq out of range")
+                logging.warning("FS740 warning in ValidateSourceFrequency() : " +
+                                 "freq out of range")
                 return False
+            else:
+                return True
         return True
 
     def SourceFrequency(self, freq, output):
@@ -1308,7 +1324,7 @@ class FS740:
             logging.warning("FS740 warning in SourceFrequency() : \
                              output invalid")
             return
-        if not self.ValidateSourceFrequency(freq):
+        if not self.ValidateSourceFrequency(freq, output):
             logging.warning("FS740 warning in SourceFrequency() : \
                              freq invalid")
             return
@@ -2253,7 +2269,7 @@ class FS740:
         self.write("TBAS:CONF:LOCK "+option)
 
     @QueryVisaIOError
-    def ReadTBaseConfigLock(self):
+    def QueryTBaseConfigLock(self):
         return self.query("TBAS:CONF:LOCK?")
 
     @WriteVisaIOError

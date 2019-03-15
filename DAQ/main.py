@@ -1163,7 +1163,7 @@ class ControlGUI(qt.QWidget):
                     # commands for the QComboBox
                     c["QComboBox"].activated[str].connect(
                             lambda text, dev=dev, config=c_name:
-                                self.change_dev_config(dev, "controls", text, ctrl, sub_ctrl=None)
+                                self.change_dev_config(dev, "controls", text, config, sub_ctrl=None)
                         )
                     if c.get("command"):
                         c["QComboBox"].activated[str].connect(

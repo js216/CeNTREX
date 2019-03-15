@@ -32,14 +32,14 @@ class FS740:
     def __init__(self, time_offset, COM_port, protocol = 'RS232'):
         self.rm = pyvisa.ResourceManager()
         if protocol == 'RS232':
-            self.instr = self.rm.open_resource(resource_name)
+            self.instr = self.rm.open_resource(COM_port)
             self.instr.parity = pyvisa.constants.Parity.none
             self.instr.data_bits = 8
             self.instr.write_termination = '\r\n'
             self.instr.read_termination = '\r\n'
             self.instr.baud_rate = 115200
         elif protocol == 'TCP':
-            self.instr = self.rm.open_resource("TCPIP::{0}::5025::SOCKET".format(resource_name))
+            self.instr = self.rm.open_resource("TCPIP::{0}::5025::SOCKET".format(COM_port))
             self.instr.write_termination = '\r\n'
             self.instr.read_termination = '\r\n'
 

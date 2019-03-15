@@ -29,7 +29,7 @@ def WriteVisaIOError(func):
     return wrapper
 
 class FS740:
-    def __init__(self, time_offset, resource_name, protocol = 'RS232'):
+    def __init__(self, time_offset, COM_port, protocol = 'RS232'):
         self.rm = pyvisa.ResourceManager()
         if protocol == 'RS232':
             self.instr = self.rm.open_resource(resource_name)

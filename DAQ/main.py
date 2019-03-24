@@ -170,7 +170,7 @@ class Device(threading.Thread):
             if dev.verification_string.strip() == self.config["correct_response"].strip():
                 self.operational = True
             else:
-                self.error_message = "verification string warning:" +\
+                self.error_message = "verification string warning: " +\
                         dev.verification_string + "!=" + self.config["correct_response"].strip()
                 logging.warning(self.error_message)
                 self.operational = False
@@ -231,7 +231,7 @@ class Device(threading.Thread):
                 # keep track of the number of NaN returns
                 if isinstance(last_data, float):
                     if np.isnan(last_data):
-                        self.nan_count.set(self.nan_count + 1)
+                        self.nan_count += 1
                 elif len(last_data) > 0:
                     self.data_queue.append(last_data)
                     self.config["plots_queue"].append(last_data)
@@ -1163,7 +1163,7 @@ class ControlGUI(qt.QWidget):
                     # commands for the QComboBox
                     c["QComboBox"].activated[str].connect(
                             lambda text, dev=dev, config=c_name:
-                                self.change_dev_config(dev, "controls", text, ctrl, sub_ctrl=None)
+                                self.change_dev_config(dev, "controls", text, config, sub_ctrl=None)
                         )
                     if c.get("command"):
                         c["QComboBox"].activated[str].connect(
@@ -1955,6 +1955,9 @@ class PlotsGUI(qt.QSplitter):
                 plot.avg_qle.setText(str(config["n_average"]))
                 plot.refresh_parameter_lists(select_defaults=False)
 
+    def change_config(self, sect, config, val):
+        self.parent.config[sect][config] = val
+
 class Plotter(qt.QWidget):
     def __init__(self, frame, parent):
         super(qt.QWidget, self).__init__()
@@ -1974,7 +1977,7 @@ class Plotter(qt.QWidget):
                 "animation_running" : False,
                 "from_HDF"          : False,
                 "n_average"         : 1,
-                "f(y)"              : "2*y",
+                "f(y)"              : "np.min(y)",
                 "device"            : "Select device ...",
                 "run"               : "Select run ...",
                 "x"                 : "Select x ...",
@@ -2195,13 +2198,10 @@ class Plotter(qt.QWidget):
         self.x, self.y = [], []
 
     def change_config(self, config, val, typ=str):
-        if typ == str:
-            self.config[config] = val
-        else:
-            try:
-                self.config[config] = typ(val)
-            except (TypeError,ValueError) as err:
-                logging.warning("Plot error: Invalid parameter: " + str(err))
+        try:
+            self.config[config] = typ(val)
+        except (TypeError,ValueError) as err:
+            logging.warning("Plot error: Invalid parameter: " + str(err))
 
     def parameters_good(self):
         # check device is valid
@@ -2243,7 +2243,7 @@ class Plotter(qt.QWidget):
             logging.warning("Plot error: y not valid.")
             return False
 
-        # return 
+        # return
         return True
 
     def get_raw_data_from_HDF(self):
@@ -2279,13 +2279,18 @@ class Plotter(qt.QWidget):
 
                 # average last n curves (if applicable)
                 for i in range(self.config["n_average"] - 1):
-                    dset = grp[self.dev.config["name"] + "_" + str(rec_num-i)]
+                    try:
+                        dset = grp[self.dev.config["name"] + "_" + str(rec_num-i)]
+                    except KeyError as err:
+                        logging.warning("Plot averaging error: " + str(err))
+                        break
                     if self.config["z"] in self.param_list:
                         y += dset[:, self.param_list.index(self.config["y"])] \
                                 / dset[:, self.param_list.index(self.config["z"])]
                     else:
                         y += dset[:, self.param_list.index(self.config["y"])]
-                y = y / self.config["n_average"]
+                if self.config["n_average"] > 0:
+                    y = y / self.config["n_average"]
 
         return x, y
 
@@ -2367,13 +2372,16 @@ class Plotter(qt.QWidget):
         if not self.dev.config["slow_data"]:
             try:
                 y_fn = eval(self.config["f(y)"])
-                if not isinstance(y_fn, float):
-                    raise TypeError("isinstance(y_fn, float) == False")
+                # test the result is a scalar
+                try:
+                    float(y_fn)
+                except Exception as err:
+                    raise TypeError(str(err))
             except Exception as err:
                 logging.warning(str(err))
                 return x[x0:x1], y[x0:x1]
             else:
-                self.fast_y.append()
+                self.fast_y.append(y_fn)
                 return np.arange(len(self.fast_y)), np.array(self.fast_y)
 
     def replot(self):
@@ -2396,6 +2404,11 @@ class Plotter(qt.QWidget):
             self.curve = self.plot.plot(*data, symbol=self.config["symbol"])
         else:
             self.curve.setData(*data)
+
+        # set labels
+        self.plot.setLabel("bottom", self.config["x"])
+        self.plot.setLabel("left", self.config["y"])
+        self.plot.setLabel("top", self.config["device"] + "; " + self.config["run"])
 
     def change_y_limits(self):
         try:
@@ -2466,14 +2479,12 @@ class Plotter(qt.QWidget):
             logging.warning("Plot warning: cannot remove plot: " + str(err))
 
     def toggle_HDF_or_queue(self, state):
-        # toggle the config flag
-        self.change_config("from_HDF", self.config["from_HDF"]==False)
-
-        # change the button appearance
         if self.config["from_HDF"]:
+            self.config["from_HDF"] = False
             self.HDF_pb.setText("Queue")
             self.HDF_pb.setToolTip("Force reading the data from the Queue instead of the HDF file.")
         else:
+            self.config["from_HDF"] = True
             self.HDF_pb.setText("HDF")
             self.HDF_pb.setToolTip("Force reading the data from HDF instead of the queue.")
 

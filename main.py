@@ -2009,8 +2009,12 @@ class Plotter(qt.QWidget):
         ctrls_f.addWidget(self.dev_cbx, 0, 0)
 
         # get list of runs
-        with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], 'r') as f:
-            runs = list(f.keys())
+        try:
+            with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], 'r') as f:
+                runs = list(f.keys())
+        except OSError as err:
+            runs = ["(no runs found)"]
+            logging.warning("Warning in class Plotter: " + str(err))
 
         # select run
         self.run_cbx = qt.QComboBox()
@@ -2155,9 +2159,14 @@ class Plotter(qt.QWidget):
         self.dev_cbx.setCurrentText(self.config["device"])
 
         # select latest run
-        with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], 'r') as f:
-            self.config["run"] = list(f.keys())[-1]
+        try:
+            with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], 'r') as f:
+                self.config["run"] = list(f.keys())[-1]
+                self.run_cbx.setCurrentText(self.config["run"])
+        except OSError as err:
+            self.config["run"] = "(no runs found)"
             self.run_cbx.setCurrentText(self.config["run"])
+            logging.warning("Warning in class Plotter: " + str(err))
 
         # get parameters
         if self.dev.config["slow_data"]:

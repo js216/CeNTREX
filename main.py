@@ -6,7 +6,6 @@ import pickle
 import pyvisa
 import logging
 import threading
-import qdarkstyle
 import numpy as np
 import configparser
 import datetime as dt
@@ -1280,7 +1279,8 @@ class ControlGUI(qt.QWidget):
 
     def toggle_style(self, state):
         if self.style_pb.text() == "Dark":
-            self.parent.app.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
+            with open("darkstyle.qss", 'r') as f:
+                self.parent.app.setStyleSheet(f.read())
             self.style_pb.setText("Light")
             self.style_pb.setToolTip("Change style to light mode.")
         else:

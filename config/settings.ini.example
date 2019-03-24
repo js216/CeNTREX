@@ -1,0 +1,25 @@
+[general]
+default_plot_dt = 0.1
+default_hdf_dt = 0.1
+run_name = test
+hdf_loop_delay = .1
+monitoring_dt = 1.0
+custom_command = Enter command ...
+custom_device = Select device ...
+
+[run_attributes]
+
+[files]
+config_dir = C:/Users/Jakob Kastelic/Documents/temp/CENTREX Jakob/0 common/software/DAQ/config/rotational_cooling
+hdf_fname = C:/Users/Jakob Kastelic/Documents/temp/test.hdf
+plotting_hdf_fname = C:/Users/Jakob Kastelic/Documents/temp/test.hdf
+plotting_config_fname = C:/Users/Jakob Kastelic/Documents/temp/plots.pkl
+
+[influxdb]
+enabled = False
+host = 172.28.82.114
+port = 8086
+username = bsmonitor
+password = molecules
+database = beamsource
+

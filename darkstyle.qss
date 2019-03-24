@@ -350,7 +350,7 @@ QAbstractScrollArea
 
 QScrollBar:horizontal
 {
-    height: 15px;
+    height: 10px;
     border: 1px transparent #2A2929;
     border-radius: 4px;
     background-color: #2A2929;
@@ -410,7 +410,7 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal
 QScrollBar:vertical
 {
     background-color: #2A2929;
-    width: 15px;
+    width: 10px;
     border: 1px transparent #2A2929;
     border-radius: 4px;
 }

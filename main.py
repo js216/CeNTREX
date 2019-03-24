@@ -47,7 +47,8 @@ def LabelFrame(label, type="grid", maxWidth=None, fixed=False):
 
     return box, layout
 
-def ScrollableLabelFrame(label, type="grid", fixed=False, minWidth=None, minHeight=None):
+def ScrollableLabelFrame(label, type="grid", fixed=False, minWidth=None,
+        minHeight=None, vert_scroll=True, horiz_scroll=True):
     # make the outer (framed) box
     outer_box = qt.QGroupBox(label)
     outer_layout = qt.QGridLayout()
@@ -72,6 +73,10 @@ def ScrollableLabelFrame(label, type="grid", fixed=False, minWidth=None, minHeig
 
     # make a scrollable area, and add the inner area to it
     sa = qt.QScrollArea()
+    if not horiz_scroll:
+        sa.setHorizontalScrollBarPolicy(PyQt5.QtCore.Qt.ScrollBarAlwaysOff)
+    if not vert_scroll:
+        sa.setVerticalScrollBarPolicy(PyQt5.QtCore.Qt.ScrollBarAlwaysOff)
     sa.setFrameStyle(16)
     sa.setWidgetResizable(True)
     sa.setWidget(inner_box)
@@ -1994,7 +1999,7 @@ class Plotter(qt.QWidget):
 
     def place_GUI_elements(self):
         # scrollable area for controls
-        box, ctrls_f = ScrollableLabelFrame("", fixed=True)
+        box, ctrls_f = ScrollableLabelFrame("", fixed=True, vert_scroll=False)
         self.f.addWidget(box)
 
         # select device

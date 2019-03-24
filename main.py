@@ -1938,8 +1938,12 @@ class PlotsGUI(qt.QSplitter):
         self.destroy_all_plots()
 
         # read pickled plot config
-        with open(self.parent.config["files"]["plotting_config_fname"], "rb") as f:
-            plot_configs = pickle.load(f)
+        try:
+            with open(self.parent.config["files"]["plotting_config_fname"], "rb") as f:
+                plot_configs = pickle.load(f)
+        except OSError as err:
+            logging.warning("Warning in load_plots: " + str(err))
+            return
 
         # re-create all plots
         for col, col_plots in plot_configs.items():

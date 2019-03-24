@@ -1908,6 +1908,7 @@ class PlotsGUI(qt.QSplitter):
             for row, plot in col_plots.items():
                 if plot:
                     plot.refresh_parameter_lists()
+                    plot.update_labels()
                     update_QComboBox(
                             cbx     = plot.run_cbx,
                             options = runs,
@@ -2010,6 +2011,7 @@ class Plotter(qt.QWidget):
         self.dev_cbx = qt.QComboBox()
         self.dev_cbx.activated[str].connect(lambda val: self.change_config("device", val))
         self.dev_cbx.activated[str].connect(lambda val: self.refresh_parameter_lists())
+        self.dev_cbx.activated[str].connect(self.update_labels)
         update_QComboBox(
                 cbx     = self.dev_cbx,
                 options = self.parent.ControlGUI.get_dev_list(),
@@ -2029,6 +2031,7 @@ class Plotter(qt.QWidget):
         self.run_cbx = qt.QComboBox()
         self.run_cbx.setMaximumWidth(100)
         self.run_cbx.activated[str].connect(lambda val: self.change_config("run", val))
+        self.run_cbx.activated[str].connect(self.update_labels)
         update_QComboBox(
                 cbx     = self.run_cbx,
                 options = runs,
@@ -2041,11 +2044,13 @@ class Plotter(qt.QWidget):
         self.x_cbx = qt.QComboBox()
         self.x_cbx.setToolTip("Select the independent variable.")
         self.x_cbx.activated[str].connect(lambda val: self.change_config("x", val))
+        self.x_cbx.activated[str].connect(self.update_labels)
         ctrls_f.addWidget(self.x_cbx, 1, 0)
 
         self.y_cbx = qt.QComboBox()
         self.y_cbx.setToolTip("Select the dependent variable.")
         self.y_cbx.activated[str].connect(lambda val: self.change_config("y", val))
+        self.y_cbx.activated[str].connect(self.update_labels)
         ctrls_f.addWidget(self.y_cbx, 1, 1)
 
         self.z_cbx = qt.QComboBox()
@@ -2420,10 +2425,11 @@ class Plotter(qt.QWidget):
             self.f.addWidget(self.plot)
         if not self.curve:
             self.curve = self.plot.plot(*data, symbol=self.config["symbol"])
+            self.update_labels()
         else:
             self.curve.setData(*data)
 
-        # set labels
+    def update_labels(self):
         self.plot.setLabel("bottom", self.config["x"])
         self.plot.setLabel("left", self.config["y"])
         self.plot.setLabel("top", self.config["device"] + "; " + self.config["run"])

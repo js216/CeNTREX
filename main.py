@@ -2430,9 +2430,10 @@ class Plotter(qt.QWidget):
             self.curve.setData(*data)
 
     def update_labels(self):
-        self.plot.setLabel("bottom", self.config["x"])
-        self.plot.setLabel("left", self.config["y"])
-        self.plot.setLabel("top", self.config["device"] + "; " + self.config["run"])
+        if self.plot:
+            self.plot.setLabel("bottom", self.config["x"])
+            self.plot.setLabel("left", self.config["y"])
+            self.plot.setLabel("top", self.config["device"] + "; " + self.config["run"])
 
     def change_y_limits(self):
         try:

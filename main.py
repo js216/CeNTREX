@@ -1474,7 +1474,7 @@ class ControlGUI(qt.QWidget):
 
         # make all plots display the current run and file, and clear f(y) for fast data
         self.parent.config["files"]["plotting_hdf_fname"] = self.parent.config["files"]["hdf_fname"]
-        self.parent.PlotsGUI.refresh_all_run_lists()
+        self.parent.PlotsGUI.refresh_all_run_lists(select_defaults=False)
         self.parent.PlotsGUI.clear_all_fast_y()
 
     def stop_control(self):
@@ -1898,7 +1898,7 @@ class PlotsGUI(qt.QSplitter):
                     plot.change_config("dt", dt)
                     plot.dt_qle.setText(str(dt))
 
-    def refresh_all_run_lists(self):
+    def refresh_all_run_lists(self, select_defaults=True):
         # get list of runs
         with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], 'r') as f:
             runs = list(f.keys())
@@ -1907,7 +1907,7 @@ class PlotsGUI(qt.QSplitter):
         for col, col_plots in self.all_plots.items():
             for row, plot in col_plots.items():
                 if plot:
-                    plot.refresh_parameter_lists()
+                    plot.refresh_parameter_lists(select_defaults=select_defaults)
                     plot.update_labels()
                     update_QComboBox(
                             cbx     = plot.run_cbx,

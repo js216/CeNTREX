@@ -23,6 +23,7 @@ class USB6008:
             self.verification_string = "operational"
         except:
             self.verification_string = "cannot read"
+            return
 
         if not self.SetPointControl(self.setpoint):
             self.verification_string = "cannot set setpoint"

@@ -2278,6 +2278,11 @@ class Plotter(qt.QWidget):
         return True
 
     def get_raw_data_from_HDF(self):
+        if not self.dev.config["controls"]["HDF_enabled"]["value"]:
+            logging.warning("Plot error: cannot plot from HDF when HDF is disabled")
+            self.toggle_HDF_or_queue("")
+            return
+
         with h5py.File(self.parent.config["files"]["hdf_fname"], 'r') as f:
             grp = f[self.config["run"] + "/" + self.dev.config["path"]]
 
@@ -2512,6 +2517,10 @@ class Plotter(qt.QWidget):
             logging.warning("Plot warning: cannot remove plot: " + str(err))
 
     def toggle_HDF_or_queue(self, state):
+        if not self.dev.config["controls"]["HDF_enabled"]["value"]:
+            logging.warning("Plot error: cannot plot from HDF when HDF is disabled")
+            return
+
         if self.config["from_HDF"]:
             self.config["from_HDF"] = False
             self.HDF_pb.setText("Queue")

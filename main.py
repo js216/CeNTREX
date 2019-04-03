@@ -1046,13 +1046,13 @@ class ControlGUI(qt.QWidget):
             self.monitoring_pb.setText("Show monitoring")
             self.monitoring_pb.setToolTip("Show MonitoringGUI (Ctrl+M).")
 
-    def toggle_control(self, val=""):
+    def toggle_control(self, val="", show_only=False):
         if not self.parent.config["control_visible"]:
             self.parent.config["control_visible"] = True
             self.show()
             self.parent.PlotsGUI.ctrls_box.show()
             self.parent.PlotsGUI.toggle_all_plot_controls()
-        else:
+        elif not show_only:
             self.parent.config["control_visible"] = False
             self.hide()
             self.parent.PlotsGUI.ctrls_box.hide()
@@ -2641,6 +2641,8 @@ class CentrexGUI(qt.QMainWindow):
         # keyboard shortcuts
         qt.QShortcut(QtGui.QKeySequence("Ctrl+Shift+C"), self)\
                 .activated.connect(self.ControlGUI.toggle_control)
+        qt.QShortcut(QtGui.QKeySequence("Esc"), self)\
+                .activated.connect(lambda: self.ControlGUI.toggle_control(show_only=True))
         qt.QShortcut(QtGui.QKeySequence("Ctrl+P"), self)\
                 .activated.connect(self.ControlGUI.toggle_plots)
         qt.QShortcut(QtGui.QKeySequence("Ctrl+M"), self)\

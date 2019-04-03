@@ -4,7 +4,8 @@ import time
 import logging
 
 class Arduino:
-    def __init__(self, time_offset, resource_name):
+    def __init__(self, time_offset, resource_name, dummytest):
+        print(dummytest)
         self.time_offset = time_offset
         self.rm = pyvisa.ResourceManager()
         try:

@@ -865,6 +865,12 @@ class ControlGUI(qt.QWidget):
                                                 )),
                         }
 
+                elif params[c].get("type") == "dummy":
+                    ctrls[c] = {
+                            "type"       : params[c]["type"],
+                            "value"      : params[c]["value"],
+                        }
+
                 elif params[c].get("type"):
                     logging.warning("Control type not supported: " + params[c].get("type"))
 

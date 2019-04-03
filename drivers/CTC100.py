@@ -9,8 +9,8 @@ class CTC100:
         self.rm = pyvisa.ResourceManager()
         try:
             self.instr = self.rm.open_resource(resource_name)
-        except pyvisa.errors.VisaIOError:
-            self.verification_string = "False"
+        except pyvisa.errors.VisaIOError as err:
+            self.verification_string = str(err)
             self.instr = False
             return
         self.instr.parity = pyvisa.constants.Parity.none
@@ -23,8 +23,8 @@ class CTC100:
         # make the verification string
         try:
             self.instr.write("getLog.reset")
-        except pyvisa.errors.VisaIOError:
-            self.verification_string = "False"
+        except pyvisa.errors.VisaIOError as err:
+            self.verification_string = str(err)
         self.verification_string = self.description()
 
         # HDF attributes generated when constructor is run

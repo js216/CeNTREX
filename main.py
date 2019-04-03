@@ -890,10 +890,12 @@ class ControlGUI(qt.QWidget):
 
         # control start/stop buttons
         self.start_pb = qt.QPushButton("\u26ab Start control")
+        self.start_pb.setToolTip("Start control for all enabled devices (Ctrl+S).")
         self.start_pb.clicked[bool].connect(self.start_control)
         control_frame.addWidget(self.start_pb, 0, 0)
 
         pb = qt.QPushButton("\u2b1b Stop control")
+        pb.setToolTip("Stop control for all enabled devices (Ctrl+Q).")
         pb.clicked[bool].connect(self.stop_control)
         control_frame.addWidget(pb, 0, 1)
 
@@ -908,16 +910,19 @@ class ControlGUI(qt.QWidget):
         # buttons to show/hide monitoring and plots
 
         self.monitoring_pb = qt.QPushButton("Show monitoring")
+        self.monitoring_pb.setToolTip("Show MonitoringGUI (Ctrl+M).")
         self.monitoring_pb.clicked[bool].connect(self.toggle_monitoring)
         control_frame.addWidget(self.monitoring_pb, 1, 0)
 
         self.plots_pb = qt.QPushButton("Show plots")
+        self.plots_pb.setToolTip("Show/hide PlotsGUI (Ctrl+P).")
         self.plots_pb.clicked[bool].connect(self.toggle_plots)
+        self.plots_pb.setToolTip("Show PlotsGUI (Ctrl+P).")
         control_frame.addWidget(self.plots_pb, 1, 1)
 
         # for dark/light stylesheets
-        self.style_pb = qt.QPushButton("Dark")
-        self.style_pb.setToolTip("Change style to dark mode.")
+        self.style_pb = qt.QPushButton("Dark style")
+        self.style_pb.setToolTip("Change style to dark mode (Ctrl+D).")
         self.style_pb.clicked[bool].connect(self.toggle_style)
         control_frame.addWidget(self.style_pb, 1, 2)
 
@@ -1033,21 +1038,25 @@ class ControlGUI(qt.QWidget):
             self.parent.config["monitoring_visible"] = True
             self.parent.MonitoringGUI.show()
             self.monitoring_pb.setText("Hide monitoring")
+            self.monitoring_pb.setToolTip("Hide MonitoringGUI (Ctrl+M).")
         else:
             self.parent.config["monitoring_visible"] = False
             self.parent.MonitoringGUI.hide()
             #self.parent.setGeometry(640, 300, 471, 634)
             self.monitoring_pb.setText("Show monitoring")
+            self.monitoring_pb.setToolTip("Show MonitoringGUI (Ctrl+M).")
 
     def toggle_plots(self, val=""):
         if not self.parent.config["plots_visible"]:
             self.parent.config["plots_visible"] = True
             self.parent.PlotsGUI.show()
             self.plots_pb.setText("Hide plots")
+            self.plots_pb.setToolTip("Hide PlotsGUI (Ctrl+P).")
         else:
             self.parent.config["plots_visible"] = False
             self.parent.PlotsGUI.hide()
             self.plots_pb.setText("Show plots")
+            self.plots_pb.setToolTip("Show PlotsGUI (Ctrl+P).")
 
     def edit_run_attrs(self, dev):
         # open the AttrEditor dialog window
@@ -1291,15 +1300,15 @@ class ControlGUI(qt.QWidget):
             dev.config[config] = val
 
     def toggle_style(self, state=""):
-        if self.style_pb.text() == "Dark":
+        if self.style_pb.text() == "Dark style":
             with open("darkstyle.qss", 'r') as f:
                 self.parent.app.setStyleSheet(f.read())
-            self.style_pb.setText("Light")
-            self.style_pb.setToolTip("Change style to light mode.")
+            self.style_pb.setText("Light style")
+            self.style_pb.setToolTip("Change style to light mode (Ctrl+D).")
         else:
             self.parent.app.setStyleSheet("")
-            self.style_pb.setText("Dark")
-            self.style_pb.setToolTip("Change style to dark mode.")
+            self.style_pb.setText("Dark style")
+            self.style_pb.setToolTip("Change style to dark mode (Ctrl+D).")
 
     def rename_HDF(self, state):
         # check we're not running already
@@ -1720,10 +1729,12 @@ class PlotsGUI(qt.QSplitter):
         ctrls_f.setColumnStretch(1, 1)
 
         pb = qt.QPushButton("Start all")
+        pb.setToolTip("Start all plots (Ctrl+Shift+S).")
         pb.clicked[bool].connect(self.start_all_plots)
         ctrls_f.addWidget(pb, 0, 0)
 
         pb = qt.QPushButton("Stop all")
+        pb.setToolTip("Stop all plots (Ctrl+Shift+Q).")
         pb.clicked[bool].connect(self.stop_all_plots)
         ctrls_f.addWidget(pb, 0, 1)
 
@@ -1761,6 +1772,12 @@ class PlotsGUI(qt.QSplitter):
         pb.setToolTip("Add a new plot in the specified column.")
         ctrls_f.addWidget(pb, 0, 5)
         pb.clicked[bool].connect(lambda val, qle=qle : self.add_plot(col=qle.text()))
+
+        # button to toggle plot controls visible/invisible
+        pb = qt.QPushButton("Toggle controls")
+        pb.setToolTip("Show or hide individual plot controls (Ctrl+T).")
+        ctrls_f.addWidget(pb, 1, 5)
+        pb.clicked[bool].connect(lambda val : self.toggle_all_plot_controls())
 
         # the HDF file we're currently plotting from
         ctrls_f.addWidget(qt.QLabel("HDF file"), 1, 0)
@@ -1925,6 +1942,11 @@ class PlotsGUI(qt.QSplitter):
                 if plot:
                     plot.fast_y = []
 
+    def toggle_all_plot_controls(self):
+        for col, col_plots in self.all_plots.items():
+            for row, plot in col_plots.items():
+                plot.toggle_controls()
+
     def save_plots(self, dt):
         # put essential information about plot configuration in a dictionary
         plot_configs = {}
@@ -1990,6 +2012,7 @@ class Plotter(qt.QWidget):
                 "plot_drawn"        : False,
                 "animation_running" : False,
                 "from_HDF"          : False,
+                "controls"          : True,
                 "n_average"         : 1,
                 "f(y)"              : "np.min(y)",
                 "device"            : "Select device ...",
@@ -2006,10 +2029,18 @@ class Plotter(qt.QWidget):
 
         self.place_GUI_elements()
 
+    def toggle_controls(self):
+        if self.config.setdefault("controls", True):
+            self.config["controls"] = False
+            self.ctrls_box.hide()
+        else:
+            self.config["controls"] = True
+            self.ctrls_box.show()
+
     def place_GUI_elements(self):
         # scrollable area for controls
-        box, ctrls_f = ScrollableLabelFrame("", fixed=True, vert_scroll=False)
-        self.f.addWidget(box)
+        self.ctrls_box, ctrls_f = ScrollableLabelFrame("", fixed=True, vert_scroll=False)
+        self.f.addWidget(self.ctrls_box)
 
         # select device
         self.dev_cbx = qt.QComboBox()
@@ -2605,6 +2636,12 @@ class CentrexGUI(qt.QMainWindow):
                 .activated.connect(self.ControlGUI.start_control)
         qt.QShortcut(QtGui.QKeySequence("Ctrl+Q"), self)\
                 .activated.connect(self.ControlGUI.stop_control)
+        qt.QShortcut(QtGui.QKeySequence("Ctrl+T"), self)\
+                .activated.connect(self.PlotsGUI.toggle_all_plot_controls)
+        qt.QShortcut(QtGui.QKeySequence("Ctrl+Shift+S"), self)\
+                .activated.connect(self.PlotsGUI.start_all_plots)
+        qt.QShortcut(QtGui.QKeySequence("Ctrl+Shift+Q"), self)\
+                .activated.connect(self.PlotsGUI.stop_all_plots)
 
         self.show()
 

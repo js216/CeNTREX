@@ -46,7 +46,11 @@ class CTC100:
         ret_val = [ time.time() - self.time_offset ]
 
         # read the most recent value of all channels
-        all_values = self.instr.query('getOutput?').split(",")
+        try:
+            all_values = self.instr.query('getOutput?').split(",")
+        except Exception as err:
+            logging.warning("CTC100 warning in ReadValue(): " + str(err))
+            return np.nan
 
         # retain the first 17 values:
         #    In 1, In 2, PCB 1, In 3, In 4, PCB 2, Out 1, Out 1 I, Out 1 V, 

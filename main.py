@@ -1028,7 +1028,7 @@ class ControlGUI(qt.QWidget):
         box, self.devices_frame = ScrollableLabelFrame("Devices")
         self.main_frame.addWidget(box)
 
-    def toggle_monitoring(self, val):
+    def toggle_monitoring(self, val=""):
         if not self.parent.config["monitoring_visible"]:
             self.parent.config["monitoring_visible"] = True
             self.parent.MonitoringGUI.show()
@@ -1039,7 +1039,7 @@ class ControlGUI(qt.QWidget):
             #self.parent.setGeometry(640, 300, 471, 634)
             self.monitoring_pb.setText("Show monitoring")
 
-    def toggle_plots(self, val):
+    def toggle_plots(self, val=""):
         if not self.parent.config["plots_visible"]:
             self.parent.config["plots_visible"] = True
             self.parent.PlotsGUI.show()
@@ -1290,7 +1290,7 @@ class ControlGUI(qt.QWidget):
         else:
             dev.config[config] = val
 
-    def toggle_style(self, state):
+    def toggle_style(self, state=""):
         if self.style_pb.text() == "Dark":
             with open("darkstyle.qss", 'r') as f:
                 self.parent.app.setStyleSheet(f.read())
@@ -2280,7 +2280,7 @@ class Plotter(qt.QWidget):
     def get_raw_data_from_HDF(self):
         if not self.dev.config["controls"]["HDF_enabled"]["value"]:
             logging.warning("Plot error: cannot plot from HDF when HDF is disabled")
-            self.toggle_HDF_or_queue("")
+            self.toggle_HDF_or_queue()
             return
 
         with h5py.File(self.parent.config["files"]["hdf_fname"], 'r') as f:
@@ -2516,7 +2516,7 @@ class Plotter(qt.QWidget):
         except AttributeError as err:
             logging.warning("Plot warning: cannot remove plot: " + str(err))
 
-    def toggle_HDF_or_queue(self, state):
+    def toggle_HDF_or_queue(self, state=""):
         if not self.dev.config["controls"]["HDF_enabled"]["value"]:
             logging.warning("Plot error: cannot plot from HDF when HDF is disabled")
             return
@@ -2593,6 +2593,18 @@ class CentrexGUI(qt.QMainWindow):
         self.MonitoringGUI.hide()
         qs.addWidget(self.PlotsGUI)
         self.PlotsGUI.hide()
+
+        # keyboard shortcuts
+        qt.QShortcut(QtGui.QKeySequence("Ctrl+P"), self)\
+                .activated.connect(self.ControlGUI.toggle_plots)
+        qt.QShortcut(QtGui.QKeySequence("Ctrl+M"), self)\
+                .activated.connect(self.ControlGUI.toggle_monitoring)
+        qt.QShortcut(QtGui.QKeySequence("Ctrl+D"), self)\
+                .activated.connect(self.ControlGUI.toggle_style)
+        qt.QShortcut(QtGui.QKeySequence("Ctrl+S"), self)\
+                .activated.connect(self.ControlGUI.start_control)
+        qt.QShortcut(QtGui.QKeySequence("Ctrl+Q"), self)\
+                .activated.connect(self.ControlGUI.stop_control)
 
         self.show()
 

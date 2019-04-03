@@ -126,8 +126,8 @@ class PXIe5171:
     def __exit__(self, *exc):
         try:
             self.session.close()
-        except AttributeError:
-            pass
+        except AttributeError as err:
+            logging.error("Error in __exit__() in PXIe5171: " + str(err))
 
     def ReadValue(self):
         # the structures for reading waveform data into
@@ -145,7 +145,7 @@ class PXIe5171:
                     timeout       = datetime.timedelta(seconds=1.0)
                 )
         except niscope.errors.DriverError as err:
-            logging.warning(err)
+            logging.warning(str(err))
             return np.nan
 
         # increment record count

@@ -211,6 +211,7 @@ class Device(threading.Thread):
 
         # main control loop
         with self.config["driver"](*self.constr_params) as device:
+            raise Exception
             while self.active.is_set():
                 # loop delay
                 try:
@@ -2626,6 +2627,8 @@ class CentrexGUI(qt.QMainWindow):
 
         # GUI elements
         self.ControlGUI = ControlGUI(self)
+        if self.config["general"].get("style") == "dark":
+            self.ControlGUI.toggle_style()
         self.MonitoringGUI = MonitoringGUI(self)
         self.PlotsGUI = PlotsGUI(self)
 

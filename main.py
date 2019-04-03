@@ -708,7 +708,8 @@ class ControlGUI(qt.QWidget):
             params = configparser.ConfigParser()
             params.read(f)
             if not "device" in params:
-                logging.warning("The device config file " + f + " does not have a [device] section.")
+                if f[-11:] != "desktop.ini":
+                    logging.warning("The device config file " + f + " does not have a [device] section.")
                 continue
 
             # import the device driver
@@ -1513,13 +1514,9 @@ class MonitoringGUI(qt.QSplitter):
         self.setOrientation(PyQt5.QtCore.Qt.Vertical)
 
     def place_GUI_elements(self):
-        # main frame for all MonitoringGUI elements
-        self.main_frame = qt.QVBoxLayout()
-        self.setLayout(self.main_frame)
-
         # monitoring controls frame
         box, control_frame = ScrollableLabelFrame("Controls", type="hbox", minHeight=200)
-        self.main_frame.addWidget(box)
+        self.addWidget(box)
 
         # general monitoring controls
         box, gen_f = LabelFrame("General", maxWidth=200, fixed=True)
@@ -1590,7 +1587,7 @@ class MonitoringGUI(qt.QSplitter):
 
         # frame for device data
         box, self.dev_f = ScrollableLabelFrame("Devices", fixed=True, minWidth=200)
-        self.main_frame.addWidget(box)
+        self.addWidget(box)
 
     def check_free_disk_space(self):
         pythoncom.CoInitialize()

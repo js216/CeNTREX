@@ -77,6 +77,7 @@ def ScrollableLabelFrame(label, type="grid", fixed=False, minWidth=None,
         sa.setHorizontalScrollBarPolicy(PyQt5.QtCore.Qt.ScrollBarAlwaysOff)
     if not vert_scroll:
         sa.setVerticalScrollBarPolicy(PyQt5.QtCore.Qt.ScrollBarAlwaysOff)
+        sa.setMinimumHeight(sa.sizeHint().height())
     sa.setFrameStyle(16)
     sa.setWidgetResizable(True)
     sa.setWidget(inner_box)

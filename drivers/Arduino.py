@@ -68,3 +68,15 @@ class Arduino:
             return np.nan
 
         return temp
+
+    def ValveOpen(self):
+        try:
+            return self.instr.query("o")
+        except pyvisa.errors.VisaIOError:
+            return np.nan
+
+    def ValveClose(self):
+        try:
+            return self.instr.query("c")
+        except pyvisa.errors.VisaIOError:
+            return np.nan

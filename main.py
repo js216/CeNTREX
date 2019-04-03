@@ -1049,10 +1049,14 @@ class ControlGUI(qt.QWidget):
     def toggle_control(self, val=""):
         if not self.parent.config["control_visible"]:
             self.parent.config["control_visible"] = True
-            self.parent.ControlGUI.show()
+            self.show()
+            self.parent.PlotsGUI.ctrls_box.show()
+            self.parent.PlotsGUI.toggle_all_plot_controls()
         else:
             self.parent.config["control_visible"] = False
-            self.parent.ControlGUI.hide()
+            self.hide()
+            self.parent.PlotsGUI.ctrls_box.hide()
+            self.parent.PlotsGUI.toggle_all_plot_controls()
 
     def toggle_plots(self, val=""):
         if not self.parent.config["plots_visible"]:
@@ -1732,8 +1736,8 @@ class PlotsGUI(qt.QSplitter):
 
     def place_GUI_elements(self):
         # controls for all plots
-        box, ctrls_f = LabelFrame("Controls")
-        self.addWidget(box)
+        self.ctrls_box, ctrls_f = LabelFrame("Controls")
+        self.addWidget(self.ctrls_box)
         ctrls_f.setColumnStretch(1, 1)
 
         pb = qt.QPushButton("Start all")
@@ -2635,7 +2639,7 @@ class CentrexGUI(qt.QMainWindow):
         self.PlotsGUI.hide()
 
         # keyboard shortcuts
-        qt.QShortcut(QtGui.QKeySequence("Ctrl+C"), self)\
+        qt.QShortcut(QtGui.QKeySequence("Ctrl+Shift+C"), self)\
                 .activated.connect(self.ControlGUI.toggle_control)
         qt.QShortcut(QtGui.QKeySequence("Ctrl+P"), self)\
                 .activated.connect(self.ControlGUI.toggle_plots)

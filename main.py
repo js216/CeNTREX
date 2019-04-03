@@ -2190,14 +2190,17 @@ class Plotter(qt.QWidget):
         if self.dev.config["slow_data"]:
             self.param_list = split(self.dev.config["attributes"]["column_names"])
         else:
-            self.param_list = split(self.dev.config["attributes"]["column_names"])
+            self.param_list = ["(none)"] + split(self.dev.config["attributes"]["column_names"])
         if not self.param_list:
             logging.warning("Plot error: No parameters to plot.")
             return
 
         # select x, y, and z
         if select_defaults:
-            self.config["x"] = self.param_list[0]
+            if self.dev.config["slow_data"]:
+                self.config["x"] = self.param_list[0]
+            else:
+                self.config["x"] = "(none)"
             if len(self.param_list) > 1:
                 self.config["y"] = self.param_list[1]
             else:
@@ -2263,8 +2266,9 @@ class Plotter(qt.QWidget):
 
         # check parameters are valid
         if not self.config["x"] in self.param_list:
-            logging.warning("Plot warning: x not valid.")
-            return False
+            if self.dev.config["slow_data"]: # fast data does not need an x variable
+                logging.warning("Plot warning: x not valid.")
+                return False
 
         if not self.config["y"] in self.param_list:
             logging.warning("Plot error: y not valid.")

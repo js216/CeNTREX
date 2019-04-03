@@ -211,7 +211,6 @@ class Device(threading.Thread):
 
         # main control loop
         with self.config["driver"](*self.constr_params) as device:
-            raise Exception
             while self.active.is_set():
                 # loop delay
                 try:

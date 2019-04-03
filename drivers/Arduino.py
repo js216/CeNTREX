@@ -4,23 +4,24 @@ import time
 import logging
 
 class Arduino:
-    def __init__(self, time_offset, resource_name, dummytest):
-        print(dummytest)
+    def __init__(self, time_offset, resource_name):
         self.time_offset = time_offset
         self.rm = pyvisa.ResourceManager()
         try:
             self.instr = self.rm.open_resource(resource_name)
-        except pyvisa.errors.VisaIOError:
-            self.verification_string = "False"
+        except pyvisa.errors.VisaIOError as err:
+            self.verification_string = str(err)
             self.instr = False
             return
         self.instr.baud_rate = 9600
         self.instr.data_bits = 8
         self.instr.parity = pyvisa.constants.Parity.none
         self.instr.stop_bits = pyvisa.constants.StopBits.one
+        self.instr.read_termination = "\n"
 
         # make the verification string
-        self.verification_string = "Todo"
+        self.ClearBuffer()
+        self.verification_string = self.QueryIdentification()
 
         # HDF attributes generated when constructor is run
         self.new_attributes = []
@@ -50,15 +51,29 @@ class Arduino:
         self.warnings = []
         return warnings
 
+    def ClearBuffer(self):
+        try:
+            self.instr.read()
+        except:
+            pass
+
     #################################################################
     ##########           SERIAL COMMANDS                   ##########
     #################################################################
 
+    def QueryIdentification(self):
+        try:
+            return self.instr.query("i")
+        except pyvisa.errors.VisaIOError as err:
+            logging.warning("Arduino warning in QueryIdentification(): " + str(err))
+            return str(err)
+
     def ReadTemp(self):
-        # measure the pressure
+        # measure the temperature
         try:
             resp = self.instr.query("t")
-        except pyvisa.errors.VisaIOError:
+        except pyvisa.errors.VisaIOError as err:
+            logging.warning("Arduino warning in ReadTemp(): " + str(err))
             return np.nan
 
         # convert the response to a number

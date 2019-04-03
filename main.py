@@ -1528,8 +1528,14 @@ class MonitoringGUI(qt.QSplitter):
         # general monitoring controls
         box, gen_f = LabelFrame("General", maxWidth=200, fixed=True)
         control_frame.addWidget(box)
-        gen_f.addWidget(qt.QLabel("Loop delay [s]:"), 0, 0)
 
+        # disk space usage
+        gen_f.addWidget(qt.QLabel("Disk usage:"), 2, 0)
+        self.free_qpb = qt.QProgressBar()
+        gen_f.addWidget(self.free_qpb, 2, 1)
+        self.check_free_disk_space()
+
+        gen_f.addWidget(qt.QLabel("Loop delay [s]:"), 0, 0)
         qle = qt.QLineEdit()
         qle.setText(self.parent.config["general"]["monitoring_dt"])
         qle.textChanged[str].connect(
@@ -1585,12 +1591,6 @@ class MonitoringGUI(qt.QSplitter):
         control_frame.addWidget(box)
         self.warnings_label = qt.QLabel("(no warnings)")
         w_f.addWidget(self.warnings_label, 3, 0)
-
-        # disk space usage
-        w_f.addWidget(qt.QLabel("Disk usage:"), 2, 0)
-        self.free_qpb = qt.QProgressBar()
-        w_f.addWidget(self.free_qpb, 2, 1)
-        self.check_free_disk_space()
 
         # frame for device data
         box, self.dev_f = ScrollableLabelFrame("Devices", fixed=True, minWidth=200)

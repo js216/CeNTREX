@@ -20,7 +20,7 @@ from influxdb import InfluxDBClient
 ##########################################################################
 ##########################################################################
 #######                                                 ##################
-#######            CONVENIENCE FUNCTIONS                ##################
+#######            CONVENIENCE FUNCTIONS/CLASSES        ##################
 #######                                                 ##################
 ##########################################################################
 ##########################################################################
@@ -64,6 +64,8 @@ def ScrollableLabelFrame(label, type="grid", fixed=False, minWidth=None,
     inner_box = qt.QWidget()
     if type == "grid":
         inner_layout = qt.QGridLayout()
+    elif type == "flexgrid":
+        inner_layout = FlexibleGridLayout()
     elif type == "hbox":
         inner_layout = qt.QHBoxLayout()
     elif type == "vbox":
@@ -121,6 +123,31 @@ def clear_layout(layout):
 
 def split(string, separator=","):
     return [x.strip() for x in string.split(separator)]
+
+class FlexibleGridLayout(qt.QHBoxLayout):
+    """A QHBoxLayout of QVBoxLayouts."""
+    def __init__(self):
+        super().__init__()
+        self.columns = {}
+
+    def addWidget(self, widget, row, col):
+        # check the column exists, else create it
+        if not col in self.columns:
+            self.columns[col] = qt.QVBoxLayout()
+            self.insertLayout(col, self.columns[col])
+
+        # add the widget to the given row in the column
+        self.columns[col].insertWidget(row, widget)
+
+    def count(self):
+        return sum([l.count() for ln,l in self.columns.items()])
+
+    def itemAt(self, i):
+        total = 0
+        for ln, l in self.columns.items():
+            total += l.count()
+            if i < total:
+                return l.itemAt( i - total + l.count() )
 
 ##########################################################################
 ##########################################################################
@@ -1032,7 +1059,7 @@ class ControlGUI(qt.QWidget):
         ########################################
 
         # frame for device-specific controls
-        box, self.devices_frame = ScrollableLabelFrame("Devices")
+        box, self.devices_frame = ScrollableLabelFrame("Devices", type="grid")
         self.main_frame.addWidget(box)
 
     def toggle_monitoring(self, val=""):
@@ -2287,27 +2314,28 @@ class Plotter(qt.QWidget):
             logging.warning("Plot error: Invalid device: " + self.config["device"])
             return False
 
-        # check run is valid
-        try:
-            with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], 'r') as f:
-                if not self.config["run"] in f.keys():
-                    self.stop_animation()
-                    logging.warning("Plot error: Run not found in the HDF file:" + self.config["run"])
-                    return False
-        except OSError:
-                self.stop_animation()
-                logging.warning("Plot error: Not a valid HDF file.")
-                return False
-
-        # check dataset exists in the run
-        with h5py.File(self.parent.config["files"]["hdf_fname"], 'r') as f:
+        if self.dev.config["controls"]["HDF_enabled"]["value"]:
+            # check run is valid
             try:
-                grp = f[self.config["run"] + "/" + self.dev.config["path"]]
-            except KeyError:
-                if time.time() - self.parent.config["time_offset"] > 5:
-                    logging.warning("Plot error: Dataset not found in this run.")
-                self.stop_animation()
-                return False
+                with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], 'r') as f:
+                    if not self.config["run"] in f.keys():
+                        self.stop_animation()
+                        logging.warning("Plot error: Run not found in the HDF file:" + self.config["run"])
+                        return False
+            except OSError:
+                    self.stop_animation()
+                    logging.warning("Plot error: Not a valid HDF file.")
+                    return False
+
+            # check dataset exists in the run
+            with h5py.File(self.parent.config["files"]["hdf_fname"], 'r') as f:
+                try:
+                    grp = f[self.config["run"] + "/" + self.dev.config["path"]]
+                except KeyError:
+                    if time.time() - self.parent.config["time_offset"] > 5:
+                        logging.warning("Plot error: Dataset not found in this run.")
+                    self.stop_animation()
+                    return False
 
         # check parameters are valid
         if not self.config["x"] in self.param_list:

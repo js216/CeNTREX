@@ -915,6 +915,12 @@ class ControlGUI(qt.QWidget):
         self.plots_pb.setToolTip("Show PlotsGUI (Ctrl+P).")
         control_frame.addWidget(self.plots_pb, 1, 1)
 
+        # for horizontal/vertical program orientation
+        self.orientation_pb = qt.QPushButton("Horizontal mode")
+        self.orientation_pb.setToolTip("Put controls and plots/monitoring on top of each other (Ctrl+V).")
+        self.orientation_pb.clicked[bool].connect(self.parent.toggle_orientation)
+        control_frame.addWidget(self.orientation_pb, 2, 0)
+
         # for dark/light stylesheets
         self.style_pb = qt.QPushButton("Dark style")
         self.style_pb.setToolTip("Change style to dark mode (Ctrl+D).")
@@ -925,12 +931,12 @@ class ControlGUI(qt.QWidget):
         pb = qt.QPushButton("Refresh COM ports")
         pb.setToolTip("Click this to populate all the COM port dropdown menus.")
         pb.clicked[bool].connect(self.refresh_COM_ports)
-        control_frame.addWidget(pb, 2, 0)
+        control_frame.addWidget(pb, 3, 0)
 
         # the control to send a custom command to a specified device
 
         cmd_frame = qt.QHBoxLayout()
-        control_frame.addLayout(cmd_frame, 3, 0, 1, 2)
+        control_frame.addLayout(cmd_frame, 4, 0, 1, 2)
 
         cmd_frame.addWidget(qt.QLabel("Cmd:"))
 
@@ -2612,6 +2618,7 @@ class CentrexGUI(qt.QMainWindow):
                 "control_visible"    : True,
                 "monitoring_visible" : False,
                 "plots_visible"      : False,
+                "horizontal_split"   : True,
                 }
         settings = configparser.ConfigParser()
         settings.read("config/settings.ini")
@@ -2628,12 +2635,12 @@ class CentrexGUI(qt.QMainWindow):
         self.PlotsGUI = PlotsGUI(self)
 
         # put GUI elements in a QSplitter
-        qs = qt.QSplitter()
-        self.setCentralWidget(qs)
-        qs.addWidget(self.ControlGUI)
-        qs.addWidget(self.MonitoringGUI)
+        self.qs = qt.QSplitter()
+        self.setCentralWidget(self.qs)
+        self.qs.addWidget(self.ControlGUI)
+        self.qs.addWidget(self.MonitoringGUI)
         self.MonitoringGUI.hide()
-        qs.addWidget(self.PlotsGUI)
+        self.qs.addWidget(self.PlotsGUI)
         self.PlotsGUI.hide()
 
         # keyboard shortcuts
@@ -2653,12 +2660,26 @@ class CentrexGUI(qt.QMainWindow):
                 .activated.connect(self.ControlGUI.stop_control)
         qt.QShortcut(QtGui.QKeySequence("Ctrl+T"), self)\
                 .activated.connect(self.PlotsGUI.toggle_all_plot_controls)
+        qt.QShortcut(QtGui.QKeySequence("Ctrl+V"), self)\
+                .activated.connect(self.toggle_orientation)
         qt.QShortcut(QtGui.QKeySequence("Ctrl+Shift+S"), self)\
                 .activated.connect(self.PlotsGUI.start_all_plots)
         qt.QShortcut(QtGui.QKeySequence("Ctrl+Shift+Q"), self)\
                 .activated.connect(self.PlotsGUI.stop_all_plots)
 
         self.show()
+
+    def toggle_orientation(self):
+        if self.config["horizontal_split"]:
+            self.qs.setOrientation(PyQt5.QtCore.Qt.Vertical)
+            self.config["horizontal_split"] = False
+            self.ControlGUI.orientation_pb.setText("Vertical mode")
+            self.ControlGUI.orientation_pb.setToolTip("Put controls and plots/monitoring side-by-side (Ctrl+V).")
+        else:
+            self.qs.setOrientation(PyQt5.QtCore.Qt.Horizontal)
+            self.config["horizontal_split"] = True
+            self.ControlGUI.orientation_pb.setText("Horizontal mode")
+            self.ControlGUI.orientation_pb.setToolTip("Put controls and plots/monitoring on top of each other (Ctrl+V).")
 
     def closeEvent(self, event):
         if self.config['control_active']:

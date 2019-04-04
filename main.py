@@ -751,6 +751,8 @@ class ControlGUI(qt.QWidget):
                 return
 
             # make a Device object
+            if params["device"]["name"] in self.parent.devices:
+                logging.warning("Warning in read_device_config(): duplicate device name: " + params["device"]["name"])
             self.parent.devices[params["device"]["name"]] = Device(dev_config)
 
     def read_device_config_options(self, f, params):

@@ -49,9 +49,9 @@ class FS740:
 
         self.verification_string = self.VerifyOperation()
         if not isinstance(self.verification_string, str):
-            self.verification_string = False
+            self.verification_string = 'False'
         self.new_attributes = []
-        self.dtype = 'f16'
+        self.dtype = 'f8'
         self.shape = (6,)
 
         self.warnings = []
@@ -60,7 +60,10 @@ class FS740:
         return self
 
     def __exit__(self, *exc):
-        self.instr.close()
+        try:
+            self.instr.close()
+        except:
+            pass
 
     def query(self, cmd):
         return self.instr.query(cmd)
@@ -75,7 +78,7 @@ class FS740:
 
     def ReadValue(self):
         self.WriteValueINFLUXDB()
-        return [
+        values = [
                 time.time() - self.time_offset,
                 float(self.TBaseStateLockDuration()),
                 float(self.TBaseTInterval()),
@@ -83,6 +86,7 @@ class FS740:
                 float(self.QueryTBaseTConstant()),
                 float(self.QueryTBaseFControl()),
         ]
+        return values
 
     def ReadValueINFLUXDB(self, full_output = False):
         date = self.QuerySystemDate()

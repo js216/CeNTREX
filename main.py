@@ -146,6 +146,7 @@ class Device(threading.Thread):
 
         # for sending commands to the device
         self.commands = []
+        self.last_event = []
 
         # for warnings about device abnormal condition
         self.warnings = []
@@ -165,6 +166,10 @@ class Device(threading.Thread):
         self.constr_params = [self.time_offset]
         for cp in self.config["constr_params"]:
             self.constr_params.append(self.config["controls"][cp]["value"])
+
+        # for meta devices, include a reference to the parent
+        if self.config["meta_device"]:
+            self.constr_params = [self.config["parent"]] + self.constr_params
 
         # verify the device responds correctly
         with self.config["driver"](*self.constr_params) as dev:
@@ -237,7 +242,7 @@ class Device(threading.Thread):
                 if isinstance(last_data, float):
                     if np.isnan(last_data):
                         self.nan_count += 1
-                elif len(last_data) > 0:
+                if last_data:
                     self.data_queue.append(last_data)
                     self.config["plots_queue"].append(last_data)
 
@@ -248,8 +253,8 @@ class Device(threading.Thread):
                     except (ValueError, AttributeError, SyntaxError, TypeError) as err:
                         ret_val = str(err)
                     ret_val = "None" if not ret_val else ret_val
-                    last_event = [ time.time()-self.time_offset, c, ret_val ]
-                    self.events_queue.append(last_event)
+                    self.last_event = [ time.time()-self.time_offset, c, ret_val ]
+                    self.events_queue.append(self.last_event)
                 self.commands = []
 
 class Monitoring(threading.Thread):
@@ -285,7 +290,7 @@ class Monitoring(threading.Thread):
                     for warning in dev.warnings:
                         logging.warning(str(warning))
                         self.push_warnings_to_influxdb(dev_name, warning)
-                        self.MonitoringGUI.update_warnings(str(warning))
+                        self.parent.MonitoringGUI.update_warnings(str(warning))
                     dev.warnings = []
 
                 # find out and display the data queue length
@@ -528,7 +533,10 @@ class HDF_writer(threading.Thread):
                                 dset[idx_start:idx_stop] = d
                     else:
                         dset.resize(dset.shape[0]+len(data), axis=0)
-                        dset[-len(data):] = data
+                        try:
+                            dset[-len(data):] = data
+                        except TypeError as err:
+                            logging.error("Error in write_all_queues_to_HDF(): " + str(err))
 
                 # if writing each acquisition record to a separate dataset
                 else:
@@ -731,6 +739,10 @@ class ControlGUI(qt.QWidget):
                 logging.error("Cannot read device config file: " + str(err))
                 return
 
+            # for meta devices, include a reference to the parent
+            if dev_config["meta_device"]:
+                dev_config["parent"] = self.parent
+
             # populate the list of device controls
             try:
                 dev_config["controls"] = self.read_device_controls(params)
@@ -756,6 +768,7 @@ class ControlGUI(qt.QWidget):
                     "columnspan"         : int(params["device"]["columnspan"]),
                     "monitoring_column"  : int(params["device"]["monitoring_column"]),
                     "constr_params"      : split(params["device"]["constr_params"]),
+                    "meta_device"        : True if params["device"].get("meta_device")=="True" else False,
                     "attributes"         : params["attributes"],
                 }
 

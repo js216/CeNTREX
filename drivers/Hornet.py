@@ -194,6 +194,15 @@ class Hornet:
         except pyvisa.errors.VisaIOError:
             return np.nan
 
+    def IGStatus(self):
+        ig_status = self.ReadIGStatus()
+        if ig_status == "*" + self.address + "IG_OFF":
+            return 0
+        elif ig_status == "*" + self.address + "IG_ON":
+            return 1
+        else:
+            return 2
+
     def TurnDegasOn(self):
         """Start a degas cycle.
 

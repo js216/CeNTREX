@@ -284,6 +284,10 @@ class Monitoring(threading.Thread):
                 if not dev.control_started:
                     continue
 
+                # check device enabled
+                if not dev.config["controls"]["enabled"]["value"]:
+                    continue
+
                 # check device for abnormal conditions
                 if len(dev.warnings) != 0:
                     logging.warning("Abnormal condition in " + str(dev_name))
@@ -299,8 +303,13 @@ class Monitoring(threading.Thread):
                 # get the last event (if any) of the device
                 self.display_last_event(dev)
 
-                # get the last row of data in the HDF dataset
-                data = self.get_last_row_of_data(dev)
+                # get the last row of data from the plots_queue
+                try:
+                    data = dev.config["plots_queue"][-1]
+                except IndexError:
+                    data = None
+
+                # format the data
                 if not isinstance(data, type(None)):
                     # display the data in a tkinter variable
                     formatted_data = [np.format_float_scientific(x, precision=3) for x in data]
@@ -342,39 +351,6 @@ class Monitoring(threading.Thread):
                 self.influxdb_client.write_points(json_body, time_precision='ms')
             except Exception as err:
                 logging.warning("InfluxDB error: " + str(err))
-
-    def get_last_row_of_data(self, dev):
-        # check device enabled
-        if not dev.config["controls"]["enabled"]["value"]:
-            return
-
-        # if HDF writing enabled for this device, get data from the HDF file
-        if dev.config["controls"]["HDF_enabled"]["value"]:
-            with h5py.File(self.parent.config["files"]["hdf_fname"], 'r') as f:
-                grp = f[self.parent.run_name + "/" + dev.config["path"]]
-                if dev.config["slow_data"]:
-                    dset = grp[dev.config["name"]]
-                    if dset.shape[0] == 0:
-                        return None
-                    else:
-                        data = dset[-1]
-                else:
-                    rec_num = len(grp) - 1
-                    if rec_num < 3:
-                        return None
-                    try:
-                        data = grp[dev.config["name"] + "_" + str(rec_num)][-1]
-                    except KeyError:
-                        logging.warning("dset doesn't exist: num = " + str(rec_num))
-                        return None
-                return data
-
-        # if HDF writing not enabled for this device, get data from the events_queue
-        else:
-            try:
-                return dev.data_queue.pop()
-            except IndexError:
-                return None
 
     def display_last_event(self, dev):
         # check device enabled

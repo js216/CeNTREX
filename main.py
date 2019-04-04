@@ -872,12 +872,24 @@ class ControlGUI(qt.QWidget):
         self.main_frame = qt.QVBoxLayout()
         self.setLayout(self.main_frame)
 
+        # the status label
+        self.status_label = qt.QLabel(
+                "Ready to start",
+                alignment = PyQt5.QtCore.Qt.AlignRight,
+            )
+        self.status_label.setFont(QtGui.QFont("Helvetica", 16))
+        self.main_frame.addWidget(self.status_label)
+
+        # a frame for controls and files, side-by-side
+        self.top_frame = qt.QHBoxLayout()
+        self.main_frame.addLayout(self.top_frame)
+
         ########################################
         # control and status
         ########################################
 
-        control_frame = qt.QGridLayout()
-        self.main_frame.addLayout(control_frame)
+        box, control_frame = LabelFrame("Controls")
+        self.top_frame.addWidget(box)
 
         # control start/stop buttons
         self.start_pb = qt.QPushButton("\u26ab Start control")
@@ -889,14 +901,6 @@ class ControlGUI(qt.QWidget):
         pb.setToolTip("Stop control for all enabled devices (Ctrl+Q).")
         pb.clicked[bool].connect(self.stop_control)
         control_frame.addWidget(pb, 0, 1)
-
-        # the status label
-        self.status_label = qt.QLabel(
-                "Ready to start",
-                alignment = PyQt5.QtCore.Qt.AlignRight,
-            )
-        self.status_label.setFont(QtGui.QFont("Helvetica", 16))
-        control_frame.addWidget(self.status_label, 0, 2)
 
         # buttons to show/hide monitoring and plots
 
@@ -915,7 +919,7 @@ class ControlGUI(qt.QWidget):
         self.style_pb = qt.QPushButton("Dark style")
         self.style_pb.setToolTip("Change style to dark mode (Ctrl+D).")
         self.style_pb.clicked[bool].connect(self.toggle_style)
-        control_frame.addWidget(self.style_pb, 1, 2)
+        control_frame.addWidget(self.style_pb, 2, 1)
 
         # button to refresh the list of COM ports
         pb = qt.QPushButton("Refresh COM ports")
@@ -923,12 +927,41 @@ class ControlGUI(qt.QWidget):
         pb.clicked[bool].connect(self.refresh_COM_ports)
         control_frame.addWidget(pb, 2, 0)
 
+        # the control to send a custom command to a specified device
+
+        cmd_frame = qt.QHBoxLayout()
+        control_frame.addLayout(cmd_frame, 3, 0, 1, 2)
+
+        cmd_frame.addWidget(qt.QLabel("Cmd:"))
+
+        qle = qt.QLineEdit()
+        qle.setToolTip("Enter a command corresponding to a function in the selected device driver.")
+        qle.setText(self.parent.config["general"]["custom_command"])
+        qle.textChanged[str].connect(lambda val: self.change_config("general", "custom_command", val))
+        cmd_frame.addWidget(qle)
+
+        self.custom_dev_cbx = qt.QComboBox()
+        dev_list = [dev_name for dev_name in self.parent.devices]
+        update_QComboBox(
+                cbx     = self.custom_dev_cbx,
+                options = list(set(dev_list) | set([ self.parent.config["general"]["custom_device"] ])),
+                value   = self.parent.config["general"]["custom_device"],
+            )
+        self.custom_dev_cbx.activated[str].connect(
+                lambda val: self.change_config("general", "custom_device", val)
+            )
+        cmd_frame.addWidget(self.custom_dev_cbx)
+
+        pb = qt.QPushButton("Send")
+        pb.clicked[bool].connect(self.queue_custom_command)
+        cmd_frame.addWidget(pb)
+
         ########################################
         # files
         ########################################
 
         box, files_frame = LabelFrame("Files")
-        self.main_frame.addWidget(box)
+        self.top_frame.addWidget(box)
 
         # config dir
         files_frame.addWidget(qt.QLabel("Config dir:"), 0, 0)
@@ -991,34 +1024,6 @@ class ControlGUI(qt.QWidget):
         ########################################
         # devices
         ########################################
-
-        box, cmd_frame = LabelFrame("Send a custom command")
-        self.main_frame.addWidget(box)
-
-        # the control to send a custom command to a specified device
-        cmd_frame.addWidget(qt.QLabel("Cmd:"), 0, 0)
-
-        qle = qt.QLineEdit()
-        qle.setToolTip("Enter a command corresponding to a function in the selected device driver.")
-        qle.setText(self.parent.config["general"]["custom_command"])
-        qle.textChanged[str].connect(lambda val: self.change_config("general", "custom_command", val))
-        cmd_frame.addWidget(qle, 0, 1)
-
-        self.custom_dev_cbx = qt.QComboBox()
-        dev_list = [dev_name for dev_name in self.parent.devices]
-        update_QComboBox(
-                cbx     = self.custom_dev_cbx,
-                options = list(set(dev_list) | set([ self.parent.config["general"]["custom_device"] ])),
-                value   = self.parent.config["general"]["custom_device"],
-            )
-        self.custom_dev_cbx.activated[str].connect(
-                lambda val: self.change_config("general", "custom_device", val)
-            )
-        cmd_frame.addWidget(self.custom_dev_cbx, 0, 2)
-
-        pb = qt.QPushButton("Send")
-        pb.clicked[bool].connect(self.queue_custom_command)
-        cmd_frame.addWidget(pb, 0, 3)
 
         # frame for device-specific controls
         box, self.devices_frame = ScrollableLabelFrame("Devices")

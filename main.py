@@ -700,7 +700,7 @@ class AttrEditor(QtGui.QDialog):
 
 class ControlGUI(qt.QWidget):
     def __init__(self, parent):
-        super(qt.QWidget, self).__init__(parent)
+        super().__init__()
         self.parent = parent
         self.read_device_config()
         self.place_GUI_elements()
@@ -1561,7 +1561,7 @@ class ControlGUI(qt.QWidget):
 
 class MonitoringGUI(qt.QSplitter):
     def __init__(self, parent):
-        super(qt.QWidget, self).__init__(parent)
+        super().__init__()
         self.parent = parent
         self.place_GUI_elements()
         self.place_device_specific_items()
@@ -1754,7 +1754,7 @@ class MonitoringGUI(qt.QSplitter):
 
 class PlotsGUI(qt.QSplitter):
     def __init__(self, parent):
-        super(qt.QWidget, self).__init__(parent)
+        super().__init__()
         self.parent = parent
         self.all_plots = {}
         self.place_GUI_elements()
@@ -2037,7 +2037,7 @@ class PlotsGUI(qt.QSplitter):
 
 class Plotter(qt.QWidget):
     def __init__(self, frame, parent):
-        super(qt.QWidget, self).__init__()
+        super().__init__()
         self.f = frame
         self.parent = parent
 

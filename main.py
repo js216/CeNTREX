@@ -2231,17 +2231,18 @@ class Plotter(qt.QWidget):
 
     def refresh_parameter_lists(self, select_defaults=True):
         # update the list of available devices
+        available_devices = self.parent.ControlGUI.get_dev_list()
         update_QComboBox(
                 cbx     = self.dev_cbx,
-                options = self.parent.ControlGUI.get_dev_list(),
+                options = available_devices,
                 value   = self.config["device"]
             )
 
-        # check device is valid, else select the first device on the list
-        if self.config["device"] in self.parent.devices:
+        # check device is available, else select the first device on the list
+        if self.config["device"] in available_devices:
             self.dev = self.parent.devices[self.config["device"]]
         elif len(self.parent.devices) != 0:
-            self.config["device"] = list(self.parent.devices.keys())[0]
+            self.config["device"] = available_devices[0]
             self.dev = self.parent.devices[self.config["device"]]
         else:
             logging.warning("Plot error: No devices in self.parent.devices.")
@@ -2267,7 +2268,14 @@ class Plotter(qt.QWidget):
             logging.warning("Plot error: No parameters to plot.")
             return
 
-        # select x, y, and z
+        # check x and y are good
+        if not self.config["x"] in self.param_list:
+            if self.dev.config["slow_data"]: # fast data does not need an x variable
+                select_defaults = True
+        if not self.config["y"] in self.param_list:
+            select_defaults = True
+
+        # select x and y
         if select_defaults:
             if self.dev.config["slow_data"]:
                 self.config["x"] = self.param_list[0]

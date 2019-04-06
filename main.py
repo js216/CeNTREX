@@ -357,8 +357,19 @@ class Monitoring(threading.Thread):
                 time.sleep(1)
 
     def write_to_influxdb(self, dev, data):
-        if self.parent.config["influxdb"]["enabled"].strip() == "False":
-            return
+        try:
+            if self.parent.config["influxdb"]["enabled"].strip() == "False":
+                return
+        except AttributeError as err:
+            if isinstance(self.parent.config["influxdb"]["enabled"], int):
+                if self.parent.config["influxdb"]["enabled"] == 1:
+                    self.parent.config["influxdb"]["enabled"] = "False"
+                    return
+                elif self.parent.config["influxdb"]["enabled"] == 2:
+                    self.parent.config["influxdb"]["enabled"] = "True"
+            else:
+                logging.warning("InfluxDB error: "+str(err))
+                return
         if not dev.config["slow_data"]:
             return
         fields = {}

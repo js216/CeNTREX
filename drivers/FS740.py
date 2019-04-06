@@ -179,10 +179,12 @@ class FS740:
 
         idx = descs.index('GPSSatelliteTrackingStatus')
         sats = self.chunks(values[idx].split(','), 8)
-        ids, signal, elevation, azimuth = \
-        zip(*[(int(val[0]), int(val[4]), int(val[5]), int(val[6]))
-              for val in sats if (val[3] =='0') and (val[0] != '0')])
-
+        try:
+            ids, signal, elevation, azimuth = \
+            zip(*[(int(val[0]), int(val[4]), int(val[5]), int(val[6]))
+                  for val in sats if (val[3] =='0') and (val[0] != '0')])
+        except Exception as e:
+            logging.warning("FS740 warning in WriteValueINFLUXDB GPSSatelliteTrackingStatus: {0}; {1}".format(sats, e))
         values = values[2:-2]
         descs = descs[2:-2]
         values.append(len(ids))

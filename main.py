@@ -351,7 +351,7 @@ class Monitoring(threading.Thread):
     def run(self):
         while self.active.is_set():
             # check amount of remaining free disk space
-            self.parent.MonitoringGUI.check_free_disk_space()
+            self.parent.ControlGUI.check_free_disk_space()
 
             # monitor operation of individual devices
             for dev_name, dev in self.parent.devices.items():
@@ -369,7 +369,7 @@ class Monitoring(threading.Thread):
                     for warning in dev.warnings:
                         logging.warning(str(warning))
                         self.push_warnings_to_influxdb(dev_name, warning)
-                        self.parent.MonitoringGUI.update_warnings(str(warning))
+                        self.parent.ControlGUI.update_warnings(str(warning))
                     dev.warnings = []
 
                 # find out and display the data queue length
@@ -751,8 +751,8 @@ class AttrEditor(QtGui.QDialog):
                     val = self.qtw.item(row, 1).text()
                     self.dev.config["attributes"][key] = val
 
-            # update the column names and units in MonitoringGUI
-            self.parent.MonitoringGUI.update_col_names_and_units()
+            # update the column names and units
+            self.update_col_names_and_units()
 
         else: # if changing run attributes
             self.parent.config["run_attributes"] = {}
@@ -993,13 +993,13 @@ class ControlGUI(qt.QWidget):
         pb.clicked[bool].connect(self.stop_control)
         control_frame.addWidget(pb, 0, 1)
 
-        # buttons to show/hide monitoring and plots
-
+        # buttons to show/hide monitoring info
         self.monitoring_pb = qt.QPushButton("Show monitoring")
         self.monitoring_pb.setToolTip("Show MonitoringGUI (Ctrl+M).")
         self.monitoring_pb.clicked[bool].connect(self.toggle_monitoring)
-        control_frame.addWidget(self.monitoring_pb, 1, 0)
+        control_frame.addWidget(self.monitoring_pb, 1, 0)        
 
+        # buttons to show/hide plots
         self.plots_pb = qt.QPushButton("Show plots")
         self.plots_pb.setToolTip("Show/hide PlotsGUI (Ctrl+P).")
         self.plots_pb.clicked[bool].connect(self.toggle_plots)
@@ -1126,18 +1126,107 @@ class ControlGUI(qt.QWidget):
         box, self.devices_frame = ScrollableLabelFrame("Devices", type="flexgrid")
         self.main_frame.addWidget(box)
 
-    def toggle_monitoring(self, val=""):
-        if not self.parent.config["monitoring_visible"]:
-            self.parent.config["monitoring_visible"] = True
-            self.parent.MonitoringGUI.show()
-            self.monitoring_pb.setText("Hide monitoring")
-            self.monitoring_pb.setToolTip("Hide MonitoringGUI (Ctrl+M).")
-        else:
-            self.parent.config["monitoring_visible"] = False
-            self.parent.MonitoringGUI.hide()
-            #self.parent.setGeometry(640, 300, 471, 634)
-            self.monitoring_pb.setText("Show monitoring")
-            self.monitoring_pb.setToolTip("Show MonitoringGUI (Ctrl+M).")
+        ########################################
+        # Monitoring controls
+        ########################################
+
+        # general monitoring controls
+        box, gen_f = LabelFrame("Monitoring", maxWidth=200, fixed=True)
+        self.top_frame.addWidget(box)
+
+        # disk space usage
+        gen_f.addWidget(qt.QLabel("Disk usage:"), 1, 0)
+        self.free_qpb = qt.QProgressBar()
+        gen_f.addWidget(self.free_qpb, 1, 1, 1, 2)
+        self.check_free_disk_space()
+
+        gen_f.addWidget(qt.QLabel("Loop delay [s]:"), 0, 0)
+        qle = qt.QLineEdit()
+        qle.setText(self.parent.config["general"]["monitoring_dt"])
+        qle.textChanged[str].connect(
+                lambda val: self.change_config("general", "monitoring_dt", val)
+            )
+        gen_f.addWidget(qle, 0, 1, 1, 2)
+
+
+        # InfluxDB controls
+
+        qch = qt.QCheckBox("InfluxDB")
+        qch.setToolTip("InfluxDB enabled")
+        qch.setTristate(False)
+        qch.setChecked(True if self.parent.config["influxdb"]["enabled"] in ["1", "True"] else False)
+        qch.stateChanged[int].connect(
+                lambda val: self.change_config("influxdb", "enabled", val)
+            )
+        gen_f.addWidget(qch, 4, 0)
+
+        qle = qt.QLineEdit()
+        qle.setToolTip("Host IP")
+        qle.setMaximumWidth(50)
+        qle.setText(self.parent.config["influxdb"]["host"])
+        qle.textChanged[str].connect(
+                lambda val: self.change_config("influxdb", "host", val)
+            )
+        gen_f.addWidget(qle, 4, 1)
+
+        qle = qt.QLineEdit()
+        qle.setToolTip("Port") 
+        qle.setMaximumWidth(50)
+        qle.setText(self.parent.config["influxdb"]["port"])
+        qle.textChanged[str].connect(
+                lambda val: self.change_config("influxdb", "port", val)
+            )
+        gen_f.addWidget(qle, 4, 2)
+
+        qle = qt.QLineEdit()
+        qle.setMaximumWidth(50)
+        qle.setToolTip("Username") 
+        qle.setText(self.parent.config["influxdb"]["username"])
+        qle.textChanged[str].connect(
+                lambda val: self.change_config("influxdb", "username", val)
+            )
+        gen_f.addWidget(qle, 5, 1)
+
+        qle = qt.QLineEdit()
+        qle.setToolTip("Password") 
+        qle.setMaximumWidth(50)
+        qle.setText(self.parent.config["influxdb"]["password"])
+        qle.textChanged[str].connect(
+                lambda val: self.change_config("influxdb", "password", val)
+            )
+        gen_f.addWidget(qle, 5, 2)
+
+        # for displaying warnings
+        self.warnings_label = qt.QLabel("(no warnings)")
+        self.warnings_label.setWordWrap(True)
+        gen_f.addWidget(self.warnings_label, 6, 0, 1, 3)
+
+    def update_col_names_and_units(self):
+        for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
+            # column names
+            dev.col_names_list = split(dev.config["attributes"]["column_names"])
+            dev.column_names = "\n".join(dev.col_names_list)
+            dev.config["monitoring_GUI_elements"]["col_names"].setText(dev.column_names)
+
+            # units
+            units = split(dev.config["attributes"]["units"])
+            dev.units = "\n".join(units)
+            dev.config["monitoring_GUI_elements"]["units"].setText(dev.units)
+
+    def update_warnings(self, warnings):
+        self.warnings_label.setText(warnings)
+
+    def check_free_disk_space(self):
+        pythoncom.CoInitialize()
+        c = wmi.WMI ()
+        for d in c.Win32_LogicalDisk():
+            if d.Caption == self.parent.config["files"]["hdf_fname"][0:2]:
+                size_MB = float(d.Size) / 1024/1024
+                free_MB = float(d.FreeSpace) / 1024/1024
+                self.free_qpb.setMinimum(0)
+                self.free_qpb.setMaximum(size_MB)
+                self.free_qpb.setValue(size_MB - free_MB)
+                self.parent.app.processEvents()
 
     def toggle_control(self, val="", show_only=False):
         if not self.parent.config["control_visible"]:
@@ -1150,6 +1239,20 @@ class ControlGUI(qt.QWidget):
             self.hide()
             self.parent.PlotsGUI.ctrls_box.hide()
             self.parent.PlotsGUI.toggle_all_plot_controls()
+
+    def toggle_monitoring(self, val=""):
+        if not self.parent.config["monitoring_visible"]:
+            self.parent.config["monitoring_visible"] = True
+            for dev_name, dev in self.parent.devices.items():
+                dev.config["monitoring_GUI_elements"]["df_box"].show()
+            self.monitoring_pb.setText("Hide monitoring")
+            self.monitoring_pb.setToolTip("Hide MonitoringGUI (Ctrl+M).")
+        else:
+            self.parent.config["monitoring_visible"] = False
+            for dev_name, dev in self.parent.devices.items():
+                dev.config["monitoring_GUI_elements"]["df_box"].hide()
+            self.monitoring_pb.setText("Show monitoring")
+            self.monitoring_pb.setToolTip("Show MonitoringGUI (Ctrl+M).")
 
     def toggle_plots(self, val=""):
         if not self.parent.config["plots_visible"]:
@@ -1171,9 +1274,17 @@ class ControlGUI(qt.QWidget):
 
     def place_device_controls(self):
         for dev_name, dev in self.parent.devices.items():
-            # frame for device controls
-            box, df = LabelFrame(dev.config["label"])
+            # frame with QSplitter for device controls and monitoring
+            box, dcf = LabelFrame(dev.config["label"])
             self.devices_frame.addWidget(box, dev.config["row"], dev.config["column"])
+            qs = qt.QSplitter()
+            qs.setOrientation(PyQt5.QtCore.Qt.Vertical)
+            dcf.addWidget(qs)
+
+            # layout for controls
+            df_box, df = qt.QWidget(), qt.QGridLayout()
+            df_box.setLayout(df)
+            qs.addWidget(df_box)
             df.setColumnStretch(1, 1)
             df.setColumnStretch(20, 0)
 
@@ -1391,6 +1502,78 @@ class ControlGUI(qt.QWidget):
                             else:
                                 logging.warning("ControlsRow error: sub-control type not supported: " + c["col_types"][col])
 
+            # layout for monitoring info
+            df_box, df = qt.QWidget(), qt.QGridLayout()
+            df_box.setLayout(df)
+            if not self.parent.config["monitoring_visible"]:
+                df_box.hide()
+            qs.addWidget(df_box)
+            dev.config["monitoring_GUI_elements"] = {
+                    "df_box" : df_box,
+                    }
+
+            # length of the data queue
+            df.addWidget(
+                    qt.QLabel("Queue length:"),
+                    0, 0,
+                    alignment = PyQt5.QtCore.Qt.AlignRight,
+                )
+            dev.config["monitoring_GUI_elements"]["qsize"] = qt.QLabel("N/A")
+            df.addWidget(
+                    dev.config["monitoring_GUI_elements"]["qsize"],
+                    0, 1,
+                    alignment = PyQt5.QtCore.Qt.AlignLeft,
+                )
+
+            # NaN count
+            df.addWidget(
+                    qt.QLabel("NaN count:"),
+                    1, 0,
+                    alignment = PyQt5.QtCore.Qt.AlignRight,
+                )
+            dev.config["monitoring_GUI_elements"]["NaN_count"] = qt.QLabel("N/A")
+            df.addWidget(
+                    dev.config["monitoring_GUI_elements"]["NaN_count"],
+                    1, 1,
+                    alignment = PyQt5.QtCore.Qt.AlignLeft,
+                )
+
+            # column names
+            dev.col_names_list = split(dev.config["attributes"]["column_names"])
+            dev.column_names = "\n".join(dev.col_names_list)
+            dev.config["monitoring_GUI_elements"]["col_names"] = qt.QLabel(
+                    dev.column_names, alignment = PyQt5.QtCore.Qt.AlignRight
+                )
+            df.addWidget(dev.config["monitoring_GUI_elements"]["col_names"], 2, 0)
+
+            # data
+            dev.config["monitoring_GUI_elements"]["data"] = qt.QLabel("(no data)")
+            df.addWidget(
+                    dev.config["monitoring_GUI_elements"]["data"],
+                    2, 1,
+                    alignment = PyQt5.QtCore.Qt.AlignLeft,
+                )
+
+            # units
+            units = split(dev.config["attributes"]["units"])
+            dev.units = "\n".join(units)
+            dev.config["monitoring_GUI_elements"]["units"] = qt.QLabel(dev.units)
+            df.addWidget(dev.config["monitoring_GUI_elements"]["units"], 2, 2, alignment = PyQt5.QtCore.Qt.AlignLeft)
+
+            # latest event / command sent to device & its return value
+            df.addWidget(
+                    qt.QLabel("Last event:"),
+                    3, 0,
+                    alignment = PyQt5.QtCore.Qt.AlignRight,
+                )
+            dev.config["monitoring_GUI_elements"]["events"] = qt.QLabel("(no events)")
+            df.addWidget(
+                    dev.config["monitoring_GUI_elements"]["events"],
+                    3, 1,
+                    alignment = PyQt5.QtCore.Qt.AlignLeft,
+                )
+
+
     def change_config(self, sect, config, val):
         self.parent.config[sect][config] = val
 
@@ -1474,10 +1657,6 @@ class ControlGUI(qt.QWidget):
         self.devices_frame.clear()
         self.read_device_config()
         self.place_device_controls()
-
-        # update device data in MonitoringGUI
-        self.parent.MonitoringGUI.dev_f.clear()
-        self.parent.MonitoringGUI.place_device_specific_items()
 
         # changes the list of devices in send custom command
         dev_list = [dev_name for dev_name in self.parent.devices]
@@ -1573,10 +1752,6 @@ class ControlGUI(qt.QWidget):
         self.devices_frame.clear()
         self.place_device_controls()
 
-        # update monitoring with new instances of Devices
-        self.parent.MonitoringGUI.dev_f.clear()
-        self.parent.MonitoringGUI.place_device_specific_items()
-
         # start the thread that writes to HDF
         self.HDF_writer = HDF_writer(self.parent)
         self.HDF_writer.start()
@@ -1588,7 +1763,9 @@ class ControlGUI(qt.QWidget):
                 dev.start()
 
         # update and start the monitoring thread
-        self.parent.MonitoringGUI.start_monitoring()
+        self.monitoring = Monitoring(self.parent)
+        self.monitoring.active.set()
+        self.monitoring.start()
 
         # update program status
         self.parent.config['control_active'] = True
@@ -1614,7 +1791,8 @@ class ControlGUI(qt.QWidget):
             self.HDF_writer.active.clear()
 
         # stop monitoring
-        self.parent.MonitoringGUI.stop_monitoring()
+        if self.monitoring.active.is_set():
+            self.monitoring.active.clear()
 
         # stop all plots
         self.parent.PlotsGUI.stop_all_plots()
@@ -1622,200 +1800,6 @@ class ControlGUI(qt.QWidget):
         # update status
         self.parent.config['control_active'] = False
         self.status_label.setText("Recording finished")
-
-class MonitoringGUI(qt.QSplitter):
-    def __init__(self, parent):
-        super().__init__()
-        self.parent = parent
-        self.place_GUI_elements()
-        self.place_device_specific_items()
-
-        # QSplitter options
-        self.setSizes([1,10000])
-        self.setOrientation(PyQt5.QtCore.Qt.Vertical)
-
-    def place_GUI_elements(self):
-        # monitoring controls frame
-        box, control_frame = ScrollableLabelFrame("Controls", type="hbox", minHeight=200)
-        self.addWidget(box)
-
-        # general monitoring controls
-        box, gen_f = LabelFrame("General", maxWidth=200, fixed=True)
-        control_frame.addWidget(box)
-
-        # disk space usage
-        gen_f.addWidget(qt.QLabel("Disk usage:"), 2, 0)
-        self.free_qpb = qt.QProgressBar()
-        gen_f.addWidget(self.free_qpb, 2, 1)
-        self.check_free_disk_space()
-
-        gen_f.addWidget(qt.QLabel("Loop delay [s]:"), 0, 0)
-        qle = qt.QLineEdit()
-        qle.setText(self.parent.config["general"]["monitoring_dt"])
-        qle.textChanged[str].connect(
-                lambda val: self.change_config("general", "monitoring_dt", val)
-            )
-        gen_f.addWidget(qle, 0, 1)
-
-        qch = qt.QCheckBox("InfluxDB enabled")
-        qch.setTristate(False)
-        qch.setChecked(True if self.parent.config["influxdb"]["enabled"] in ["1", "True"] else False)
-        qch.stateChanged[int].connect(
-                lambda val: self.change_config("influxdb", "enabled", val)
-            )
-        gen_f.addWidget(qch, 1, 0)
-
-        # InfluxDB controls
-        box, db_f = LabelFrame("InfluxDB", maxWidth=200, fixed=True)
-        control_frame.addWidget(box)
-
-        db_f.addWidget(qt.QLabel("Host IP"), 0, 0)
-        qle = qt.QLineEdit()
-        qle.setText(self.parent.config["influxdb"]["host"])
-        qle.textChanged[str].connect(
-                lambda val: self.change_config("influxdb", "host", val)
-            )
-        db_f.addWidget(qle, 0, 1)
-
-        db_f.addWidget(qt.QLabel("Port"), 1, 0)
-        qle = qt.QLineEdit()
-        qle.setText(self.parent.config["influxdb"]["port"])
-        qle.textChanged[str].connect(
-                lambda val: self.change_config("influxdb", "port", val)
-            )
-        db_f.addWidget(qle, 1, 1)
-
-        db_f.addWidget(qt.QLabel("Username"), 2, 0)
-        qle = qt.QLineEdit()
-        qle.setText(self.parent.config["influxdb"]["username"])
-        qle.textChanged[str].connect(
-                lambda val: self.change_config("influxdb", "username", val)
-            )
-        db_f.addWidget(qle, 2, 1)
-
-        db_f.addWidget(qt.QLabel("Password"), 3, 0)
-        qle = qt.QLineEdit()
-        qle.setText(self.parent.config["influxdb"]["password"])
-        qle.textChanged[str].connect(
-                lambda val: self.change_config("influxdb", "password", val)
-            )
-        db_f.addWidget(qle, 3, 1)
-
-        # for displaying warnings
-        box, w_f = LabelFrame("Warnings", fixed=True)
-        control_frame.addWidget(box)
-        self.warnings_label = qt.QLabel("(no warnings)")
-        w_f.addWidget(self.warnings_label, 3, 0)
-
-        # frame for device data
-        box, self.dev_f = ScrollableLabelFrame("Devices", fixed=True, minWidth=200, type="flexgrid")
-        self.addWidget(box)
-
-    def check_free_disk_space(self):
-        pythoncom.CoInitialize()
-        c = wmi.WMI ()
-        for d in c.Win32_LogicalDisk():
-            if d.Caption == self.parent.config["files"]["hdf_fname"][0:2]:
-                size_MB = float(d.Size) / 1024/1024
-                free_MB = float(d.FreeSpace) / 1024/1024
-                self.free_qpb.setMinimum(0)
-                self.free_qpb.setMaximum(size_MB)
-                self.free_qpb.setValue(size_MB - free_MB)
-                self.parent.app.processEvents()
-
-    def change_config(self, sect, config, val):
-        self.parent.config[sect][config] = val
-
-    def update_warnings(self, warnings):
-        self.warnings_label.setText(warnings)
-
-    def place_device_specific_items(self):
-        for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
-            dev.config["monitoring_GUI_elements"] = {}
-            box, df = LabelFrame(dev.config["label"])
-            self.dev_f.addWidget(box, dev.config["monitoring_row"], dev.config["monitoring_column"])
-
-            # length of the data queue
-            df.addWidget(
-                    qt.QLabel("Queue length:"),
-                    0, 0,
-                    alignment = PyQt5.QtCore.Qt.AlignRight,
-                )
-            dev.config["monitoring_GUI_elements"]["qsize"] = qt.QLabel("N/A")
-            df.addWidget(
-                    dev.config["monitoring_GUI_elements"]["qsize"],
-                    0, 1,
-                    alignment = PyQt5.QtCore.Qt.AlignLeft,
-                )
-
-            # NaN count
-            df.addWidget(
-                    qt.QLabel("NaN count:"),
-                    1, 0,
-                    alignment = PyQt5.QtCore.Qt.AlignRight,
-                )
-            dev.config["monitoring_GUI_elements"]["NaN_count"] = qt.QLabel("N/A")
-            df.addWidget(
-                    dev.config["monitoring_GUI_elements"]["NaN_count"],
-                    1, 1,
-                    alignment = PyQt5.QtCore.Qt.AlignLeft,
-                )
-
-            # column names
-            dev.col_names_list = split(dev.config["attributes"]["column_names"])
-            dev.column_names = "\n".join(dev.col_names_list)
-            dev.config["monitoring_GUI_elements"]["col_names"] = qt.QLabel(
-                    dev.column_names, alignment = PyQt5.QtCore.Qt.AlignRight
-                )
-            df.addWidget(dev.config["monitoring_GUI_elements"]["col_names"], 2, 0)
-
-            # data
-            dev.config["monitoring_GUI_elements"]["data"] = qt.QLabel("(no data)")
-            df.addWidget(
-                    dev.config["monitoring_GUI_elements"]["data"],
-                    2, 1,
-                    alignment = PyQt5.QtCore.Qt.AlignLeft,
-                )
-
-            # units
-            units = split(dev.config["attributes"]["units"])
-            dev.units = "\n".join(units)
-            dev.config["monitoring_GUI_elements"]["units"] = qt.QLabel(dev.units)
-            df.addWidget(dev.config["monitoring_GUI_elements"]["units"], 2, 2, alignment = PyQt5.QtCore.Qt.AlignLeft)
-
-            # latest event / command sent to device & its return value
-            df.addWidget(
-                    qt.QLabel("Last event:"),
-                    3, 0,
-                    alignment = PyQt5.QtCore.Qt.AlignRight,
-                )
-            dev.config["monitoring_GUI_elements"]["events"] = qt.QLabel("(no events)")
-            df.addWidget(
-                    dev.config["monitoring_GUI_elements"]["events"],
-                    3, 1,
-                    alignment = PyQt5.QtCore.Qt.AlignLeft,
-                )
-
-    def update_col_names_and_units(self):
-        for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
-            # column names
-            dev.col_names_list = split(dev.config["attributes"]["column_names"])
-            dev.column_names = "\n".join(dev.col_names_list)
-            dev.config["monitoring_GUI_elements"]["col_names"].setText(dev.column_names)
-
-            # units
-            units = split(dev.config["attributes"]["units"])
-            dev.units = "\n".join(units)
-            dev.config["monitoring_GUI_elements"]["units"].setText(dev.units)
-
-    def start_monitoring(self):
-        self.monitoring = Monitoring(self.parent)
-        self.monitoring.active.set()
-        self.monitoring.start()
-
-    def stop_monitoring(self):
-        if self.monitoring.active.is_set():
-            self.monitoring.active.clear()
 
 class PlotsGUI(qt.QSplitter):
     def __init__(self, parent):
@@ -2732,15 +2716,12 @@ class CentrexGUI(qt.QMainWindow):
         self.ControlGUI = ControlGUI(self)
         if self.config["general"].get("style") == "dark":
             self.ControlGUI.toggle_style()
-        self.MonitoringGUI = MonitoringGUI(self)
         self.PlotsGUI = PlotsGUI(self)
 
         # put GUI elements in a QSplitter
         self.qs = qt.QSplitter()
         self.setCentralWidget(self.qs)
         self.qs.addWidget(self.ControlGUI)
-        self.qs.addWidget(self.MonitoringGUI)
-        self.MonitoringGUI.hide()
         self.qs.addWidget(self.PlotsGUI)
         self.PlotsGUI.hide()
 

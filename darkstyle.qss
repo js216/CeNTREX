@@ -10,10 +10,16 @@ QLabel, QCheckBox
    border: none;
 }
 
+QSplitter
+{
+   border: none;
+}
+
 QLineEdit,QComboBox
 {
      padding-top: .2ex;
      padding-bottom: .2ex;
+     background-color: #191919;
 }
 
 QPushButton

@@ -1649,12 +1649,13 @@ class MonitoringGUI(qt.QSplitter):
             )
         gen_f.addWidget(qle, 0, 1)
 
-        qcb = qt.QCheckBox("InfluxDB enabled")
-        qcb.setCheckState(True if self.parent.config["influxdb"]["enabled"] in ["1", "True"] else False)
-        qcb.stateChanged[int].connect(
+        qch = qt.QCheckBox("InfluxDB enabled")
+        qch.setTristate(False)
+        qch.setChecked(True if self.parent.config["influxdb"]["enabled"] in ["1", "True"] else False)
+        qch.stateChanged[int].connect(
                 lambda val: self.change_config("influxdb", "enabled", val)
             )
-        gen_f.addWidget(qcb, 1, 0)
+        gen_f.addWidget(qch, 1, 0)
 
         # InfluxDB controls
         box, db_f = LabelFrame("InfluxDB", maxWidth=200, fixed=True)

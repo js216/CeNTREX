@@ -655,6 +655,7 @@ class AttrEditor(QtGui.QDialog):
         else:
             num_rows = len(self.parent.config["run_attributes"])
         self.qtw = qt.QTableWidget(num_rows, 2)
+        self.qtw.setAlternatingRowColors(True)
         self.frame.addWidget(self.qtw, 0, 0, 1, 2)
 
         # put the attributes into the table

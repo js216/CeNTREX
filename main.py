@@ -146,12 +146,6 @@ class FlexibleGridLayout(qt.QHBoxLayout):
         # insert the widget into the correct placeholder with reversed row order
         rev_row = vbox.count() - 1 - row
         if col == 0:
-            print("desired row =", row)
-            print("number of items in the column =", vbox.count())
-            for r in range(vbox.count()):
-                print("   ", vbox.itemAt(r))
-            print("calculated rev_row =", rev_row)
-            print()
         placeholder = vbox.itemAt(rev_row).layout()
         placeholder.addWidget(widget)
 

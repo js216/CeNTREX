@@ -195,6 +195,10 @@ class Device(threading.Thread):
         # the variable for counting the number of NaN returns
         self.nan_count = 0
 
+        # for counting the number of sequential NaN returns
+        self.sequential_nan_count = 0
+        self.previous_data = True
+
     def setup_connection(self, time_offset):
         self.time_offset = time_offset
 
@@ -251,47 +255,74 @@ class Device(threading.Thread):
             self.control_started = True
 
         # main control loop
-        with self.config["driver"](*self.constr_params) as device:
-            while self.active.is_set():
-                # loop delay
-                try:
-                    dt = float(self.config["controls"]["dt"]["value"])
-                    if dt < 0.002:
-                        logging.warning("Device dt too small.")
-                        raise ValueError
-                    time.sleep(float(self.config["controls"]["dt"]["value"]))
-                except ValueError:
-                    time.sleep(0.1)
-
-                # check device is enabled
-                if not self.config["controls"]["enabled"]["value"]:
-                    continue
-
-                # check device for abnormal conditions
-                warning = device.GetWarnings()
-                if warning:
-                    self.warnings += warning
-
-                # record numerical values
-                last_data = device.ReadValue()
-                # keep track of the number of NaN returns
-                if isinstance(last_data, float):
-                    if np.isnan(last_data):
-                        self.nan_count += 1
-                if last_data:
-                    self.data_queue.append(last_data)
-                    self.config["plots_queue"].append(last_data)
-
-                # send control commands, if any, to the device, and record return values
-                for c in self.commands:
+        try:
+            with self.config["driver"](*self.constr_params) as device:
+                while self.active.is_set():
+                    # loop delay
                     try:
-                        ret_val = eval("device." + c.strip())
-                    except (ValueError, AttributeError, SyntaxError, TypeError) as err:
-                        ret_val = str(err)
-                    ret_val = "None" if not ret_val else ret_val
-                    self.last_event = [ time.time()-self.time_offset, c, ret_val ]
-                    self.events_queue.append(self.last_event)
-                self.commands = []
+                        dt = float(self.config["controls"]["dt"]["value"])
+                        if dt < 0.002:
+                            logging.warning("Device dt too small.")
+                            raise ValueError
+                        time.sleep(float(self.config["controls"]["dt"]["value"]))
+                    except ValueError:
+                        time.sleep(0.1)
+
+                    # check device is enabled
+                    if not self.config["controls"]["enabled"]["value"]:
+                        continue
+
+                    # check device for abnormal conditions
+                    warning = device.GetWarnings()
+                    if warning:
+                        self.warnings += warning
+
+                    # record numerical values
+                    last_data = device.ReadValue()
+                    if last_data:
+                        self.data_queue.append(last_data)
+                        self.config["plots_queue"].append(last_data)
+
+                    # keep track of the number of (sequential and total) NaN returns
+                    if isinstance(last_data, float):
+                        if np.isnan(last_data):
+                            self.nan_count += 1
+                            if np.isnan(self.previous_data):
+                                self.sequential_nan_count += 1
+                        else:
+                            self.sequential_nan_count = 0
+                    self.previous_data = last_data
+
+                    # issue a warning if there's been too many sequential NaN returns
+                    try:
+                        max_NaN_count = int(self.config["max_NaN_count"])
+                    except TypeError:
+                        max_NaN_count = 10
+                    if self.sequential_nan_count > max_NaN_count:
+                        warning_dict = {
+                                "message" : "excess sequential NaN returns: " + str(self.sequential_nan_count),
+                                "sequential_NaN_count_exceeded" : 1,
+                            }
+                        self.warnings.append([time.time(), warning_dict])
+
+                    # send control commands, if any, to the device, and record return values
+                    for c in self.commands:
+                        try:
+                            ret_val = eval("device." + c.strip())
+                        except (ValueError, AttributeError, SyntaxError, TypeError) as err:
+                            ret_val = str(err)
+                        ret_val = "None" if not ret_val else ret_val
+                        self.last_event = [ time.time()-self.time_offset, c, ret_val ]
+                        self.events_queue.append(self.last_event)
+                    self.commands = []
+
+        # report any exception that has occurred in the run() function
+        except Exception as err:
+            warning_dict = {
+                    "message" : "exception: "+str(err),
+                    "exception" : 1,
+                }
+            self.warnings.append([time.time(), warning_dict])
 
 class Monitoring(threading.Thread):
     def __init__(self, parent):
@@ -788,6 +819,7 @@ class ControlGUI(qt.QWidget):
                     "label"              : params["device"]["label"],
                     "path"               : params["device"]["path"],
                     "correct_response"   : params["device"]["correct_response"],
+                    "max_NaN_count"      : params["device"].get("max_NaN_count"),
                     "plots_queue_maxlen" : int(params["device"]["plots_queue_maxlen"]),
                     "slow_data"          : True if params["device"]["slow_data"]=="True" else False,
                     "row"                : int(params["device"]["row"]),

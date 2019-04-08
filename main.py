@@ -388,7 +388,10 @@ class Monitoring(threading.Thread):
                 if not isinstance(data, type(None)):
                     # display the data in a tkinter variable
                     try:
-                        formatted_data = [np.format_float_scientific(x, precision=3) for x in data]
+                        if dev.config["slow_data"]:
+                            formatted_data = [np.format_float_scientific(x, precision=3) for x in data]
+                        else:
+                            formatted_data = [np.format_float_scientific(x, precision=3) for x in data[0][0,:,0]]
                     except TypeError as err:
                         logging.warning("Warning in Monitoring: " + str(err))
                         continue

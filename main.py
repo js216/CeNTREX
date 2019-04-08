@@ -2480,23 +2480,26 @@ class Plotter(qt.QWidget):
             if self.config["z"] in self.param_list:
                 y = y / dset[0][0, self.param_list.index(self.config["z"])]
 
-            # average last n curves (if applicable)
+            # if not averaging, return the data
+            if self.config["n_average"] < 2:
+                return x, y
+
+            # average sanity check
             if self.config["n_average"] > self.dev.config["plots_queue_maxlen"]:
                 logging.warning("Plot error: Cannot average more traces than are stored in plots_queue when plotting from the queue.")
-            else:
-                for i in range(self.config["n_average"] - 1):
-                    try:
-                        dset = self.dev.config["plots_queue"][-i]
-                    except KeyError as err:
-                        logging.warning("Plot averaging error: " + str(err))
-                        break
-                    if self.config["z"] in self.param_list:
-                        y += dset[:, self.param_list.index(self.config["y"])] \
-                                / dset[:, self.param_list.index(self.config["z"])]
-                    else:
-                        y += dset[:, self.param_list.index(self.config["y"])]
-                if self.config["n_average"] > 0:
-                    y = y / self.config["n_average"]
+                return x, y
+
+            # average last n curves (if applicable)
+            y_avg = np.array(y)
+            for i in range(self.config["n_average"] - 1):
+                try:
+                    dset = self.dev.config["plots_queue"][-(i+1)]
+                except (KeyError,IndexError) as err:
+                    logging.warning("Plot averaging error: " + str(err))
+                    break
+                y_avg += dset[0][0, self.param_list.index(self.config["y"])]
+            if self.config["n_average"] > 0:
+                y = y_avg / self.config["n_average"]
 
         return x, y
 

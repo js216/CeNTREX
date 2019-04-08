@@ -2469,18 +2469,40 @@ class Plotter(qt.QWidget):
             x = dset[:, self.param_list.index(self.config["x"])]
             y = dset[:, self.param_list.index(self.config["y"])]
 
+            # divide y by z (if applicable)
+            if self.config["z"] in self.param_list:
+                y = y / dset[0][0, self.param_list.index(self.config["z"])]
+
         # for fast data: return only the latest value
         if not self.dev.config["slow_data"]:
             try:
-                dset = self.dev.config["plots_queue"][0]
+                dset = self.dev.config["plots_queue"][-1]
             except IndexError:
                 return None
             x = np.arange(dset[0].shape[2])
             y = dset[0][0, self.param_list.index(self.config["y"])]
 
-        # divide y by z (if applicable)
-        if self.config["z"] in self.param_list:
-            y = y / dset[0][0, self.param_list.index(self.config["z"])]
+            # divide y by z (if applicable)
+            if self.config["z"] in self.param_list:
+                y = y / dset[0][0, self.param_list.index(self.config["z"])]
+
+            # average last n curves (if applicable)
+            if self.config["n_average"] > self.dev.config["plots_queue_maxlen"]:
+                logging.warning("Plot error: Cannot average more traces than are stored in plots_queue when plotting from the queue.")
+            else:
+                for i in range(self.config["n_average"] - 1):
+                    try:
+                        dset = self.dev.config["plots_queue"][-i]
+                    except KeyError as err:
+                        logging.warning("Plot averaging error: " + str(err))
+                        break
+                    if self.config["z"] in self.param_list:
+                        y += dset[:, self.param_list.index(self.config["y"])] \
+                                / dset[:, self.param_list.index(self.config["z"])]
+                    else:
+                        y += dset[:, self.param_list.index(self.config["y"])]
+                if self.config["n_average"] > 0:
+                    y = y / self.config["n_average"]
 
         return x, y
 

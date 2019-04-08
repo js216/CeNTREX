@@ -145,7 +145,6 @@ class FlexibleGridLayout(qt.QHBoxLayout):
 
         # insert the widget into the correct placeholder with reversed row order
         rev_row = vbox.count() - 1 - row
-        if col == 0:
         placeholder = vbox.itemAt(rev_row).layout()
         placeholder.addWidget(widget)
 

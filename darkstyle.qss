@@ -60,3 +60,12 @@ QTableView QHeaderView::section
 {
   background-color: #222;
 }
+
+QProgressBar {
+    color: #aaa;
+    background-color: #222;
+}
+
+QProgressBar::chunk {
+    background-color: #444;
+}

@@ -2437,6 +2437,11 @@ class Plotter(qt.QWidget):
                 if self.config["z"] in self.param_list:
                     y = y / dset[:, self.param_list.index(self.config["z"])]
 
+                # average sanity check
+                if self.config["n_average"] > len(grp):
+                    logging.warning("Plot error: Cannot average more traces than exist.")
+                    return x, y
+
                 # average last n curves (if applicable)
                 for i in range(self.config["n_average"] - 1):
                     try:

@@ -117,10 +117,6 @@ def update_QComboBox(cbx, options, value):
     # select the last run by default
     cbx.setCurrentText(value)
 
-def clear_layout(layout):
-    for i in reversed(range(layout.count())):
-        layout.itemAt(i).widget().setParent(None)
-
 def split(string, separator=","):
     return [x.strip() for x in string.split(separator)]
 
@@ -128,26 +124,45 @@ class FlexibleGridLayout(qt.QHBoxLayout):
     """A QHBoxLayout of QVBoxLayouts."""
     def __init__(self):
         super().__init__()
-        self.columns = {}
+        self.cols = {}
 
     def addWidget(self, widget, row, col):
-        # check the column exists, else create it
-        if not col in self.columns:
-            self.columns[col] = qt.QVBoxLayout()
-            self.insertLayout(col, self.columns[col])
+        # insert the missing columns, if any
+        for c in range(len(self.cols), col+1):
+            self.cols[c] = qt.QVBoxLayout()
+            self.addLayout(self.cols[c])
+            # add stretchable spacer to prevent stretching the device controls boxes
+            self.cols[c].addStretch()
+            # reverse the layout order to keep the spacer always at the bottom
+            self.cols[c].setDirection(qt.QBoxLayout.BottomToTop)
 
-        # add the widget to the given row in the column
-        self.columns[col].insertWidget(row, widget)
+        # the column we're to add the widget is ...
+        vbox = self.cols[col]
 
-    def count(self):
-        return sum([l.count() for ln,l in self.columns.items()])
+        # insert the missing placeholders, if any
+        for r in range(vbox.count()-1, row+1):
+            vbox.addLayout(qt.QHBoxLayout())
 
-    def itemAt(self, i):
-        total = 0
-        for ln, l in self.columns.items():
-            total += l.count()
-            if i < total:
-                return l.itemAt( i - total + l.count() )
+        # insert the widget into the correct placeholder with reversed row order
+        rev_row = vbox.count() - 1 - row
+        if col == 0:
+            print("desired row =", row)
+            print("number of items in the column =", vbox.count())
+            for r in range(vbox.count()):
+                print("   ", vbox.itemAt(r))
+            print("calculated rev_row =", rev_row)
+            print()
+        placeholder = vbox.itemAt(rev_row).layout()
+        placeholder.addWidget(widget)
+
+    def clear(self):
+        """Remove all widgets."""
+        for col_num, col in self.cols.items():
+            for i in reversed(range(col.count())):
+                try:
+                    col.itemAt(i).layout().itemAt(0).widget().setParent(None)
+                except AttributeError:
+                    pass
 
 ##########################################################################
 ##########################################################################
@@ -339,7 +354,11 @@ class Monitoring(threading.Thread):
                 # format the data
                 if not isinstance(data, type(None)):
                     # display the data in a tkinter variable
-                    formatted_data = [np.format_float_scientific(x, precision=3) for x in data]
+                    try:
+                        formatted_data = [np.format_float_scientific(x, precision=3) for x in data]
+                    except TypeError as err:
+                        logging.warning("Warning in Monitoring: " + str(err))
+                        continue
                     dev.config["monitoring_GUI_elements"]["data"].setText("\n".join(formatted_data))
 
                     # write slow data to InfluxDB
@@ -1059,7 +1078,7 @@ class ControlGUI(qt.QWidget):
         ########################################
 
         # frame for device-specific controls
-        box, self.devices_frame = ScrollableLabelFrame("Devices", type="grid")
+        box, self.devices_frame = ScrollableLabelFrame("Devices", type="flexgrid")
         self.main_frame.addWidget(box)
 
     def toggle_monitoring(self, val=""):
@@ -1407,12 +1426,12 @@ class ControlGUI(qt.QWidget):
         self.open_dir("files", "config_dir", self.config_dir_qle)
 
         # update device controls
-        clear_layout(self.devices_frame)
+        self.devices_frame.clear()
         self.read_device_config()
         self.place_device_controls()
 
         # update device data in MonitoringGUI
-        clear_layout(self.parent.MonitoringGUI.dev_f)
+        self.parent.MonitoringGUI.dev_f.clear()
         self.parent.MonitoringGUI.place_device_specific_items()
 
         # changes the list of devices in send custom command
@@ -1506,11 +1525,11 @@ class ControlGUI(qt.QWidget):
                     return
 
         # update device controls with new instances of Devices
-        clear_layout(self.devices_frame)
+        self.devices_frame.clear()
         self.place_device_controls()
 
         # update monitoring with new instances of Devices
-        clear_layout(self.parent.MonitoringGUI.dev_f)
+        self.parent.MonitoringGUI.dev_f.clear()
         self.parent.MonitoringGUI.place_device_specific_items()
 
         # start the thread that writes to HDF
@@ -1643,7 +1662,7 @@ class MonitoringGUI(qt.QSplitter):
         w_f.addWidget(self.warnings_label, 3, 0)
 
         # frame for device data
-        box, self.dev_f = ScrollableLabelFrame("Devices", fixed=True, minWidth=200)
+        box, self.dev_f = ScrollableLabelFrame("Devices", fixed=True, minWidth=200, type="flexgrid")
         self.addWidget(box)
 
     def check_free_disk_space(self):

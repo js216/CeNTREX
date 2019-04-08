@@ -146,7 +146,8 @@ class FlexibleGridLayout(qt.QHBoxLayout):
         # insert the widget into the correct placeholder with reversed row order
         rev_row = vbox.count() - 1 - row
         placeholder = vbox.itemAt(rev_row).layout()
-        placeholder.addWidget(widget)
+        if not placeholder.itemAt(0):
+            placeholder.addWidget(widget)
 
     def clear(self):
         """Remove all widgets."""

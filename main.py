@@ -1937,7 +1937,7 @@ class PlotsGUI(qt.QSplitter):
         return plot
 
     def open_file(self, sect, config, qle):
-        val = qt.QFileDialog.getSaveFileName(self, "Select file")[0]
+        val = qt.QFileDialog.getOpenFileName(self, "Select file")[0]
         if not val:
            return
         self.parent.config[sect][config] = val

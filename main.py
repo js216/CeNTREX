@@ -1274,17 +1274,14 @@ class ControlGUI(qt.QWidget):
 
     def place_device_controls(self):
         for dev_name, dev in self.parent.devices.items():
-            # frame with QSplitter for device controls and monitoring
-            box, dcf = LabelFrame(dev.config["label"])
+            # frame for device controls and monitoring
+            box, dcf = LabelFrame(dev.config["label"], type="vbox")
             self.devices_frame.addWidget(box, dev.config["row"], dev.config["column"])
-            qs = qt.QSplitter()
-            qs.setOrientation(PyQt5.QtCore.Qt.Vertical)
-            dcf.addWidget(qs)
 
             # layout for controls
             df_box, df = qt.QWidget(), qt.QGridLayout()
             df_box.setLayout(df)
-            qs.addWidget(df_box)
+            dcf.addWidget(df_box)
             df.setColumnStretch(1, 1)
             df.setColumnStretch(20, 0)
 
@@ -1507,7 +1504,7 @@ class ControlGUI(qt.QWidget):
             df_box.setLayout(df)
             if not self.parent.config["monitoring_visible"]:
                 df_box.hide()
-            qs.addWidget(df_box)
+            dcf.addWidget(df_box)
             dev.config["monitoring_GUI_elements"] = {
                     "df_box" : df_box,
                     }
@@ -1567,9 +1564,10 @@ class ControlGUI(qt.QWidget):
                     alignment = PyQt5.QtCore.Qt.AlignRight,
                 )
             dev.config["monitoring_GUI_elements"]["events"] = qt.QLabel("(no events)")
+            dev.config["monitoring_GUI_elements"]["events"].setWordWrap(True)
             df.addWidget(
                     dev.config["monitoring_GUI_elements"]["events"],
-                    3, 1,
+                    3, 1, 1, 2,
                     alignment = PyQt5.QtCore.Qt.AlignLeft,
                 )
 

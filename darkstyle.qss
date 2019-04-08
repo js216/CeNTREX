@@ -2,7 +2,7 @@ QWidget
 {
      background-color: #111;
      color: #aaa;
-     border: 1px solid #333;
+     border: none;
 }
 
 QLabel, QCheckBox
@@ -32,6 +32,7 @@ QPushButton
 QGroupBox
 {
    padding-top: 2ex;
+   border: 1px solid #333;
 }
 
 QScrollBar:horizontal

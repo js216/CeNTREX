@@ -258,15 +258,23 @@ class Device(threading.Thread):
         try:
             with self.config["driver"](*self.constr_params) as device:
                 while self.active.is_set():
-                    # loop delay
+                    # get and sanity check loop delay
                     try:
                         dt = float(self.config["controls"]["dt"]["value"])
                         if dt < 0.002:
                             logging.warning("Device dt too small.")
                             raise ValueError
-                        time.sleep(float(self.config["controls"]["dt"]["value"]))
                     except ValueError:
                         time.sleep(0.1)
+
+                    # do the loop delay, checking the device is still enabled
+                    else:
+                        dt = float(self.config["controls"]["dt"]["value"])
+                        for i in range(int(dt)):
+                            if not self.active.is_set():
+                                return
+                            time.sleep(1)
+                        time.sleep(dt - int(dt))
 
                     # check device is enabled
                     if not self.config["controls"]["enabled"]["value"]:
@@ -1596,7 +1604,7 @@ class ControlGUI(qt.QWidget):
         if not self.parent.config['control_active']:
             return
 
-        # stop devices, waiting for threads to finish
+        # stop devices
         for dev_name, dev in self.parent.devices.items():
             if dev.active.is_set():
                 dev.active.clear()

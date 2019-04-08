@@ -126,24 +126,24 @@ class FlexibleGridLayout(qt.QHBoxLayout):
         super().__init__()
         self.cols = {}
 
-    def addWidget(self, widget, row, col):
-        # insert the missing columns, if any
-        for c in range(len(self.cols), col+1):
-            self.cols[c] = qt.QVBoxLayout()
-            self.addLayout(self.cols[c])
+        # populate the grid with placeholders
+        for col in range(10):
+            self.cols[col] = qt.QVBoxLayout()
+            self.addLayout(self.cols[col])
+
             # add stretchable spacer to prevent stretching the device controls boxes
-            self.cols[c].addStretch()
+            self.cols[col].addStretch()
+
             # reverse the layout order to keep the spacer always at the bottom
-            self.cols[c].setDirection(qt.QBoxLayout.BottomToTop)
+            self.cols[col].setDirection(qt.QBoxLayout.BottomToTop)
 
-        # the column we're to add the widget is ...
+            # add horizontal placeholders
+            vbox = self.cols[col]
+            for row in range(10):
+                vbox.addLayout(qt.QHBoxLayout())
+
+    def addWidget(self, widget, row, col):
         vbox = self.cols[col]
-
-        # insert the missing placeholders, if any
-        for r in range(vbox.count()-1, row+1):
-            vbox.addLayout(qt.QHBoxLayout())
-
-        # insert the widget into the correct placeholder with reversed row order
         rev_row = vbox.count() - 1 - row
         placeholder = vbox.itemAt(rev_row).layout()
         if not placeholder.itemAt(0):
@@ -2735,6 +2735,9 @@ class CentrexGUI(qt.QMainWindow):
         self.MonitoringGUI.hide()
         self.qs.addWidget(self.PlotsGUI)
         self.PlotsGUI.hide()
+
+        # default main window size
+        self.resize(700, 900)
 
         # keyboard shortcuts
         qt.QShortcut(QtGui.QKeySequence("Ctrl+Shift+C"), self)\

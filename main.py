@@ -2108,10 +2108,16 @@ class ControlGUI(qt.QWidget):
         if not self.parent.config['control_active']:
             return
 
-        # stop devices
+        # stop devices, waiting for each thread to finish
         for dev_name, dev in self.parent.devices.items():
             if dev.active.is_set():
+                # update the status label
+                self.status_label.setText("Stopping " + dev_name + " ...")
+                self.parent.app.processEvents()
+
+                # stop the device, and wait for it to finish
                 dev.active.clear()
+                dev.join()
 
         # stop HDF writer
         if self.HDF_writer.active.is_set():

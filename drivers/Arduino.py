@@ -38,7 +38,6 @@ class Arduino:
     def __exit__(self, *exc):
         if self.instr:
             self.instr.close()
-            self.rm.close()
 
     def ReadValue(self):
         return [ 

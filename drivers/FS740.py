@@ -182,6 +182,7 @@ class FS740:
             sats = self.chunks(values[idx].split(','), 8)
         except Exception as e:
             logging.warning("FS740 warning in WriteValueINFLUXDB GPSSatelliteTrackingStatus: {0}".format(e))
+            return
         try:
             ids, signal, elevation, azimuth = \
             zip(*[(int(val[0]), int(val[4]), int(val[5]), int(val[6]))

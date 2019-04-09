@@ -672,10 +672,9 @@ class AttrEditor(QtGui.QDialog):
         self.frame.addWidget(pb, 1, 0)
 
         # button to write attrs to file
-        if not self.dev:
-            pb = qt.QPushButton("Write config file")
-            pb.clicked[bool].connect(self.write_attrs_to_file)
-            self.frame.addWidget(pb, 1, 1)
+        pb = qt.QPushButton("Write config file")
+        pb.clicked[bool].connect(self.write_attrs_to_file)
+        self.frame.addWidget(pb, 1, 1)
 
         # buttons to add/remove rows
         pb = qt.QPushButton("Add one row")
@@ -717,6 +716,64 @@ class AttrEditor(QtGui.QDialog):
         # do a sanity check of attributes and change corresponding config dicts
         self.check_attributes()
 
+        # when changing device attributes/settings
+        if self.dev:
+            # collect new configuration parameters to be written
+            config = configparser.ConfigParser()
+            config["device"] = {
+                    "name"               : str(self.dev.config["name"]),
+                    "label"              : str(self.dev.config["label"]),
+                    "path"               : str(self.dev.config["path"]),
+                    "driver"             : self.dev.config["driver"].__name__,
+                    "constr_params"      : ", ".join(self.dev.config["constr_params"]),
+                    "correct_response"   : str(self.dev.config["correct_response"]),
+                    "slow_data"          : str(self.dev.config["slow_data"]),
+                    "row"                : str(self.dev.config["row"]),
+                    "column"             : str(self.dev.config["column"]),
+                    "plots_queue_maxlen" : str(self.dev.config["plots_queue_maxlen"]),
+                    "max_NaN_count"      : str(self.dev.config.get("max_NaN_count")),
+                    "meta_device"        : str(self.dev.config.get("meta_device")),
+                }
+            config["attributes"] = self.dev.config["attributes"]
+
+            # collect device control parameters
+            for c_name, c in self.dev.config["controls"].items():
+                config[c_name] = {
+                        "label"        : str(c["label"]),
+                        "type"         : str(c["type"]),
+                        "row"          : str(c["row"]),
+                        "col"          : str(c["col"]),
+                        "tooltip"      : str(c.get("tooltip")),
+                        "rowspan"      : str(c.get("rowspan")),
+                        "colspan"      : str(c.get("colspan")),
+                    }
+                if c["type"] in ["QComboBox", "QCheckBox", "QLineEdit"]:
+                    config[c_name]["value"] = str(c["value"])
+                if c["type"] == "QLineEdit":
+                    config[c_name]["enter_cmd"] = str(c["enter_cmd"])
+                if c["type"] == "QComboBox":
+                    config[c_name]["options"] = ", ".join(c["options"])
+                if c["type"] in ["QComboBox", "QPushButton"]:
+                    config[c_name]["command"] = str(c["command"])
+                if c["type"] == "ControlsRow":
+                    config[c_name]["ctrl_values"]  = ", ".join([x for x_name,x in c["value"].items()])
+                    config[c_name]["ctrl_names"]   = ", ".join(c["ctrl_names"])
+                    config[c_name]["ctrl_labels"]  = ", ".join([x for x_name,x in c["ctrl_labels"].items()])
+                    config[c_name]["ctrl_types"]   = ", ".join([x for x_name,x in c["ctrl_types"].items()])
+                    config[c_name]["ctrl_options"] = "; ".join([", ".join(x) for x_name,x in c["ctrl_options"].items()])
+                if c["type"] == "ControlsTable":
+                    config[c_name]["col_values"] = "; ".join([", ".join(x) for x_name,x in c["value"].items()])
+                    config[c_name]["row_ids"]     = ", ".join(c["row_ids"])
+                    config[c_name]["col_names"]   = ", ".join(c["col_names"])
+                    config[c_name]["col_labels"]  = ", ".join([x for x_name,x in c["col_labels"].items()])
+                    config[c_name]["col_types"]   = ", ".join([x for x_name,x in c["col_types"].items()])
+                    config[c_name]["col_options"] = "; ".join([", ".join(x) for x_name,x in c["col_options"].items()])
+
+            # write them to file
+            with open(self.dev.config["config_fname"]+"_test", 'w') as f:
+                config.write(f)
+
+        # when changing program attributes/settings
         if not self.dev:
             # collect new configuration parameters to be written
             config = configparser.ConfigParser()
@@ -755,7 +812,7 @@ class AttrEditor(QtGui.QDialog):
                     self.dev.config["attributes"][key] = val
 
             # update the column names and units
-            self.update_col_names_and_units()
+            self.parent.ControlGUI.update_col_names_and_units()
 
         else: # if changing run attributes
             self.parent.config["run_attributes"] = {}

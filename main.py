@@ -721,20 +721,18 @@ class DeviceConfig(dict):
         self["driver_class"] = getattr(driver_module, params["device"]["driver"])
 
         # read general device options
-        self.config = {
-                "name"               : params["device"]["name"],
-                "label"              : params["device"]["label"],
-                "path"               : params["device"]["path"],
-                "correct_response"   : params["device"]["correct_response"],
-                "max_NaN_count"      : params["device"].get("max_NaN_count"),
-                "plots_queue_maxlen" : int(params["device"]["plots_queue_maxlen"]),
-                "slow_data"          : True if params["device"]["slow_data"]=="True" else False,
-                "row"                : int(params["device"]["row"]),
-                "column"             : int(params["device"]["column"]),
-                "constr_params"      : split(params["device"]["constr_params"]),
-                "meta_device"        : True if params["device"].get("meta_device")=="True" else False,
-                "attributes"         : params["attributes"],
-            }
+        self["name"               ] = params["device"]["name"]
+        self["label"              ] = params["device"]["label"]
+        self["path"               ] = params["device"]["path"]
+        self["correct_response"   ] = params["device"]["correct_response"]
+        self["max_NaN_count"      ] = params["device"].get("max_NaN_count")
+        self["plots_queue_maxlen" ] = int(params["device"]["plots_queue_maxlen"])
+        self["slow_data"          ] = True if params["device"]["slow_data"]=="True" else False
+        self["row"                ] = int(params["device"]["row"])
+        self["column"             ] = int(params["device"]["column"])
+        self["constr_params"      ] = split(params["device"]["constr_params"])
+        self["meta_device"        ] = True if params["device"].get("meta_device")=="True" else False
+        self["attributes"         ] = params["attributes"]
 
         # populate the list of device controls
         ctrls = {}
@@ -852,12 +850,18 @@ class DeviceConfig(dict):
             elif params[c].get("type"):
                 logging.warning("Control type not supported: " + params[c].get("type"))
 
-        self.config["control_params"] = ctrls
+        self["control_params"] = ctrls
 
     def write_to_file(self):
         # collect the configuration parameters to be written
         config = configparser.ConfigParser()
+        config["device"] = {}
         for key in self.static_keys:
+            # check the key has been defined for the device
+            if not key in self:
+                continue
+
+            # write
             if isinstance(self[key], list):
                 config["device"][key] = ", ".join(self[key])
             else:
@@ -1419,6 +1423,7 @@ class ControlGUI(qt.QWidget):
             # device-specific controls
             for c_name, param in dev.config["control_params"].items():
                 # the dict for control GUI elements
+                dev.config["control_GUI_elements"] = {}
                 c = dev.config["control_GUI_elements"]
 
                 # place QCheckBoxes

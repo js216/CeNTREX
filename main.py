@@ -2108,27 +2108,35 @@ class ControlGUI(qt.QWidget):
         if not self.parent.config['control_active']:
             return
 
-        # stop devices, waiting for each thread to finish
+        # stop all plots
+        self.parent.PlotsGUI.stop_all_plots()
+
+        # stop monitoring
+        if self.monitoring.active.is_set():
+            self.monitoring.active.clear()
+
+        # stop HDF writer
+        if self.HDF_writer.active.is_set():
+            self.HDF_writer.active.clear()
+
+        # stop each Device thread
         for dev_name, dev in self.parent.devices.items():
             if dev.active.is_set():
                 # update the status label
                 self.status_label.setText("Stopping " + dev_name + " ...")
                 self.parent.app.processEvents()
 
+                # reset the status of all indicators
+                for c_name, params in dev.config["control_params"].items():
+                    if params["type"] == "indicator":
+                        dev.config["control_GUI_elements"][c_name]["QLabel"].\
+                                setText(params["texts"][-1])
+                        dev.config["control_GUI_elements"][c_name]["QLabel"].\
+                                setStyleSheet(params["styles"][-1])
+
                 # stop the device, and wait for it to finish
                 dev.active.clear()
                 dev.join()
-
-        # stop HDF writer
-        if self.HDF_writer.active.is_set():
-            self.HDF_writer.active.clear()
-
-        # stop monitoring
-        if self.monitoring.active.is_set():
-            self.monitoring.active.clear()
-
-        # stop all plots
-        self.parent.PlotsGUI.stop_all_plots()
 
         # update status
         self.parent.config['control_active'] = False

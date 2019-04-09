@@ -504,9 +504,8 @@ class Monitoring(threading.Thread):
                 # update indicator text and style
                 dev.config["control_GUI_elements"][c_name]["QLabel"].\
                         setText(params["texts"][idx])
-                if params["styles"][idx]:
-                    dev.config["control_GUI_elements"][c_name]["QLabel"].\
-                            setStyleSheet(params["styles"][idx])
+                dev.config["control_GUI_elements"][c_name]["QLabel"].\
+                        setStyleSheet(params["styles"][idx])
 
     def display_last_event(self, dev):
         # check device enabled
@@ -1631,9 +1630,9 @@ class ControlGUI(qt.QWidget):
             df.addWidget(qle, 1, 1)
 
             # device-specific controls
+            dev.config["control_GUI_elements"] = {}
             for c_name, param in dev.config["control_params"].items():
                 # the dict for control GUI elements
-                dev.config["control_GUI_elements"] = {}
                 dev.config["control_GUI_elements"][c_name] = {}
                 c = dev.config["control_GUI_elements"][c_name]
 
@@ -1849,7 +1848,6 @@ class ControlGUI(qt.QWidget):
                     # tooltip
                     if param.get("tooltip"):
                         c["QLabel"].setToolTip(param["tooltip"])
-
 
             ##################################
             # MONITORING                     #

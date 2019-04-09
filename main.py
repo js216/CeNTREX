@@ -1348,12 +1348,6 @@ class ControlGUI(qt.QWidget):
         self.orientation_pb.clicked[bool].connect(self.parent.toggle_orientation)
         control_frame.addWidget(self.orientation_pb, 2, 0)
 
-        # for dark/light stylesheets
-        self.style_pb = qt.QPushButton("Dark style")
-        self.style_pb.setToolTip("Change style to dark mode (Ctrl+D).")
-        self.style_pb.clicked[bool].connect(self.toggle_style)
-        control_frame.addWidget(self.style_pb, 2, 1)
-
         # button to refresh the list of COM ports
         pb = qt.QPushButton("Refresh COM ports")
         pb.setToolTip("Click this to populate all the COM port dropdown menus.")
@@ -1930,17 +1924,6 @@ class ControlGUI(qt.QWidget):
                     3, 1, 1, 2,
                     alignment = PyQt5.QtCore.Qt.AlignLeft,
                 )
-
-    def toggle_style(self, state=""):
-        if self.style_pb.text() == "Dark style":
-            with open("darkstyle.qss", 'r') as f:
-                self.parent.app.setStyleSheet(f.read())
-            self.style_pb.setText("Light style")
-            self.style_pb.setToolTip("Change style to light mode (Ctrl+D).")
-        else:
-            self.parent.app.setStyleSheet("")
-            self.style_pb.setText("Dark style")
-            self.style_pb.setToolTip("Change style to dark mode (Ctrl+D).")
 
     def rename_HDF(self, state):
         # check we're not running already
@@ -3039,14 +3022,14 @@ class CentrexGUI(qt.QMainWindow):
         self.app = app
         self.setWindowTitle('CENTREX DAQ')
         #self.setWindowFlags(PyQt5.QtCore.Qt.Window | PyQt5.QtCore.Qt.FramelessWindowHint)
+        with open("darkstyle.qss", 'r') as f:
+            self.app.setStyleSheet(f.read())
 
         # read program configuration
         self.config = ProgramConfig("config/settings.ini")
 
         # GUI elements
         self.ControlGUI = ControlGUI(self)
-        if self.config["general"].get("style") == "dark":
-            self.ControlGUI.toggle_style()
         self.PlotsGUI = PlotsGUI(self)
 
         # put GUI elements in a QSplitter
@@ -3068,8 +3051,6 @@ class CentrexGUI(qt.QMainWindow):
                 .activated.connect(self.ControlGUI.toggle_plots)
         qt.QShortcut(QtGui.QKeySequence("Ctrl+M"), self)\
                 .activated.connect(self.ControlGUI.toggle_monitoring)
-        qt.QShortcut(QtGui.QKeySequence("Ctrl+D"), self)\
-                .activated.connect(self.ControlGUI.toggle_style)
         qt.QShortcut(QtGui.QKeySequence("Ctrl+S"), self)\
                 .activated.connect(self.ControlGUI.start_control)
         qt.QShortcut(QtGui.QKeySequence("Ctrl+Q"), self)\

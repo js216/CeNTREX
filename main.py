@@ -212,7 +212,7 @@ class Device(threading.Thread):
             self.constr_params = [self.config["parent"]] + self.constr_params
 
         # verify the device responds correctly
-        with self.config["driver"](*self.constr_params) as dev:
+        with self.config["driver_class"](*self.constr_params) as dev:
             if not isinstance(dev.verification_string, str):
                 self.operational = False
                 self.error_message = "verification_string is not of type str"
@@ -256,7 +256,7 @@ class Device(threading.Thread):
 
         # main control loop
         try:
-            with self.config["driver"](*self.constr_params) as device:
+            with self.config["driver_class"](*self.constr_params) as device:
                 while self.active.is_set():
                     # get and sanity check loop delay
                     try:
@@ -639,7 +639,19 @@ class HDF_writer(threading.Thread):
 ##########################################################################
 ##########################################################################
 
-class DeviceConfig(dict):
+class Config(dict):
+    def __init__(self):
+        super().__init__()
+
+    def __setitem__(self, key, val):
+        # check the key is permitted
+        if not key in dict(self.static_keys, **self.runtime_keys, **self.section_keys):
+            logging.error("Error in Config: key not permitted.")
+
+        # set the value in the dict
+        super().__setitem__(key, val)
+
+class DeviceConfig(Config):
     def __init__(self, config_fname=None):
         super().__init__()
         self.fname = config_fname
@@ -683,14 +695,6 @@ class DeviceConfig(dict):
                 "control_params" : dict,
             }
 
-    def __setitem__(self, key, val):
-        # check the key is permitted
-        if not key in dict(self.static_keys, **self.runtime_keys, **self.section_keys):
-            logging.error("Error in DeviceConfig: key not permitted.")
-
-        # set the value in the dict
-        super().__setitem__(key, val)
-
     def change_param(self, key, val, sect=None, sub_ctrl=None, row=None):
         if row:
             self[sect][key][sub_ctrl][row] = val
@@ -714,7 +718,10 @@ class DeviceConfig(dict):
 
         # read general device options
         for key, typ in self.static_keys.items():
-            self[key] = typ(params["device"].get(key))
+            if typ == list:
+                self[key] = [x.strip() for x in params["device"].get(key).split(",")]
+            else:
+                self[key] = typ(params["device"].get(key))
 
         # read device attributes
         self["attributes"] = params["attributes"]
@@ -896,6 +903,75 @@ class DeviceConfig(dict):
         # write them to file
         with open(self.fname, 'w') as f:
             config.write(f)
+
+class PlotConfig(Config):
+    def __init__(self, config_fname=None):
+        super().__init__()
+        self.define_permitted_keys()
+        self.set_defaults()
+
+    def define_permitted_keys(self):
+        # list of keys permitted for static options (those that can be written to file)
+        self.static_keys = {
+                "row"               : int,
+                "col"               : int,
+                "fn"                : bool,
+                "log"               : bool,
+                "symbol"            : str,
+                "from_HDF"          : bool,
+                "controls"          : bool,
+                "n_average"         : int,
+                "device"            : str,
+                "f(y)"              : str,
+                "run"               : str,
+                "x"                 : str,
+                "y"                 : str,
+                "z"                 : str,
+                "x0"                : str,
+                "x1"                : str,
+                "y0"                : str,
+                "y1"                : str,
+                "dt"                : float,
+            }
+
+        # list of keys permitted for runtime data (which cannot be written to a file)
+        self.runtime_keys = {
+                "active"            : bool,
+                "plot_drawn"        : bool,
+                "animation_running" : bool,
+            }
+
+        # list of keys permitted as names of sections in the .ini file
+        self.section_keys = {
+            }
+
+    def set_defaults(self):
+        self["active"]            = False
+        self["fn"]                = False
+        self["log"]               = False
+        self["symbol"]            = None
+        self["plot_drawn"]        = False
+        self["animation_running"] = False
+        self["from_HDF"]          = False
+        self["controls"]          = True
+        self["n_average"]         = 1
+        self["f(y)"]              = "np.min(y)"
+        self["device"]            = "Select device ..."
+        self["run"]               = "Select run ..."
+        self["x"]                 = "Select x ..."
+        self["y"]                 = "Select y ..."
+        self["z"]                 = "divide by?"
+        self["x0"]                = "x0"
+        self["x1"]                = "x1"
+        self["y0"]                = "y0"
+        self["y1"]                = "y1"
+        self["dt"]                = 1.0
+
+    def change(self, key, val, typ=str):
+        try:
+            self[key] = typ(val)
+        except (TypeError,ValueError) as err:
+            logging.warning("PlotConfig error: Invalid parameter: " + str(err))
 
 ##########################################################################
 ##########################################################################
@@ -1430,7 +1506,7 @@ class ControlGUI(qt.QWidget):
                     # commands for the QCheckBox
                     c["QCheckBox"].stateChanged[int].connect(
                             lambda state, dev=dev, ctrl=c_name:
-                                dev.change_param(ctrl, state, "control_params")
+                                dev.config.change_param(ctrl, state, "control_params")
                         )
 
                 # place QPushButtons
@@ -1470,7 +1546,7 @@ class ControlGUI(qt.QWidget):
                     c["QLineEdit"].setText(param["value"])
                     c["QLineEdit"].textChanged[str].connect(
                             lambda text, dev=dev, ctrl=c_name:
-                                dev.change_param(ctrl, text, "control_params")
+                                dev.config.change_param(ctrl, text, "control_params")
                         )
                     df.addWidget(c["QLineEdit"], param["row"], param["col"])
 
@@ -1511,7 +1587,7 @@ class ControlGUI(qt.QWidget):
                     # commands for the QComboBox
                     c["QComboBox"].activated[str].connect(
                             lambda text, dev=dev, config=c_name:
-                                dev.change_param(ctrl, text, "control_params")
+                                dev.config.change_param(config, text, "control_params")
                         )
                     if param.get("command"):
                         c["QComboBox"].activated[str].connect(
@@ -1533,7 +1609,7 @@ class ControlGUI(qt.QWidget):
                             qle.setToolTip(param["ctrl_labels"][ctrl])
                             qle.textChanged[str].connect(
                                     lambda val, dev=dev, config=c_name, sub_ctrl=ctrl:
-                                        dev.change_param(c_name, val, "control_params", sub_ctrl)
+                                        dev.config.change_param(config, val, "control_params", sub_ctrl)
                                 )
                             ctrl_frame.addWidget(qle)
 
@@ -1541,8 +1617,8 @@ class ControlGUI(qt.QWidget):
                             cbx = qt.QComboBox()
                             cbx.setToolTip(param["ctrl_labels"][ctrl])
                             cbx.activated[str].connect(
-                                    lambda val, dev=dev, config=c_name, ctrl=ctrl:
-                                        dev.change_param(c_name, val, "control_params", sub_ctrl)
+                                    lambda val, dev=dev, config=c_name, sub_ctrl=ctrl:
+                                        dev.config.change_param(config, val, "control_params", sub_ctrl)
                                 )
                             update_QComboBox(
                                     cbx     = cbx,
@@ -1578,7 +1654,7 @@ class ControlGUI(qt.QWidget):
                                 qle.setText(param["value"][col][i])
                                 qle.textChanged[str].connect(
                                         lambda val, dev=dev, config=c_name, sub_ctrl=col, row=row:
-                                            dev.change_param(c_name, val, "control_params", sub_ctrl, row)
+                                            dev.config.change_param(config, val, "control_params", sub_ctrl, row)
                                     )
                                 ctrl_frame.addWidget(qle, i, j)
 
@@ -1589,7 +1665,7 @@ class ControlGUI(qt.QWidget):
                                 qch.setTristate(False)
                                 qch.stateChanged[int].connect(
                                         lambda val, dev=dev, config=c_name, sub_ctrl=col, row=row:
-                                            dev.change_param(c_name, val, "control_params", sub_ctrl, row)
+                                            dev.config.change_param(config, val, "control_params", sub_ctrl, row)
                                     )
                                 ctrl_frame.addWidget(qch, i, j)
 
@@ -1598,7 +1674,7 @@ class ControlGUI(qt.QWidget):
                                 cbx.setToolTip(param["col_labels"][col])
                                 cbx.activated[str].connect(
                                         lambda val, dev=dev, config=c_name, sub_ctrl=col, row=row:
-                                            dev.change_param(c_name, val, "control_params", sub_ctrl, row)
+                                            dev.config.change_param(config, val, "control_params", sub_ctrl, row)
                                     )
                                 update_QComboBox(
                                         cbx     = cbx,
@@ -1833,7 +1909,7 @@ class ControlGUI(qt.QWidget):
 
         # setup & check connections of all devices
         for dev_name, dev in self.parent.devices.items():
-            if dev.config["control_GUI_elements"]["enabled"]["value"]:
+            if dev.config["control_params"]["enabled"]["value"]:
                 # update the status label
                 self.status_label.setText("Starting " + dev_name + " ...")
                 self.parent.app.processEvents()
@@ -2078,7 +2154,7 @@ class PlotsGUI(qt.QSplitter):
         for col, col_plots in self.all_plots.items():
             for row, plot in col_plots.items():
                 if plot:
-                    plot.change_config("x0", x0)
+                    plot.config.change("x0", x0)
                     plot.x0_qle.setText(str(x0))
 
     def set_all_x1(self, x1):
@@ -2092,7 +2168,7 @@ class PlotsGUI(qt.QSplitter):
         for col, col_plots in self.all_plots.items():
             for row, plot in col_plots.items():
                 if plot:
-                    plot.change_config("x1", x1)
+                    plot.config.change("x1", x1)
                     plot.x1_qle.setText(str(x1))
 
     def set_all_dt(self, dt):
@@ -2109,7 +2185,7 @@ class PlotsGUI(qt.QSplitter):
         for col, col_plots in self.all_plots.items():
             for row, plot in col_plots.items():
                 if plot:
-                    plot.change_config("dt", dt)
+                    plot.config.change("dt", dt)
                     plot.dt_qle.setText(str(dt))
 
     def refresh_all_run_lists(self, select_defaults=True):
@@ -2197,28 +2273,7 @@ class Plotter(qt.QWidget):
         self.curve = None
         self.fast_y = []
 
-        self.config = {
-                "active"            : False,
-                "fn"                : False,
-                "log"               : False,
-                "symbol"            : None,
-                "plot_drawn"        : False,
-                "animation_running" : False,
-                "from_HDF"          : False,
-                "controls"          : True,
-                "n_average"         : 1,
-                "f(y)"              : "np.min(y)",
-                "device"            : "Select device ...",
-                "run"               : "Select run ...",
-                "x"                 : "Select x ...",
-                "y"                 : "Select y ...",
-                "z"                 : "divide by?",
-                "x0"                : "x0",
-                "x1"                : "x1",
-                "y0"                : "y0",
-                "y1"                : "y1",
-                "dt"                : float(self.parent.config["general"]["default_plot_dt"]),
-            }
+        self.config = PlotConfig()
 
         self.place_GUI_elements()
 
@@ -2458,12 +2513,6 @@ class Plotter(qt.QWidget):
     def clear_fn(self):
         """Clear the arrays of past evaluations of the custom function on the data."""
         self.x, self.y = [], []
-
-    def change_config(self, config, val, typ=str):
-        try:
-            self.config[config] = typ(val)
-        except (TypeError,ValueError) as err:
-            logging.warning("Plot error: Invalid parameter: " + str(err))
 
     def parameters_good(self):
         # check device is valid

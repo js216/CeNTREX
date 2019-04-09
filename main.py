@@ -740,10 +740,10 @@ class AttrEditor(QtGui.QDialog):
             # collect device control parameters
             for c_name, c in self.dev.config["controls"].items():
                 config[c_name] = {
-                        "label"        : str(c["label"]),
+                        "label"        : str(c.get("label")),
                         "type"         : str(c["type"]),
-                        "row"          : str(c["row"]),
-                        "col"          : str(c["col"]),
+                        "row"          : str(c.get("row")),
+                        "col"          : str(c.get("col")),
                         "tooltip"      : str(c.get("tooltip")),
                         "rowspan"      : str(c.get("rowspan")),
                         "colspan"      : str(c.get("colspan")),
@@ -754,8 +754,11 @@ class AttrEditor(QtGui.QDialog):
                     config[c_name]["enter_cmd"] = str(c["enter_cmd"])
                 if c["type"] == "QComboBox":
                     config[c_name]["options"] = ", ".join(c["options"])
-                if c["type"] in ["QComboBox", "QPushButton"]:
-                    config[c_name]["command"] = str(c["command"])
+                    config[c_name]["command"] = str(c.get("command"))
+                if c["type"] == "QPushButton":
+                    config[c_name]["command"] = str(c.get("cmd"))
+                    config[c_name]["argument"] = str(c.get("argument"))
+                    config[c_name]["align"] = str(c.get("align"))
                 if c["type"] == "ControlsRow":
                     config[c_name]["ctrl_values"]  = ", ".join([x for x_name,x in c["value"].items()])
                     config[c_name]["ctrl_names"]   = ", ".join(c["ctrl_names"])
@@ -771,7 +774,7 @@ class AttrEditor(QtGui.QDialog):
                     config[c_name]["col_options"] = "; ".join([", ".join(x) for x_name,x in c["col_options"].items()])
 
             # write them to file
-            with open(self.dev.config["config_fname"]+"_test", 'w') as f:
+            with open(self.dev.config["config_fname"], 'w') as f:
                 config.write(f)
 
         # when changing program attributes/settings
@@ -935,7 +938,7 @@ class ControlGUI(qt.QWidget):
                             "type"       : params[c]["type"],
                             "row"        : int(params[c]["row"]),
                             "col"        : int(params[c]["col"]),
-                            "enter_cmd"  : params[c].get("enter_command"),
+                            "enter_cmd"  : params[c].get("enter_cmd"),
                             "value"      : params[c]["value"],
                             "tooltip"    : params[c].get("tooltip"),
                         }

@@ -908,10 +908,13 @@ class DeviceConfig(Config):
             config.write(f)
 
 class PlotConfig(Config):
-    def __init__(self, config_fname=None):
+    def __init__(self, config=None):
         super().__init__()
         self.define_permitted_keys()
         self.set_defaults()
+        if config:
+            for key, val in config.items():
+                self[key] = val
 
     def define_permitted_keys(self):
         # list of keys permitted for static options (those that can be written to file)
@@ -975,6 +978,9 @@ class PlotConfig(Config):
             self[key] = typ(val)
         except (TypeError,ValueError) as err:
             logging.warning("PlotConfig error: Invalid parameter: " + str(err))
+
+    def get_static_params(self):
+        return {key:self[key] for key in self.static_keys}
 
 ##########################################################################
 ##########################################################################
@@ -1526,7 +1532,7 @@ class ControlGUI(qt.QWidget):
                     if param.get("argument"):
                         c["QPushButton"].clicked[bool].connect(
                                 lambda state, dev=dev, cmd=param["cmd"],
-                                arg=dev.config["controls"][param["argument"]]:
+                                arg=dev.config["control_params"][param["argument"]]:
                                     self.queue_command(dev, cmd+"("+arg["value"]+")")
                             )
                     else:
@@ -2226,7 +2232,7 @@ class PlotsGUI(qt.QSplitter):
             plot_configs[col] = {}
             for row, plot in col_plots.items():
                 if plot:
-                    plot_configs[col][row] = plot.config
+                    plot_configs[col][row] = plot.config.get_static_params()
 
         # save this info as a pickled dictionary
         with open(self.parent.config["files"]["plotting_config_fname"], "wb") as f:
@@ -2251,7 +2257,7 @@ class PlotsGUI(qt.QSplitter):
                 plot = self.add_plot(row, col)
 
                 # restore configuration
-                plot.config = config
+                plot.config = PlotConfig(config)
 
                 # set the GUI elements to the restored values
                 plot.x0_qle.setText(config["x0"])
@@ -2295,7 +2301,7 @@ class Plotter(qt.QWidget):
 
         # select device
         self.dev_cbx = qt.QComboBox()
-        self.dev_cbx.activated[str].connect(lambda val: self.change_config("device", val))
+        self.dev_cbx.activated[str].connect(lambda val: self.config.change("device", val))
         self.dev_cbx.activated[str].connect(lambda val: self.refresh_parameter_lists())
         self.dev_cbx.activated[str].connect(self.update_labels)
         update_QComboBox(
@@ -2316,7 +2322,7 @@ class Plotter(qt.QWidget):
         # select run
         self.run_cbx = qt.QComboBox()
         self.run_cbx.setMaximumWidth(100)
-        self.run_cbx.activated[str].connect(lambda val: self.change_config("run", val))
+        self.run_cbx.activated[str].connect(lambda val: self.config.change("run", val))
         self.run_cbx.activated[str].connect(self.update_labels)
         update_QComboBox(
                 cbx     = self.run_cbx,
@@ -2329,19 +2335,19 @@ class Plotter(qt.QWidget):
 
         self.x_cbx = qt.QComboBox()
         self.x_cbx.setToolTip("Select the independent variable.")
-        self.x_cbx.activated[str].connect(lambda val: self.change_config("x", val))
+        self.x_cbx.activated[str].connect(lambda val: self.config.change("x", val))
         self.x_cbx.activated[str].connect(self.update_labels)
         ctrls_f.addWidget(self.x_cbx, 1, 0)
 
         self.y_cbx = qt.QComboBox()
         self.y_cbx.setToolTip("Select the dependent variable.")
-        self.y_cbx.activated[str].connect(lambda val: self.change_config("y", val))
+        self.y_cbx.activated[str].connect(lambda val: self.config.change("y", val))
         self.y_cbx.activated[str].connect(self.update_labels)
         ctrls_f.addWidget(self.y_cbx, 1, 1)
 
         self.z_cbx = qt.QComboBox()
         self.z_cbx.setToolTip("Select the variable to divide y by.")
-        self.z_cbx.activated[str].connect(lambda val: self.change_config("z", val))
+        self.z_cbx.activated[str].connect(lambda val: self.config.change("z", val))
         ctrls_f.addWidget(self.z_cbx, 1, 2)
 
         self.refresh_parameter_lists()
@@ -2352,21 +2358,21 @@ class Plotter(qt.QWidget):
         ctrls_f.addWidget(self.x0_qle, 1, 3)
         self.x0_qle.setText(self.config["x0"])
         self.x0_qle.setToolTip("x0 = index of first point to plot")
-        self.x0_qle.textChanged[str].connect(lambda val: self.change_config("x0", val))
+        self.x0_qle.textChanged[str].connect(lambda val: self.config.change("x0", val))
 
         self.x1_qle = qt.QLineEdit()
         self.x1_qle.setMaximumWidth(50)
         ctrls_f.addWidget(self.x1_qle, 1, 4)
         self.x1_qle.setText(self.config["x1"])
         self.x1_qle.setToolTip("x1 = index of last point to plot")
-        self.x1_qle.textChanged[str].connect(lambda val: self.change_config("x1", val))
+        self.x1_qle.textChanged[str].connect(lambda val: self.config.change("x1", val))
 
         self.y0_qle = qt.QLineEdit()
         self.y0_qle.setMaximumWidth(50)
         ctrls_f.addWidget(self.y0_qle, 1, 5)
         self.y0_qle.setText(self.config["y0"])
         self.y0_qle.setToolTip("y0 = lower y limit")
-        self.y0_qle.textChanged[str].connect(lambda val: self.change_config("y0", val))
+        self.y0_qle.textChanged[str].connect(lambda val: self.config.change("y0", val))
         self.y0_qle.textChanged[str].connect(lambda val: self.change_y_limits())
 
         self.y1_qle = qt.QLineEdit()
@@ -2374,7 +2380,7 @@ class Plotter(qt.QWidget):
         ctrls_f.addWidget(self.y1_qle, 1, 6)
         self.y1_qle.setText(self.config["y1"])
         self.y1_qle.setToolTip("y1 = upper y limit")
-        self.y1_qle.textChanged[str].connect(lambda val: self.change_config("y1", val))
+        self.y1_qle.textChanged[str].connect(lambda val: self.config.change("y1", val))
         self.y1_qle.textChanged[str].connect(lambda val: self.change_y_limits())
 
         # plot refresh rate
@@ -2415,7 +2421,7 @@ class Plotter(qt.QWidget):
         self.fn_qle = qt.QLineEdit()
         self.fn_qle.setText(self.config["f(y)"])
         self.fn_qle.setToolTip("Apply the specified function before plotting the data.")
-        self.fn_qle.textChanged[str].connect(lambda val: self.change_config("f(y)", val))
+        self.fn_qle.textChanged[str].connect(lambda val: self.config.change("f(y)", val))
         ctrls_f.addWidget(self.fn_qle, 0, 2)
 
         self.fn_pb = qt.QPushButton("f(y)")
@@ -2429,7 +2435,7 @@ class Plotter(qt.QWidget):
         self.avg_qle.setMaximumWidth(50)
         self.avg_qle.setToolTip("Enter the number of traces to average. Default = 1, i.e. no averaging.")
         self.avg_qle.setText("avg?")
-        self.avg_qle.textChanged[str].connect(lambda val: self.change_config("n_average", val, typ=int))
+        self.avg_qle.textChanged[str].connect(lambda val: self.config.change("n_average", val, typ=int))
         ctrls_f.addWidget(self.avg_qle, 1, 8)
 
         # button to delete plot

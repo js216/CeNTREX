@@ -640,52 +640,52 @@ class HDF_writer(threading.Thread):
 ##########################################################################
 
 class DeviceConfig(dict):
-    def __init__(self, config_fname):
+    def __init__(self, config_fname=None):
         super().__init__()
         self.fname = config_fname
         self.define_permitted_keys()
         self.read_from_file()
 
     def define_permitted_keys(self):
-        # lists of keys permitted for static options (those in the .ini file)
-        self.static_keys = [
-                "name",
-                "label",
-                "path",
-                "driver",
-                "constr_params",
-                "correct_response",
-                "slow_data",
-                "COM_port",
-                "row",
-                "column",
-                "plots_queue_maxlen",
-                "max_NaN_count",
-                "meta_device",
-            ]
+        # list of keys permitted for static options (those in the .ini file)
+        self.static_keys = {
+                "name"               : str,
+                "label"              : str,
+                "path"               : str,
+                "driver"             : str,
+                "constr_params"      : list,
+                "correct_response"   : str,
+                "slow_data"          : bool,
+                "COM_port"           : str,
+                "row"                : int,
+                "column"             : int,
+                "plots_queue_maxlen" : int,
+                "max_NaN_count"      : int,
+                "meta_device"        : bool,
+            }
 
-        # lists of keys permitted for runtime data (which cannot be written to .ini file)
-        self.runtime_keys = [
-                "parent",
-                "driver_class",
-                "shape",
-                "dtype",
-                "plots_queue",
-                "monitoring_GUI_elements",
-                "control_GUI_elements",
-                "time_offset",
-                "control_active",
-            ]
+        # list of keys permitted for runtime data (which cannot be written to .ini file)
+        self.runtime_keys = {
+                "parent"                  : CentrexGUI,
+                "driver_class"            : None,
+                "shape"                   : tuple,
+                "dtype"                   : type,
+                "plots_queue"             : deque,
+                "monitoring_GUI_elements" : dict,
+                "control_GUI_elements"    : dict,
+                "time_offset"             : int,
+                "control_active"          : bool,
+            }
 
-        # lists of keys permitted as names of sections in the .ini file
-        self.section_keys = [
-                "attributes",
-                "control_params",
-            ]
+        # list of keys permitted as names of sections in the .ini file
+        self.section_keys = {
+                "attributes"     : dict,
+                "control_params" : dict,
+            }
 
     def __setitem__(self, key, val):
         # check the key is permitted
-        if not key in self.static_keys + self.runtime_keys + self.section_keys:
+        if not key in dict(self.static_keys, **self.runtime_keys, **self.section_keys):
             logging.error("Error in DeviceConfig: key not permitted.")
 
         # set the value in the dict
@@ -703,12 +703,21 @@ class DeviceConfig(dict):
 
     def read_from_file(self):
         # config file sanity check
+        if not self.fname:
+            return
         params = configparser.ConfigParser()
         params.read(self.fname)
         if not "device" in params:
             if self.fname[-11:] != "desktop.ini":
                 logging.warning("The device config file " + self.fname + " does not have a [device] section.")
             return
+
+        # read general device options
+        for key, typ in self.static_keys.items():
+            self[key] = typ(params["device"].get(key))
+
+        # read device attributes
+        self["attributes"] = params["attributes"]
 
         # import the device driver
         driver_spec = importlib.util.spec_from_file_location(
@@ -717,22 +726,7 @@ class DeviceConfig(dict):
             )
         driver_module = importlib.util.module_from_spec(driver_spec)
         driver_spec.loader.exec_module(driver_module)
-        self["driver"] = params["device"]["driver"]
         self["driver_class"] = getattr(driver_module, params["device"]["driver"])
-
-        # read general device options
-        self["name"               ] = params["device"]["name"]
-        self["label"              ] = params["device"]["label"]
-        self["path"               ] = params["device"]["path"]
-        self["correct_response"   ] = params["device"]["correct_response"]
-        self["max_NaN_count"      ] = params["device"].get("max_NaN_count")
-        self["plots_queue_maxlen" ] = int(params["device"]["plots_queue_maxlen"])
-        self["slow_data"          ] = True if params["device"]["slow_data"]=="True" else False
-        self["row"                ] = int(params["device"]["row"])
-        self["column"             ] = int(params["device"]["column"])
-        self["constr_params"      ] = split(params["device"]["constr_params"])
-        self["meta_device"        ] = True if params["device"].get("meta_device")=="True" else False
-        self["attributes"         ] = params["attributes"]
 
         # populate the list of device controls
         ctrls = {}
@@ -856,16 +850,11 @@ class DeviceConfig(dict):
         # collect the configuration parameters to be written
         config = configparser.ConfigParser()
         config["device"] = {}
-        for key in self.static_keys:
-            # check the key has been defined for the device
-            if not key in self:
-                continue
-
-            # write
-            if isinstance(self[key], list):
-                config["device"][key] = ", ".join(self[key])
+        for key, typ in self.static_keys:
+            if typ == list:
+                config["device"][key] = ", ".join(self.get(key))
             else:
-                config["device"][key] = str(self[key])
+                config["device"][key] = str(self.get(key))
         config["attributes"] = self["attributes"]
 
         # collect device control parameters

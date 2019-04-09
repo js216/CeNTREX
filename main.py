@@ -180,9 +180,12 @@ class Device(threading.Thread):
         self.operational = False
         self.error_message = ""
 
-        # for sending commands to the device
+        # for commands sent by the user to the device
         self.commands = []
         self.last_event = []
+
+        # for commands sent the Monitoring to the device
+        self.monitoring_commands = []
 
         # for warnings about device abnormal condition
         self.warnings = []
@@ -191,6 +194,7 @@ class Device(threading.Thread):
         self.data_queue = deque()
         self.config["plots_queue"] = deque(maxlen=self.config["plots_queue_maxlen"])
         self.events_queue = deque()
+        self.monitoring_events_queue = deque()
 
         # the variable for counting the number of NaN returns
         self.nan_count = 0
@@ -324,6 +328,16 @@ class Device(threading.Thread):
                         self.events_queue.append(self.last_event)
                     self.commands = []
 
+                    # send monitoring commands, if any, to the device, and record return values
+                    for c in self.monitoring_commands:
+                        try:
+                            ret_val = eval("device." + c.strip())
+                        except (ValueError, AttributeError, SyntaxError, TypeError) as err:
+                            ret_val = str(err)
+                        ret_val = "None" if not ret_val else ret_val
+                        self.monitoring_events_queue.append( [ time.time()-self.time_offset, c, ret_val ] )
+                    self.monitoring_commands = []
+
         # report any exception that has occurred in the run() function
         except Exception as err:
             warning_dict = {
@@ -377,6 +391,14 @@ class Monitoring(threading.Thread):
 
                 # get the last event (if any) of the device
                 self.display_last_event(dev)
+
+                # send monitoring commands
+                for c_name, params in dev.config["control_params"].items():
+                    if params["type"] == "indicator":
+                        dev.monitoring_commands.append( params["command"] )
+
+                # obtain monitoring events and update any indicator controls
+                self.display_monitoring_events(dev)
 
                 # get the last row of data from the plots_queue
                 try:
@@ -445,6 +467,46 @@ class Monitoring(threading.Thread):
             except Exception as err:
                 logging.warning("InfluxDB error: " + str(err))
 
+    def display_monitoring_events(self, dev):
+        # check device enabled
+        if not dev.config["control_params"]["enabled"]["value"]:
+            return
+
+        # empty the monitoring events queue
+        monitoring_events = []
+        while True:
+            try:
+                monitoring_events.append( dev.monitoring_events_queue.pop() )
+            except IndexError:
+                break
+
+        # check any events were returned
+        if not monitoring_events:
+            return
+
+        for c_name, params in dev.config["control_params"].items():
+            # skip if the control is not an indicator
+            if not params["type"] == "indicator":
+                continue
+
+            # check if any of the returned events are relevant to the indicator
+            for event in monitoring_events:
+                # skip event if it's related to a different command
+                if not params["command"] == event[1]:
+                    continue
+
+                # check if there's any matching return value
+                try:
+                    idx = params["return_values"].index(event[2])
+                except ValueError:
+                    continue
+
+                # update indicator text and style
+                dev.config["control_GUI_elements"][c_name]["QLabel"].\
+                        setText(params["texts"][idx])
+                dev.config["control_GUI_elements"][c_name]["QLabel"].\
+                        setStyleSheet(params["styles"][idx])
+
     def display_last_event(self, dev):
         # check device enabled
         if not dev.config["control_params"]["enabled"]["value"]:
@@ -457,13 +519,18 @@ class Monitoring(threading.Thread):
                 events_dset = grp[dev.config["name"] + "_events"]
                 if events_dset.shape[0] == 0:
                     dev.config["monitoring_GUI_elements"]["events"].setText("(no event)")
+                    return
                 else:
-                    dev.config["monitoring_GUI_elements"]["events"].setText(str(events_dset[-1]))
+                    last_event = events_dset[-1]
+                    dev.config["monitoring_GUI_elements"]["events"].setText(str(last_event))
+                    return last_event
 
         # if HDF writing not enabled for this device, get events from the events_queue
         else:
             try:
-                dev.config["monitoring_GUI_elements"]["events"].setText(str(dev.events_queue.pop()))
+                last_event = dev.events_queue.pop()
+                dev.config["monitoring_GUI_elements"]["events"].setText(str(last_event))
+                return last_event
             except IndexError:
                 return
 
@@ -906,6 +973,20 @@ class DeviceConfig(Config):
                                             )),
                     }
 
+            elif params[c].get("type") == "indicator":
+                ctrls[c] = {
+                        "label"         : params[c]["label"],
+                        "type"          : params[c]["type"],
+                        "row"           : int(params[c]["row"]),
+                        "col"           : int(params[c]["col"]),
+                        "rowspan"       : int(params[c].get("rowspan")),
+                        "colspan"       : int(params[c].get("colspan")),
+                        "command"       : params[c]["command"],
+                        "return_values" : split(params[c]["return_values"]),
+                        "texts"         : split(params[c]["texts"]),
+                        "styles"        : split(params[c]["styles"]),
+                    }
+
             elif params[c].get("type") == "dummy":
                 ctrls[c] = {
                         "type"       : params[c]["type"],
@@ -963,6 +1044,11 @@ class DeviceConfig(Config):
                 config[c_name]["col_labels"]  = ", ".join([x for x_name,x in c["col_labels"].items()])
                 config[c_name]["col_types"]   = ", ".join([x for x_name,x in c["col_types"].items()])
                 config[c_name]["col_options"] = "; ".join([", ".join(x) for x_name,x in c["col_options"].items()])
+            if c["type"] == "indicator":
+                config[c_name]["command"] = str(c.get("cmd"))
+                config[c_name]["return_values"] = ", ".join(c["return_values"])
+                config[c_name]["texts"] = ", ".join(c["texts"])
+                config[c_name]["styles"] = ", ".join(c["styles"])
 
         # write them to file
         with open(self.fname, 'w') as f:
@@ -1553,7 +1639,8 @@ class ControlGUI(qt.QWidget):
             for c_name, param in dev.config["control_params"].items():
                 # the dict for control GUI elements
                 dev.config["control_GUI_elements"] = {}
-                c = dev.config["control_GUI_elements"]
+                dev.config["control_GUI_elements"][c_name] = {}
+                c = dev.config["control_GUI_elements"][c_name]
 
                 # place QCheckBoxes
                 if param["type"] == "QCheckBox":
@@ -1749,6 +1836,24 @@ class ControlGUI(qt.QWidget):
 
                             else:
                                 logging.warning("ControlsRow error: sub-control type not supported: " + c["col_types"][col])
+
+                # place indicators
+                elif param["type"] == "indicator":
+                    # the indicator label
+                    c["QLabel"] = qt.QLabel(
+                            param["label"],
+                            alignment = PyQt5.QtCore.Qt.AlignCenter,
+                        )
+                    c["QLabel"].setStyleSheet(param["styles"][-1])
+                    if param.get("rowspan") and param.get("colspan"):
+                        df.addWidget(c["QLabel"], param["row"], param["col"], param["rowspan"], param["colspan"])
+                    else:
+                        df.addWidget(c["QLabel"], param["row"], param["col"])
+
+                    # tooltip
+                    if param.get("tooltip"):
+                        c["QLabel"].setToolTip(param["tooltip"])
+
 
             ##################################
             # MONITORING                     #

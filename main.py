@@ -646,10 +646,71 @@ class Config(dict):
     def __setitem__(self, key, val):
         # check the key is permitted
         if not key in dict(self.static_keys, **self.runtime_keys, **self.section_keys):
-            logging.error("Error in Config: key not permitted.")
+            logging.error("Error in Config: key " + key + " not permitted.")
 
         # set the value in the dict
         super().__setitem__(key, val)
+
+class ProgramConfig(Config):
+    def __init__(self, config_fname=None):
+        super().__init__()
+        self.fname = config_fname
+        self.define_permitted_keys()
+        self.set_defaults()
+        self.read_from_file()
+
+    def define_permitted_keys(self):
+        # list of keys permitted for static options (those in the .ini file)
+        self.static_keys = {
+            }
+
+        # list of keys permitted for runtime data (which cannot be written to .ini file)
+        self.runtime_keys = {
+                "time_offset"        : float,
+                "control_active"     : bool,
+                "control_visible"    : bool,
+                "monitoring_visible" : bool,
+                "plots_visible"      : bool,
+                "horizontal_split"   : bool,
+            }
+
+        # list of keys permitted as names of sections in the .ini file
+        self.section_keys = {
+                "general"        : dict,
+                "run_attributes" : dict,
+                "files"          : dict,
+                "influxdb"       : dict,
+            }
+
+    def set_defaults(self):
+        self["time_offset"]        = 0
+        self["control_active"]     = False
+        self["control_visible"]    = True
+        self["monitoring_visible"] = False
+        self["plots_visible"]      = False
+        self["horizontal_split"]   = True
+
+    def read_from_file(self):
+        settings = configparser.ConfigParser()
+        settings.read("config/settings.ini")
+        for section, section_type in self.section_keys.items():
+            self[section] = settings[section]
+
+    def write_to_file(self):
+        # collect new configuration parameters to be written
+        config = configparser.ConfigParser()
+        for sect in self.section_keys:
+            config[sect] = self[sect]
+
+        # write them to file
+        with open("config/settings.ini", 'w') as f:
+            config.write(f)
+
+    def change(self, sect, key, val, typ=str):
+        try:
+            self[sect][key] = typ(val)
+        except (TypeError,ValueError) as err:
+            logging.warning("PlotConfig error: Invalid parameter: " + str(err))
 
 class DeviceConfig(Config):
     def __init__(self, config_fname=None):
@@ -685,7 +746,7 @@ class DeviceConfig(Config):
                 "plots_queue"             : deque,
                 "monitoring_GUI_elements" : dict,
                 "control_GUI_elements"    : dict,
-                "time_offset"             : int,
+                "time_offset"             : float,
                 "control_active"          : bool,
             }
 
@@ -1074,14 +1135,7 @@ class AttrEditor(QtGui.QDialog):
 
         # when changing program attributes/settings
         if not self.dev:
-            # collect new configuration parameters to be written
-            config = configparser.ConfigParser()
-            for sect in ["general", "run_attributes", "files", "influxdb"]:
-                config[sect] = self.parent.config[sect]
-
-            # write them to file
-            with open("config/settings.ini", 'w') as f:
-                config.write(f)
+            self.parent.config.write_to_file()
 
     def add_row(self, arg):
         self.qtw.insertRow(self.qtw.rowCount())
@@ -1230,7 +1284,7 @@ class ControlGUI(qt.QWidget):
         qle = qt.QLineEdit()
         qle.setToolTip("Enter a command corresponding to a function in the selected device driver.")
         qle.setText(self.parent.config["general"]["custom_command"])
-        qle.textChanged[str].connect(lambda val: self.change_config("general", "custom_command", val))
+        qle.textChanged[str].connect(lambda val: self.parent.config.change("general", "custom_command", val))
         cmd_frame.addWidget(qle)
 
         self.custom_dev_cbx = qt.QComboBox()
@@ -1241,7 +1295,7 @@ class ControlGUI(qt.QWidget):
                 value   = self.parent.config["general"]["custom_device"],
             )
         self.custom_dev_cbx.activated[str].connect(
-                lambda val: self.change_config("general", "custom_device", val)
+                lambda val: self.parent.config.change("general", "custom_device", val)
             )
         cmd_frame.addWidget(self.custom_dev_cbx)
 
@@ -1262,7 +1316,7 @@ class ControlGUI(qt.QWidget):
         self.config_dir_qle = qt.QLineEdit()
         self.config_dir_qle.setToolTip("Directory with .ini files with device configurations.")
         self.config_dir_qle.setText(self.parent.config["files"]["config_dir"])
-        self.config_dir_qle.textChanged[str].connect(lambda val: self.change_config("files", "config_dir", val))
+        self.config_dir_qle.textChanged[str].connect(lambda val: self.parent.config.change("files", "config_dir", val))
         files_frame.addWidget(self.config_dir_qle, 0, 1)
 
         pb = qt.QPushButton("Open...")
@@ -1275,7 +1329,8 @@ class ControlGUI(qt.QWidget):
         self.hdf_fname_qle = qt.QLineEdit()
         self.hdf_fname_qle.setToolTip("HDF file for storing all acquired data.")
         self.hdf_fname_qle.setText(self.parent.config["files"]["hdf_fname"])
-        self.hdf_fname_qle.textChanged[str].connect(lambda val: self.change_config("files", "hdf_fname", val))
+        self.hdf_fname_qle.textChanged[str].connect(lambda val:
+                self.parent.config("files", "hdf_fname", val))
         files_frame.addWidget(self.hdf_fname_qle, 1, 1)
 
         pb = qt.QPushButton("Open...")
@@ -1290,7 +1345,7 @@ class ControlGUI(qt.QWidget):
         qle = qt.QLineEdit()
         qle.setToolTip("The loop delay determines how frequently acquired data is written to the HDF file.")
         qle.setText(self.parent.config["general"]["hdf_loop_delay"])
-        qle.textChanged[str].connect(lambda val: self.change_config("general", "hdf_loop_delay", val))
+        qle.textChanged[str].connect(lambda val: self.parent.config.change("general", "hdf_loop_delay", val))
         files_frame.addWidget(qle, 3, 1)
 
         # run name
@@ -1299,7 +1354,7 @@ class ControlGUI(qt.QWidget):
         qle = qt.QLineEdit()
         qle.setToolTip("The name given to the HDF group containing all data for this run.")
         qle.setText(self.parent.config["general"]["run_name"])
-        qle.textChanged[str].connect(lambda val: self.change_config("general", "run_name", val))
+        qle.textChanged[str].connect(lambda val: self.parent.config.change("general", "run_name", val))
         files_frame.addWidget(qle, 4, 1)
 
         # for giving the HDF file new names
@@ -1340,7 +1395,7 @@ class ControlGUI(qt.QWidget):
         qle = qt.QLineEdit()
         qle.setText(self.parent.config["general"]["monitoring_dt"])
         qle.textChanged[str].connect(
-                lambda val: self.change_config("general", "monitoring_dt", val)
+                lambda val: self.parent.config.change("general", "monitoring_dt", val)
             )
         gen_f.addWidget(qle, 0, 1, 1, 2)
 
@@ -1352,7 +1407,7 @@ class ControlGUI(qt.QWidget):
         qch.setTristate(False)
         qch.setChecked(True if self.parent.config["influxdb"]["enabled"] in ["1", "True"] else False)
         qch.stateChanged[int].connect(
-                lambda val: self.change_config("influxdb", "enabled", val)
+                lambda val: self.parent.config.change("influxdb", "enabled", val)
             )
         gen_f.addWidget(qch, 4, 0)
 
@@ -1361,7 +1416,7 @@ class ControlGUI(qt.QWidget):
         qle.setMaximumWidth(50)
         qle.setText(self.parent.config["influxdb"]["host"])
         qle.textChanged[str].connect(
-                lambda val: self.change_config("influxdb", "host", val)
+                lambda val: self.parent.config.change("influxdb", "host", val)
             )
         gen_f.addWidget(qle, 4, 1)
 
@@ -1370,7 +1425,7 @@ class ControlGUI(qt.QWidget):
         qle.setMaximumWidth(50)
         qle.setText(self.parent.config["influxdb"]["port"])
         qle.textChanged[str].connect(
-                lambda val: self.change_config("influxdb", "port", val)
+                lambda val: self.parent.config.change("influxdb", "port", val)
             )
         gen_f.addWidget(qle, 4, 2)
 
@@ -1379,7 +1434,7 @@ class ControlGUI(qt.QWidget):
         qle.setToolTip("Username") 
         qle.setText(self.parent.config["influxdb"]["username"])
         qle.textChanged[str].connect(
-                lambda val: self.change_config("influxdb", "username", val)
+                lambda val: self.parent.config.change("influxdb", "username", val)
             )
         gen_f.addWidget(qle, 5, 1)
 
@@ -1388,7 +1443,7 @@ class ControlGUI(qt.QWidget):
         qle.setMaximumWidth(50)
         qle.setText(self.parent.config["influxdb"]["password"])
         qle.textChanged[str].connect(
-                lambda val: self.change_config("influxdb", "password", val)
+                lambda val: self.parent.config.change("influxdb", "password", val)
             )
         gen_f.addWidget(qle, 5, 2)
 
@@ -1771,10 +1826,6 @@ class ControlGUI(qt.QWidget):
                     alignment = PyQt5.QtCore.Qt.AlignLeft,
                 )
 
-
-    def change_config(self, sect, config, val):
-        self.parent.config[sect][config] = val
-
     def toggle_style(self, state=""):
         if self.style_pb.text() == "Dark style":
             with open("darkstyle.qss", 'r') as f:
@@ -1814,7 +1865,7 @@ class ControlGUI(qt.QWidget):
            return
 
         # set the config entry
-        self.parent.config[sect][config] = val
+        self.parent.config.change(sect, config, val)
 
         # update the QLineEdit if given
         if qle:
@@ -1829,7 +1880,7 @@ class ControlGUI(qt.QWidget):
            return
 
         # set the config entry
-        self.parent.config[sect][config] = val
+        self.parent.config.change(sect, config, val)
 
         # update the QLineEdit if given
         if qle:
@@ -2061,7 +2112,7 @@ class PlotsGUI(qt.QSplitter):
         ctrls_f.addWidget(qt.QLabel("HDF file"), 1, 0)
         qle = qt.QLineEdit()
         qle.setText(self.parent.config["files"]["plotting_hdf_fname"])
-        qle.textChanged[str].connect(lambda val: self.change_config("files", "plotting_hdf_fname", val))
+        qle.textChanged[str].connect(lambda val: self.parent.config.change("files", "plotting_hdf_fname", val))
         ctrls_f.addWidget(qle, 1, 1)
         pb = qt.QPushButton("Open....")
         ctrls_f.addWidget(pb, 1, 2)
@@ -2072,7 +2123,7 @@ class PlotsGUI(qt.QSplitter):
 
         qle = qt.QLineEdit()
         qle.setText(self.parent.config["files"]["plotting_config_fname"])
-        qle.textChanged[str].connect(lambda val: self.change_config("files", "plotting_config_fname", val))
+        qle.textChanged[str].connect(lambda val: self.parent.config.change("files", "plotting_config_fname", val))
         ctrls_f.addWidget(qle, 2, 1)
 
         pb = qt.QPushButton("Open....")
@@ -2131,7 +2182,7 @@ class PlotsGUI(qt.QSplitter):
         val = qt.QFileDialog.getOpenFileName(self, "Select file")[0]
         if not val:
            return
-        self.parent.config[sect][config] = val
+        self.parent.config.change(sect, config, val)
         qle.setText(val)
 
     def start_all_plots(self):
@@ -2268,9 +2319,6 @@ class PlotsGUI(qt.QSplitter):
                 plot.fn_qle.setText(config["f(y)"])
                 plot.avg_qle.setText(str(config["n_average"]))
                 plot.refresh_parameter_lists(select_defaults=False)
-
-    def change_config(self, sect, config, val):
-        self.parent.config[sect][config] = val
 
 class Plotter(qt.QWidget):
     def __init__(self, frame, parent):
@@ -2888,20 +2936,7 @@ class CentrexGUI(qt.QMainWindow):
         #self.setWindowFlags(PyQt5.QtCore.Qt.Window | PyQt5.QtCore.Qt.FramelessWindowHint)
 
         # read program configuration
-        self.config = {
-                "time_offset"        : 0,
-                "control_active"     : False,
-                "control_visible"    : True,
-                "monitoring_visible" : False,
-                "plots_visible"      : False,
-                "horizontal_split"   : True,
-                }
-        settings = configparser.ConfigParser()
-        settings.read("config/settings.ini")
-        for config_group, configs in settings.items():
-            self.config[config_group] = {}
-            for key, val in configs.items():
-                self.config[config_group][key] = val
+        self.config = ProgramConfig("config/settings.ini")
 
         # GUI elements
         self.ControlGUI = ControlGUI(self)

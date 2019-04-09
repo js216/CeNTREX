@@ -212,6 +212,7 @@ class Device(threading.Thread):
             self.constr_params = [self.config["parent"]] + self.constr_params
 
         # verify the device responds correctly
+        print(self.constr_params)
         with self.config["driver_class"](*self.constr_params) as dev:
             if not isinstance(dev.verification_string, str):
                 self.operational = False

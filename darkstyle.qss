@@ -50,3 +50,13 @@ QProgressBar
    text-align: center;
    color: white;
 }
+
+QTableView
+{
+   alternate-background-color: #191919;
+}
+
+QTableView QHeaderView::section
+{
+  background-color: #222;
+}

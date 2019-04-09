@@ -205,7 +205,7 @@ class Device(threading.Thread):
         # get the parameters that are to be passed to the driver constructor
         self.constr_params = [self.time_offset]
         for cp in self.config["constr_params"]:
-            self.constr_params.append(self.config["controls"][cp]["value"])
+            self.constr_params.append(self.config["control_params"][cp]["value"])
 
         # for meta devices, include a reference to the parent
         if self.config["meta_device"]:
@@ -260,7 +260,7 @@ class Device(threading.Thread):
                 while self.active.is_set():
                     # get and sanity check loop delay
                     try:
-                        dt = float(self.config["controls"]["dt"]["value"])
+                        dt = float(self.config["control_params"]["dt"]["value"])
                         if dt < 0.002:
                             logging.warning("Device dt too small.")
                             raise ValueError
@@ -269,7 +269,7 @@ class Device(threading.Thread):
 
                     # do the loop delay, checking the device is still enabled
                     else:
-                        dt = float(self.config["controls"]["dt"]["value"])
+                        dt = float(self.config["control_params"]["dt"]["value"])
                         for i in range(int(dt)):
                             if not self.active.is_set():
                                 return
@@ -277,7 +277,7 @@ class Device(threading.Thread):
                         time.sleep(dt - int(dt))
 
                     # check device is enabled
-                    if not self.config["controls"]["enabled"]["value"]:
+                    if not self.config["control_params"]["enabled"]["value"]:
                         continue
 
                     # check device for abnormal conditions
@@ -360,7 +360,7 @@ class Monitoring(threading.Thread):
                     continue
 
                 # check device enabled
-                if not dev.config["controls"]["enabled"]["value"]:
+                if not dev.config["control_params"]["enabled"]["value"]:
                     continue
 
                 # check device for abnormal conditions
@@ -401,7 +401,7 @@ class Monitoring(threading.Thread):
                     self.write_to_influxdb(dev, data)
 
                 # if writing to HDF is disabled, empty the queues
-                if not dev.config["controls"]["HDF_enabled"]["value"]:
+                if not dev.config["control_params"]["HDF_enabled"]["value"]:
                     dev.events_queue.clear()
                     dev.data_queue.clear()
 
@@ -447,11 +447,11 @@ class Monitoring(threading.Thread):
 
     def display_last_event(self, dev):
         # check device enabled
-        if not dev.config["controls"]["enabled"]["value"]:
+        if not dev.config["control_params"]["enabled"]["value"]:
             return
 
         # if HDF writing enabled for this device, get events from the HDF file
-        if dev.config["controls"]["HDF_enabled"]["value"]:
+        if dev.config["control_params"]["HDF_enabled"]["value"]:
             with h5py.File(self.parent.config["files"]["hdf_fname"], 'r') as f:
                 grp = f[self.parent.run_name + "/" + dev.config["path"]]
                 events_dset = grp[dev.config["name"] + "_events"]
@@ -502,11 +502,11 @@ class HDF_writer(threading.Thread):
 
             for dev_name, dev in self.parent.devices.items():
                 # check device is enabled
-                if not dev.config["controls"]["enabled"]["value"]:
+                if not dev.config["control_params"]["enabled"]["value"]:
                     continue
 
                 # check writing to HDF is enabled for this device
-                if not dev.config["controls"]["HDF_enabled"]["value"]:
+                if not dev.config["control_params"]["HDF_enabled"]["value"]:
                     continue
 
                 grp = root.require_group(dev.config["path"])
@@ -566,7 +566,7 @@ class HDF_writer(threading.Thread):
                     continue
 
                 # check writing to HDF is enabled for this device
-                if not dev.config["controls"]["HDF_enabled"]["value"]:
+                if not dev.config["control_params"]["HDF_enabled"]["value"]:
                     continue
 
                 # get events, if any, and write them to HDF
@@ -630,6 +630,279 @@ class HDF_writer(threading.Thread):
             except IndexError:
                 break
         return data
+
+##########################################################################
+##########################################################################
+#######                                                 ##################
+#######            CONFIG CLASSES                       ##################
+#######                                                 ##################
+##########################################################################
+##########################################################################
+
+class DeviceConfig(dict):
+    def __init__(self, config_fname):
+        super().__init__()
+        self.fname = config_fname
+        self.define_permitted_keys()
+        self.read_from_file()
+
+    def define_permitted_keys(self):
+        # lists of keys permitted for static options (those in the .ini file)
+        self.static_keys = [
+                "name",
+                "label",
+                "path",
+                "driver",
+                "constr_params",
+                "correct_response",
+                "slow_data",
+                "COM_port",
+                "row",
+                "column",
+                "plots_queue_maxlen",
+                "max_NaN_count",
+                "meta_device",
+            ]
+
+        # lists of keys permitted for runtime data (which cannot be written to .ini file)
+        self.runtime_keys = [
+                "parent",
+                "driver_class",
+                "shape",
+                "dtype",
+                "plots_queue",
+                "monitoring_GUI_elements",
+                "control_GUI_elements",
+                "time_offset",
+                "control_active",
+            ]
+
+        # lists of keys permitted as names of sections in the .ini file
+        self.section_keys = [
+                "attributes",
+                "control_params",
+            ]
+
+    def __setitem__(self, key, val):
+        # check the key is permitted
+        if not key in self.static_keys + self.runtime_keys + self.section_keys:
+            logging.error("Error in DeviceConfig: key not permitted.")
+
+        # set the value in the dict
+        super().__setitem__(key, val)
+
+    def change_param(self, key, val, sect=None, sub_ctrl=None, row=None):
+        if row:
+            self[sect][key][sub_ctrl][row] = val
+        elif sub_ctrl:
+            self[sect][key][sub_ctrl] = val
+        elif sect:
+            self[sect][key] = val
+        else:
+            self[key] = val
+
+    def read_from_file(self):
+        # config file sanity check
+        params = configparser.ConfigParser()
+        params.read(self.fname)
+        if not "device" in params:
+            if self.fname[-11:] != "desktop.ini":
+                logging.warning("The device config file " + self.fname + " does not have a [device] section.")
+            return
+
+        # import the device driver
+        driver_spec = importlib.util.spec_from_file_location(
+                params["device"]["driver"],
+                "drivers/" + params["device"]["driver"] + ".py",
+            )
+        driver_module = importlib.util.module_from_spec(driver_spec)
+        driver_spec.loader.exec_module(driver_module)
+        self["driver"] = params["device"]["driver"]
+        self["driver_class"] = getattr(driver_module, params["device"]["driver"])
+
+        # read general device options
+        self.config = {
+                "name"               : params["device"]["name"],
+                "label"              : params["device"]["label"],
+                "path"               : params["device"]["path"],
+                "correct_response"   : params["device"]["correct_response"],
+                "max_NaN_count"      : params["device"].get("max_NaN_count"),
+                "plots_queue_maxlen" : int(params["device"]["plots_queue_maxlen"]),
+                "slow_data"          : True if params["device"]["slow_data"]=="True" else False,
+                "row"                : int(params["device"]["row"]),
+                "column"             : int(params["device"]["column"]),
+                "constr_params"      : split(params["device"]["constr_params"]),
+                "meta_device"        : True if params["device"].get("meta_device")=="True" else False,
+                "attributes"         : params["attributes"],
+            }
+
+        # populate the list of device controls
+        ctrls = {}
+
+        for c in params.sections():
+            if params[c].get("type") == "QCheckBox":
+                ctrls[c] = {
+                        "label"      : params[c]["label"],
+                        "type"       : params[c]["type"],
+                        "row"        : int(params[c]["row"]),
+                        "col"        : int(params[c]["col"]),
+                        "value"      : True if params[c]["value"] in ["1", "True"] else False,
+                        "tooltip"    : params[c].get("tooltip"),
+                    }
+
+            elif params[c].get("type") == "Hidden":
+                ctrls[c] = {
+                        "value"      : params[c]["value"],
+                        "type"       : "Hidden",
+                    }
+
+            elif params[c].get("type") == "QPushButton":
+                ctrls[c] = {
+                        "label"      : params[c]["label"],
+                        "type"       : params[c]["type"],
+                        "row"        : int(params[c]["row"]),
+                        "col"        : int(params[c]["col"]),
+                        "cmd"        : params[c].get("command"),
+                        "argument"   : params[c]["argument"],
+                        "align"      : params[c].get("align"),
+                        "tooltip"    : params[c].get("tooltip"),
+                    }
+
+            elif params[c].get("type") == "QLineEdit":
+                ctrls[c] = {
+                        "label"      : params[c]["label"],
+                        "type"       : params[c]["type"],
+                        "row"        : int(params[c]["row"]),
+                        "col"        : int(params[c]["col"]),
+                        "enter_cmd"  : params[c].get("enter_cmd"),
+                        "value"      : params[c]["value"],
+                        "tooltip"    : params[c].get("tooltip"),
+                    }
+
+            elif params[c].get("type") == "QComboBox":
+                ctrls[c] = {
+                        "label"      : params[c]["label"],
+                        "type"       : params[c]["type"],
+                        "row"        : int(params[c]["row"]),
+                        "col"        : int(params[c]["col"]),
+                        "command"    : params[c]["command"],
+                        "options"    : split(params[c]["options"]),
+                        "value"      : params[c]["value"],
+                    }
+
+            elif params[c].get("type") == "ControlsRow":
+                ctrls[c] = {
+                        "label"        : params[c]["label"],
+                        "type"         : params[c]["type"],
+                        "row"          : int(params[c]["row"]),
+                        "col"          : int(params[c]["col"]),
+                        "ctrl_names"   : split(params[c]["ctrl_names"]),
+                        "ctrl_labels"  : dict(zip(
+                                                split(params[c]["ctrl_names"]),
+                                                split(params[c]["ctrl_labels"])
+                                            )),
+                        "ctrl_types"   : dict(zip(
+                                                split(params[c]["ctrl_names"]),
+                                                split(params[c]["ctrl_types"])
+                                            )),
+                        "ctrl_options" : dict(zip(
+                                                split(params[c]["ctrl_names"]),
+                                                [split(x) for x in params[c]["ctrl_options"].split(";")]
+                                            )),
+                        "value"        : dict(zip(
+                                                split(params[c]["ctrl_names"]),
+                                                split(params[c]["ctrl_values"])
+                                            )),
+                    }
+
+            elif params[c].get("type") == "ControlsTable":
+                ctrls[c] = {
+                        "label"        : params[c]["label"],
+                        "type"         : params[c]["type"],
+                        "row"          : int(params[c]["row"]),
+                        "col"          : int(params[c]["col"]),
+                        "rowspan"      : int(params[c].get("rowspan")),
+                        "colspan"      : int(params[c].get("colspan")),
+                        "row_ids"      : split(params[c]["row_ids"]),
+                        "col_names"    : split(params[c]["col_names"]),
+                        "col_labels"   : dict(zip(
+                                                split(params[c]["col_names"]),
+                                                split(params[c]["col_labels"])
+                                            )),
+                        "col_types"    : dict(zip(
+                                                split(params[c]["col_names"]),
+                                                split(params[c]["col_types"])
+                                            )),
+                        "col_options"  : dict(zip(
+                                                split(params[c]["col_names"]),
+                                                [split(x) for x in params[c]["col_options"].split(";")]
+                                            )),
+                        "value"        : dict(zip(
+                                                split(params[c]["col_names"]),
+                                                [split(x) for x in params[c]["col_values"].split(";")]
+                                            )),
+                    }
+
+            elif params[c].get("type") == "dummy":
+                ctrls[c] = {
+                        "type"       : params[c]["type"],
+                        "value"      : params[c]["value"],
+                    }
+
+            elif params[c].get("type"):
+                logging.warning("Control type not supported: " + params[c].get("type"))
+
+        self.config["control_params"] = ctrls
+
+    def write_to_file(self):
+        # collect the configuration parameters to be written
+        config = configparser.ConfigParser()
+        for key in self.static_keys:
+            if isinstance(self[key], list):
+                config["device"][key] = ", ".join(self[key])
+            else:
+                config["device"][key] = str(self[key])
+        config["attributes"] = self["attributes"]
+
+        # collect device control parameters
+        for c_name, c in self["control_params"].items():
+            config[c_name] = {
+                    "label"        : str(c.get("label")),
+                    "type"         : str(c["type"]),
+                    "row"          : str(c.get("row")),
+                    "col"          : str(c.get("col")),
+                    "tooltip"      : str(c.get("tooltip")),
+                    "rowspan"      : str(c.get("rowspan")),
+                    "colspan"      : str(c.get("colspan")),
+                }
+            if c["type"] in ["QComboBox", "QCheckBox", "QLineEdit"]:
+                config[c_name]["value"] = str(c["value"])
+            if c["type"] == "QLineEdit":
+                config[c_name]["enter_cmd"] = str(c["enter_cmd"])
+            if c["type"] == "QComboBox":
+                config[c_name]["options"] = ", ".join(c["options"])
+                config[c_name]["command"] = str(c.get("command"))
+            if c["type"] == "QPushButton":
+                config[c_name]["command"] = str(c.get("cmd"))
+                config[c_name]["argument"] = str(c.get("argument"))
+                config[c_name]["align"] = str(c.get("align"))
+            if c["type"] == "ControlsRow":
+                config[c_name]["ctrl_values"]  = ", ".join([x for x_name,x in c["value"].items()])
+                config[c_name]["ctrl_names"]   = ", ".join(c["ctrl_names"])
+                config[c_name]["ctrl_labels"]  = ", ".join([x for x_name,x in c["ctrl_labels"].items()])
+                config[c_name]["ctrl_types"]   = ", ".join([x for x_name,x in c["ctrl_types"].items()])
+                config[c_name]["ctrl_options"] = "; ".join([", ".join(x) for x_name,x in c["ctrl_options"].items()])
+            if c["type"] == "ControlsTable":
+                config[c_name]["col_values"] = "; ".join([", ".join(x) for x_name,x in c["value"].items()])
+                config[c_name]["row_ids"]     = ", ".join(c["row_ids"])
+                config[c_name]["col_names"]   = ", ".join(c["col_names"])
+                config[c_name]["col_labels"]  = ", ".join([x for x_name,x in c["col_labels"].items()])
+                config[c_name]["col_types"]   = ", ".join([x for x_name,x in c["col_types"].items()])
+                config[c_name]["col_options"] = "; ".join([", ".join(x) for x_name,x in c["col_options"].items()])
+
+        # write them to file
+        with open(self.fname, 'w') as f:
+            config.write(f)
 
 ##########################################################################
 ##########################################################################
@@ -700,7 +973,7 @@ class AttrEditor(QtGui.QDialog):
         # reload attributes
         params = configparser.ConfigParser()
         if self.dev:
-            params.read(self.dev.config["config_fname"])
+            params.read(self.dev.config.fname)
             new_attrs = params["attributes"]
         else:
             params.read("config/settings.ini")
@@ -719,63 +992,7 @@ class AttrEditor(QtGui.QDialog):
 
         # when changing device attributes/settings
         if self.dev:
-            # collect new configuration parameters to be written
-            config = configparser.ConfigParser()
-            config["device"] = {
-                    "name"               : str(self.dev.config["name"]),
-                    "label"              : str(self.dev.config["label"]),
-                    "path"               : str(self.dev.config["path"]),
-                    "driver"             : self.dev.config["driver"].__name__,
-                    "constr_params"      : ", ".join(self.dev.config["constr_params"]),
-                    "correct_response"   : str(self.dev.config["correct_response"]),
-                    "slow_data"          : str(self.dev.config["slow_data"]),
-                    "row"                : str(self.dev.config["row"]),
-                    "column"             : str(self.dev.config["column"]),
-                    "plots_queue_maxlen" : str(self.dev.config["plots_queue_maxlen"]),
-                    "max_NaN_count"      : str(self.dev.config.get("max_NaN_count")),
-                    "meta_device"        : str(self.dev.config.get("meta_device")),
-                }
-            config["attributes"] = self.dev.config["attributes"]
-
-            # collect device control parameters
-            for c_name, c in self.dev.config["controls"].items():
-                config[c_name] = {
-                        "label"        : str(c.get("label")),
-                        "type"         : str(c["type"]),
-                        "row"          : str(c.get("row")),
-                        "col"          : str(c.get("col")),
-                        "tooltip"      : str(c.get("tooltip")),
-                        "rowspan"      : str(c.get("rowspan")),
-                        "colspan"      : str(c.get("colspan")),
-                    }
-                if c["type"] in ["QComboBox", "QCheckBox", "QLineEdit"]:
-                    config[c_name]["value"] = str(c["value"])
-                if c["type"] == "QLineEdit":
-                    config[c_name]["enter_cmd"] = str(c["enter_cmd"])
-                if c["type"] == "QComboBox":
-                    config[c_name]["options"] = ", ".join(c["options"])
-                    config[c_name]["command"] = str(c.get("command"))
-                if c["type"] == "QPushButton":
-                    config[c_name]["command"] = str(c.get("cmd"))
-                    config[c_name]["argument"] = str(c.get("argument"))
-                    config[c_name]["align"] = str(c.get("align"))
-                if c["type"] == "ControlsRow":
-                    config[c_name]["ctrl_values"]  = ", ".join([x for x_name,x in c["value"].items()])
-                    config[c_name]["ctrl_names"]   = ", ".join(c["ctrl_names"])
-                    config[c_name]["ctrl_labels"]  = ", ".join([x for x_name,x in c["ctrl_labels"].items()])
-                    config[c_name]["ctrl_types"]   = ", ".join([x for x_name,x in c["ctrl_types"].items()])
-                    config[c_name]["ctrl_options"] = "; ".join([", ".join(x) for x_name,x in c["ctrl_options"].items()])
-                if c["type"] == "ControlsTable":
-                    config[c_name]["col_values"] = "; ".join([", ".join(x) for x_name,x in c["value"].items()])
-                    config[c_name]["row_ids"]     = ", ".join(c["row_ids"])
-                    config[c_name]["col_names"]   = ", ".join(c["col_names"])
-                    config[c_name]["col_labels"]  = ", ".join([x for x_name,x in c["col_labels"].items()])
-                    config[c_name]["col_types"]   = ", ".join([x for x_name,x in c["col_types"].items()])
-                    config[c_name]["col_options"] = "; ".join([", ".join(x) for x_name,x in c["col_options"].items()])
-
-            # write them to file
-            with open(self.dev.config["config_fname"], 'w') as f:
-                config.write(f)
+            self.dev.config.write_to_file()
 
         # when changing program attributes/settings
         if not self.dev:
@@ -829,194 +1046,35 @@ class ControlGUI(qt.QWidget):
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
-        self.read_device_config()
+        self.make_devices()
         self.place_GUI_elements()
         self.place_device_controls()
 
-    def read_device_config(self):
+    def make_devices(self):
         self.parent.devices = {}
 
-        # check the config dict specifies a directory with device configuration files
+        # check the config specifies a directory with device configuration files
         if not os.path.isdir(self.parent.config["files"]["config_dir"]):
             logging.error("Directory with device configuration files not specified.")
             return
 
         # iterate over all device config files
-        for f in glob.glob(self.parent.config["files"]["config_dir"] + "/*.ini"):
-            # config file sanity check
-            params = configparser.ConfigParser()
-            params.read(f)
-            if not "device" in params:
-                if f[-11:] != "desktop.ini":
-                    logging.warning("The device config file " + f + " does not have a [device] section.")
-                continue
-
-            # import the device driver
-            driver_spec = importlib.util.spec_from_file_location(
-                    params["device"]["driver"],
-                    "drivers/" + params["device"]["driver"] + ".py",
-                )
-            driver_module = importlib.util.module_from_spec(driver_spec)
-            driver_spec.loader.exec_module(driver_module)
-            driver = getattr(driver_module, params["device"]["driver"])
-
-            # read general device options
+        for fname in glob.glob(self.parent.config["files"]["config_dir"] + "/*.ini"):
+            # read device configuration
             try:
-                dev_config = self.read_device_config_options(f, params)
-                dev_config["config_fname"] = f
-                dev_config["driver"] = driver
-            except (IndexError, ValueError) as err:
-                logging.error("Cannot read device config file: " + str(err))
+                dev_config = DeviceConfig(fname)
+            except (IndexError, ValueError, TypeError, KeyError) as err:
+                logging.error("Cannot read device config file " + fname + ": " + str(err))
                 return
 
             # for meta devices, include a reference to the parent
             if dev_config["meta_device"]:
                 dev_config["parent"] = self.parent
 
-            # populate the list of device controls
-            try:
-                dev_config["controls"] = self.read_device_controls(params)
-            except (IndexError, ValueError, TypeError, KeyError) as err:
-                logging.error("Cannot read device config file " + f + " : " + str(err))
-                return
-
             # make a Device object
-            if params["device"]["name"] in self.parent.devices:
-                logging.warning("Warning in read_device_config(): duplicate device name: " + params["device"]["name"])
-            self.parent.devices[params["device"]["name"]] = Device(dev_config)
-
-    def read_device_config_options(self, f, params):
-        return {
-                    "name"               : params["device"]["name"],
-                    "label"              : params["device"]["label"],
-                    "path"               : params["device"]["path"],
-                    "correct_response"   : params["device"]["correct_response"],
-                    "max_NaN_count"      : params["device"].get("max_NaN_count"),
-                    "plots_queue_maxlen" : int(params["device"]["plots_queue_maxlen"]),
-                    "slow_data"          : True if params["device"]["slow_data"]=="True" else False,
-                    "row"                : int(params["device"]["row"]),
-                    "column"             : int(params["device"]["column"]),
-                    "constr_params"      : split(params["device"]["constr_params"]),
-                    "meta_device"        : True if params["device"].get("meta_device")=="True" else False,
-                    "attributes"         : params["attributes"],
-                }
-
-    def read_device_controls(self, params):
-            ctrls = {}
-            for c in params.sections():
-                if params[c].get("type") == "QCheckBox":
-                    ctrls[c] = {
-                            "label"      : params[c]["label"],
-                            "type"       : params[c]["type"],
-                            "row"        : int(params[c]["row"]),
-                            "col"        : int(params[c]["col"]),
-                            "value"      : True if params[c]["value"] in ["1", "True"] else False,
-                            "tooltip"    : params[c].get("tooltip"),
-                        }
-
-                elif params[c].get("type") == "Hidden":
-                    ctrls[c] = {
-                            "value"      : params[c]["value"],
-                            "type"       : "Hidden",
-                        }
-
-                elif params[c].get("type") == "QPushButton":
-                    ctrls[c] = {
-                            "label"      : params[c]["label"],
-                            "type"       : params[c]["type"],
-                            "row"        : int(params[c]["row"]),
-                            "col"        : int(params[c]["col"]),
-                            "cmd"        : params[c].get("command"),
-                            "argument"   : params[c]["argument"],
-                            "align"      : params[c].get("align"),
-                            "tooltip"    : params[c].get("tooltip"),
-                        }
-
-                elif params[c].get("type") == "QLineEdit":
-                    ctrls[c] = {
-                            "label"      : params[c]["label"],
-                            "type"       : params[c]["type"],
-                            "row"        : int(params[c]["row"]),
-                            "col"        : int(params[c]["col"]),
-                            "enter_cmd"  : params[c].get("enter_cmd"),
-                            "value"      : params[c]["value"],
-                            "tooltip"    : params[c].get("tooltip"),
-                        }
-
-                elif params[c].get("type") == "QComboBox":
-                    ctrls[c] = {
-                            "label"      : params[c]["label"],
-                            "type"       : params[c]["type"],
-                            "row"        : int(params[c]["row"]),
-                            "col"        : int(params[c]["col"]),
-                            "command"    : params[c]["command"],
-                            "options"    : split(params[c]["options"]),
-                            "value"      : params[c]["value"],
-                        }
-
-                elif params[c].get("type") == "ControlsRow":
-                    ctrls[c] = {
-                            "label"        : params[c]["label"],
-                            "type"         : params[c]["type"],
-                            "row"          : int(params[c]["row"]),
-                            "col"          : int(params[c]["col"]),
-                            "ctrl_names"   : split(params[c]["ctrl_names"]),
-                            "ctrl_labels"  : dict(zip(
-                                                    split(params[c]["ctrl_names"]),
-                                                    split(params[c]["ctrl_labels"])
-                                                )),
-                            "ctrl_types"   : dict(zip(
-                                                    split(params[c]["ctrl_names"]),
-                                                    split(params[c]["ctrl_types"])
-                                                )),
-                            "ctrl_options" : dict(zip(
-                                                    split(params[c]["ctrl_names"]),
-                                                    [split(x) for x in params[c]["ctrl_options"].split(";")]
-                                                )),
-                            "value"        : dict(zip(
-                                                    split(params[c]["ctrl_names"]),
-                                                    split(params[c]["ctrl_values"])
-                                                )),
-                        }
-
-                elif params[c].get("type") == "ControlsTable":
-                    ctrls[c] = {
-                            "label"        : params[c]["label"],
-                            "type"         : params[c]["type"],
-                            "row"          : int(params[c]["row"]),
-                            "col"          : int(params[c]["col"]),
-                            "rowspan"      : int(params[c].get("rowspan")),
-                            "colspan"      : int(params[c].get("colspan")),
-                            "row_ids"      : split(params[c]["row_ids"]),
-                            "col_names"    : split(params[c]["col_names"]),
-                            "col_labels"   : dict(zip(
-                                                    split(params[c]["col_names"]),
-                                                    split(params[c]["col_labels"])
-                                                )),
-                            "col_types"    : dict(zip(
-                                                    split(params[c]["col_names"]),
-                                                    split(params[c]["col_types"])
-                                                )),
-                            "col_options"  : dict(zip(
-                                                    split(params[c]["col_names"]),
-                                                    [split(x) for x in params[c]["col_options"].split(";")]
-                                                )),
-                            "value"        : dict(zip(
-                                                    split(params[c]["col_names"]),
-                                                    [split(x) for x in params[c]["col_values"].split(";")]
-                                                )),
-                        }
-
-                elif params[c].get("type") == "dummy":
-                    ctrls[c] = {
-                            "type"       : params[c]["type"],
-                            "value"      : params[c]["value"],
-                        }
-
-                elif params[c].get("type"):
-                    logging.warning("Control type not supported: " + params[c].get("type"))
-
-            return ctrls
+            if dev_config["name"] in self.parent.devices:
+                logging.warning("Warning in make_devices(): duplicate device name: " + dev_config["name"])
+            self.parent.devices[dev_config["name"]] = Device(dev_config)
 
     def place_GUI_elements(self):
         # main frame for all ControlGUI elements
@@ -1359,84 +1417,86 @@ class ControlGUI(qt.QWidget):
             df.addWidget(qle, 1, 1)
 
             # device-specific controls
-            for c_name, c in dev.config["controls"].items():
+            for c_name, param in dev.config["control_params"].items():
+                # the dict for control GUI elements
+                c = dev.config["control_GUI_elements"]
 
                 # place QCheckBoxes
-                if c["type"] == "QCheckBox":
+                if param["type"] == "QCheckBox":
                     # the QCheckBox
-                    c["QCheckBox"] = qt.QCheckBox(c["label"])
-                    c["QCheckBox"].setCheckState(c["value"])
+                    c["QCheckBox"] = qt.QCheckBox(param["label"])
+                    c["QCheckBox"].setCheckState(param["value"])
                     c["QCheckBox"].setTristate(False)
-                    df.addWidget(c["QCheckBox"], c["row"], c["col"])
+                    df.addWidget(c["QCheckBox"], param["row"], param["col"])
 
                     # tooltip
-                    if c.get("tooltip"):
-                        c["QCheckBox"].setToolTip(c["tooltip"])
+                    if param.get("tooltip"):
+                        c["QCheckBox"].setToolTip(param["tooltip"])
 
                     # commands for the QCheckBox
                     c["QCheckBox"].stateChanged[int].connect(
                             lambda state, dev=dev, ctrl=c_name:
-                                self.change_dev_config(dev, "controls", state, ctrl, sub_ctrl=None)
+                                dev.change_param(ctrl, state, "control_params")
                         )
 
                 # place QPushButtons
-                elif c["type"] == "QPushButton":
+                elif param["type"] == "QPushButton":
                     # the QPushButton
-                    c["QPushButton"] = qt.QPushButton(c["label"])
-                    df.addWidget(c["QPushButton"], c["row"], c["col"])
+                    c["QPushButton"] = qt.QPushButton(param["label"])
+                    df.addWidget(c["QPushButton"], param["row"], param["col"])
 
                     # tooltip
-                    if c.get("tooltip"):
-                        c["QPushButton"].setToolTip(c["tooltip"])
+                    if param.get("tooltip"):
+                        c["QPushButton"].setToolTip(param["tooltip"])
 
                     # commands for the QPushButton
-                    if c.get("argument"):
+                    if param.get("argument"):
                         c["QPushButton"].clicked[bool].connect(
-                                lambda state, dev=dev, cmd=c["cmd"],
-                                arg=dev.config["controls"][c["argument"]]:
+                                lambda state, dev=dev, cmd=param["cmd"],
+                                arg=dev.config["controls"][param["argument"]]:
                                     self.queue_command(dev, cmd+"("+arg["value"]+")")
                             )
                     else:
                         c["QPushButton"].clicked[bool].connect(
-                                lambda state, dev=dev, cmd=c["cmd"]:
+                                lambda state, dev=dev, cmd=param["cmd"]:
                                     self.queue_command(dev, cmd+"()")
                             )
 
                 # place QLineEdits
-                elif c["type"] == "QLineEdit":
+                elif param["type"] == "QLineEdit":
                     # the label
                     df.addWidget(
-                            qt.QLabel(c["label"]),
-                            c["row"], c["col"] - 1,
+                            qt.QLabel(param["label"]),
+                            param["row"], param["col"] - 1,
                             alignment = PyQt5.QtCore.Qt.AlignRight,
                         )
 
                     # the QLineEdit
                     c["QLineEdit"] = qt.QLineEdit()
-                    c["QLineEdit"].setText(c["value"])
+                    c["QLineEdit"].setText(param["value"])
                     c["QLineEdit"].textChanged[str].connect(
                             lambda text, dev=dev, ctrl=c_name:
-                                self.change_dev_config(dev, "controls", text, ctrl, sub_ctrl=None)
+                                dev.change_param(ctrl, text, "control_params")
                         )
-                    df.addWidget(c["QLineEdit"], c["row"], c["col"])
+                    df.addWidget(c["QLineEdit"], param["row"], param["col"])
 
                     # tooltip
-                    if c.get("tooltip"):
-                        c["QLineEdit"].setToolTip(c["tooltip"])
+                    if param.get("tooltip"):
+                        c["QLineEdit"].setToolTip(param["tooltip"])
 
                     # commands for the QLineEdit
-                    if c.get("enter_cmd"):
+                    if param.get("enter_cmd"):
                         c["QLineEdit"].returnPressed.connect(
-                                lambda dev=dev, cmd=c["enter_cmd"], qle=c["QLineEdit"]:
+                                lambda dev=dev, cmd=param["enter_cmd"], qle=c["QLineEdit"]:
                                 self.queue_command(dev, cmd+"("+qle.text()+")")
                             )
 
                 # place QComboBoxes
-                elif c["type"] == "QComboBox":
+                elif param["type"] == "QComboBox":
                     # the label
                     df.addWidget(
-                            qt.QLabel(c["label"]),
-                            c["row"], c["col"] - 1,
+                            qt.QLabel(param["label"]),
+                            param["row"], param["col"] - 1,
                             alignment = PyQt5.QtCore.Qt.AlignRight,
                         )
 
@@ -1444,120 +1504,121 @@ class ControlGUI(qt.QWidget):
                     c["QComboBox"] = qt.QComboBox()
                     update_QComboBox(
                             cbx     = c["QComboBox"],
-                            options = list(set(c["options"]) | set([c["value"]])),
+                            options = list(set(param["options"]) | set([param["value"]])),
                             value   = "divide by?"
                         )
-                    c["QComboBox"].setCurrentText(c["value"])
-                    df.addWidget(c["QComboBox"], c["row"], c["col"])
+                    c["QComboBox"].setCurrentText(param["value"])
+                    df.addWidget(c["QComboBox"], param["row"], param["col"])
 
                     # tooltip
-                    if c.get("tooltip"):
-                        c["QComboBox"].setToolTip(c["tooltip"])
+                    if param.get("tooltip"):
+                        c["QComboBox"].setToolTip(param["tooltip"])
 
                     # commands for the QComboBox
                     c["QComboBox"].activated[str].connect(
                             lambda text, dev=dev, config=c_name:
-                                self.change_dev_config(dev, "controls", text, config, sub_ctrl=None)
+                                dev.change_param(ctrl, text, "control_params")
                         )
-                    if c.get("command"):
+                    if param.get("command"):
                         c["QComboBox"].activated[str].connect(
-                                lambda text, dev=dev, cmd=c["command"], qcb=c["QComboBox"]:
+                                lambda text, dev=dev, cmd=param["command"], qcb=c["QComboBox"]:
                                     self.queue_command(dev, cmd+"('"+qcb.currentText()+"')")
                             )
 
                 # place ControlsRows
-                elif c["type"] == "ControlsRow":
+                elif param["type"] == "ControlsRow":
                     # the frame for the row of controls
-                    box, ctrl_frame = LabelFrame(c["label"], type="hbox")
-                    df.addWidget(box, c["row"], c["col"])
+                    box, ctrl_frame = LabelFrame(param["label"], type="hbox")
+                    df.addWidget(box, param["row"], param["col"])
 
                     # the individual controls that compose a ControlsRow
-                    for ctrl in c["ctrl_names"]:
-                        if c["ctrl_types"][ctrl] == "QLineEdit":
+                    for ctrl in param["ctrl_names"]:
+                        if param["ctrl_types"][ctrl] == "QLineEdit":
                             qle = qt.QLineEdit()
-                            qle.setText(c["value"][ctrl])
-                            qle.setToolTip(c["ctrl_labels"][ctrl])
+                            qle.setText(param["value"][ctrl])
+                            qle.setToolTip(param["ctrl_labels"][ctrl])
                             qle.textChanged[str].connect(
-                                    lambda val, dev=dev, config=c_name, ctrl=ctrl:
-                                        self.change_dev_config(dev, "controls", val, config, sub_ctrl=ctrl)
+                                    lambda val, dev=dev, config=c_name, sub_ctrl=ctrl:
+                                        dev.change_param(c_name, val, "control_params", sub_ctrl)
                                 )
                             ctrl_frame.addWidget(qle)
 
-                        elif c["ctrl_types"][ctrl] == "QComboBox":
+                        elif param["ctrl_types"][ctrl] == "QComboBox":
                             cbx = qt.QComboBox()
-                            cbx.setToolTip(c["ctrl_labels"][ctrl])
+                            cbx.setToolTip(param["ctrl_labels"][ctrl])
                             cbx.activated[str].connect(
                                     lambda val, dev=dev, config=c_name, ctrl=ctrl:
-                                        self.change_dev_config(dev, "controls", val, config, sub_ctrl=ctrl)
+                                        dev.change_param(c_name, val, "control_params", sub_ctrl)
                                 )
                             update_QComboBox(
                                     cbx     = cbx,
-                                    options = c["ctrl_options"][ctrl],
-                                    value   = c["value"][ctrl],
+                                    options = param["ctrl_options"][ctrl],
+                                    value   = param["value"][ctrl],
                                 )
                             ctrl_frame.addWidget(cbx)
 
                         else:
-                            logging.warning("ControlsRow error: sub-control type not supported: " + c["ctrl_types"][ctrl])
+                            logging.warning("ControlsRow error: sub-control type not supported: " + param["ctrl_types"][ctrl])
 
 
                 # place ControlsTables
-                elif c["type"] == "ControlsTable":
+                elif param["type"] == "ControlsTable":
                     # the frame for the row of controls
-                    box, ctrl_frame = LabelFrame(c["label"], type="grid")
-                    if c.get("rowspan") and c.get("colspan"):
-                        df.addWidget(box, c["row"], c["col"], c["rowspan"], c["colspan"])
+                    box, ctrl_frame = LabelFrame(param["label"], type="grid")
+                    if param.get("rowspan") and param.get("colspan"):
+                        df.addWidget(box, param["row"], param["col"], param["rowspan"], param["colspan"])
                     else:
-                        df.addWidget(box, c["row"], c["col"])
+                        df.addWidget(box, param["row"], param["col"])
 
-                    for i, row in enumerate(c["row_ids"]):
-                        for j, col in enumerate(c["col_names"]):
-                            if c["col_types"][col] == "QLabel":
+                    for i, row in enumerate(param["row_ids"]):
+                        for j, col in enumerate(param["col_names"]):
+                            if param["col_types"][col] == "QLabel":
                                 ql = qt.QLabel()
-                                ql.setToolTip(c["col_labels"][col])
-                                ql.setText(c["value"][col][i])
+                                ql.setToolTip(param["col_labels"][col])
+                                ql.setText(param["value"][col][i])
                                 ctrl_frame.addWidget(ql, i, j)
 
-                            elif c["col_types"][col] == "QLineEdit":
+                            elif param["col_types"][col] == "QLineEdit":
                                 qle = qt.QLineEdit()
-                                qle.setToolTip(c["col_labels"][col])
-                                qle.setText(c["value"][col][i])
+                                qle.setToolTip(param["col_labels"][col])
+                                qle.setText(param["value"][col][i])
                                 qle.textChanged[str].connect(
-                                        lambda val, dev=dev, config=c_name, col=col, row=row:
-                                            self.change_dev_config(dev, "controls",
-                                                val, config, sub_ctrl=col, row=row)
+                                        lambda val, dev=dev, config=c_name, sub_ctrl=col, row=row:
+                                            dev.change_param(c_name, val, "control_params", sub_ctrl, row)
                                     )
                                 ctrl_frame.addWidget(qle, i, j)
 
-                            elif c["col_types"][col] == "QCheckBox":
+                            elif param["col_types"][col] == "QCheckBox":
                                 qch = qt.QCheckBox()
-                                qch.setToolTip(c["col_labels"][col])
-                                qch.setCheckState(int(c["value"][col][i]))
+                                qch.setToolTip(param["col_labels"][col])
+                                qch.setCheckState(int(param["value"][col][i]))
                                 qch.setTristate(False)
                                 qch.stateChanged[int].connect(
-                                        lambda val, dev=dev, config=c_name, col=col, row=row:
-                                            self.change_dev_config(dev, "controls",
-                                                val, config, sub_ctrl=col, row=row)
+                                        lambda val, dev=dev, config=c_name, sub_ctrl=col, row=row:
+                                            dev.change_param(c_name, val, "control_params", sub_ctrl, row)
                                     )
                                 ctrl_frame.addWidget(qch, i, j)
 
-                            elif c["col_types"][col] == "QComboBox":
+                            elif param["col_types"][col] == "QComboBox":
                                 cbx = qt.QComboBox()
-                                cbx.setToolTip(c["col_labels"][col])
+                                cbx.setToolTip(param["col_labels"][col])
                                 cbx.activated[str].connect(
-                                        lambda val, dev=dev, config=c_name, col=col, row=row:
-                                            self.change_dev_config(dev, "controls",
-                                                val, config, sub_ctrl=col, row=row)
+                                        lambda val, dev=dev, config=c_name, sub_ctrl=col, row=row:
+                                            dev.change_param(c_name, val, "control_params", sub_ctrl, row)
                                     )
                                 update_QComboBox(
                                         cbx     = cbx,
-                                        options = c["col_options"][col],
-                                        value   = c["value"][col][i],
+                                        options = param["col_options"][col],
+                                        value   = param["value"][col][i],
                                     )
                                 ctrl_frame.addWidget(cbx, i, j)
 
                             else:
                                 logging.warning("ControlsRow error: sub-control type not supported: " + c["col_types"][col])
+
+            ##################################
+            # MONITORING                     #
+            ##################################
 
             # layout for monitoring info
             df_box, df = qt.QWidget(), qt.QGridLayout()
@@ -1634,16 +1695,6 @@ class ControlGUI(qt.QWidget):
 
     def change_config(self, sect, config, val):
         self.parent.config[sect][config] = val
-
-    def change_dev_config(self, dev, config, val, ctrl=None, sub_ctrl=None, row=None):
-        if row: # used in ControlsTables
-            dev.config[config][ctrl]["value"][sub_ctrl][i] = val
-        elif sub_ctrl: # used in ControlsRows
-            dev.config[config][ctrl]["value"][sub_ctrl] = val
-        elif ctrl:
-            dev.config[config][ctrl]["value"] = val
-        else:
-            dev.config[config] = val
 
     def toggle_style(self, state=""):
         if self.style_pb.text() == "Dark style":
@@ -1730,7 +1781,7 @@ class ControlGUI(qt.QWidget):
     def get_dev_list(self):
         dev_list = []
         for dev_name, dev in self.parent.devices.items():
-            if dev.config["controls"]["enabled"]["value"]:
+            if dev.config["control_params"]["enabled"]["value"]:
                 dev_list.append(dev_name)
         return dev_list
 
@@ -1763,7 +1814,7 @@ class ControlGUI(qt.QWidget):
             if not dev.config["controls"].get("COM_port"):
                 continue
             else:
-                cbx = dev.config["controls"]["COM_port"]["QComboBox"]
+                cbx = dev.config["control_GUI_elements"]["COM_port"]["QComboBox"]
 
             # update the QComboBox of COM_port options
             update_QComboBox(
@@ -1788,7 +1839,7 @@ class ControlGUI(qt.QWidget):
 
         # setup & check connections of all devices
         for dev_name, dev in self.parent.devices.items():
-            if dev.config["controls"]["enabled"]["value"]:
+            if dev.config["control_GUI_elements"]["enabled"]["value"]:
                 # update the status label
                 self.status_label.setText("Starting " + dev_name + " ...")
                 self.parent.app.processEvents()
@@ -1816,7 +1867,7 @@ class ControlGUI(qt.QWidget):
 
         # start control for all devices;
         for dev_name, dev in self.parent.devices.items():
-            if dev.config["controls"]["enabled"]["value"]:
+            if dev.config["control_GUI_elements"]["enabled"]["value"]:
                 dev.clear_queues()
                 dev.start()
 
@@ -2466,7 +2517,7 @@ class Plotter(qt.QWidget):
         return True
 
     def get_raw_data_from_HDF(self):
-        if not self.dev.config["controls"]["HDF_enabled"]["value"]:
+        if not self.dev.config["control_params"]["HDF_enabled"]["value"]:
             logging.warning("Plot error: cannot plot from HDF when HDF is disabled")
             self.toggle_HDF_or_queue()
             return
@@ -2735,7 +2786,7 @@ class Plotter(qt.QWidget):
             logging.warning("Plot warning: cannot remove plot: " + str(err))
 
     def toggle_HDF_or_queue(self, state=""):
-        if not self.dev.config["controls"]["HDF_enabled"]["value"]:
+        if not self.dev.config["control_GUI_elements"]["HDF_enabled"]["value"]:
             logging.warning("Plot error: cannot plot from HDF when HDF is disabled")
             return
 

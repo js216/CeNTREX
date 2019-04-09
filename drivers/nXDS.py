@@ -146,6 +146,18 @@ class nXDS:
             logging.warning("nXDS warning in MotorPower(): " + str(err))
             return np.nan
 
+    def PumpStatus(self):
+        try:
+            motor_power = self.MotorPower()
+            if motor_power > 100:
+                return "running"
+            elif motor_power < 1:
+                return "stopped"
+            elif motor_power < 100:
+                return "accelerating"
+        except:
+            return "invalid"
+
     def MotorCurrent(self):
         try:
             val = self.instr.query("?V809")

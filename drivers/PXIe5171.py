@@ -61,6 +61,7 @@ class PXIe5171:
             )
 
         # set trigger configuration
+        print(trigger["trigger_type"])
         if trigger["trigger_type"] == "Edge":
             self.session.trigger_type = niscope.TriggerType.EDGE
         if trigger["trigger_type"] == "Immediate":

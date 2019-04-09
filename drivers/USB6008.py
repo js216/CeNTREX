@@ -76,6 +76,18 @@ class USB6008:
         flow_signal = float(str(flow)[9:-1])
         return flow_signal / 5 * 100
 
+    def NeonStatus(self):
+        try:
+            flow_rate = self.ReadFlowSignal()
+            if flow_rate > 1:
+                return "flowing"
+            elif flow_rate < 1:
+                return "not flowing"
+            else:
+                return "invalid"
+        except:
+            return "invalid"
+
     def CheckFlood(self):
         """Check for flooding of the compressor cabinet.
 

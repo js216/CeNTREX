@@ -2,10 +2,15 @@ QWidget
 {
      background-color: #111;
      color: #aaa;
-     border: 1px solid #333;
+     border: none;
 }
 
 QLabel, QCheckBox
+{
+   border: none;
+}
+
+QSplitter
 {
    border: none;
 }
@@ -14,6 +19,7 @@ QLineEdit,QComboBox
 {
      padding-top: .2ex;
      padding-bottom: .2ex;
+     background-color: #191919;
 }
 
 QPushButton
@@ -26,6 +32,7 @@ QPushButton
 QGroupBox
 {
    padding-top: 2ex;
+   border: 1px solid #333;
 }
 
 QScrollBar:horizontal
@@ -42,4 +49,23 @@ QProgressBar
 {
    text-align: center;
    color: white;
+}
+
+QTableView
+{
+   alternate-background-color: #191919;
+}
+
+QTableView QHeaderView::section
+{
+  background-color: #222;
+}
+
+QProgressBar {
+    color: #aaa;
+    background-color: #222;
+}
+
+QProgressBar::chunk {
+    background-color: #444;
 }

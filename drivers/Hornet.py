@@ -191,7 +191,7 @@ class Hornet:
         """
         try:
             return self.query("#" + self.address + "IGS").strip()
-        except pyvisa.errors.VisaIOError:
+        except (pyvisa.errors.VisaIOError, AttributeError):
             return np.nan
 
     def IGStatus(self):

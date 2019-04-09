@@ -4,13 +4,14 @@ import time
 import logging
 import urllib.request
 from urllib.error import URLError, HTTPError
+from socket import timeout
 
 def CatchUrllibErrors(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except (URLError, HTTPError) as err:
+        except (URLError, HTTPError, timeout) as err:
             logging.warning('WirelessSensorStationVertiv warning in {0}() : '.format(func.__name__) \
                             +str(err))
             return np.nan
@@ -39,13 +40,13 @@ class WirelessSensorStationVertiv:
 
     @CatchUrllibErrors
     def VerifyOperation(self):
-        with urllib.request.urlopen("http://"+self.ip+"/STATUS") as response:
+        with urllib.request.urlopen("http://"+self.ip+"/STATUS", timeout = 1) as response:
             status = response.read().decode()
         return status.split(',')[0]
 
     @CatchUrllibErrors
     def ReadValue(self):
-        with urllib.request.urlopen("http://"+self.ip+"/temperature") as response:
+        with urllib.request.urlopen("http://"+self.ip+"/temperature", timeout = 1) as response:
             value = response.read().decode()
         values = [time.time()-self.time_offset]
         value = [float(v.split(':')[-1].strip()) for v in value.split(',')]

@@ -504,8 +504,9 @@ class Monitoring(threading.Thread):
                 # update indicator text and style
                 dev.config["control_GUI_elements"][c_name]["QLabel"].\
                         setText(params["texts"][idx])
-                dev.config["control_GUI_elements"][c_name]["QLabel"].\
-                        setStyleSheet(params["styles"][idx])
+                if params["styles"][idx]:
+                    dev.config["control_GUI_elements"][c_name]["QLabel"].\
+                            setStyleSheet(params["styles"][idx])
 
     def display_last_event(self, dev):
         # check device enabled
@@ -1701,10 +1702,11 @@ class ControlGUI(qt.QWidget):
 
                     # commands for the QLineEdit
                     if param.get("enter_cmd"):
-                        c["QLineEdit"].returnPressed.connect(
-                                lambda dev=dev, cmd=param["enter_cmd"], qle=c["QLineEdit"]:
-                                self.queue_command(dev, cmd+"("+qle.text()+")")
-                            )
+                        if param.get("enter_cmd") != "None":
+                            c["QLineEdit"].returnPressed.connect(
+                                    lambda dev=dev, cmd=param["enter_cmd"], qle=c["QLineEdit"]:
+                                    self.queue_command(dev, cmd+"("+qle.text()+")")
+                                )
 
                 # place QComboBoxes
                 elif param["type"] == "QComboBox":
@@ -3040,7 +3042,7 @@ class CentrexGUI(qt.QMainWindow):
         self.PlotsGUI.hide()
 
         # default main window size
-        self.resize(700, 900)
+        self.resize(1100, 900)
 
         # keyboard shortcuts
         qt.QShortcut(QtGui.QKeySequence("Ctrl+Shift+C"), self)\

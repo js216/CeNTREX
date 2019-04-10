@@ -386,9 +386,9 @@ driver classes serve to provide a consistent, abstract interface to:
 - In order to enable using the Python [`with` statement](https://docs.python.org/3/reference/compound_stmts.html#the-with-statement), the driver has to define the methods `__enter__()` and `__exit()__`. Normally, `enter` just returns `self`, whereas `exit` does whatever cleanup is needed to close the connection to the
 device:
 
-    def __exit__(self, *exc):
-        if self.instr:
-            self.instr.close()
+        def __exit__(self, *exc):
+            if self.instr:
+                self.instr.close()
 
 - Provide a function `GetWarnings()` that will be called at regular intervals to
   populate the list of `warnings`. This function can check for the device

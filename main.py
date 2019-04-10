@@ -1411,7 +1411,7 @@ class ControlGUI(qt.QWidget):
         self.hdf_fname_qle.setToolTip("HDF file for storing all acquired data.")
         self.hdf_fname_qle.setText(self.parent.config["files"]["hdf_fname"])
         self.hdf_fname_qle.textChanged[str].connect(lambda val:
-                self.parent.config("files", "hdf_fname", val))
+                self.parent.config.change("files", "hdf_fname", val))
         files_frame.addWidget(self.hdf_fname_qle, 1, 1)
 
         pb = qt.QPushButton("Open...")

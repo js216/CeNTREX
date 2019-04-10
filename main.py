@@ -321,7 +321,7 @@ class Device(threading.Thread):
                     for c in self.commands:
                         try:
                             ret_val = eval("device." + c.strip())
-                        except (ValueError, AttributeError, SyntaxError, TypeError) as err:
+                        except Exception as err:
                             ret_val = str(err)
                         ret_val = "None" if not ret_val else ret_val
                         self.last_event = [ time.time()-self.time_offset, c, ret_val ]
@@ -332,7 +332,7 @@ class Device(threading.Thread):
                     for c in self.monitoring_commands:
                         try:
                             ret_val = eval("device." + c.strip())
-                        except (ValueError, AttributeError, SyntaxError, TypeError) as err:
+                        except Exception as err:
                             ret_val = str(err)
                         ret_val = "None" if not ret_val else ret_val
                         self.monitoring_events_queue.append( [ time.time()-self.time_offset, c, ret_val ] )

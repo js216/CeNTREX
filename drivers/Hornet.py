@@ -42,7 +42,6 @@ class Hornet:
     def __exit__(self, *exc):
         if self.instr:
             self.instr.close()
-            self.rm.close()
 
     def query(self, cmd):
         self.instr.write(cmd)

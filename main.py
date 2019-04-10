@@ -504,9 +504,8 @@ class Monitoring(threading.Thread):
                 # update indicator text and style
                 dev.config["control_GUI_elements"][c_name]["QLabel"].\
                         setText(params["texts"][idx])
-                if params["styles"][idx]:
-                    dev.config["control_GUI_elements"][c_name]["QLabel"].\
-                            setStyleSheet(params["styles"][idx])
+                dev.config["control_GUI_elements"][c_name]["QLabel"].\
+                        setStyleSheet(params["styles"][idx])
 
     def display_last_event(self, dev):
         # check device enabled
@@ -1631,9 +1630,9 @@ class ControlGUI(qt.QWidget):
             df.addWidget(qle, 1, 1)
 
             # device-specific controls
+            dev.config["control_GUI_elements"] = {}
             for c_name, param in dev.config["control_params"].items():
                 # the dict for control GUI elements
-                dev.config["control_GUI_elements"] = {}
                 dev.config["control_GUI_elements"][c_name] = {}
                 c = dev.config["control_GUI_elements"][c_name]
 
@@ -1849,7 +1848,6 @@ class ControlGUI(qt.QWidget):
                     # tooltip
                     if param.get("tooltip"):
                         c["QLabel"].setToolTip(param["tooltip"])
-
 
             ##################################
             # MONITORING                     #
@@ -2110,21 +2108,35 @@ class ControlGUI(qt.QWidget):
         if not self.parent.config['control_active']:
             return
 
-        # stop devices
-        for dev_name, dev in self.parent.devices.items():
-            if dev.active.is_set():
-                dev.active.clear()
-
-        # stop HDF writer
-        if self.HDF_writer.active.is_set():
-            self.HDF_writer.active.clear()
+        # stop all plots
+        self.parent.PlotsGUI.stop_all_plots()
 
         # stop monitoring
         if self.monitoring.active.is_set():
             self.monitoring.active.clear()
 
-        # stop all plots
-        self.parent.PlotsGUI.stop_all_plots()
+        # stop HDF writer
+        if self.HDF_writer.active.is_set():
+            self.HDF_writer.active.clear()
+
+        # stop each Device thread
+        for dev_name, dev in self.parent.devices.items():
+            if dev.active.is_set():
+                # update the status label
+                self.status_label.setText("Stopping " + dev_name + " ...")
+                self.parent.app.processEvents()
+
+                # reset the status of all indicators
+                for c_name, params in dev.config["control_params"].items():
+                    if params["type"] == "indicator":
+                        dev.config["control_GUI_elements"][c_name]["QLabel"].\
+                                setText(params["texts"][-1])
+                        dev.config["control_GUI_elements"][c_name]["QLabel"].\
+                                setStyleSheet(params["styles"][-1])
+
+                # stop the device, and wait for it to finish
+                dev.active.clear()
+                dev.join()
 
         # update status
         self.parent.config['control_active'] = False

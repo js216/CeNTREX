@@ -2914,8 +2914,20 @@ class Plotter(qt.QWidget):
 
     def update_labels(self):
         if self.plot:
-            self.plot.setLabel("bottom", self.config["x"])
-            self.plot.setLabel("left", self.config["y"])
+            # get units
+            col_names = split(self.dev.config["attributes"]["column_names"])
+            units     = split(self.dev.config["attributes"]["units"])
+            try:
+                x_unit = " [" + units[col_names.index(self.config["x"])] + "]"
+                y_unit = " [" + units[col_names.index(self.config["y"])] + "]"
+            except ValueError:
+                x_unit, y_unit = "", ""
+
+            # set axis labels
+            self.plot.setLabel("bottom", self.config["x"]+x_unit)
+            self.plot.setLabel("left", self.config["y"]+y_unit)
+
+            # set plot title
             if self.config["fn"]:
                 self.plot.setLabel("top",
                         self.config["device"] + "; " + self.config["run"] \

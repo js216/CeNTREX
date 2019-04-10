@@ -365,13 +365,13 @@ The constructor also has to accomplish a few other things:
   instance, if three float values (plus the UNIX time as a floating-point
   number) are to be returned, the correct specification would be
 
-    self.dtype = 'f'
-    self.shape = (4, )
+        self.dtype = 'f'
+        self.shape = (4, )
 
 - Define the list of warnings that will be polled at regular intervals to detect
   abnormal operation of the device. The list should probably initially be empty:
 
-    self.warnings = []
+        self.warnings = []
 
 Opening a connection to the device is of course not the only action that the
 driver classes serve to provide a consistent, abstract interface to:

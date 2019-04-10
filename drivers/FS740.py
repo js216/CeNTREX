@@ -177,12 +177,19 @@ class FS740:
                                          (float, float, float),
                                          ('latitude', 'longitude', 'altitude'))
 
-        idx = descs.index('GPSSatelliteTrackingStatus')
-        sats = self.chunks(values[idx].split(','), 8)
-        ids, signal, elevation, azimuth = \
-        zip(*[(int(val[0]), int(val[4]), int(val[5]), int(val[6]))
-              for val in sats if (val[3] =='0') and (val[0] != '0')])
-
+        try:
+            idx = descs.index('GPSSatelliteTrackingStatus')
+            sats = self.chunks(values[idx].split(','), 8)
+        except Exception as e:
+            logging.warning("FS740 warning in WriteValueINFLUXDB GPSSatelliteTrackingStatus: {0}".format(e))
+            return
+        try:
+            ids, signal, elevation, azimuth = \
+            zip(*[(int(val[0]), int(val[4]), int(val[5]), int(val[6]))
+                  for val in sats if (val[3] =='0') and (val[0] != '0')])
+        except Exception as e:
+            logging.warning("FS740 warning in WriteValueINFLUXDB GPSSatelliteTrackingStatus: {0}; {1}".format(sats, e))
+            return
         values = values[2:-2]
         descs = descs[2:-2]
         values.append(len(ids))

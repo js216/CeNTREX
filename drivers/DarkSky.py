@@ -2,6 +2,7 @@ from darksky import forecast
 import datetime
 import numpy as np
 import time
+import logging
 
 class DarkSky:
     def __init__(self, time_offset, key, latlon, units):

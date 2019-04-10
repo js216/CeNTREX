@@ -19,11 +19,11 @@ all program configuration is contained in `.ini` files in subdirectories of the
 system without changing the main program code. This configuration is loaded into
 the relevant `Config` class (e.g. `DeviceConfig`).
 
-The graphical user interface consists of three parts. The user controls
-the devices through the `ControlGUI`, which is a canvas for control of recording
-and external devices such as temperature controllers and pulse tube compressors.
-As detailed in the next section, the information in device config files is
-automatically read and translated into usable controls that appear in the GUI.
+The user controls the devices through the `ControlGUI`, which is a canvas for
+control of recording and external devices such as temperature controllers and
+pulse tube compressors.  As detailed in the next section, the information in
+device config files is automatically read and translated into usable controls
+that appear in the GUI.
 
 Underneath the graphical interface, three control classes implement the
 program's functionality:

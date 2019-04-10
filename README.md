@@ -416,3 +416,18 @@ data. A fast device can return thousands or millions of datapoints each time
 it is polled, together with metadata that describes this particular set of
 values. Thus, the program creates a new dataset for each invocation of
 `ReadValue()` of a fast device.
+
+## Keyboard shortcuts
+
+| Shortcut      | Action                                                       |
+| ------------- | -------------------------------------------------------------|
+| Ctrl+Shift+C  | show/hide all controls for a full-screen view of plots       |
+| Esc           | exit full-screen view and show controls again                |
+| Ctrl+P        | show/hide plots                                              |
+| Ctrl+M        | show/hide monitoring info                                    |
+| Ctrl+S        | start control                                                |
+| Ctrl+Q        | stop control                                                 |
+| Ctrl+T        | show/hide plot controls                                      |
+| Ctrl+V        | switch between plots and controls vertically or side-by-side |
+| Ctrl+Shift+S  | start all plots                                              |
+| Ctrl+Shift+Q  | stop all plots                                               |

@@ -341,7 +341,7 @@ class Device(threading.Thread):
         # report any exception that has occurred in the run() function
         except Exception as err:
             warning_dict = {
-                    "message" : "exception: "+str(err),
+                    "message" : "exception in " + self.config["name"] + ": "+str(err),
                     "exception" : 1,
                 }
             self.warnings.append([time.time(), warning_dict])

@@ -1353,12 +1353,12 @@ class ControlGUI(qt.QWidget):
         pb = qt.QPushButton("Refresh COM ports")
         pb.setToolTip("Click this to populate all the COM port dropdown menus.")
         pb.clicked[bool].connect(self.refresh_COM_ports)
-        control_frame.addWidget(pb, 3, 0)
+        control_frame.addWidget(pb, 2, 1)
 
         # the control to send a custom command to a specified device
 
         cmd_frame = qt.QHBoxLayout()
-        control_frame.addLayout(cmd_frame, 4, 0, 1, 2)
+        control_frame.addLayout(cmd_frame, 3, 0, 1, 2)
 
         cmd_frame.addWidget(qt.QLabel("Cmd:"))
 

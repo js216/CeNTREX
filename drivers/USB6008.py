@@ -150,7 +150,7 @@ class USB6008:
 
     def SetPointControl(self, setpoint_sccm):
         # calculate the setpoint voltage from sccm
-        self.setpoint_sccm = setpoint_sccm
+        self.setpoint_sccm = float(setpoint_sccm)
         self.setpoint_V = self.setpoint_sccm / 100 * 5
 
         # check for too high a setpoint

@@ -433,38 +433,36 @@ class Monitoring(threading.Thread):
                 time.sleep(1)
 
     def write_to_influxdb(self, dev, data):
-        try:
-            if self.parent.config["influxdb"]["enabled"].strip() == "False":
-                return
-        except AttributeError as err:
-            if isinstance(self.parent.config["influxdb"]["enabled"], int):
-                if self.parent.config["influxdb"]["enabled"] == 1:
-                    self.parent.config["influxdb"]["enabled"] = "False"
-                    return
-                elif self.parent.config["influxdb"]["enabled"] == 2:
-                    self.parent.config["influxdb"]["enabled"] = "True"
-            else:
-                logging.warning("InfluxDB error: "+str(err))
-                return
+        # check writing to InfluxDB is enabled
+        if not self.parent.config["influxdb"]["enabled"] in [1, "1", "True"]:
+            return
+
+        # only slow data can write to InfluxDB
         if not dev.config["slow_data"]:
             return
-        fields = {}
-        for col,val in zip(dev.col_names_list[1:], data[1:]):
-            if not np.isnan(val):
-                fields[col] = val
-        if len(fields) > 0:
-            json_body = [
-                    {
-                        "measurement": dev.config["name"],
-                        "tags": { "run_name": self.parent.run_name, },
-                        "time": int(1000 * (data[0] + self.parent.config["time_offset"])),
-                        "fields": fields,
-                        }
-                    ]
-            try:
-                self.influxdb_client.write_points(json_body, time_precision='ms')
-            except Exception as err:
-                logging.warning("InfluxDB error: " + str(err))
+
+        # check there is any non-np.nan data to write
+        fields = dict(  (key, val) for key, val in \
+                        zip(dev.col_names_list[1:], data[1:]) \
+                        if not np.isnan(val) )
+        if not fields:
+            return
+
+        # format the message for InfluxDB
+        json_body = [
+                {
+                    "measurement": dev.config["name"],
+                    "tags": { "run_name": self.parent.run_name, },
+                    "time": int(1000 * (data[0] + self.parent.config["time_offset"])),
+                    "fields": fields,
+                    }
+                ]
+
+        # push to InfluxDB
+        try:
+            self.influxdb_client.write_points(json_body, time_precision='ms')
+        except Exception as err:
+            logging.warning("InfluxDB error: " + str(err))
 
     def display_monitoring_events(self, dev):
         # check device enabled

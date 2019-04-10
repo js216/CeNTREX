@@ -299,7 +299,7 @@ class Device(threading.Thread):
                     if isinstance(last_data, float):
                         if np.isnan(last_data):
                             self.nan_count += 1
-                            if np.isnan(self.previous_data):
+                            if isinstance(self.previous_data, float) and np.isnan(self.previous_data):
                                 self.sequential_nan_count += 1
                         else:
                             self.sequential_nan_count = 0
@@ -1333,7 +1333,7 @@ class ControlGUI(qt.QWidget):
         self.monitoring_pb = qt.QPushButton("Show monitoring")
         self.monitoring_pb.setToolTip("Show MonitoringGUI (Ctrl+M).")
         self.monitoring_pb.clicked[bool].connect(self.toggle_monitoring)
-        control_frame.addWidget(self.monitoring_pb, 1, 0)        
+        control_frame.addWidget(self.monitoring_pb, 1, 0)
 
         # buttons to show/hide plots
         self.plots_pb = qt.QPushButton("Show plots")
@@ -1501,7 +1501,7 @@ class ControlGUI(qt.QWidget):
         gen_f.addWidget(qle, 4, 1)
 
         qle = qt.QLineEdit()
-        qle.setToolTip("Port") 
+        qle.setToolTip("Port")
         qle.setMaximumWidth(50)
         qle.setText(self.parent.config["influxdb"]["port"])
         qle.textChanged[str].connect(
@@ -1511,7 +1511,7 @@ class ControlGUI(qt.QWidget):
 
         qle = qt.QLineEdit()
         qle.setMaximumWidth(50)
-        qle.setToolTip("Username") 
+        qle.setToolTip("Username")
         qle.setText(self.parent.config["influxdb"]["username"])
         qle.textChanged[str].connect(
                 lambda val: self.parent.config.change("influxdb", "username", val)
@@ -1519,7 +1519,7 @@ class ControlGUI(qt.QWidget):
         gen_f.addWidget(qle, 5, 1)
 
         qle = qt.QLineEdit()
-        qle.setToolTip("Password") 
+        qle.setToolTip("Password")
         qle.setMaximumWidth(50)
         qle.setText(self.parent.config["influxdb"]["password"])
         qle.textChanged[str].connect(

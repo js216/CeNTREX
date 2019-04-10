@@ -2916,7 +2916,12 @@ class Plotter(qt.QWidget):
         if self.plot:
             self.plot.setLabel("bottom", self.config["x"])
             self.plot.setLabel("left", self.config["y"])
-            self.plot.setLabel("top", self.config["device"] + "; " + self.config["run"])
+            if self.config["fn"]:
+                self.plot.setLabel("top",
+                        self.config["device"] + "; " + self.config["run"] \
+                        + "; applying function:" + self.config["f(y)"])
+            else:
+                self.plot.setLabel("top", self.config["device"] + "; " + self.config["run"])
 
     def change_y_limits(self):
         try:
@@ -3028,6 +3033,9 @@ class Plotter(qt.QWidget):
             self.fast_y = []
             self.fn_pb.setText("f(y)")
             self.fn_pb.setToolTip("Apply the specified function before plotting the data. Double click to clear the old calculations for fast data.")
+
+        # display the function in the plot title (or not)
+        self.update_labels()
 
 class CentrexGUI(qt.QMainWindow):
     def __init__(self, app):

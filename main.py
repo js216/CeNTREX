@@ -2497,6 +2497,7 @@ class Plotter(qt.QWidget):
         self.z_cbx = qt.QComboBox()
         self.z_cbx.setToolTip("Select the variable to divide y by.")
         self.z_cbx.activated[str].connect(lambda val: self.config.change("z", val))
+        self.z_cbx.activated[str].connect(self.update_labels)
         ctrls_f.addWidget(self.z_cbx, 1, 2)
 
         self.refresh_parameter_lists()
@@ -2928,12 +2929,12 @@ class Plotter(qt.QWidget):
             self.plot.setLabel("left", self.config["y"]+y_unit)
 
             # set plot title
+            title = self.config["device"] + "; " + self.config["run"]
             if self.config["fn"]:
-                self.plot.setLabel("top",
-                        self.config["device"] + "; " + self.config["run"] \
-                        + "; applying function:" + self.config["f(y)"])
-            else:
-                self.plot.setLabel("top", self.config["device"] + "; " + self.config["run"])
+                title += "; applying function:" + str(self.config["f(y)"])
+            if self.config["z"] in col_names:
+                title += "; dividing by " + str(self.config["z"])
+            self.plot.setLabel("top", title)
 
     def change_y_limits(self):
         try:

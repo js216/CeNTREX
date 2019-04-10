@@ -293,11 +293,11 @@ Meanwhile, the `HDF_writer` instance does
      Appropriate place in the HDF file
 - Sleep for the loop delay
 
-The HDF writing is slightly different if the device is not a so-called
-`slow_device`. The fast devices collect so much data that each time the device
-is polled for data, an entire dataset is returned and written as such to the HDF
-file. For slow devices, we only get a couple of numbers each time, and these are
-appended to the device's dataset.
+The HDF writing is slightly different if the device is not a `slow_device`. The
+fast devices collect so much data that each time the device is polled for data,
+an entire dataset is returned and written as such to the HDF file. For slow
+devices, we only get a couple of numbers each time, and these are appended to
+the device's dataset.
 
 ## Data structure
 
@@ -402,3 +402,17 @@ condition specified in the `.ini` file is satisfied, it will call a method from
 another driver. For instance, if the beam source temperature exceeds a specified
 value, the thermal watchdog can turn off the heaters --- see
 `config/beam_source/thermal_watchdog.ini` for details.
+
+### Slow and fast devices
+
+The device `.ini` file should specify whether the device is a slow or a fast
+device, e.g.
+
+    slow_data = True
+
+A slow device is expected to return only a few values each time its
+`ReadValue()` is called, and thus requires a single dataset to contain all the
+data. A fast device can return thousands or millions of datapoints each time
+it is polled, together with metadata that describes this particular set of
+values. Thus, the program creates a new dataset for each invocation of
+`ReadValue()` of a fast device.

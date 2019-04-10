@@ -93,3 +93,6 @@ class Watchdog:
 
     def DisableWatchdog(self):
         self.watchdog_active = False
+
+    def WatchDogStatus(self):
+        return str(self.watchdog_active)

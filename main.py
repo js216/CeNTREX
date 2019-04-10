@@ -485,11 +485,13 @@ class Monitoring(threading.Thread):
             return
 
         for c_name, params in dev.config["control_params"].items():
-            # skip if the control is not an indicator
-            if not params["type"] == "indicator":
+            # get reference to the indicator
+            if params["type"] == "indicator":
+                ind = dev.config["control_GUI_elements"][c_name]["QLabel"]
+            else:
                 continue
 
-            # check if any of the returned events are relevant to the indicator
+            # check the returned events
             for event in monitoring_events:
                 # skip event if it's related to a different command
                 if not params["command"] == event[1]:
@@ -501,11 +503,11 @@ class Monitoring(threading.Thread):
                 except ValueError:
                     continue
 
-                # update indicator text and style
-                dev.config["control_GUI_elements"][c_name]["QLabel"].\
-                        setText(params["texts"][idx])
-                dev.config["control_GUI_elements"][c_name]["QLabel"].\
-                        setStyleSheet(params["styles"][idx])
+                # update indicator text and style if necessary
+                if ind.text() != params["texts"][idx]:
+                    ind.setText(params["texts"][idx])
+                if ind.styleSheet() != params["styles"][idx]:
+                    ind.setStyleSheet(params["styles"][idx])
 
     def display_last_event(self, dev):
         # check device enabled
@@ -1002,7 +1004,7 @@ class DeviceConfig(Config):
         # collect the configuration parameters to be written
         config = configparser.ConfigParser()
         config["device"] = {}
-        for key, typ in self.static_keys:
+        for key, typ in self.static_keys.items():
             if typ == list:
                 config["device"][key] = ", ".join(self.get(key))
             else:
@@ -1045,7 +1047,7 @@ class DeviceConfig(Config):
                 config[c_name]["col_types"]   = ", ".join([x for x_name,x in c["col_types"].items()])
                 config[c_name]["col_options"] = "; ".join([", ".join(x) for x_name,x in c["col_options"].items()])
             if c["type"] == "indicator":
-                config[c_name]["command"] = str(c.get("cmd"))
+                config[c_name]["command"] = str(c.get("command"))
                 config[c_name]["return_values"] = ", ".join(c["return_values"])
                 config[c_name]["texts"] = ", ".join(c["texts"])
                 config[c_name]["styles"] = ", ".join(c["styles"])

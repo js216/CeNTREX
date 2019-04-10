@@ -95,3 +95,16 @@ class Arduino:
             return self.instr.query("c")
         except pyvisa.errors.VisaIOError:
             return np.nan
+
+    def ValveStatus(self):
+        try:
+            ret_val = self.instr.query("s")
+        except pyvisa.errors.VisaIOError:
+            return "invalid"
+
+        if ret_val == "Valve opened.":
+            return "opened"
+        elif ret_val == "Valve closed.":
+            return "closed"
+        else:
+            return "invalid"

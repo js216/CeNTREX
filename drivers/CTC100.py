@@ -60,8 +60,10 @@ class CTC100:
         for i in range(17):
             try:
                 ret_val.append(float(all_values[i]))
-            except ValueError:
+            except (IndexError, ValueError) as err:
                 ret_val.append(np.nan)
+            except Exception as err:
+                logging.warning("Warning in CTC: " + str(err))
 
         return ret_val
 
@@ -139,12 +141,14 @@ class CTC100:
 
     def OutputStatusReport(self):
         try:
-            status = self.outputStatus()
-            if status.strip() in ["On", "Off"]:
-                return status.strip()
+            values = self.ReadValue()
+            out1, out2 = values[7], values[12]
+            if (out1>0) or (out2>0):
+                return "On"
             else:
-                return "invalid"
+                return "Off"
         except Exception as err:
+            logging.error("Error in CTC100: "+str(err))
             return "invalid"
 
     def outputEnable(self):

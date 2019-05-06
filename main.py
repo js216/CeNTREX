@@ -511,7 +511,8 @@ class Monitoring(threading.Thread):
                 if ind.text() != params["texts"][idx]:
                     ind.setText(params["texts"][idx])
                 if ind.styleSheet() != params["styles"][idx]:
-                    ind.setStyleSheet(params["styles"][idx])
+                    ind_style = "QLabel#" + c_name + "{" + params["styles"][idx] + "}"
+                    ind.setStyleSheet(ind_style)
 
     def display_last_event(self, dev):
         # check device enabled
@@ -1860,7 +1861,9 @@ class ControlGUI(qt.QWidget):
                             param["label"],
                             alignment = PyQt5.QtCore.Qt.AlignCenter,
                         )
-                    c["QLabel"].setStyleSheet(param["styles"][-1])
+                    c["QLabel"].setObjectName(c_name)
+                    ind_style = "QLabel#" + c_name + "{" + param["styles"][-1] + "}"
+                    c["QLabel"].setStyleSheet(ind_style)
                     if param.get("rowspan") and param.get("colspan"):
                         df.addWidget(c["QLabel"], param["row"], param["col"], param["rowspan"], param["colspan"])
                     else:
@@ -2156,8 +2159,9 @@ class ControlGUI(qt.QWidget):
                     if params["type"] == "indicator":
                         dev.config["control_GUI_elements"][c_name]["QLabel"].\
                                 setText(params["texts"][-1])
+                        ind_style = "QLabel#" + c_name + "{" + params["styles"][-1] + "}"
                         dev.config["control_GUI_elements"][c_name]["QLabel"].\
-                                setStyleSheet(params["styles"][-1])
+                                setStyleSheet(ind_style)
 
                 # stop the device, and wait for it to finish
                 dev.active.clear()

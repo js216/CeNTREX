@@ -369,7 +369,7 @@ class Monitoring(threading.Thread):
 
             # check that we have written to HDF recently enough
             HDF_status = self.parent.ControlGUI.HDF_status
-            if time.time() - float(HDF_status.text()) > 1.0:
+            if time.time() - float(HDF_status.text()) > 5.0:
                 HDF_status.setStyleSheet("QLabel#HDF_status { color: white; background-color: red }")
             else:
                 HDF_status.setStyleSheet("QLabel#HDF_status { color: white; background-color: #2a542a }")

@@ -2092,7 +2092,7 @@ class ControlGUI(qt.QWidget):
                 self.parent.app.processEvents()
 
                 ## reinstantiate the thread (since Python only allows threads to
-                ## be started once, this is necessary to allow stopping and restarting control)
+                ## be started once, this is necessary to allow repeatedly stopping and starting control)
                 self.parent.devices[dev_name] = Device(dev.config)
                 dev = self.parent.devices[dev_name]
 
@@ -2671,6 +2671,7 @@ class Plotter(qt.QWidget):
             if self.dev.config["slow_data"]: # fast data does not need an x variable
                 select_defaults = True
         if not self.config["y"] in self.param_list:
+            print( self.config["y"] , self.param_list)
             select_defaults = True
 
         # select x and y

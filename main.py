@@ -367,6 +367,13 @@ class Monitoring(threading.Thread):
             # check amount of remaining free disk space
             self.parent.ControlGUI.check_free_disk_space()
 
+            # check that we have written to HDF recently enough
+            HDF_status = self.parent.ControlGUI.HDF_status
+            if time.time() - float(HDF_status.text()) > 1.0:
+                HDF_status.setStyleSheet("QLabel#HDF_status { color: white; background-color: red }")
+            else:
+                HDF_status.setStyleSheet("QLabel#HDF_status { color: white; background-color: #2a542a }")
+
             # monitor operation of individual devices
             for dev_name, dev in self.parent.devices.items():
                 # check device running
@@ -600,6 +607,9 @@ class HDF_writer(threading.Thread):
 
     def run(self):
         while self.active.is_set():
+            # update the label that shows the time this loop last ran
+            self.parent.ControlGUI.HDF_status.setText(str(time.time()))
+
             # empty queues to HDF
             try:
                 with h5py.File(self.filename, 'a') as fname:
@@ -1464,10 +1474,16 @@ class ControlGUI(qt.QWidget):
         box, gen_f = LabelFrame("Monitoring", maxWidth=200, fixed=True)
         self.top_frame.addWidget(box)
 
+        # HDF writer status
+        gen_f.addWidget(qt.QLabel("Last written to HDF:"), 1, 0)
+        self.HDF_status = qt.QLabel("0")
+        self.HDF_status.setObjectName("HDF_status")
+        gen_f.addWidget(self.HDF_status, 1, 1, 1, 2)
+
         # disk space usage
-        gen_f.addWidget(qt.QLabel("Disk usage:"), 1, 0)
+        gen_f.addWidget(qt.QLabel("Disk usage:"), 2, 0)
         self.free_qpb = qt.QProgressBar()
-        gen_f.addWidget(self.free_qpb, 1, 1, 1, 2)
+        gen_f.addWidget(self.free_qpb, 2, 1, 1, 2)
         self.check_free_disk_space()
 
         gen_f.addWidget(qt.QLabel("Loop delay [s]:"), 0, 0)
@@ -1488,7 +1504,7 @@ class ControlGUI(qt.QWidget):
         qch.stateChanged[int].connect(
                 lambda val: self.parent.config.change("influxdb", "enabled", val)
             )
-        gen_f.addWidget(qch, 4, 0)
+        gen_f.addWidget(qch, 5, 0)
 
         qle = qt.QLineEdit()
         qle.setToolTip("Host IP")
@@ -1497,7 +1513,7 @@ class ControlGUI(qt.QWidget):
         qle.textChanged[str].connect(
                 lambda val: self.parent.config.change("influxdb", "host", val)
             )
-        gen_f.addWidget(qle, 4, 1)
+        gen_f.addWidget(qle, 5, 1)
 
         qle = qt.QLineEdit()
         qle.setToolTip("Port")
@@ -1506,7 +1522,7 @@ class ControlGUI(qt.QWidget):
         qle.textChanged[str].connect(
                 lambda val: self.parent.config.change("influxdb", "port", val)
             )
-        gen_f.addWidget(qle, 4, 2)
+        gen_f.addWidget(qle, 5, 2)
 
         qle = qt.QLineEdit()
         qle.setMaximumWidth(50)
@@ -1515,7 +1531,7 @@ class ControlGUI(qt.QWidget):
         qle.textChanged[str].connect(
                 lambda val: self.parent.config.change("influxdb", "username", val)
             )
-        gen_f.addWidget(qle, 5, 1)
+        gen_f.addWidget(qle, 6, 1)
 
         qle = qt.QLineEdit()
         qle.setToolTip("Password")
@@ -1524,12 +1540,12 @@ class ControlGUI(qt.QWidget):
         qle.textChanged[str].connect(
                 lambda val: self.parent.config.change("influxdb", "password", val)
             )
-        gen_f.addWidget(qle, 5, 2)
+        gen_f.addWidget(qle, 6, 2)
 
         # for displaying warnings
         self.warnings_label = qt.QLabel("(no warnings)")
         self.warnings_label.setWordWrap(True)
-        gen_f.addWidget(self.warnings_label, 6, 0, 1, 3)
+        gen_f.addWidget(self.warnings_label, 7, 0, 1, 3)
 
     def update_col_names_and_units(self):
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
@@ -2123,6 +2139,10 @@ class ControlGUI(qt.QWidget):
         # stop HDF writer
         if self.HDF_writer.active.is_set():
             self.HDF_writer.active.clear()
+
+        # remove background color of the HDF status label
+        HDF_status = self.parent.ControlGUI.HDF_status
+        HDF_status.setStyleSheet("QLabel#HDF_status { color: white; background-color: #050505 }")
 
         # stop each Device thread
         for dev_name, dev in self.parent.devices.items():

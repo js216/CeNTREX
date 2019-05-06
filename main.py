@@ -686,6 +686,11 @@ class HDF_writer(threading.Thread):
 
                 # if writing each acquisition record to a separate dataset
                 else:
+                    # check it is not a NaN return
+                    if data==[np.nan] or data==np.nan:
+                        continue
+
+                    # parse and write the data
                     for record, all_attrs in data:
                         for waveforms, attrs in zip(record, all_attrs):
                             # data

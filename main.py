@@ -952,7 +952,7 @@ class DeviceConfig(Config):
                         "col"          : int(params[c]["col"]),
                         "rowspan"      : int(params[c].get("rowspan")),
                         "colspan"      : int(params[c].get("colspan")),
-                        "row_ids"      : split(params[c]["row_ids"]),
+                        "row_ids"      : [int(r) for r in split(params[c]["row_ids"])],
                         "col_names"    : split(params[c]["col_names"]),
                         "col_labels"   : dict(zip(
                                                 split(params[c]["col_names"]),
@@ -1810,7 +1810,13 @@ class ControlGUI(qt.QWidget):
                                 qch.setTristate(False)
                                 qch.stateChanged[int].connect(
                                         lambda val, dev=dev, config=c_name, sub_ctrl=col, row=row:
-                                            dev.config.change_param(config, val, sect="control_params", sub_ctrl=sub_ctrl, row=row)
+                                            dev.config.change_param(
+                                                    config,
+                                                    '1' if val!=0 else '0',
+                                                    sect="control_params",
+                                                    sub_ctrl=sub_ctrl,
+                                                    row=row
+                                                )
                                     )
                                 ctrl_frame.addWidget(qch, i, j)
 

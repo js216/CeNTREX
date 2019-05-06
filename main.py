@@ -2661,10 +2661,7 @@ class Plotter(qt.QWidget):
             logging.warning("Warning in class Plotter: " + str(err))
 
         # get parameters
-        if self.dev.config["slow_data"]:
-            self.param_list = split(self.dev.config["attributes"]["column_names"])
-        else:
-            self.param_list = ["(none)"] + split(self.dev.config["attributes"]["column_names"])
+        self.param_list = split(self.dev.config["attributes"]["column_names"])
         if not self.param_list:
             logging.warning("Plot error: No parameters to plot.")
             return
@@ -2695,7 +2692,7 @@ class Plotter(qt.QWidget):
             )
         update_QComboBox(
                 cbx     = self.y_cbx,
-                options = self.param_list,
+                options = ["(none)"] + self.param_list,
                 value   = self.config["y"]
             )
         update_QComboBox(

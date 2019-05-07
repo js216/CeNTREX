@@ -2827,6 +2827,8 @@ class Plotter(qt.QWidget):
                 dset = self.dev.config["plots_queue"][-1]
             except IndexError:
                 return None
+            if dset==[np.nan] or dset==np.nan:
+                return None
             x = np.arange(dset[0].shape[2])
             y = dset[0][0, self.param_list.index(self.config["y"])]
 

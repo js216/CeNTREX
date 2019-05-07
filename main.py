@@ -510,7 +510,6 @@ class Monitoring(threading.Thread):
                 # update indicator text and style if necessary
                 if ind.text() != params["texts"][idx]:
                     ind.setText(params["texts"][idx])
-                if ind.styleSheet() != params["styles"][idx]:
                     ind_style = "QLabel#" + c_name + "{" + params["styles"][idx] + "}"
                     ind.setStyleSheet(ind_style)
 

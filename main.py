@@ -367,6 +367,13 @@ class Monitoring(threading.Thread):
             # check amount of remaining free disk space
             self.parent.ControlGUI.check_free_disk_space()
 
+            # check that we have written to HDF recently enough
+            HDF_status = self.parent.ControlGUI.HDF_status
+            if time.time() - float(HDF_status.text()) > 5.0:
+                HDF_status.setStyleSheet("QLabel#HDF_status { color: white; background-color: red }")
+            else:
+                HDF_status.setStyleSheet("QLabel#HDF_status { color: white; background-color: #2a542a }")
+
             # monitor operation of individual devices
             for dev_name, dev in self.parent.devices.items():
                 # check device running
@@ -503,8 +510,8 @@ class Monitoring(threading.Thread):
                 # update indicator text and style if necessary
                 if ind.text() != params["texts"][idx]:
                     ind.setText(params["texts"][idx])
-                if ind.styleSheet() != params["styles"][idx]:
-                    ind.setStyleSheet(params["styles"][idx])
+                    ind_style = "QLabel#" + c_name + "{" + params["styles"][idx] + "}"
+                    ind.setStyleSheet(ind_style)
 
     def display_last_event(self, dev):
         # check device enabled
@@ -600,6 +607,9 @@ class HDF_writer(threading.Thread):
 
     def run(self):
         while self.active.is_set():
+            # update the label that shows the time this loop last ran
+            self.parent.ControlGUI.HDF_status.setText(str(time.time()))
+
             # empty queues to HDF
             try:
                 with h5py.File(self.filename, 'a') as fname:
@@ -675,6 +685,11 @@ class HDF_writer(threading.Thread):
 
                 # if writing each acquisition record to a separate dataset
                 else:
+                    # check it is not a NaN return
+                    if data==[np.nan] or data==np.nan:
+                        continue
+
+                    # parse and write the data
                     for record, all_attrs in data:
                         for waveforms, attrs in zip(record, all_attrs):
                             # data
@@ -952,7 +967,7 @@ class DeviceConfig(Config):
                         "col"          : int(params[c]["col"]),
                         "rowspan"      : int(params[c].get("rowspan")),
                         "colspan"      : int(params[c].get("colspan")),
-                        "row_ids"      : split(params[c]["row_ids"]),
+                        "row_ids"      : [int(r) for r in split(params[c]["row_ids"])],
                         "col_names"    : split(params[c]["col_names"]),
                         "col_labels"   : dict(zip(
                                                 split(params[c]["col_names"]),
@@ -1464,10 +1479,16 @@ class ControlGUI(qt.QWidget):
         box, gen_f = LabelFrame("Monitoring", maxWidth=200, fixed=True)
         self.top_frame.addWidget(box)
 
+        # HDF writer status
+        gen_f.addWidget(qt.QLabel("Last written to HDF:"), 1, 0)
+        self.HDF_status = qt.QLabel("0")
+        self.HDF_status.setObjectName("HDF_status")
+        gen_f.addWidget(self.HDF_status, 1, 1, 1, 2)
+
         # disk space usage
-        gen_f.addWidget(qt.QLabel("Disk usage:"), 1, 0)
+        gen_f.addWidget(qt.QLabel("Disk usage:"), 2, 0)
         self.free_qpb = qt.QProgressBar()
-        gen_f.addWidget(self.free_qpb, 1, 1, 1, 2)
+        gen_f.addWidget(self.free_qpb, 2, 1, 1, 2)
         self.check_free_disk_space()
 
         gen_f.addWidget(qt.QLabel("Loop delay [s]:"), 0, 0)
@@ -1488,7 +1509,7 @@ class ControlGUI(qt.QWidget):
         qch.stateChanged[int].connect(
                 lambda val: self.parent.config.change("influxdb", "enabled", val)
             )
-        gen_f.addWidget(qch, 4, 0)
+        gen_f.addWidget(qch, 5, 0)
 
         qle = qt.QLineEdit()
         qle.setToolTip("Host IP")
@@ -1497,7 +1518,7 @@ class ControlGUI(qt.QWidget):
         qle.textChanged[str].connect(
                 lambda val: self.parent.config.change("influxdb", "host", val)
             )
-        gen_f.addWidget(qle, 4, 1)
+        gen_f.addWidget(qle, 5, 1)
 
         qle = qt.QLineEdit()
         qle.setToolTip("Port")
@@ -1506,7 +1527,7 @@ class ControlGUI(qt.QWidget):
         qle.textChanged[str].connect(
                 lambda val: self.parent.config.change("influxdb", "port", val)
             )
-        gen_f.addWidget(qle, 4, 2)
+        gen_f.addWidget(qle, 5, 2)
 
         qle = qt.QLineEdit()
         qle.setMaximumWidth(50)
@@ -1515,7 +1536,7 @@ class ControlGUI(qt.QWidget):
         qle.textChanged[str].connect(
                 lambda val: self.parent.config.change("influxdb", "username", val)
             )
-        gen_f.addWidget(qle, 5, 1)
+        gen_f.addWidget(qle, 6, 1)
 
         qle = qt.QLineEdit()
         qle.setToolTip("Password")
@@ -1524,12 +1545,12 @@ class ControlGUI(qt.QWidget):
         qle.textChanged[str].connect(
                 lambda val: self.parent.config.change("influxdb", "password", val)
             )
-        gen_f.addWidget(qle, 5, 2)
+        gen_f.addWidget(qle, 6, 2)
 
         # for displaying warnings
         self.warnings_label = qt.QLabel("(no warnings)")
         self.warnings_label.setWordWrap(True)
-        gen_f.addWidget(self.warnings_label, 6, 0, 1, 3)
+        gen_f.addWidget(self.warnings_label, 7, 0, 1, 3)
 
     def update_col_names_and_units(self):
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
@@ -1810,7 +1831,13 @@ class ControlGUI(qt.QWidget):
                                 qch.setTristate(False)
                                 qch.stateChanged[int].connect(
                                         lambda val, dev=dev, config=c_name, sub_ctrl=col, row=row:
-                                            dev.config.change_param(config, val, sect="control_params", sub_ctrl=sub_ctrl, row=row)
+                                            dev.config.change_param(
+                                                    config,
+                                                    '1' if val!=0 else '0',
+                                                    sect="control_params",
+                                                    sub_ctrl=sub_ctrl,
+                                                    row=row
+                                                )
                                     )
                                 ctrl_frame.addWidget(qch, i, j)
 
@@ -1838,7 +1865,9 @@ class ControlGUI(qt.QWidget):
                             param["label"],
                             alignment = PyQt5.QtCore.Qt.AlignCenter,
                         )
-                    c["QLabel"].setStyleSheet(param["styles"][-1])
+                    c["QLabel"].setObjectName(c_name)
+                    ind_style = "QLabel#" + c_name + "{" + param["styles"][-1] + "}"
+                    c["QLabel"].setStyleSheet(ind_style)
                     if param.get("rowspan") and param.get("colspan"):
                         df.addWidget(c["QLabel"], param["row"], param["col"], param["rowspan"], param["colspan"])
                     else:
@@ -2062,7 +2091,7 @@ class ControlGUI(qt.QWidget):
                 self.parent.app.processEvents()
 
                 ## reinstantiate the thread (since Python only allows threads to
-                ## be started once, this is necessary to allow stopping and restarting control)
+                ## be started once, this is necessary to allow repeatedly stopping and starting control)
                 self.parent.devices[dev_name] = Device(dev.config)
                 dev = self.parent.devices[dev_name]
 
@@ -2118,6 +2147,10 @@ class ControlGUI(qt.QWidget):
         if self.HDF_writer.active.is_set():
             self.HDF_writer.active.clear()
 
+        # remove background color of the HDF status label
+        HDF_status = self.parent.ControlGUI.HDF_status
+        HDF_status.setStyleSheet("QLabel#HDF_status { color: white; background-color: #050505 }")
+
         # stop each Device thread
         for dev_name, dev in self.parent.devices.items():
             if dev.active.is_set():
@@ -2130,8 +2163,9 @@ class ControlGUI(qt.QWidget):
                     if params["type"] == "indicator":
                         dev.config["control_GUI_elements"][c_name]["QLabel"].\
                                 setText(params["texts"][-1])
+                        ind_style = "QLabel#" + c_name + "{" + params["styles"][-1] + "}"
                         dev.config["control_GUI_elements"][c_name]["QLabel"].\
-                                setStyleSheet(params["styles"][-1])
+                                setStyleSheet(ind_style)
 
                 # stop the device, and wait for it to finish
                 dev.active.clear()
@@ -2626,10 +2660,7 @@ class Plotter(qt.QWidget):
             logging.warning("Warning in class Plotter: " + str(err))
 
         # get parameters
-        if self.dev.config["slow_data"]:
-            self.param_list = split(self.dev.config["attributes"]["column_names"])
-        else:
-            self.param_list = ["(none)"] + split(self.dev.config["attributes"]["column_names"])
+        self.param_list = split(self.dev.config["attributes"]["column_names"])
         if not self.param_list:
             logging.warning("Plot error: No parameters to plot.")
             return
@@ -2639,6 +2670,7 @@ class Plotter(qt.QWidget):
             if self.dev.config["slow_data"]: # fast data does not need an x variable
                 select_defaults = True
         if not self.config["y"] in self.param_list:
+            print( self.config["y"] , self.param_list)
             select_defaults = True
 
         # select x and y
@@ -2660,7 +2692,7 @@ class Plotter(qt.QWidget):
             )
         update_QComboBox(
                 cbx     = self.y_cbx,
-                options = self.param_list,
+                options = ["(none)"] + self.param_list,
                 value   = self.config["y"]
             )
         update_QComboBox(
@@ -2794,6 +2826,8 @@ class Plotter(qt.QWidget):
             try:
                 dset = self.dev.config["plots_queue"][-1]
             except IndexError:
+                return None
+            if dset==[np.nan] or dset==np.nan:
                 return None
             x = np.arange(dset[0].shape[2])
             y = dset[0][0, self.param_list.index(self.config["y"])]

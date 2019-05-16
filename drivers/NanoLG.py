@@ -15,6 +15,7 @@ def WriteVisaIOError(func):
         except pyvisa.errors.VisaIOError as err:
             logging.warning('NanoLG warning in {0}() : '.format(func.__name__) \
                             +str(err))
+
     return wrapper
 
 def RequestVisaIOError(func):
@@ -189,10 +190,10 @@ class NanoLG:
             self.instr = False
             return
 
-        self.instr.parity = constants.Parity.none
+        self.instr.parity = pyvisa.constants.Parity.none
         self.instr.baud_rate = 9600
-        self.instr.stop_bits = constants.StopBits.one
-        self.instr.timeout = 500
+        self.instr.stop_bits = pyvisa.constants.StopBits.one
+        self.instr.timeout = 100
 
         # make the verification string
         self.verification_string = 'NanoLG'
@@ -206,6 +207,9 @@ class NanoLG:
         self.RequestPulsePeriodHighLimit()
         self.RequestQSwitchDelayLowLimit()
         self.RequestQSwitchDelayHighLimit()
+        self.RepetitionRateDivider(25)
+
+        print('Running')
 
     def __enter__(self):
         return self
@@ -215,24 +219,24 @@ class NanoLG:
             self.StopSystem()
             self.instr.close()
 
-    def CheckWarnings():
+    def CheckWarnings(self):
         for idx in range(4,13):
-            interlock = [self.function_status_word_idx[idx]]
-            if self.data['function_status_word'][interlock]:
+            interlock = self.system_status_word_idx[idx]
+            if self.data['system_status_word'][interlock]:
                 warning_dict = { "message" : ' '.join(interlock.split('_'))+' failed'}
                 self.warnings.append(warning_dict)
-        for idx in range(14:16):
-            interlock = [self.system_status_word_idx[idx]]
-            if self.data['function_status_word'][interlock]:
+        for idx in range(14,16):
+            interlock = self.system_status_word_idx[idx]
+            if self.data['system_status_word'][interlock]:
                 warning_dict = { "message" : ' '.join(interlock.split('_'))+' failed'}
                 self.warnings.append(warning_dict)
-        if not self.data['function_status_word']['interlock_shutter']:
+        if not self.data['system_status_word']['interlock_shutter']:
             warning_dict = { "message" : ' '.join(interlock.split('_'))+' failed'}
             self.warnings.append(warning_dict)
 
         for idx in [14,15,16,19]:
-            parameter = [self.system_status_word_idx[idx]]
-            if self.data['system_status_word'][parameter]:
+            parameter = self.function_status_word_idx[idx]
+            if self.data['function_status_word'][parameter]:
                 warning_dict = { "message" : ' '.join(parameter.split('_'))+' failed'}
                 self.warnings.append(warning_dict)
 
@@ -321,29 +325,30 @@ class NanoLG:
         crystal_temp = self.RequestCoolerCrystalTemperature()
         water_temp = self.RequestCoolerWaterTemperature()
         self.Ping()
-        self.RequestFunctionStatus()
+      
+        
         system_state = self.data['system_status_word']['system_state']
         pump_state = self.data['system_status_word']['pump_state']
         laser_state = self.data['system_status_word']['laser_state']
         shutter_state = self.data['system_status_word']['shutter_state']
-        qs_delay = self.data['system_info']['qs_delay']
-        rep_rate_divider = self.data['system_info']['rep_rate_divider']
+        qs_delay = self.data['system_info']['qs_delay'][1]
+        rep_rate_divider = self.data['system_info']['rep_rate_divider'][1]
         rep_rate_mode = self.data['function_status_word']['rep_rate_div_mode1']
-        lamp_total = self.data['lamp']['lamp_total_shotcount']
-        lamp_user = self.data['lamp']['lamp_user_shotcount']
+        lamp_total = self.RequestFlashlampTotalShots()
+        lamp_user = self.RequestFlashlampUserShots()
         lamp_trigger_external = self.data['system_status_word']['external_lamp1_trigger']
-        qswitch_trigger_external = self.data['system_status_word']['external_qswitch_trigger']
+        qswitch_trigger_external = self.data['system_status_word']['external_qswitch1_trigger']
 
         # interlocks
         interlock = 0
         for idx in range(4,13):
             interlock = interlock | self.data['system_status_word'][self.system_status_word_idx[idx]]
-        for idx in range(14:16):
+        for idx in range(14,16):
             interlock = interlock | self.data['system_status_word'][self.system_status_word_idx[idx]]
         if not self.data['system_status_word']['interlock_shutter']:
             interlock = interlock | 1
 
-        return [time.time()- self.time_offset(), system_state, pump_state,
+        return [time.time()- self.time_offset, system_state, pump_state,
                 laser_state, shutter_state, water_temp, crystal_temp, qs_delay,
                 rep_rate_divider, rep_rate_mode, lamp_total, lamp_user,
                 lamp_trigger_external, qswitch_trigger_external, interlock]
@@ -469,7 +474,7 @@ class NanoLG:
         interlock = 0
         for idx in range(4,13):
             interlock = interlock | self.data['system_status_word'][self.system_status_word_idx[idx]]
-        for idx in range(14:16):
+        for idx in range(14,16):
             interlock = interlock | self.data['system_status_word'][self.system_status_word_idx[idx]]
         if not self.data['system_status_word']['interlock_shutter']:
             interlock = interlock | 1
@@ -746,21 +751,21 @@ class NanoLG:
                             0xB3, 0x93))
         self.write(bytes(command))
 
-    def request_head_data(self, val):
-        values = {'head_crystal_setpoint':0x00, 'head_crystal_cal_slope':0x03,
+    def request_head_data(self, param):
+        parameters = {'head_crystal_setpoint':0x00, 'head_crystal_cal_slope':0x03,
                 'head_crystal_cal_offset':0x04, 'head_crystal_temperature':0x1B}
         header = bytearray((0xAA, 0xAA, 0x01, 0x00, 0x00, 0x17))
         cmd = bytearray((0x00, 0x21))
         data = bytearray((0x18, 0x1E, 0x01, 0x02, 0x01))
-        data += bytearray([values[val]])
+        data += bytearray([parameters[param]])
         data += bytearray((0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00))
         crc = self._calculate_crc(cmd+data)
         command = header+cmd+data+crc
         self.write(bytes(command))
 
         for _ in range(5):
-            if self.data['head_crystal'][val]:
-                t, req = self.data['head_crystal'][val]
+            if self.data['head_crystal'][param]:
+                t, req = self.data['head_crystal'][param]
                 if t >  time.time()-1:
                     return req
             time.sleep(0.1)
@@ -806,22 +811,21 @@ class NanoLG:
             logging.warning('NanoLG warning in RequestHeadCrystalTemperature() : no value returned')
             return val
 
-    @RequestVisaIOError
-    def request_cooler_crystal_data(self, val):
-        values = {'cooler_crystal_setpoint':0x14, 'cooler_crystal_cal_slope':0x15,
+    def request_cooler_crystal_data(self, param):
+        parameters = {'cooler_crystal_setpoint':0x14, 'cooler_crystal_cal_slope':0x15,
                   'cooler_crystal_cal_offset':0x16, 'cooler_crystal_temperature':0x18}
         header = bytearray((0xAA, 0xAA, 0x01, 0x00, 0x00, 0x17))
         cmd = bytearray((0x00, 0x21))
         data = bytearray((0x18, 0x1E, 0x01, 0x04, 0x01))
-        data += bytearray([values[val]])
+        data += bytearray([parameters[param]])
         data += bytearray((0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00))
         crc = self._calculate_crc(cmd+data)
         command = header+cmd+data+crc
         self.write(bytes(command))
 
         for _ in range(5):
-            if self.data['cooler_crystal'][val]:
-                t, req = self.data['cooler_crystal'][val]
+            if self.data['cooler_crystal'][param]:
+                t, req = self.data['cooler_crystal'][param]
                 if t >  time.time()-1:
                     return req
             time.sleep(0.1)
@@ -866,21 +870,21 @@ class NanoLG:
         else:
             return val
 
-    def request_cooler_water_data(self, val):
-        values = {'cooler_water_setpoint':0x00, 'cooler_water_cal_slope':0x01,
+    def request_cooler_water_data(self, param):
+        parameters = {'cooler_water_setpoint':0x00, 'cooler_water_cal_slope':0x01,
                   'cooler_water_cal_offset':0x02, 'cooler_water_temperature':0x05}
         header = bytearray((0xAA, 0xAA, 0x01, 0x00, 0x00, 0x17))
         cmd = bytearray((0x00, 0x21))
         data = bytearray((0x18, 0x1E, 0x01, 0x04, 0x01))
-        data += bytearray([values[val]])
+        data += bytearray([parameters[param]])
         data += bytearray((0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00))
         crc = self._calculate_crc(cmd+data)
         command = header+cmd+data+crc
         self.write(bytes(command))
 
         for _ in range(5):
-            if self.data['cooler_water'][val]:
-                t, val = self.data['cooler_water'][val]
+            if self.data['cooler_water'][param]:
+                t, val = self.data['cooler_water'][param]
                 if t >  time.time()-1:
                     return val
             time.sleep(0.1)

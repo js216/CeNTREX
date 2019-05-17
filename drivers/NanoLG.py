@@ -826,7 +826,7 @@ class NanoLG:
         for _ in range(5):
             if self.data['cooler_crystal'][param]:
                 t, req = self.data['cooler_crystal'][param]
-                if t >  time.time()-1:
+                if t >  time.time()-2:
                     return req
             time.sleep(0.1)
         return np.nan
@@ -885,7 +885,7 @@ class NanoLG:
         for _ in range(5):
             if self.data['cooler_water'][param]:
                 t, val = self.data['cooler_water'][param]
-                if t >  time.time()-1:
+                if t >  time.time()-2:
                     return val
             time.sleep(0.1)
         return np.nan

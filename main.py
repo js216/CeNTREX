@@ -5,6 +5,7 @@ import PyQt5
 import pickle
 import pyvisa
 import logging
+import traceback
 import threading
 import numpy as np
 import configparser
@@ -340,6 +341,7 @@ class Device(threading.Thread):
 
         # report any exception that has occurred in the run() function
         except Exception as err:
+            err = traceback.format_exc()
             warning_dict = {
                     "message" : "exception in " + self.config["name"] + ": "+str(err),
                     "exception" : 1,

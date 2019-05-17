@@ -5,7 +5,6 @@ import array
 import numpy as np
 import struct
 import functools
-import logging
 
 def WriteVisaIOError(func):
     @functools.wraps(func)
@@ -15,7 +14,6 @@ def WriteVisaIOError(func):
         except pyvisa.errors.VisaIOError as err:
             logging.warning('NanoLG warning in {0}() : '.format(func.__name__) \
                             +str(err))
-
     return wrapper
 
 def RequestVisaIOError(func):
@@ -64,7 +62,6 @@ class NanoLG:
         self.dtype = 'f'
         self.shape = (15, )
 
-        # for overheating checking
         self.warnings = []
 
         self.system_status_word_idx = {0:'system_state',
@@ -243,7 +240,7 @@ class NanoLG:
 
     def GetWarnings(self):
         self.CheckWarnings()
-        warnings = self.warnings
+        warnings = self.warnings.copy()
         self.warnings = []
         return warnings
 
@@ -325,8 +322,7 @@ class NanoLG:
         crystal_temp = self.RequestCoolerCrystalTemperature()
         water_temp = self.RequestCoolerWaterTemperature()
         self.Ping()
-      
-        
+
         system_state = self.data['system_status_word']['system_state']
         pump_state = self.data['system_status_word']['pump_state']
         laser_state = self.data['system_status_word']['laser_state']

@@ -1,6 +1,8 @@
 from pysnmp.hlapi import *
 import time
 import datetime as dt
+import logging
+import numpy as np
 
 class Vertiv:
     def __init__(self,  time_offset, connection):

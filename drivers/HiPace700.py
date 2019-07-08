@@ -155,6 +155,17 @@ class HiPace700:
             logging.warning("HiPace700 warning in ActualSpd(): " + str(err))
             return np.nan
 
+    def TurboStatus(self):
+        speed = self.ActualSpd()
+        if speed and ( abs(speed-820) < 1 ):
+            return "running"
+        if speed and ( abs(speed-820) > 819 ):
+            return "stopped"
+        elif speed and ( abs(speed-820) > 1 ):
+            return "accelerating"
+        else:
+            return "invalid"
+
     def DrvCurrent(self):
         """Drive current."""
         try:

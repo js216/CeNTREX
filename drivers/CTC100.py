@@ -60,8 +60,10 @@ class CTC100:
         for i in range(17):
             try:
                 ret_val.append(float(all_values[i]))
-            except ValueError:
+            except (IndexError, ValueError) as err:
                 ret_val.append(np.nan)
+            except Exception as err:
+                logging.warning("Warning in CTC: " + str(err))
 
         return ret_val
 
@@ -121,11 +123,39 @@ class CTC100:
             logging.warning("CTC100 warning in description(): " + str(err))
             return np.nan
 
+    def outputStatus(self):
+        try:
+            self.instr.write("outputEnable?")
+            time.sleep(1)
+            val = self.instr.read_raw()
+            if val == b'\x97\r\n': # CTC100 returns b'\x97\r\n' when it doesn't have a number to return
+                return "False"
+            else:
+                try:
+                    return val.decode('utf-8')
+                except UnicodeDecodeError as err:
+                    logging.warning("CTC100 getting output status failed: ", err)
+        except pyvisa.errors.VisaIOError as err:
+            logging.warning("CTC100 warning in OutputStatus(): " + str(err))
+            return np.nan
+
+    def OutputStatusReport(self):
+        try:
+            values = self.ReadValue()
+            out1, out2 = values[7], values[12]
+            if (out1>0) or (out2>0):
+                return "On"
+            else:
+                return "Off"
+        except Exception as err:
+            logging.error("Error in CTC100: "+str(err))
+            return "invalid"
+
     def outputEnable(self):
         try:
             return self.instr.write("outputEnable on")
         except pyvisa.errors.VisaIOError as err:
-            logging.warning("CTC100 warning in outpuEnable(): " + str(err))
+            logging.warning("CTC100 warning in outputEnable(): " + str(err))
             return np.nan
 
     def outputDisable(self):

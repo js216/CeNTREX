@@ -32,7 +32,6 @@ class SynthHDPro:
     
     def __exit__(self, *exc):
         if self.instr:
-            # close object
             try:
                 self.instr.close()
             except pyvisa.errors.VisaIOError as err:

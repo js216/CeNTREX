@@ -42,7 +42,6 @@ class Hornet:
     def __exit__(self, *exc):
         if self.instr:
             self.instr.close()
-            self.rm.close()
 
     def query(self, cmd):
         self.instr.write(cmd)
@@ -191,7 +190,7 @@ class Hornet:
         """
         try:
             return self.query("#" + self.address + "IGS").strip()
-        except pyvisa.errors.VisaIOError:
+        except (pyvisa.errors.VisaIOError, AttributeError):
             return np.nan
 
     def IGStatus(self):

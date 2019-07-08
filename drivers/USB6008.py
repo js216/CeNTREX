@@ -76,6 +76,18 @@ class USB6008:
         flow_signal = float(str(flow)[9:-1])
         return flow_signal / 5 * 100
 
+    def NeonStatus(self):
+        try:
+            flow_rate = self.ReadFlowSignal()
+            if flow_rate > 1:
+                return "flowing"
+            elif flow_rate < 1:
+                return "not flowing"
+            else:
+                return "invalid"
+        except:
+            return "invalid"
+
     def CheckFlood(self):
         """Check for flooding of the compressor cabinet.
 
@@ -138,7 +150,7 @@ class USB6008:
 
     def SetPointControl(self, setpoint_sccm):
         # calculate the setpoint voltage from sccm
-        self.setpoint_sccm = setpoint_sccm
+        self.setpoint_sccm = float(setpoint_sccm)
         self.setpoint_V = self.setpoint_sccm / 100 * 5
 
         # check for too high a setpoint

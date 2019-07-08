@@ -82,6 +82,22 @@ class HP6645A:
             logging.warning("HP6645A warning in SetCurrent(): " + str(err))
             return np.nan
 
+    def OutputStatus(self):
+        try:
+            return self.instr.query('OUTP?').strip()
+        except (pyvisa.errors.VisaIOError, AttributeError) as err:
+            logging.warning("HP6645A warning in OutputEnable(): " + str(err))
+            return np.nan
+
+    def OutputStatusReport(self):
+        state = self.OutputStatus()
+        if state == "0":
+            return "off"
+        elif state == "1":
+            return "on"
+        else:
+            return "invalid"
+
     def OutputEnable(self):
         try:
             return self.instr.write('OUTP ON')

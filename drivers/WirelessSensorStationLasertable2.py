@@ -12,12 +12,12 @@ def CatchUrllibErrors(func):
         try:
             return func(*args, **kwargs)
         except (URLError, HTTPError, timeout) as err:
-            logging.warning('WirelessSensorStationVertiv warning in {0}() : '.format(func.__name__) \
+            logging.warning('WirelessSensorStationLasertable warning in {0}() : '.format(func.__name__) \
                             +str(err))
             return np.nan
     return wrapper
 
-class WirelessSensorStationVertiv:
+class WirelessSensorStationLasertable2:
     def __init__(self, time_offset, ip):
         self.time_offset = time_offset
         self.ip = ip
@@ -46,7 +46,7 @@ class WirelessSensorStationVertiv:
 
     @CatchUrllibErrors
     def ReadValue(self):
-        with urllib.request.urlopen("http://"+self.ip+"/temperature", timeout = 1) as response:
+        with urllib.request.urlopen("http://"+self.ip+"/BME280", timeout = 1) as response:
             value = response.read().decode()
         values = [time.time()-self.time_offset]
         value = [float(v.split(':')[-1].strip()) for v in value.split(',')]

@@ -269,6 +269,20 @@ class CPA1110:
     def MotorCurrent(self):
         return to_float(self.rr.registers[24], self.rr.registers[25])[0]
 
+    def MotorStatus(self):
+        if self.ReadRegisters():
+            motor_current = self.MotorCurrent()
+            if not motor_current:
+                return "invalid"
+            if motor_current > 25:
+                return "running"
+            elif motor_current < 1:
+                return "stopped"
+            elif motor_current < 25:
+                return "accelerating"
+        else:
+            return "invalid"
+
     def HoursOfOperation(self):
         return to_float(self.rr.registers[26], self.rr.registers[27])[0]
 

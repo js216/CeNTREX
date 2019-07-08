@@ -169,7 +169,7 @@ class PXIe5171:
                     attrs.update(attrs_upd)
             all_attrs.append(attrs)
 
-        return (waveforms_flat.reshape(self.shape), all_attrs)
+        return [waveforms_flat.reshape(self.shape), all_attrs]
 
     def GetWarnings(self):
         return None

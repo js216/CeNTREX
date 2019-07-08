@@ -322,6 +322,9 @@ def SocketDeviceClient(*args):
             self.port = int(socket_connection['port'])
             driver.__init__(self, time_offset, *device_args)
 
+        def __exit__(self, *exc):
+            return
+
         def _createRequest(self, action, value):
             return dict(
                 type="text/json",

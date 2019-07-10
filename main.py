@@ -840,7 +840,7 @@ class DeviceConfig(Config):
             }
 
     def change_param(self, key, val, sect=None, sub_ctrl=None, row=None):
-        if row:
+        if row != None:
             self[sect][key]["value"][sub_ctrl][row] = val
         elif sub_ctrl:
             self[sect][key]["value"][sub_ctrl] = val
@@ -2672,7 +2672,6 @@ class Plotter(qt.QWidget):
             if self.dev.config["slow_data"]: # fast data does not need an x variable
                 select_defaults = True
         if not self.config["y"] in self.param_list:
-            print( self.config["y"] , self.param_list)
             select_defaults = True
 
         # select x and y

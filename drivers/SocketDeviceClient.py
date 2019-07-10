@@ -271,14 +271,18 @@ def wrapperReadValueClientMethod(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         value = args[0].request("query", "ReadValue")
-        # corrects time with time_offset of the client system, assumes clocks
-        # are synchronized between systems with minimal offsets
-        v = [value[0]-args[0].time_offset]
-        # uses client system time as timestamp, assuming no/insignificant delay
-        # between grabbing data from server and client receiving data.
-        # v = [time.time()-args[0].time_offset]
-        v.extend(value[1])
-        return v
+        try:
+            if np.isnan(value):
+                return np.nan
+        except:
+            # corrects time with time_offset of the client system, assumes clocks
+            # are synchronized between systems with minimal offsets
+            v = [value[0]-args[0].time_offset]
+            # uses client system time as timestamp, assuming no/insignificant delay
+            # between grabbing data from server and client receiving data.
+            # v = [time.time()-args[0].time_offset]
+            v.extend(value[1])
+            return v
     return wrapper
 
 def ClientClassDecorator(cls):

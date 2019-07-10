@@ -342,9 +342,18 @@ def wrapperReadValueServerMethod(func):
     """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        value = func(*args, **kwargs)
-        args[0].data['ReadValue'] = (time.time(), value[1:])
-        return value
+        command = 'ReadValueServer'
+        args[0].commands.put(command)
+        while True:
+            if args[0].data["commandReturn"].get(command):
+                readvalue = args[0].data["commandReturn"].get(command)
+                print(readvalue)
+                if 'Exception' in readvalue[2]:
+                    return np.nan
+                args[0].data[command] = (readvalue[0], readvalue[2])
+                del args[0].data["commandReturn"][command]
+                break
+        return readvalue[2]
     return wrapper
 
 def ServerClassDecorator(cls):
@@ -357,7 +366,7 @@ def ServerClassDecorator(cls):
         if isinstance(attr_value, FunctionType):
             if attr_name == 'ReadValue':
                 attribute = wrapperReadValueServerMethod(attr_value)
-                setattr(cls, attr_name, attribute)
+                setattr(cls, 'ReadValueServer', attribute)
             elif attr_name in ['__init__', 'accept_wrapper', 'run_server', '__enter__', '__exit__']:
                 continue
             elif not inspect.signature(attr_value).parameters.get('self'):

@@ -16,6 +16,7 @@ import struct
 import inspect
 from queue import Queue
 import numpy as np
+import copy
 
 #############################################
 # Class for server side messages
@@ -330,7 +331,7 @@ class executeCommands(threading.Thread):
                 except Exception as e:
                     self.data['commandReturn'][c] = (time.time(), c, 'Exception: '+str(e))
                     pass
-            time.sleep(5e-3)
+            time.sleep(1e-5)
 
 #############################################
 # Socket Device Server Class
@@ -342,18 +343,40 @@ def wrapperReadValueServerMethod(func):
     """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        command = 'ReadValueServer'
+        command = 'ReadValueServer()'
         args[0].commands.put(command)
         while True:
             if args[0].data["commandReturn"].get(command):
                 readvalue = args[0].data["commandReturn"].get(command)
-                print(readvalue)
                 if 'Exception' in readvalue[2]:
+                    logging.warning('{0} warning in {1}: {2}'.format(args[0].device_name,
+                                    'ReadValue', readvalue[2]))
                     return np.nan
-                args[0].data[command] = (readvalue[0], readvalue[2])
+                args[0].data['ReadValue'] = (readvalue[0], readvalue[2][1:])
                 del args[0].data["commandReturn"][command]
                 break
         return readvalue[2]
+    return wrapper
+
+def wrapperSocketServerMethods(func):
+    """
+    Wraps other methods of a device driver
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        device_name = args[0].device_name
+        command = func.__name__+'Server(*{0}, **{1})'.format(args[1:], kwargs)
+        args[0].commands.put(command)
+        while True:
+            if args[0].data["commandReturn"].get(command):
+                value = args[0].data['commandReturn'].get(command)
+                if 'Exception' in value[2]:
+                    logging.warning('{0} warning in {1}: {2}'.format(device_name,
+                                    func.__name__, value[2]))
+                    return np.nan
+                del args[0].data['commandReturn']['command']
+                break
+        return value[2]
     return wrapper
 
 def ServerClassDecorator(cls):
@@ -365,8 +388,9 @@ def ServerClassDecorator(cls):
         attr_value = getattr(cls, attr_name)
         if isinstance(attr_value, FunctionType):
             if attr_name == 'ReadValue':
+                setattr(cls, 'ReadValueServer', copy.deepcopy(attr_value))
                 attribute = wrapperReadValueServerMethod(attr_value)
-                setattr(cls, 'ReadValueServer', attribute)
+                setattr(cls, 'ReadValue', attribute)
             elif attr_name in ['__init__', 'accept_wrapper', 'run_server', '__enter__', '__exit__']:
                 continue
             elif not inspect.signature(attr_value).parameters.get('self'):
@@ -374,9 +398,10 @@ def ServerClassDecorator(cls):
                 # figure out a better way
                 continue
             else:
-                continue
-                # attribute = wrapperSocketServerMethods(attr_value)
+                # setattr(cls, attr_name+'Server', copy.deepcopy(attr_value))
+                # attribute = wrapperReadValueServerMethod(attr_value)
                 # setattr(cls, attr_name, attribute)
+                continue
     return cls
 
 def SocketDeviceServer(*args):

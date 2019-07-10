@@ -78,11 +78,17 @@ class FS740:
 
     def ReadValue(self):
         self.WriteValueINFLUXDB()
+        tint = self.TBaseTInterval(True)
+        try:
+            tint = float(tint)
+        except:
+            tint = np.nan
+
         values = [
                 time.time() - self.time_offset,
                 float(self.TBaseStateLockDuration()),
                 float(self.TBaseTInterval()),
-                float(self.TBaseTInterval(True)),
+                tint,
                 float(self.QueryTBaseTConstant()),
                 float(self.QueryTBaseFControl()),
         ]
@@ -162,72 +168,76 @@ class FS740:
             finally:
                 connection.close()
 
-        tableO, tableS, tableL = 'overview', 'satellites', 'log'
-
-        values, descs = self.ReadValueINFLUXDB(full_output = True)
-
-        s = values[1].split('.')
-        time = dt.datetime.strptime(values[0]+' '+s[0]+'.'+s[1][:6],
-                                    '%Y,%m,%d %H,%M,%S.%f').isoformat()
-
-        values, descs = self.ExpandValue(values, descs, 'GPSMode',
-                                         (bool, float, float), ('antiJamming',
-                                         'elevationMask','signalMask'))
-        values, descs = self.ExpandValue(values, descs, 'GPSPosition',
-                                         (float, float, float),
-                                         ('latitude', 'longitude', 'altitude'))
-
         try:
-            idx = descs.index('GPSSatelliteTrackingStatus')
-            sats = self.chunks(values[idx].split(','), 8)
+
+            tableO, tableS, tableL = 'overview', 'satellites', 'log'
+
+            values, descs = self.ReadValueINFLUXDB(full_output = True)
+
+            s = values[1].split('.')
+            time = dt.datetime.strptime(values[0]+' '+s[0]+'.'+s[1][:6],
+                                        '%Y,%m,%d %H,%M,%S.%f').isoformat()
+
+            values, descs = self.ExpandValue(values, descs, 'GPSMode',
+                                             (bool, float, float), ('antiJamming',
+                                             'elevationMask','signalMask'))
+            values, descs = self.ExpandValue(values, descs, 'GPSPosition',
+                                             (float, float, float),
+                                             ('latitude', 'longitude', 'altitude'))
+
+            try:
+                idx = descs.index('GPSSatelliteTrackingStatus')
+                sats = self.chunks(values[idx].split(','), 8)
+            except Exception as e:
+                logging.warning("FS740 warning in WriteValueINFLUXDB GPSSatelliteTrackingStatus: {0}".format(e))
+                return
+            try:
+                ids, signal, elevation, azimuth = \
+                zip(*[(int(val[0]), int(val[4]), int(val[5]), int(val[6]))
+                      for val in sats if (val[3] =='0') and (val[0] != '0')])
+            except Exception as e:
+                logging.warning("FS740 warning in WriteValueINFLUXDB GPSSatelliteTrackingStatus: {0}; {1}".format(sats, e))
+                return
+            values = values[2:-2]
+            descs = descs[2:-2]
+            values.append(len(ids))
+            descs.append("satelitesConnected")
+            values.append(round(sum(signal)/len(signal),1))
+            descs.append('SNR')
+
+            writeO = {"measurement":tableO,
+                     "tags": {'clock_id':'FS740'},
+                     "time":time,
+                     "fields":dict((key,value) for key,value in
+                                   zip(descs,values))}
+
+            writeS = [{"measurement":tableS,
+                      "tags":{'satelliteID':id},
+                      "time":time,
+                      "fields":{"signal":sig,
+                                "elevation":ele,
+                                "azimuth":azi}} for id, sig, ele, azi in \
+                      zip(ids, signal, elevation, azimuth)]
+
+            writeL = []
+            while int(self.TBaseEventCount()) > 0:
+                event = self.TBaseEventNext().split(',')
+                msg = event[0]
+                ts = ','.join(event[1:])
+                ts = dt.datetime.strptime(ts,"%Y,%m,%d,%H,%M,%S").isoformat()
+                writeL.append({"measurement":tableL,
+                               "tags":{"deviceID":'FS740', "label":"event"},
+                               "time":ts, "fields":{"message":msg}})
+            with get_connection(host = '172.28.82.114', port = 8086,
+                                database = 'clock', username = 'test', \
+                                password = 'test') as connection:
+                connection.write_points([writeO])
+                connection.write_points(writeS)
+                if len(writeL) > 0:
+                    connection.write_points(writeL)
         except Exception as e:
-            logging.warning("FS740 warning in WriteValueINFLUXDB GPSSatelliteTrackingStatus: {0}".format(e))
+            logging.warning("FS740 warning in WriteValueINFLUXDB: {0}".format(e))
             return
-        try:
-            ids, signal, elevation, azimuth = \
-            zip(*[(int(val[0]), int(val[4]), int(val[5]), int(val[6]))
-                  for val in sats if (val[3] =='0') and (val[0] != '0')])
-        except Exception as e:
-            logging.warning("FS740 warning in WriteValueINFLUXDB GPSSatelliteTrackingStatus: {0}; {1}".format(sats, e))
-            return
-        values = values[2:-2]
-        descs = descs[2:-2]
-        values.append(len(ids))
-        descs.append("satelitesConnected")
-        values.append(round(sum(signal)/len(signal),1))
-        descs.append('SNR')
-
-        writeO = {"measurement":tableO,
-                 "tags": {'clock_id':'FS740'},
-                 "time":time,
-                 "fields":dict((key,value) for key,value in
-                               zip(descs,values))}
-
-        writeS = [{"measurement":tableS,
-                  "tags":{'satelliteID':id},
-                  "time":time,
-                  "fields":{"signal":sig,
-                            "elevation":ele,
-                            "azimuth":azi}} for id, sig, ele, azi in \
-                  zip(ids, signal, elevation, azimuth)]
-
-        writeL = []
-        while int(self.TBaseEventCount()) > 0:
-            event = self.TBaseEventNext().split(',')
-            msg = event[0]
-            ts = ','.join(event[1:])
-            ts = dt.datetime.strptime(ts,"%Y,%m,%d,%H,%M,%S").isoformat()
-            writeL.append({"measurement":tableL,
-                           "tags":{"deviceID":'FS740', "label":"event"},
-                           "time":ts, "fields":{"message":msg}})
-        with get_connection(host = '172.28.82.114', port = 8086,
-                            database = 'clock', username = 'test', \
-                            password = 'test') as connection:
-            connection.write_points([writeO])
-            connection.write_points(writeS)
-            if len(writeL) > 0:
-                connection.write_points(writeL)
-
     def VerifyOperation(self):
         return self.QueryIDN().split(',')[1]
 

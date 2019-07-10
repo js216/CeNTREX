@@ -285,6 +285,18 @@ def wrapperReadValueClientMethod(func):
             return v
     return wrapper
 
+def wrapperGetWarningsClientMethod(func):
+    """
+    Function wrapper for the GetWarnings method of the device drier class to
+    ensure warnings are only recorded on the server side, since GetWarnings
+    clears the existing warnings, so all warnings would be scattered among
+    clients and server.
+    """
+    @functools.wraps(func):
+    def wrapper(*args, **kwargs):
+        return None
+    return wrapper
+
 def ClientClassDecorator(cls):
     """
     Decorator for the SocketDeviceClientClass to modify driver function for use
@@ -295,6 +307,9 @@ def ClientClassDecorator(cls):
         if isinstance(attr_value, FunctionType):
             if attr_name == 'ReadValue':
                 attribute = wrapperReadValueClientMethod(attr_value)
+                setattr(cls, attr_name, attribute)
+            if attr_name == 'GetWarnings':
+                attribute = wrapperGetWarningsClientMethod(attr_value)
                 setattr(cls, attr_name, attribute)
             elif attr_name in ['__init__', '_createRequest', 'request', '__enter__', '__exit__']:
                 continue

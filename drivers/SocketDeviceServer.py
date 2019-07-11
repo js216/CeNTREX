@@ -279,7 +279,7 @@ class socketServer(threading.Thread):
         conn, addr = sock.accept()  # Should be ready to read
         logging.info("{0} accepted connection from".format(self.device.device_name), addr)
         conn.setblocking(False)
-        message = ServerMessage(self.sel, conn, addr, self.device.data,
+        message = ServerMessage(self.sel, conn, addr, self.device.data_server,
                                 self.device.commands, self.timeout)
         self.sel.register(conn, selectors.EVENT_READ, data=message)
 

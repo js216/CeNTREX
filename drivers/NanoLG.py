@@ -59,7 +59,7 @@ class NanoLG:
         self.new_attributes = []
 
         # shape and type of the array of returned data
-        self.dtype = 'f'
+        self.dtype = 'f16'
         self.shape = (15, )
 
         self.warnings = []
@@ -175,17 +175,18 @@ class NanoLG:
                      'system_info':system_info,
                      'system_status_word':system_status_word}
 
-        try:
-            self.instr = self.rm.open_resource(resource_name)
-            self.Ping()
-            if type(self.data['system_status_word']['system_state']) == type(None):
+        if resource_name != "client":
+            try:
+                self.instr = self.rm.open_resource(resource_name)
+                self.Ping()
+                if type(self.data['system_status_word']['system_state']) == type(None):
+                    self.verification_string = "False"
+                    self.instr = False
+                    return
+            except pyvisa.errors.VisaIOError:
                 self.verification_string = "False"
                 self.instr = False
                 return
-        except pyvisa.errors.VisaIOError:
-            self.verification_string = "False"
-            self.instr = False
-            return
 
         self.instr.parity = pyvisa.constants.Parity.none
         self.instr.baud_rate = 9600

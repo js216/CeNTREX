@@ -211,6 +211,7 @@ class NanoLG:
         self.RequestQSwitchDelayLowLimit()
         self.RequestQSwitchDelayHighLimit()
         self.RepetitionRateDivider(10)
+        self.ShutterOpen()
 
 
     def __enter__(self):
@@ -218,7 +219,7 @@ class NanoLG:
 
     def __exit__(self, *exc):
         if self.instr:
-            self.StopSystem()
+            self.ShutterClose()
             self.instr.close()
 
     def write(self, data):

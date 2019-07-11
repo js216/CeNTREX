@@ -292,7 +292,7 @@ def wrapperGetWarningsClientMethod(func):
     clears the existing warnings, so all warnings would be scattered among
     clients and server.
     """
-    @functools.wraps(func):
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return None
     return wrapper
@@ -308,7 +308,7 @@ def ClientClassDecorator(cls):
             if attr_name == 'ReadValue':
                 attribute = wrapperReadValueClientMethod(attr_value)
                 setattr(cls, attr_name, attribute)
-            if attr_name == 'GetWarnings':
+            elif attr_name == 'GetWarnings':
                 attribute = wrapperGetWarningsClientMethod(attr_value)
                 setattr(cls, attr_name, attribute)
             elif attr_name in ['__init__', '_createRequest', 'request', '__enter__', '__exit__']:

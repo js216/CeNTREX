@@ -312,7 +312,7 @@ class executeCommands(threading.Thread):
         threading.Thread.__init__(self)
         self.device = device
         self.commands = device.commands
-        self.data = device.data
+        self.data_server = device.data_server
 
         self.active = threading.Event()
         self.active.clear()
@@ -327,9 +327,9 @@ class executeCommands(threading.Thread):
                     # try to execute the command
                     value = eval('self.device.'+c.strip())
                     # storing command in the server device database
-                    self.data['commandReturn'][c] = (time.time(), c, value)
+                    self.data_server['commandReturn'][c] = (time.time(), c, value)
                 except Exception as e:
-                    self.data['commandReturn'][c] = (time.time(), c, 'Exception: '+str(e))
+                    self.data_server['commandReturn'][c] = (time.time(), c, 'Exception: '+str(e))
                     pass
             time.sleep(1e-5)
 
@@ -346,14 +346,14 @@ def wrapperReadValueServerMethod(func):
         command = 'ReadValueServer()'
         args[0].commands.put(command)
         while True:
-            if args[0].data["commandReturn"].get(command):
-                readvalue = args[0].data["commandReturn"].get(command)
+            if args[0].data_server["commandReturn"].get(command):
+                readvalue = args[0].data_server["commandReturn"].get(command)
                 if 'Exception' in readvalue[2]:
                     logging.warning('{0} warning in {1}: {2}'.format(args[0].device_name,
                                     'ReadValue', readvalue[2]))
                     return np.nan
-                args[0].data['ReadValue'] = (readvalue[0], readvalue[2][1:])
-                del args[0].data["commandReturn"][command]
+                args[0].data_server['ReadValue'] = (readvalue[0], readvalue[2][1:])
+                del args[0].data_server["commandReturn"][command]
                 break
         return readvalue[2]
     return wrapper
@@ -368,13 +368,13 @@ def wrapperSocketServerMethods(func):
         command = func.__name__+'Server(*{0}, **{1})'.format(args[1:], kwargs)
         args[0].commands.put(command)
         while True:
-            if args[0].data["commandReturn"].get(command):
-                value = args[0].data['commandReturn'].get(command)
+            if args[0].data_server["commandReturn"].get(command):
+                value = args[0].data_server['commandReturn'].get(command)
                 if 'Exception' in value[2]:
                     logging.warning('{0} warning in {1}: {2}'.format(device_name,
                                     func.__name__, value[2]))
                     return np.nan
-                del args[0].data['commandReturn']['command']
+                del args[0].data_server['commandReturn']['command']
                 break
         return value[2]
     return wrapper
@@ -429,7 +429,7 @@ def SocketDeviceServer(*args):
             self.device_name = device_name
             # initializing the server device database
             self.verification_string = 'False'
-            self.data = {'ReadValue':np.nan, 'verification':self.verification_string,
+            self.data_server = {'ReadValue':np.nan, 'verification':self.verification_string,
                          'commandReturn':{}}
 
             # server commands queue for storing commands of external clients
@@ -443,7 +443,7 @@ def SocketDeviceServer(*args):
             # initialize the device driver
             driver.__init__(self, time_offset, *device_args)
             # add verification string to the server device database
-            self.data['verification'] = self.verification_string
+            self.data_server['verification'] = self.verification_string
 
             # starting the thread responsible for handling communication with
             # external clients

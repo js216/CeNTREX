@@ -142,8 +142,9 @@ class PXIe5171:
                     offset        = 0,
                     record_number = self.rec_num,
                     num_records   = self.num_records,
-                    timeout       = datetime.timedelta(seconds=1.0)
+                    timeout       = datetime.timedelta(seconds=5)
                 )
+            timestamp = time.time()-self.time_offset
         except niscope.errors.DriverError as err:
             logging.warning(str(err))
             return np.nan
@@ -158,6 +159,7 @@ class PXIe5171:
             for info in infos:
                 if info.record == i:
                     attrs_upd = {
+                            'ch'+str(info.channel)+' : timestamp'          : timestamp,
                             'ch'+str(info.channel)+' : relative_initial_x' : info.relative_initial_x,
                             'ch'+str(info.channel)+' : absolute_initial_x' : info.absolute_initial_x,
                             'ch'+str(info.channel)+' : x_increment'        : info.x_increment,

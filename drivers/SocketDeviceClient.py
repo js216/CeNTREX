@@ -351,7 +351,11 @@ def SocketDeviceClient(*args):
             driver.__init__(self, time_offset, *device_args)
 
         def __exit__(self, *exc):
-            return
+            try:
+                driver.__exitclient__(self, *exc)
+                return
+            except:
+                return
 
         def _createRequest(self, action, value):
             return dict(

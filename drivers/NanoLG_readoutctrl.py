@@ -201,19 +201,19 @@ class NanoLG_readoutctrl:
 
         # acceptable time difference between requesting parameter and time stored in self.data
         self.param_delay = 2
-
-        print('start')
+        time.sleep(1)
         self.ShutterOpen()
-        print('done')
-
 
     def __enter__(self):
         return self
 
     def __exit__(self, *exc):
+        self.ShutterClose()
         if self.instr:
-            self.ShutterClose()
             self.instr.close()
+
+    def __exitclient__(self, *exc):
+        self.ShutterClose()
 
     def write(self, data):
         self.instr.write_raw(data)

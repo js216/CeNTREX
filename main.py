@@ -192,6 +192,7 @@ class Device(threading.Thread):
         self.warnings = []
 
         # the data and events queues
+        self.time_last_read = 0
         self.data_queue = deque()
         self.config["plots_queue"] = deque(maxlen=self.config["plots_queue_maxlen"])
         self.events_queue = deque()
@@ -270,16 +271,10 @@ class Device(threading.Thread):
                             logging.warning("Device dt too small.")
                             raise ValueError
                     except ValueError:
-                        time.sleep(0.1)
+                        dt = 0.1
 
-                    # do the loop delay, checking the device is still enabled
-                    else:
-                        dt = float(self.config["control_params"]["dt"]["value"])
-                        for i in range(int(dt)):
-                            if not self.active.is_set():
-                                return
-                            time.sleep(1)
-                        time.sleep(dt - int(dt))
+                    # 50 Hz loop delay
+                    time.sleep(0.02)
 
                     # check device is enabled
                     if not self.config["control_params"]["enabled"]["value"]:
@@ -291,10 +286,12 @@ class Device(threading.Thread):
                         self.warnings += warning
 
                     # record numerical values
-                    last_data = device.ReadValue()
-                    if last_data:
-                        self.data_queue.append(last_data)
-                        self.config["plots_queue"].append(last_data)
+                    if time.time() - self.time_last_read >= dt:
+                        last_data = device.ReadValue()
+                        self.time_last_read = time.time()
+                        if last_data:
+                            self.data_queue.append(last_data)
+                            self.config["plots_queue"].append(last_data)
 
                     # keep track of the number of (sequential and total) NaN returns
                     if isinstance(last_data, float):

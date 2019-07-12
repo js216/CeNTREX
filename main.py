@@ -351,6 +351,8 @@ class Monitoring(threading.Thread):
         self.parent = parent
         self.active = threading.Event()
 
+        self.time_last_monitored = 0
+
         # connect to InfluxDB
         conf = self.parent.config["influxdb"]
         self.influxdb_client = InfluxDBClient(
@@ -425,18 +427,23 @@ class Monitoring(threading.Thread):
                     dev.config["monitoring_GUI_elements"]["data"].setText("\n".join(formatted_data))
 
                     # write slow data to InfluxDB
-                    self.write_to_influxdb(dev, data)
+                    if time.time() - self.time_last_monitored >= dt:
+                        self.time_last_monitored = time.time()
+                        self.write_to_influxdb(dev, data)
 
                 # if writing to HDF is disabled, empty the queues
                 if not dev.config["control_params"]["HDF_enabled"]["value"]:
                     dev.events_queue.clear()
                     dev.data_queue.clear()
 
-            # loop delay
+            # Fixed monitoring fast loop delay
+            time.sleep(0.5)
+
+            # Monitoring dt
             try:
-                time.sleep(float(self.parent.config["general"]["monitoring_dt"]))
+                dt = float(self.parent.config["general"]["monitoring_dt"])
             except ValueError:
-                time.sleep(1)
+                dt = 1
 
     def write_to_influxdb(self, dev, data):
         # check writing to InfluxDB is enabled

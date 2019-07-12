@@ -16,6 +16,7 @@ import struct
 import inspect
 from queue import Queue
 import numpy as np
+import copy
 
 #############################################
 # Class for server side messages
@@ -278,8 +279,8 @@ class socketServer(threading.Thread):
         conn, addr = sock.accept()  # Should be ready to read
         logging.info("{0} accepted connection from".format(self.device.device_name), addr)
         conn.setblocking(False)
-        message = ServerMessage(self.sel, conn, addr, self.device.data,
-                                self.device.commands, self.timeout)
+        message = ServerMessage(self.sel, conn, addr, self.device.data_server,
+                                self.device.commands_server, self.timeout)
         self.sel.register(conn, selectors.EVENT_READ, data=message)
 
     def run(self):
@@ -307,11 +308,11 @@ class executeCommands(threading.Thread):
     """
     Handles executing commands from external clients in a separate thread.
     """
-    def __init__(self, device):
+    def __init__(self, socket_server):
         threading.Thread.__init__(self)
-        self.device = device
-        self.commands = device.commands
-        self.data = device.data
+        self.socket_server = socket_server
+        self.commands = socket_server.commands_server
+        self.data = socket_server.data_server
 
         self.active = threading.Event()
         self.active.clear()
@@ -324,7 +325,7 @@ class executeCommands(threading.Thread):
                 c = self.commands.get()
                 try:
                     # try to execute the command
-                    value = eval('self.device.'+c.strip())
+                    value = eval('self.socket_server.'+c.strip())
                     # storing command in the server device database
                     self.data['commandReturn'][c] = (time.time(), c, value)
                 except Exception as e:
@@ -342,9 +343,19 @@ def wrapperReadValueServerMethod(func):
     """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        value = func(*args, **kwargs)
-        args[0].data['ReadValue'] = (time.time(), value[1:])
-        return value
+        command = 'ReadValueServer()'
+        args[0].commands_server.put(command)
+        while True:
+            if args[0].data_server["commandReturn"].get(command):
+                readvalue = args[0].data_server["commandReturn"].get(command)
+                if 'Exception' in readvalue[2]:
+                    logging.warning('{0} warning in {1}: {2}'.format(args[0].device_name,
+                                    'ReadValue', readvalue[2]))
+                    return np.nan
+                args[0].data_server['ReadValue'] = (readvalue[0], readvalue[2][1:])
+                del args[0].data_server["commandReturn"][command]
+                break
+        return readvalue[2]
     return wrapper
 
 def ServerClassDecorator(cls):
@@ -356,8 +367,9 @@ def ServerClassDecorator(cls):
         attr_value = getattr(cls, attr_name)
         if isinstance(attr_value, FunctionType):
             if attr_name == 'ReadValue':
+                setattr(cls, 'ReadValueServer', copy.deepcopy(attr_value))
                 attribute = wrapperReadValueServerMethod(attr_value)
-                setattr(cls, attr_name, attribute)
+                setattr(cls, 'ReadValue', attribute)
             elif attr_name in ['__init__', 'accept_wrapper', 'run_server', '__enter__', '__exit__']:
                 continue
             elif not inspect.signature(attr_value).parameters.get('self'):
@@ -395,26 +407,26 @@ def SocketDeviceServer(*args):
             self.device_name = device_name
             # initializing the server device database
             self.verification_string = 'False'
-            self.data = {'ReadValue':np.nan, 'verification':self.verification_string,
+            self.data_server = {'ReadValue':np.nan, 'verification':self.verification_string,
                          'commandReturn':{}}
 
             # server commands queue for storing commands of external clients
-            self.commands = Queue()
+            self.commands_server = Queue()
 
             # start thread responsible for executing commands from external
             # clients
-            self.thread_device = executeCommands(self)
-            self.thread_device.start()
+            self.thread_commands = executeCommands(self)
+            self.thread_commands.start()
 
             # initialize the device driver
             driver.__init__(self, time_offset, *device_args)
             # add verification string to the server device database
-            self.data['verification'] = self.verification_string
+            self.data_server['verification'] = self.verification_string
 
             # starting the thread responsible for handling communication with
             # external clients
-            self.thread_server = socketServer(self, '', int(port), float(timeout))
-            self.thread_server.start()
+            self.thread_communication = socketServer(self, '', int(port), float(timeout))
+            self.thread_communication.start()
             # sleeping for the same amount of time as the server communication
             # timeout to prevent problems when initializing the class twice
             # in the main DAQ software
@@ -424,8 +436,8 @@ def SocketDeviceServer(*args):
             """
             Properly stopping the communication and command execution threads.
             """
-            self.thread_device.active.clear()
-            self.thread_server.active.clear()
+            self.thread_commands.active.clear()
+            self.thread_communication.active.clear()
             super(SocketDeviceServerClass, self).__exit__(*exc)
 
     return SocketDeviceServerClass(*args)

@@ -329,9 +329,9 @@ class executeCommands(threading.Thread):
                     # try to execute the command
                     value = eval('self.socket_server.device.'+c.strip())
                     # storing command in the server device database
-                    self.data_server['commandReturn'][c] = (time.time(), c, value)
+                    self.data['commandReturn'][c] = (time.time(), c, value)
                 except Exception as e:
-                    self.data_server['commandReturn'][c] = (time.time(), c, 'Exception: '+str(e))
+                    self.data['commandReturn'][c] = (time.time(), c, 'Exception: '+str(e))
                     pass
             time.sleep(1e-5)
 
@@ -350,9 +350,13 @@ def wrapperServerMethod(func):
         while True:
             if args[0].data_server["commandReturn"].get(command):
                 command_return = args[0].data_server["commandReturn"].get(command)
-                if 'Exception' in command_return[2]:
+                if isinstance(command_return[2], type(None)):
+                    del args[0].data_server["commandReturn"][command]
+                    return None
+                elif 'Exception' in command_return[2]:
                     logging.warning('{0} warning in {1}: {2}'.format(args[0].device_name,
                                     command, command_return[2]))
+                    del args[0].data_server["commandReturn"][command]
                     return np.nan
                 del args[0].data_server["commandReturn"][command]
                 break

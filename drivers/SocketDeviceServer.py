@@ -135,6 +135,8 @@ class ServerMessage:
                 elif time.time() - tstart > self.timeout:
                     content = {"result": (time.time(), command, "not executed, {0}s timeout".format(self.timeout))}
                     break
+        elif action == "info":
+            content = {"result":self.data['info']}
         else:
             content = {"error": f'invalid action "{action}".'}
         content_encoding = "utf-8"
@@ -325,7 +327,7 @@ class executeCommands(threading.Thread):
                 c = self.commands.get()
                 try:
                     # try to execute the command
-                    value = eval('self.socket_server.'+c.strip())
+                    value = eval('self.socket_server.device.'+c.strip())
                     # storing command in the server device database
                     self.data['commandReturn'][c] = (time.time(), c, value)
                 except Exception as e:
@@ -337,13 +339,33 @@ class executeCommands(threading.Thread):
 # Socket Device Server Class
 #############################################
 
+def wrapperServerMethod(func):
+    """
+    Wraps the methods of a device driver for the SocketServer.
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        command = func.__name__+'(*{0},**{1})'.format(args[1:], kwargs)
+        args[0].commands_server.put(command)
+        while True:
+            if args[0].data_server["commandReturn"].get(command):
+                command_return = args[0].data_server["commandReturn"].get(command)
+                if 'Exception' in command_return[2]:
+                    logging.warning('{0} warning in {1}: {2}'.format(args[0].device_name,
+                                    command, command_return[2]))
+                    return np.nan
+                del args[0].data_server["commandReturn"][command]
+                break
+        return command_return[2]
+    return wrapper
+
 def wrapperReadValueServerMethod(func):
     """
     Wraps the ReadValue method of a device driver.
     """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        command = 'ReadValueServer()'
+        command = 'ReadValue()'
         args[0].commands_server.put(command)
         while True:
             if args[0].data_server["commandReturn"].get(command):
@@ -358,28 +380,20 @@ def wrapperReadValueServerMethod(func):
         return readvalue[2]
     return wrapper
 
-def ServerClassDecorator(cls):
+def SocketServerDecorator(cls):
     """
-    Decorator for the SocketDeviceServerClass to modify driver functions for use
-    with a socket server.
+    Decorator for the SocketServer class to ensure compatibility with the CeNTREX
+    DAQ system
     """
     for attr_name in dir(cls):
         attr_value = getattr(cls, attr_name)
         if isinstance(attr_value, FunctionType):
             if attr_name == 'ReadValue':
-                setattr(cls, 'ReadValueServer', copy.deepcopy(attr_value))
                 attribute = wrapperReadValueServerMethod(attr_value)
-                setattr(cls, 'ReadValue', attribute)
-            elif attr_name in ['__init__', 'accept_wrapper', 'run_server', '__enter__', '__exit__']:
-                continue
-            elif not inspect.signature(attr_value).parameters.get('self'):
-                # don't wrap static methods, very clunky method but couldn't
-                # figure out a better way
-                continue
-            else:
-                continue
-                # attribute = wrapperSocketServerMethods(attr_value)
-                # setattr(cls, attr_name, attribute)
+                setattr(cls, attr_name, attribute)
+            elif attr_name not in ['__init__', 'accept_wrapper', 'run_server', '__enter__', '__exit__']:
+                attribute = wrapperServerMethod(attr_value)
+                setattr(cls, attr_name, attribute)
     return cls
 
 def SocketDeviceServer(*args):
@@ -398,7 +412,11 @@ def SocketDeviceServer(*args):
     driver_spec.loader.exec_module(driver_module)
     driver = getattr(driver_module, driver)
 
-    @ServerClassDecorator
+    class SocketDevice(driver):
+        def __init__(self, time_offset, *device_args):
+            driver.__init__(self, time_offset, *device_args)
+
+    @SocketServerDecorator
     class SocketDeviceServerClass(driver):
         """
         SocketDeviceServer template class for easy setup of specific device classes
@@ -408,7 +426,7 @@ def SocketDeviceServer(*args):
             # initializing the server device database
             self.verification_string = 'False'
             self.data_server = {'ReadValue':np.nan, 'verification':self.verification_string,
-                         'commandReturn':{}}
+                         'commandReturn':{}, 'info':device_name}
 
             # server commands queue for storing commands of external clients
             self.commands_server = Queue()
@@ -419,7 +437,7 @@ def SocketDeviceServer(*args):
             self.thread_commands.start()
 
             # initialize the device driver
-            driver.__init__(self, time_offset, *device_args)
+            self.device = SocketDevice(time_offset, *device_args)
             # add verification string to the server device database
             self.data_server['verification'] = self.verification_string
 
@@ -427,10 +445,21 @@ def SocketDeviceServer(*args):
             # external clients
             self.thread_communication = socketServer(self, '', int(port), float(timeout))
             self.thread_communication.start()
+
+            # Grabbing values from device needed for nomal operation
+            self.time_offset = self.device.time_offset
+            self.new_attributes = self.device.new_attributes
+            self.dtype = self.device.dtype
+            self.shape = self.device.shape
+            self.verification_string = self.device.verification_string
+
             # sleeping for the same amount of time as the server communication
             # timeout to prevent problems when initializing the class twice
             # in the main DAQ software
             time.sleep(float(timeout))
+
+        def __enter__(self):
+            return self
 
         def __exit__(self, *exc):
             """
@@ -438,6 +467,6 @@ def SocketDeviceServer(*args):
             """
             self.thread_commands.active.clear()
             self.thread_communication.active.clear()
-            super(SocketDeviceServerClass, self).__exit__(*exc)
+            self.device.__exit__(*exc)
 
     return SocketDeviceServerClass(*args)

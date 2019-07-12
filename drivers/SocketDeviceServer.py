@@ -333,7 +333,7 @@ class executeCommands(threading.Thread):
                 except Exception as e:
                     self.data['commandReturn'][c] = (time.time(), c, 'Exception: '+str(e))
                     pass
-            time.sleep(5e-3)
+            time.sleep(1e-5)
 
 #############################################
 # Socket Device Server Class
@@ -389,6 +389,7 @@ def SocketServerDecorator(cls):
         attr_value = getattr(cls, attr_name)
         if isinstance(attr_value, FunctionType):
             if attr_name == 'ReadValue':
+                setattr(cls, 'ReadValueServer', copy.deepcopy(attr_value))
                 attribute = wrapperReadValueServerMethod(attr_value)
                 setattr(cls, attr_name, attribute)
             elif attr_name not in ['__init__', 'accept_wrapper', 'run_server', '__enter__', '__exit__']:

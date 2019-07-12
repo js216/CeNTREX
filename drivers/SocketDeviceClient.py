@@ -250,6 +250,10 @@ def wrapperSocketClientMethods(func):
         if func.__name__ not in  value[1]:
             logging.warning("{1} socket warning in {0}: wrong function return".format(func.__name__, device_name))
             return np.nan
+        elif isinstance(value[2], type(None)):
+            # some functions return None, such as GetWarnings, then the strings
+            # search will fail
+            return value[2]
         elif "not executed" in value[2]:
             logging.warning("{2} socket warning in {0}: {1}".format(func.__name__, value[2], device_name))
             return np.nan
@@ -267,14 +271,35 @@ def wrapperReadValueClientMethod(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         value = args[0].request("query", "ReadValue")
-        v = [value[0]-args[0].time_offset]
-        v.extend(value[1])
-        return v
+        try:
+            if np.isnan(value):
+                return np.nan
+        except:
+            # corrects time with time_offset of the client system, assumes clocks
+            # are synchronized between systems with minimal offsets
+            v = [value[0]-args[0].time_offset]
+            # uses client system time as timestamp, assuming no/insignificant delay
+            # between grabbing data from server and client receiving data.
+            # v = [time.time()-args[0].time_offset]
+            v.extend(value[1])
+            return v
+    return wrapper
+
+def wrapperGetWarningsClientMethod(func):
+    """
+    Function wrapper for the GetWarnings method of the device drier class to
+    ensure warnings are only recorded on the server side, since GetWarnings
+    clears the existing warnings, so all warnings would be scattered among
+    clients and server.
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        return None
     return wrapper
 
 def ClientClassDecorator(cls):
     """
-    Decorator fot the SocketDeviceClientClass to modify driver function for use
+    Decorator for the SocketDeviceClientClass to modify driver function for use
     with the socket client.
     """
     for attr_name in dir(cls):
@@ -282,6 +307,9 @@ def ClientClassDecorator(cls):
         if isinstance(attr_value, FunctionType):
             if attr_name == 'ReadValue':
                 attribute = wrapperReadValueClientMethod(attr_value)
+                setattr(cls, attr_name, attribute)
+            elif attr_name == 'GetWarnings':
+                attribute = wrapperGetWarningsClientMethod(attr_value)
                 setattr(cls, attr_name, attribute)
             elif attr_name in ['__init__', '_createRequest', 'request', '__enter__', '__exit__']:
                 continue

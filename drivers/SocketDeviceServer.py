@@ -329,9 +329,9 @@ class executeCommands(threading.Thread):
                     # try to execute the command
                     value = eval('self.socket_server.device.'+c.strip())
                     # storing command in the server device database
-                    self.data['commandReturn'][c] = (time.time(), c, value)
+                    self.data_server['commandReturn'][c] = (time.time(), c, value)
                 except Exception as e:
-                    self.data['commandReturn'][c] = (time.time(), c, 'Exception: '+str(e))
+                    self.data_server['commandReturn'][c] = (time.time(), c, 'Exception: '+str(e))
                     pass
             time.sleep(1e-5)
 

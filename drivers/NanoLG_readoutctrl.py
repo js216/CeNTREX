@@ -27,7 +27,7 @@ def RequestVisaIOError(func):
             return np.nan
     return wrapper
 
-class NanoLG:
+class NanoLG_readoutctrl:
     def __init__(self, time_offset, resource_name):
         """
         Control class for the Nano LG pulsed laser.
@@ -175,6 +175,7 @@ class NanoLG:
                      'system_info':system_info,
                      'system_status_word':system_status_word}
 
+        self.instr = False
         if resource_name != "client":
             try:
                 self.instr = self.rm.open_resource(resource_name)
@@ -188,10 +189,10 @@ class NanoLG:
                 self.instr = False
                 return
 
-        self.instr.parity = pyvisa.constants.Parity.none
-        self.instr.baud_rate = 9600
-        self.instr.stop_bits = pyvisa.constants.StopBits.one
-        self.instr.timeout = 150
+            self.instr.parity = pyvisa.constants.Parity.none
+            self.instr.baud_rate = 9600
+            self.instr.stop_bits = pyvisa.constants.StopBits.one
+            self.instr.timeout = 150
 
         # make the verification string
         self.verification_string = 'NanoLG'
@@ -200,26 +201,19 @@ class NanoLG:
 
         # acceptable time difference between requesting parameter and time stored in self.data
         self.param_delay = 2
-
-        self.RequestCoolerCrystalCalibrationSlope()
-        self.RequestCoolerCrystalCalibrationOffset()
-        self.RequestCoolerWaterCalibrationSlope()
-        self.RequestCoolerWaterCalibrationOffset()
-        self.RequestSystemData()
-        self.RequestPulsePeriodLowLimit()
-        self.RequestPulsePeriodHighLimit()
-        self.RequestQSwitchDelayLowLimit()
-        self.RequestQSwitchDelayHighLimit()
-        self.RepetitionRateDivider(10)
-
+        time.sleep(3)
+        self.ShutterOpen()
 
     def __enter__(self):
         return self
 
     def __exit__(self, *exc):
+        self.ShutterClose()
         if self.instr:
-            self.StopSystem()
             self.instr.close()
+
+    def __exitclient__(self, *exc):
+        self.ShutterClose()
 
     def write(self, data):
         self.instr.write_raw(data)

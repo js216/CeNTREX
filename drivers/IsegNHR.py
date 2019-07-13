@@ -87,6 +87,10 @@ class IsegNHR:
         self.time_offset = time_offset
         self.rm = pyvisa.ResourceManager()
 
+        # some configurable HV settings
+        self.rampVoltage = 50
+        self.PMTVoltage = 1000
+
         # HDF attributes generated when constructor is run
         self.new_attributes = []
 
@@ -205,28 +209,29 @@ class IsegNHR:
                 return
 
         self.ConfigureOutputPolarity('n', [0,1,2,3])
-        self.ConfigureRampVoltageUp(20, [0,1,2,3])
-        self.ConfigureRampVoltageDown(20, [0,1,2,3])
-        self.SetVoltage(1000, [0,1,2,3])
+        self.ConfigureRampVoltageUp(self.rampVoltage, [0,1,2,3])
+        self.ConfigureRampVoltageDown(self.rampVoltage, [0,1,2,3])
+        self.SetVoltage(self.PMTVoltage, [0,1,2,3])
+
         for idc, val in enumerate(self.ReadConfigureOutputPolarity([0,1,2,3])):
             if val != 'n':
                 logging.warning('IsegNHR warning in PMTSettings() : CH{} wrong polarity; {}'.format(idc, val))
                 warning_dict = { "message" : "CH{} wrong polarity; {}".format(idc, val)}
                 self.warnings.append(warning_dict)
         for idc, val in enumerate(self.ReadConfigureRampVoltageUp([0,1,2,3])):
-            if val != 20:
+            if val != self.rampVoltage:
                 logging.warning('IsegNHR warning in PMTSettings() : CH{} wrong ramp up; {} V/s'.format(idc, val))
                 warning_dict = { "message" : "CH{} wrong ramp up; {} V/s".format(idc, val)}
                 self.warnings.append(warning_dict)
 
         for idc, val in enumerate(self.ReadConfigureRampVoltageDown([0,1,2,3])):
-            if val != 20:
+            if val != self.rampVoltage:
                 logging.warning('IsegNHR warning in PMTSettings() : CH{} wrong ramp down; {} V/s'.format(idc, val))
                 warning_dict = { "message" : "CH{} wrong ramp down; {} V/s".format(idc, val)}
                 self.warnings.append(warning_dict)
 
         for idc, val in enumerate(self.ReadVoltage([0,1,2,3])):
-            if np.abs(val) != 1000:
+            if np.abs(val) != self.PMTVoltage:
                 logging.warning('IsegNHR warning in PMTSettings() : CH{} wrong set voltage; {} V'.format(idc, val))
                 warning_dict = { "message" : "CH{} wrong set voltage; {} V".format(idc, val)}
                 self.warnings.append(warning_dict)
@@ -573,7 +578,7 @@ class IsegNHR:
     @ArgumentListToString
     @WriteVisaIOError
     def ConfigureRampVoltageDown(self, ramp, channel):
-        self.write(':CONF:RAMP:VOLT:UP {},(@{})'.format(ramp, channel))
+        self.write(':CONF:RAMP:VOLT:DOWN {},(@{})'.format(ramp, channel))
 
     @WriteVisaIOError
     def ConfigureRampCurrent(self, ramp):

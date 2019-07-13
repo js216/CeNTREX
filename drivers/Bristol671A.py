@@ -90,19 +90,20 @@ class Bristol671A:
                             -222: "Data out of range",
                             -230: "Data corrupt or stale"}
 
-        try:
-            self.instr = telnetlib.Telnet(self.telnet_address, int(self.telnet_port))
-            # need to flush the first replies about the telnet connection
-            for _ in range(3):
-                resp = self.instr.read_until(b'\n\n',1).decode('ASCII').strip('\r\n\n').replace('\r\n','')
-                if resp == 'Sorry, no connections available, already in use?':
-                    raise Bristol671Error(""+str(resp))
-        except Exception as err:
-            logging.warning("Error in initial connection to Bristal 671A : "+str(err))
-            self.verification_string = "False"
-            self.instr = False
-            self.__exit__()
-            return None
+        if self.telnet_port != '':
+            try:
+                self.instr = telnetlib.Telnet(self.telnet_address, int(self.telnet_port))
+                # need to flush the first replies about the telnet connection
+                for _ in range(3):
+                    resp = self.instr.read_until(b'\n\n',1).decode('ASCII').strip('\r\n\n').replace('\r\n','')
+                    if resp == 'Sorry, no connections available, already in use?':
+                        raise Bristol671Error(""+str(resp))
+            except Exception as err:
+                logging.warning("Error in initial connection to Bristal 671A : "+str(err))
+                self.verification_string = "False"
+                self.instr = False
+                self.__exit__()
+                return None
 
         # make the verification string
         try:
@@ -117,6 +118,9 @@ class Bristol671A:
     def __exit__(self, *exc):
         if self.instr:
             self.instr.close()
+
+    def GetWarnings(self):
+        return None
 
     def ReadValue(self):
         return [ time.time() - self.time_offset,
@@ -858,6 +862,3 @@ class Bristol671A:
             self.write(":UNIT:POW:{0}".format(unit))
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in SetUnitPower()" + str(err))
-
-    def GetWarnings(self):
-        return None

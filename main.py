@@ -873,7 +873,14 @@ class DeviceConfig(Config):
 
         # read general device options
         for key, typ in self.static_keys.items():
+            # read a parameter from the .ini file
             val = params["device"].get(key)
+
+            # check the parameter is defined in the file; leave it at its default value if not
+            if not val:
+                continue
+
+            # if the parameter is defined in the .init file, parse it into correct type:
             if typ == list:
                 self[key] = [x.strip() for x in val.split(",")]
             elif typ == bool:

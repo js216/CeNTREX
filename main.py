@@ -357,7 +357,6 @@ class Monitoring(threading.Thread):
         self.active = threading.Event()
 
         self.time_last_monitored = 0
-        self.time_last_monitored_reset = False
 
         # connect to InfluxDB
         conf = self.parent.config["influxdb"]
@@ -836,8 +835,8 @@ class DeviceConfig(Config):
                 "max_NaN_count"      : int,
                 "meta_device"        : bool,
                 "double_connect_dev" : bool,
-                "data_type"          : type,
-                "data_shape"         : tuple,
+                "dtype"              : str,
+                "shape"              : list,
             }
 
         # list of keys permitted for runtime data (which cannot be written to .ini file)
@@ -903,8 +902,11 @@ class DeviceConfig(Config):
 
         # for single-connect devices, make sure data type and shape are defined
         if not self["double_connect_dev"]:
-            if not (self["data_shape"] and self["data_type"]):
+            if not (self["shape"] and self["dtype"]):
                 logging.warning("Single-connect device didn't specify data shape or type.")
+            else:
+                self['shape'] = [float(val) for val in self['shape']]
+
 
         # read device attributes
         self["attributes"] = params["attributes"]

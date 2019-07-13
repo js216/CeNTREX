@@ -418,7 +418,9 @@ class Monitoring(threading.Thread):
                 # send monitoring commands
                 for c_name, params in dev.config["control_params"].items():
                     if params.get("type") == "indicator":
-                        dev.monitoring_commands.append( params["command"] )
+                        dev.monitoring_commands.append( params["monitoring_command"] )
+                    elif params.get("type") == "indicator_button":
+                        dev.monitoring_commands.append( params["monitoring_command"] )
 
                 # obtain monitoring events and update any indicator controls
                 self.display_monitoring_events(dev)
@@ -512,13 +514,15 @@ class Monitoring(threading.Thread):
             # get reference to the indicator
             if params.get("type") == "indicator":
                 ind = dev.config["control_GUI_elements"][c_name]["QLabel"]
+            elif params.get("type") == "indicator_button":
+                ind = dev.config["control_GUI_elements"][c_name]["QPushButton"]
             else:
                 continue
 
             # check the returned events
             for event in monitoring_events:
                 # skip event if it's related to a different command
-                if not params["command"] == event[1]:
+                if not params["monitoring_command"] == event[1]:
                     continue
 
                 # check if there's any matching return value
@@ -528,10 +532,16 @@ class Monitoring(threading.Thread):
                     continue
 
                 # update indicator text and style if necessary
-                if ind.text() != params["texts"][idx]:
-                    ind.setText(params["texts"][idx])
-                    ind_style = "QLabel#" + c_name + "{" + params["styles"][idx] + "}"
-                    ind.setStyleSheet(ind_style)
+                if params.get("type") == "indicator":
+                    if ind.text() != params["texts"][idx]:
+                        ind.setText(params["texts"][idx])
+                        ind_style = "QLabel#" + c_name + "{" + params["styles"][idx] + "}"
+                        ind.setStyleSheet(ind_style)
+                elif params.get("type") == "indicator_button":
+                    if ind.text() != params["texts"][idx]:
+                        ind.setText(params["texts"][idx])
+                        ind_style = "QPushButton#" + c_name + "{" + params["styles"][idx] + "}"
+                        ind.setStyleSheet(ind_style)
 
     def display_last_event(self, dev):
         # check device enabled
@@ -1041,17 +1051,34 @@ class DeviceConfig(Config):
 
             elif params[c].get("type") == "indicator":
                 ctrls[c] = {
-                        "label"         : params[c]["label"],
-                        "type"          : params[c]["type"],
-                        "row"           : int(params[c]["row"]),
-                        "col"           : int(params[c]["col"]),
-                        "rowspan"       : int(params[c].get("rowspan")),
-                        "colspan"       : int(params[c].get("colspan")),
-                        "command"       : params[c]["command"],
-                        "return_values" : split(params[c]["return_values"]),
-                        "texts"         : split(params[c]["texts"]),
-                        "styles"        : split(params[c]["styles"]),
+                        "label"              : params[c]["label"],
+                        "type"               : params[c]["type"],
+                        "row"                : int(params[c]["row"]),
+                        "col"                : int(params[c]["col"]),
+                        "rowspan"            : int(params[c].get("rowspan")),
+                        "colspan"            : int(params[c].get("colspan")),
+                        "monitoring_command" : params[c]["monitoring_command"],
+                        "return_values"      : split(params[c]["return_values"]),
+                        "texts"              : split(params[c]["texts"]),
+                        "styles"             : split(params[c]["styles"]),
                     }
+
+            elif params[c].get("type") == "indicator_button":
+                ctrls[c] = {
+                        "label"      : params[c]["label"],
+                        "type"       : params[c]["type"],
+                        "row"        : int(params[c]["row"]),
+                        "col"        : int(params[c]["col"]),
+                        "argument"   : params[c]["argument"],
+                        "align"      : params[c].get("align"),
+                        "tooltip"    : params[c].get("tooltip"),
+                        "monitoring_command" : params[c]["monitoring_command"],
+                        "action_commands"    : split(params[c]["action_commands"]),
+                        "return_values"      : split(params[c]["return_values"]),
+                        "texts"              : split(params[c]["texts"]),
+                        "styles"             : split(params[c]["styles"]),
+                    }
+
 
             elif params[c].get("type") == "dummy":
                 ctrls[c] = {
@@ -1111,10 +1138,18 @@ class DeviceConfig(Config):
                 config[c_name]["col_types"]   = ", ".join([x for x_name,x in c["col_types"].items()])
                 config[c_name]["col_options"] = "; ".join([", ".join(x) for x_name,x in c["col_options"].items()])
             if c["type"] == "indicator":
-                config[c_name]["command"] = str(c.get("command"))
+                config[c_name]["monitoring_command"] = str(c.get("monitoring_command"))
                 config[c_name]["return_values"] = ", ".join(c["return_values"])
                 config[c_name]["texts"] = ", ".join(c["texts"])
                 config[c_name]["styles"] = ", ".join(c["styles"])
+            if c["type"] == "indicator_button":
+                config[c_name]["monitoring_command"] = str(c.get("monitoring_command"))
+                config[c_name]["action_commands"] = ", ".join(c["action_commands"])
+                config[c_name]["return_values"] = ", ".join(c["return_values"])
+                config[c_name]["texts"] = ", ".join(c["texts"])
+                config[c_name]["styles"] = ", ".join(c["styles"])
+                config[c_name]["argument"] = str(c.get("argument"))
+                config[c_name]["align"] = str(c.get("align"))
 
         # write them to file
         with open(self.fname, 'w') as f:
@@ -1933,6 +1968,40 @@ class ControlGUI(qt.QWidget):
                     if param.get("tooltip"):
                         c["QLabel"].setToolTip(param["tooltip"])
 
+                # place indicator_buttons
+                elif param.get("type") == "indicator_button":
+                    # the QPushButton
+                    c["QPushButton"] = qt.QPushButton(param["label"])
+                    df.addWidget(c["QPushButton"], param["row"], param["col"])
+
+                    # tooltip
+                    if param.get("tooltip"):
+                        c["QPushButton"].setToolTip(param["tooltip"])
+
+                    # style
+                    c["QPushButton"].setObjectName(c_name)
+                    ind_style = "QPushButton#" + c_name + "{" + param["styles"][-1] + "}"
+                    c["QPushButton"].setStyleSheet(ind_style)
+
+                    # rowspan / colspan
+                    if param.get("rowspan") and param.get("colspan"):
+                        df.addWidget(c["QPushButton"], param["row"], param["col"], param["rowspan"], param["colspan"])
+                    else:
+                        df.addWidget(c["QPushButton"], param["row"], param["col"])
+
+                    # commands for the QPushButton
+                    if param.get("argument"):
+                        c["QPushButton"].clicked[bool].connect(
+                                lambda state, dev=dev, cmd=param["action_commands"][0],
+                                arg=dev.config["control_params"][param["argument"]]:
+                                    self.queue_command(dev, cmd+"("+arg["value"]+")")
+                            )
+                    else:
+                        c["QPushButton"].clicked[bool].connect(
+                                lambda state, dev=dev, cmd=param["action_commands"][0]:
+                                    self.queue_command(dev, cmd+"()")
+                            )
+
             ##################################
             # MONITORING                     #
             ##################################
@@ -2223,6 +2292,12 @@ class ControlGUI(qt.QWidget):
                                 setText(params["texts"][-1])
                         ind_style = "QLabel#" + c_name + "{" + params["styles"][-1] + "}"
                         dev.config["control_GUI_elements"][c_name]["QLabel"].\
+                                setStyleSheet(ind_style)
+                    elif params.get("type") == "indicator_button":
+                        dev.config["control_GUI_elements"][c_name]["QPushButton"].\
+                                setText(params["texts"][-1])
+                        ind_style = "QPushButton#" + c_name + "{" + params["styles"][-1] + "}"
+                        dev.config["control_GUI_elements"][c_name]["QPushButton"].\
                                 setStyleSheet(ind_style)
 
                 # stop the device, and wait for it to finish

@@ -217,6 +217,11 @@ class Device(threading.Thread):
         if self.config["meta_device"]:
             self.constr_params = [self.config["parent"]] + self.constr_params
 
+        # check we are allowed to instantiate the driver before the main loop starts
+        if not self.config["double_connect_dev"]:
+            self.operational = True
+            return
+
         # verify the device responds correctly
         with self.config["driver_class"](*self.constr_params) as dev:
             if not isinstance(dev.verification_string, str):
@@ -410,7 +415,7 @@ class Monitoring(threading.Thread):
 
                 # send monitoring commands
                 for c_name, params in dev.config["control_params"].items():
-                    if params["type"] == "indicator":
+                    if params.get("type") == "indicator":
                         dev.monitoring_commands.append( params["command"] )
 
                 # obtain monitoring events and update any indicator controls
@@ -503,7 +508,7 @@ class Monitoring(threading.Thread):
 
         for c_name, params in dev.config["control_params"].items():
             # get reference to the indicator
-            if params["type"] == "indicator":
+            if params.get("type") == "indicator":
                 ind = dev.config["control_GUI_elements"][c_name]["QLabel"]
             else:
                 continue
@@ -830,6 +835,9 @@ class DeviceConfig(Config):
                 "plots_queue_maxlen" : int,
                 "max_NaN_count"      : int,
                 "meta_device"        : bool,
+                "double_connect_dev" : bool,
+                "data_type"          : type,
+                "data_shape"         : tuple,
             }
 
         # list of keys permitted for runtime data (which cannot be written to .ini file)
@@ -852,7 +860,8 @@ class DeviceConfig(Config):
             }
 
     def set_defaults(self):
-        self["control_params"] = {"InfluxDB_enabled": {"type": "dummy", "value": "True"}}
+        self["control_params"] = {"InfluxDB_enabled" : {"type": "dummy", "value" : True}}
+        self["double_connect_dev"] = True
 
     def change_param(self, key, val, sect=None, sub_ctrl=None, row=None):
         if row != None:
@@ -891,6 +900,11 @@ class DeviceConfig(Config):
                 self[key] = True if val.strip() in ["True", "1"] else False
             else:
                 self[key] = typ(val)
+
+        # for single-connect devices, make sure data type and shape are defined
+        if not self["double_connect_dev"]:
+            if not (self["data_shape"] and self["data_type"]):
+                logging.warning("Single-connect device didn't specify data shape or type.")
 
         # read device attributes
         self["attributes"] = params["attributes"]
@@ -1681,7 +1695,7 @@ class ControlGUI(qt.QWidget):
                 c = dev.config["control_GUI_elements"][c_name]
 
                 # place QCheckBoxes
-                if param["type"] == "QCheckBox":
+                if param.get("type") == "QCheckBox":
                     # the QCheckBox
                     c["QCheckBox"] = qt.QCheckBox(param["label"])
                     c["QCheckBox"].setCheckState(param["value"])
@@ -1699,7 +1713,7 @@ class ControlGUI(qt.QWidget):
                         )
 
                 # place QPushButtons
-                elif param["type"] == "QPushButton":
+                elif param.get("type") == "QPushButton":
                     # the QPushButton
                     c["QPushButton"] = qt.QPushButton(param["label"])
                     df.addWidget(c["QPushButton"], param["row"], param["col"])
@@ -1722,7 +1736,7 @@ class ControlGUI(qt.QWidget):
                             )
 
                 # place QLineEdits
-                elif param["type"] == "QLineEdit":
+                elif param.get("type") == "QLineEdit":
                     # the label
                     df.addWidget(
                             qt.QLabel(param["label"]),
@@ -1752,7 +1766,7 @@ class ControlGUI(qt.QWidget):
                                 )
 
                 # place QComboBoxes
-                elif param["type"] == "QComboBox":
+                elif param.get("type") == "QComboBox":
                     # the label
                     df.addWidget(
                             qt.QLabel(param["label"]),
@@ -1786,7 +1800,7 @@ class ControlGUI(qt.QWidget):
                             )
 
                 # place ControlsRows
-                elif param["type"] == "ControlsRow":
+                elif param.get("type") == "ControlsRow":
                     # the frame for the row of controls
                     box, ctrl_frame = LabelFrame(param["label"], type="hbox")
                     df.addWidget(box, param["row"], param["col"])
@@ -1822,7 +1836,7 @@ class ControlGUI(qt.QWidget):
 
 
                 # place ControlsTables
-                elif param["type"] == "ControlsTable":
+                elif param.get("type") == "ControlsTable":
                     # the frame for the row of controls
                     box, ctrl_frame = LabelFrame(param["label"], type="grid")
                     if param.get("rowspan") and param.get("colspan"):
@@ -1883,7 +1897,7 @@ class ControlGUI(qt.QWidget):
                                 logging.warning("ControlsRow error: sub-control type not supported: " + c["col_types"][col])
 
                 # place indicators
-                elif param["type"] == "indicator":
+                elif param.get("type") == "indicator":
                     # the indicator label
                     c["QLabel"] = qt.QLabel(
                             param["label"],
@@ -2184,7 +2198,7 @@ class ControlGUI(qt.QWidget):
 
                 # reset the status of all indicators
                 for c_name, params in dev.config["control_params"].items():
-                    if params["type"] == "indicator":
+                    if params.get("type") == "indicator":
                         dev.config["control_GUI_elements"][c_name]["QLabel"].\
                                 setText(params["texts"][-1])
                         ind_style = "QLabel#" + c_name + "{" + params["styles"][-1] + "}"

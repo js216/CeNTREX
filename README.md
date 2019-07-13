@@ -57,9 +57,9 @@ The exact order of events after the user starts control is specified in the
 
    - check the control is not running already
    - select the time offset (see below in the section on Data structure)
-   - setup & check connections of all devices; instantiate new Devices (Python
-     threads can only be started once, so this allows re-starting stopped
-     control)
+   - setup & check connections of all `double_connect` devices; instantiate new
+     Devices (Python threads can only be started once, so this allows
+     re-starting stopped control)
    - connect device controls with the new instances of Devices
    - start the thread that writes to HDF
    - start control for all devices
@@ -198,6 +198,18 @@ and `QPushButton`, etc. The exact syntax of these is subject to change, and is
 best learned from the existing config files. However, the definitive guide to
 what fields are required for a given control type can be obtained from the
 `read_from_file()` function of the `DeviceConfig` class.
+
+Note that config classes can also generate default options that don't need to be
+specified in the `.ini` files. See `set_defaults()` methods in the `Config`
+classes for examples.
+
+For `double_connect` devices, these the constructor of the device driver defines
+the data type and shape, and when starting control, the program instantiates the
+driver in order to access these parameters to correctly initialize storage.
+However, for some devices it may be undesirable to instantiate the device driver
+twice. For such devices, the data type and shape have to be specified in the
+`.ini` file using the `data_type` and `data_shape` options in the `[device]`
+section of the file.
 
 ## Error handling
 

@@ -184,7 +184,7 @@ class IsegNHR:
         for idx in [8,10,12,13,14]:
             if not bit_values[idx]:
                 warning_dict = { "message" : "{} failure".format(self.module_status[idx])}
-                self.warnings.append(warning_dict)
+                self.warnings.append([time.time(), warning_dict])
 
         chan_stat = self.ReadChannelStatus([0,1,2,3])
         for idc, chan in enumerate(chan_stat):
@@ -192,7 +192,7 @@ class IsegNHR:
             for idx in [5,10,11,12,13,14,15]:
                 if bit_values[idx]:
                     warning_dict = { "message" : "CH{} {}".format(idc, self.channel_status[idx])}
-                    self.warnings.append(warning_dict)
+                    self.warnings.append([time.time(), warning_dict])
 
     def GetWarnings(self):
         self.CheckWarnings()
@@ -205,7 +205,7 @@ class IsegNHR:
             if val:
                 logging.warning('IsegNHR warning in PMTSettings() : CH{} still on'.format(idx))
                 warning_dict = { "message" : "PMTSettings failure; CH{} still on".format(idx)}
-                self.warnings.append(warning_dict)
+                self.warnings.append([time.time(), warning_dict])
                 return
 
         self.ConfigureOutputPolarity('n', [0,1,2,3])
@@ -217,24 +217,24 @@ class IsegNHR:
             if val != 'n':
                 logging.warning('IsegNHR warning in PMTSettings() : CH{} wrong polarity; {}'.format(idc, val))
                 warning_dict = { "message" : "CH{} wrong polarity; {}".format(idc, val)}
-                self.warnings.append(warning_dict)
+                self.warnings.append([time.time(), warning_dict])
         for idc, val in enumerate(self.ReadConfigureRampVoltageUp([0,1,2,3])):
             if val != self.rampVoltage:
                 logging.warning('IsegNHR warning in PMTSettings() : CH{} wrong ramp up; {} V/s'.format(idc, val))
                 warning_dict = { "message" : "CH{} wrong ramp up; {} V/s".format(idc, val)}
-                self.warnings.append(warning_dict)
+                self.warnings.append([time.time(), warning_dict])
 
         for idc, val in enumerate(self.ReadConfigureRampVoltageDown([0,1,2,3])):
             if val != self.rampVoltage:
                 logging.warning('IsegNHR warning in PMTSettings() : CH{} wrong ramp down; {} V/s'.format(idc, val))
                 warning_dict = { "message" : "CH{} wrong ramp down; {} V/s".format(idc, val)}
-                self.warnings.append(warning_dict)
+                self.warnings.append([time.time(), warning_dict])
 
         for idc, val in enumerate(self.ReadVoltage([0,1,2,3])):
             if np.abs(val) != self.PMTVoltage:
                 logging.warning('IsegNHR warning in PMTSettings() : CH{} wrong set voltage; {} V'.format(idc, val))
                 warning_dict = { "message" : "CH{} wrong set voltage; {} V".format(idc, val)}
-                self.warnings.append(warning_dict)
+                self.warnings.append([time.time(), warning_dict])
 
     def AllChannelsOn(self):
         self.ChannelOn([0,1,2,3])
@@ -246,7 +246,7 @@ class IsegNHR:
         if self.ReadVoltageOn(0):
             logging.warning('IsegNHR warning in ConfigureOutputPolarity() : CH0 still on')
             warning_dict = { "message" : "Polarity change failure; CH0 still on"}
-            self.warnings.append(warning_dict)
+            self.warnings.append([time.time(), warning_dict])
             return
         else:
             v = self.ReadVoltage(0)
@@ -258,7 +258,7 @@ class IsegNHR:
         if self.ReadVoltageOn(1):
             logging.warning('IsegNHR warning in ConfigureOutputPolarity() : CH1 still on')
             warning_dict = { "message" : "Polarity change failure; CH1 still on"}
-            self.warnings.append(warning_dict)
+            self.warnings.append([time.time(), warning_dict])
         else:
             v = self.ReadVoltage(1)
             self.ConfigureOutputPolarity(p, 1)
@@ -269,7 +269,7 @@ class IsegNHR:
         if self.ReadVoltageOn(2):
             logging.warning('IsegNHR warning in ConfigureOutputPolarity() : CH2 still on')
             warning_dict = { "message" : "Polarity change failure; CH2 still on"}
-            self.warnings.append(warning_dict)
+            self.warnings.append([time.time(), warning_dict])
         else:
             v = self.ReadVoltage(2)
             self.ConfigureOutputPolarity(p, 2)
@@ -280,7 +280,7 @@ class IsegNHR:
         if self.ReadVoltageOn(3):
             logging.warning('IsegNHR warning in ConfigureOutputPolarity() : CH3 still on')
             warning_dict = { "message" : "Polarity change failure; CH3 still on"}
-            self.warnings.append(warning_dict)
+            self.warnings.append([time.time(), warning_dict])
         else:
             v = self.ReadVoltage(3)
             self.ConfigureOutputPolarity(p, 3)

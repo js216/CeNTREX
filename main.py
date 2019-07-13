@@ -3041,7 +3041,7 @@ class Plotter(qt.QWidget):
             logging.warning("Plot warning: cannot remove plot: " + str(err))
 
     def toggle_HDF_or_queue(self, state=""):
-        if not self.dev.config["control_GUI_elements"]["HDF_enabled"]["value"]:
+        if not self.dev.config["control_params"]["HDF_enabled"]["value"]:
             logging.warning("Plot error: cannot plot from HDF when HDF is disabled")
             return
 

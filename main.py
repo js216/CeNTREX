@@ -357,6 +357,7 @@ class Monitoring(threading.Thread):
         self.active = threading.Event()
 
         self.time_last_monitored = 0
+        self.time_last_monitored_reset = False
 
         # connect to InfluxDB
         conf = self.parent.config["influxdb"]
@@ -401,7 +402,8 @@ class Monitoring(threading.Thread):
                     logging.warning("Abnormal condition in " + str(dev_name))
                     for warning in dev.warnings:
                         logging.warning(str(warning))
-                        self.push_warnings_to_influxdb(dev_name, warning)
+                        if self.parent.config["influxdb"]["enabled"] in [1, 2, "2", "1", "True"]:
+                            self.push_warnings_to_influxdb(dev_name, warning)
                         self.parent.ControlGUI.update_warnings(str(warning))
                     dev.warnings = []
 
@@ -447,14 +449,17 @@ class Monitoring(threading.Thread):
                     dev.data_queue.clear()
 
             # reset the timer for setting the slow monitoring loop delay
-            self.time_last_monitored = time.time()
+            if time.time() - self.time_last_monitored >= dt:
+                self.time_last_monitored = time.time()
 
             # fixed monitoring fast loop delay
             time.sleep(0.5)
 
     def write_to_influxdb(self, dev, data):
         # check writing to InfluxDB is enabled
-        if not self.parent.config["influxdb"]["enabled"] in [1, "1", "True"]:
+        if not self.parent.config["influxdb"]["enabled"] in [1, 2, "1", "2", "True"]:
+            return
+        if not dev.config["control_params"]["InfluxDB_enabled"]["value"] in [1, 2, "1", "2", "True"]:
             return
 
         # only slow data can write to InfluxDB
@@ -855,7 +860,7 @@ class DeviceConfig(Config):
             }
 
     def set_defaults(self):
-        self["control_params"] = {"InfluxDB_enabled" : {"value" : True}}
+        self["control_params"] = {"InfluxDB_enabled" : {"type": "dummy", "value" : True}}
         self["double_connect_dev"] = True
 
     def change_param(self, key, val, sect=None, sub_ctrl=None, row=None):

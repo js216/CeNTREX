@@ -59,7 +59,7 @@ class NanoLG:
         self.new_attributes = []
 
         # shape and type of the array of returned data
-        self.dtype = 'f16'
+        self.dtype = 'f8'
         self.shape = (15, )
 
         self.warnings = []
@@ -356,6 +356,8 @@ class NanoLG:
             interlock = interlock | self.data['system_status_word'][self.system_status_word_idx[idx]]
         if not self.data['system_status_word']['interlock_shutter']:
             interlock = interlock | 1
+        if not self.data['system_status_word']['key_state']:
+            interlock = interlock | 1
 
         return [time.time()- self.time_offset, system_state, pump_state,
                 laser_state, shutter_state, water_temp, crystal_temp, qs_delay,
@@ -496,6 +498,8 @@ class NanoLG:
             interlock = interlock | self.data['system_status_word'][self.system_status_word_idx[idx]]
         if not self.data['system_status_word']['interlock_shutter']:
             interlock = interlock | 1
+        if not self.data['system_status_word']['key_state']:
+            interlock = interlock | 1
 
         if interlock:
             logging.warning('NanoLG warning in StartLaser() : interlock prevents starting of laser')
@@ -513,6 +517,19 @@ class NanoLG:
             logging.warning('NanoLG warning in StartLaser(): laser requires pump on')
             warning_dict = { "message" : 'laser requires pump on'}
             self.warnings.append(warning_dict)
+
+    @WriteVisaIOError
+    def StartPump(self):
+        interlock = 0
+        if not self.data['system_status_word']['key_state']:
+            interlock = interlock | 1
+        if interlock:
+            logging.warning("NanoLG warning in StartPump() : key prevents starting of pump")
+            warning_dict = { "message" : "key prevents starting of pump"}
+            self.warnings.append(warning_dict)
+        else:
+            self.PumpOn()
+
 
     @WriteVisaIOError
     def SystemOn(self):

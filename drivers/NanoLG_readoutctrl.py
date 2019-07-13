@@ -59,7 +59,7 @@ class NanoLG_readoutctrl:
         self.new_attributes = []
 
         # shape and type of the array of returned data
-        self.dtype = 'f16'
+        self.dtype = 'f8'
         self.shape = (15, )
 
         self.warnings = []

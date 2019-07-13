@@ -299,21 +299,21 @@ class NanoLG_readoutctrl:
           interlock = self.system_status_word_idx[idx]
           if self.data['system_status_word'][interlock]:
               warning_dict = { "message" : ' '.join(interlock.split('_'))+' failed'}
-              self.warnings.append(warning_dict)
+              self.warnings.append([time.time(), warning_dict])
       for idx in range(14,16):
           interlock = self.system_status_word_idx[idx]
           if self.data['system_status_word'][interlock]:
               warning_dict = { "message" : ' '.join(interlock.split('_'))+' failed'}
-              self.warnings.append(warning_dict)
+              self.warnings.append([time.time(), warning_dict])
       if not self.data['system_status_word']['interlock_shutter']:
           warning_dict = { "message" : ' '.join(interlock.split('_'))+' failed'}
-          self.warnings.append(warning_dict)
+          self.warnings.append([time.time(), warning_dict])
 
       for idx in [14,15,16,19]:
           parameter = self.function_status_word_idx[idx]
           if self.data['function_status_word'][parameter]:
               warning_dict = { "message" : ' '.join(parameter.split('_'))+' failed'}
-              self.warnings.append(warning_dict)
+              self.warnings.append([time.time(), warning_dict])
 
     def GetWarnings(self):
         self.CheckWarnings()
@@ -491,7 +491,7 @@ class NanoLG_readoutctrl:
         if interlock:
             logging.warning('NanoLG warning in StartLaser() : interlock prevents starting of laser')
             warning_dict = { "message" : 'interlock prevents starting of laser'}
-            self.warnings.append(warning_dict)
+            self.warnings.append([time.time(), warning_dict])
             return
         elif self.pump_start_time:
           if time.time()- self.pump_start_time > 6:
@@ -499,11 +499,11 @@ class NanoLG_readoutctrl:
           else:
             logging.warning('NanoLG warning in StartLaser(): laser requires pump on for at least 5s')
             warning_dict = { "message" : 'laser requires pump on for at least 5s'}
-            self.warnings.append(warning_dict)
+            self.warnings.append([time.time(), warning_dict])
         else:
             logging.warning('NanoLG warning in StartLaser(): laser requires pump on')
             warning_dict = { "message" : 'laser requires pump on'}
-            self.warnings.append(warning_dict)
+            self.warnings.append([time.time(), warning_dict])
 
     @WriteVisaIOError
     def SystemOn(self):

@@ -352,6 +352,7 @@ class Monitoring(threading.Thread):
         self.active = threading.Event()
 
         self.time_last_monitored = 0
+        self.time_last_monitored_reset = False
 
         # connect to InfluxDB
         conf = self.parent.config["influxdb"]
@@ -375,6 +376,12 @@ class Monitoring(threading.Thread):
             else:
                 HDF_status.setStyleSheet("QLabel#HDF_status { color: white; background-color: #2a542a }")
 
+            # Monitoring dt
+            try:
+                dt = float(self.parent.config["general"]["monitoring_dt"])
+            except ValueError:
+                dt = 1
+
             # monitor operation of individual devices
             for dev_name, dev in self.parent.devices.items():
                 # check device running
@@ -390,7 +397,8 @@ class Monitoring(threading.Thread):
                     logging.warning("Abnormal condition in " + str(dev_name))
                     for warning in dev.warnings:
                         logging.warning(str(warning))
-                        self.push_warnings_to_influxdb(dev_name, warning)
+                        if self.parent.config["influxdb"]["enabled"] in [1, "1", "True"]:
+                            self.push_warnings_to_influxdb(dev_name, warning)
                         self.parent.ControlGUI.update_warnings(str(warning))
                     dev.warnings = []
 
@@ -428,7 +436,6 @@ class Monitoring(threading.Thread):
 
                     # write slow data to InfluxDB
                     if time.time() - self.time_last_monitored >= dt:
-                        self.time_last_monitored = time.time()
                         self.write_to_influxdb(dev, data)
 
                 # if writing to HDF is disabled, empty the queues
@@ -439,15 +446,11 @@ class Monitoring(threading.Thread):
             # Fixed monitoring fast loop delay
             time.sleep(0.5)
 
-            # Monitoring dt
-            try:
-                dt = float(self.parent.config["general"]["monitoring_dt"])
-            except ValueError:
-                dt = 1
-
     def write_to_influxdb(self, dev, data):
         # check writing to InfluxDB is enabled
         if not self.parent.config["influxdb"]["enabled"] in [1, "1", "True"]:
+            return
+        if not dev.config["control_params"]["InfluxDB_enabled"]["value"] in [1, "1", "True"]:
             return
 
         # only slow data can write to InfluxDB

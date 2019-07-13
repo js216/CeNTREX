@@ -282,7 +282,7 @@ class Device(threading.Thread):
                     time.sleep(0.02)
 
                     # check device is enabled
-                    if not self.config["control_params"]["enabled"]["value"]:
+                    if not self.config["control_params"]["enabled"]["value"] == 2:
                         continue
 
                     # check device for abnormal conditions
@@ -393,7 +393,7 @@ class Monitoring(threading.Thread):
                     continue
 
                 # check device enabled
-                if not dev.config["control_params"]["enabled"]["value"]:
+                if not dev.config["control_params"]["enabled"]["value"] == 2:
                     continue
 
                 # check device for abnormal conditions
@@ -490,7 +490,7 @@ class Monitoring(threading.Thread):
 
     def display_monitoring_events(self, dev):
         # check device enabled
-        if not dev.config["control_params"]["enabled"]["value"]:
+        if not dev.config["control_params"]["enabled"]["value"] == 2:
             return
 
         # empty the monitoring events queue
@@ -532,7 +532,7 @@ class Monitoring(threading.Thread):
 
     def display_last_event(self, dev):
         # check device enabled
-        if not dev.config["control_params"]["enabled"]["value"]:
+        if not dev.config["control_params"]["enabled"]["value"] == 2:
             return
 
         # if HDF writing enabled for this device, get events from the HDF file
@@ -592,7 +592,7 @@ class HDF_writer(threading.Thread):
 
             for dev_name, dev in self.parent.devices.items():
                 # check device is enabled
-                if not dev.config["control_params"]["enabled"]["value"]:
+                if not dev.config["control_params"]["enabled"]["value"] == 2:
                     continue
 
                 # check writing to HDF is enabled for this device
@@ -862,7 +862,7 @@ class DeviceConfig(Config):
         self["control_params"] = {"InfluxDB_enabled" : {"type": "dummy", "value" : True}}
         self["double_connect_dev"] = True
 
-    def change_param(self, key, val, sect=None, sub_ctrl=None, row=None):
+    def change_param(self, key, val, sect=None, sub_ctrl=None, row=None, nonTriState=False):
         if row != None:
             self[sect][key]["value"][sub_ctrl][row] = val
         elif sub_ctrl:
@@ -930,9 +930,18 @@ class DeviceConfig(Config):
                         "type"       : params[c]["type"],
                         "row"        : int(params[c]["row"]),
                         "col"        : int(params[c]["col"]),
-                        "value"      : True if params[c]["value"] in ["1", "True"] else False,
                         "tooltip"    : params[c].get("tooltip"),
+                        "tristate"   : True if params[c].get("tristate") in ["1", "True"] else False,
                     }
+                if ctrls[c]["tristate"]:
+                    if params[c]["value"] == "1":
+                        ctrls[c]["value"] = 1
+                    elif params[c]["value"] in ["2", "True"]:
+                        ctrls[c]["value"] = 2
+                    else:
+                        ctrls[c]["value"] = 0
+                else:
+                    ctrls[c]["value"] = True if params[c]["value"] in ["1", "True"] else False
 
             elif params[c].get("type") == "Hidden":
                 ctrls[c] = {
@@ -1701,7 +1710,10 @@ class ControlGUI(qt.QWidget):
                     # the QCheckBox
                     c["QCheckBox"] = qt.QCheckBox(param["label"])
                     c["QCheckBox"].setCheckState(param["value"])
-                    c["QCheckBox"].setTristate(False)
+                    if param["tristate"]:
+                        c["QCheckBox"].setTristate(True)
+                    else:
+                        c["QCheckBox"].setTristate(False)
                     df.addWidget(c["QCheckBox"], param["row"], param["col"])
 
                     # tooltip
@@ -1710,8 +1722,9 @@ class ControlGUI(qt.QWidget):
 
                     # commands for the QCheckBox
                     c["QCheckBox"].stateChanged[int].connect(
-                            lambda state, dev=dev, ctrl=c_name:
-                                dev.config.change_param(ctrl, state, sect="control_params")
+                            lambda state, dev=dev, ctrl=c_name, nonTriState=not param["tristate"]:
+                                dev.config.change_param(ctrl, state,
+                                    sect="control_params", nonTriState=nonTriState)
                         )
 
                 # place QPushButtons

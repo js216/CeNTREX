@@ -375,6 +375,12 @@ class Monitoring(threading.Thread):
             else:
                 HDF_status.setStyleSheet("QLabel#HDF_status { color: white; background-color: #2a542a }")
 
+            # Monitoring dt
+            try:
+                dt = float(self.parent.config["general"]["monitoring_dt"])
+            except ValueError:
+                dt = 1
+
             # monitor operation of individual devices
             for dev_name, dev in self.parent.devices.items():
                 # check device running
@@ -440,12 +446,6 @@ class Monitoring(threading.Thread):
 
             # fixed monitoring fast loop delay
             time.sleep(0.5)
-
-            # Monitoring dt
-            try:
-                dt = float(self.parent.config["general"]["monitoring_dt"])
-            except ValueError:
-                dt = 1
 
     def write_to_influxdb(self, dev, data):
         # check writing to InfluxDB is enabled

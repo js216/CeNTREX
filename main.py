@@ -397,7 +397,7 @@ class Monitoring(threading.Thread):
                     logging.warning("Abnormal condition in " + str(dev_name))
                     for warning in dev.warnings:
                         logging.warning(str(warning))
-                        if self.parent.config["influxdb"]["enabled"] in [1, "1", "True"]:
+                        if self.parent.config["influxdb"]["enabled"] in [1, 2, "2", "1", "True"]:
                             self.push_warnings_to_influxdb(dev_name, warning)
                         self.parent.ControlGUI.update_warnings(str(warning))
                     dev.warnings = []
@@ -444,16 +444,17 @@ class Monitoring(threading.Thread):
                     dev.data_queue.clear()
 
             # reset the timer for setting the slow monitoring loop delay
-            self.time_last_monitored = time.time()
+            if time.time() - self.time_last_monitored >= dt:
+                self.time_last_monitored = time.time()
 
             # fixed monitoring fast loop delay
             time.sleep(0.5)
 
     def write_to_influxdb(self, dev, data):
         # check writing to InfluxDB is enabled
-        if not self.parent.config["influxdb"]["enabled"] in [1, "1", "True"]:
+        if not self.parent.config["influxdb"]["enabled"] in [1, 2, "1", "2", "True"]:
             return
-        if not dev.config["control_params"]["InfluxDB_enabled"]["value"] in [1, "1", "True"]:
+        if not dev.config["control_params"]["InfluxDB_enabled"]["value"] in [1, 2, "1", "2", "True"]:
             return
 
         # only slow data can write to InfluxDB
@@ -829,7 +830,6 @@ class DeviceConfig(Config):
                 "plots_queue_maxlen" : int,
                 "max_NaN_count"      : int,
                 "meta_device"        : bool,
-                "InfluxDB_enabled"   : bool,
             }
 
         # list of keys permitted for runtime data (which cannot be written to .ini file)
@@ -852,7 +852,7 @@ class DeviceConfig(Config):
             }
 
     def set_defaults(self):
-        self["InfluxDB_enabled"] = True
+        self["control_params"] = {"InfluxDB_enabled": {"type": "dummy", "value": "True"}}
 
     def change_param(self, key, val, sect=None, sub_ctrl=None, row=None):
         if row != None:
@@ -905,7 +905,7 @@ class DeviceConfig(Config):
         self["driver_class"] = getattr(driver_module, params["device"]["driver"])
 
         # populate the list of device controls
-        ctrls = {}
+        ctrls = self["control_params"]
 
         for c in params.sections():
             if params[c].get("type") == "QCheckBox":

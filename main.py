@@ -356,6 +356,9 @@ class Monitoring(threading.Thread):
         self.parent = parent
         self.active = threading.Event()
 
+        # HDF filename at the time run started (in case it's renamed while running)
+        self.hdf_fname = self.parent.config["files"]["hdf_fname"]
+
         self.time_last_monitored = 0
 
         # connect to InfluxDB
@@ -537,7 +540,7 @@ class Monitoring(threading.Thread):
 
         # if HDF writing enabled for this device, get events from the HDF file
         if dev.config["control_params"]["HDF_enabled"]["value"]:
-            with h5py.File(self.parent.config["files"]["hdf_fname"], 'r') as f:
+            with h5py.File(self.hdf_fname, 'r') as f:
                 grp = f[self.parent.run_name + "/" + dev.config["path"]]
                 events_dset = grp[dev.config["name"] + "_events"]
                 if events_dset.shape[0] == 0:
@@ -2009,8 +2012,10 @@ class ControlGUI(qt.QWidget):
     def rename_HDF(self, state):
         # check we're not running already
         if self.parent.config['control_active']:
-            logging.warning("Warning: Cannot rename HDF while control is running.")
-            return
+            logging.warning("Warning: Rename HDF while control is running takes\
+                    effect only after restarting control.")
+            qt.QMessageBox.information(self, 'Rename while running',
+                "Control running. Renaming HDF file will only take effect after restarting control.")
 
         # get old file path
         old_fname = self.parent.config["files"]["hdf_fname"]
@@ -2780,7 +2785,7 @@ class Plotter(qt.QWidget):
                     return False
 
             # check dataset exists in the run
-            with h5py.File(self.parent.config["files"]["hdf_fname"], 'r') as f:
+            with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], 'r') as f:
                 try:
                     grp = f[self.config["run"] + "/" + self.dev.config["path"]]
                 except KeyError:
@@ -2808,7 +2813,7 @@ class Plotter(qt.QWidget):
             self.toggle_HDF_or_queue()
             return
 
-        with h5py.File(self.parent.config["files"]["hdf_fname"], 'r') as f:
+        with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], 'r') as f:
             grp = f[self.config["run"] + "/" + self.dev.config["path"]]
 
             if self.dev.config["slow_data"]:

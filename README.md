@@ -199,17 +199,32 @@ best learned from the existing config files. However, the definitive guide to
 what fields are required for a given control type can be obtained from the
 `read_from_file()` function of the `DeviceConfig` class.
 
+Most all devices will have a checkbox to determine whether the devices is
+enabled. For example:
+
+    [enabled]
+    label = Device enabled
+    type = QCheckBox
+    tristate = True
+    row = 0
+    col = 0
+    value = 2
+
+This has to be a tristate checkbox, and the three states have the following
+meanings: 1 = connect to the device, but do not read data from it; 2 = connect
+to the device and read data from it; 0 = leave the device alone.
+
 Note that config classes can also generate default options that don't need to be
 specified in the `.ini` files. See `set_defaults()` methods in the `Config`
 classes for examples.
 
-For `double_connect` devices, these the constructor of the device driver defines
-the data type and shape, and when starting control, the program instantiates the
-driver in order to access these parameters to correctly initialize storage.
-However, for some devices it may be undesirable to instantiate the device driver
-twice. For such devices, the data type and shape have to be specified in the
-`.ini` file using the `data_type` and `data_shape` options in the `[device]`
-section of the file.
+For `double_connect` devices, the device driver constructor defines the data
+type and shape, and when starting control, the program instantiates the driver
+in order to access these parameters to correctly initialize storage. However,
+for some devices it may be undesirable to instantiate the device driver twice.
+For such devices, the data type and shape have to be specified in the `.ini`
+file using the `data_type` and `data_shape` options in the `[device]` section of
+the file.
 
 ## Error handling
 

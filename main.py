@@ -810,6 +810,7 @@ class DeviceConfig(Config):
         super().__init__()
         self.fname = config_fname
         self.define_permitted_keys()
+        self.set_defaults()
         self.read_from_file()
 
     def define_permitted_keys(self):
@@ -828,6 +829,7 @@ class DeviceConfig(Config):
                 "plots_queue_maxlen" : int,
                 "max_NaN_count"      : int,
                 "meta_device"        : bool,
+                "InfluxDB_enabled"   : bool,
             }
 
         # list of keys permitted for runtime data (which cannot be written to .ini file)
@@ -848,6 +850,9 @@ class DeviceConfig(Config):
                 "attributes"     : dict,
                 "control_params" : dict,
             }
+
+    def set_defaults(self):
+        self["InfluxDB_enabled"] = True
 
     def change_param(self, key, val, sect=None, sub_ctrl=None, row=None):
         if row != None:

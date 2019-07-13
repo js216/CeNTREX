@@ -428,7 +428,6 @@ class Monitoring(threading.Thread):
 
                     # write slow data to InfluxDB
                     if time.time() - self.time_last_monitored >= dt:
-                        self.time_last_monitored = time.time()
                         self.write_to_influxdb(dev, data)
 
                 # if writing to HDF is disabled, empty the queues
@@ -436,7 +435,10 @@ class Monitoring(threading.Thread):
                     dev.events_queue.clear()
                     dev.data_queue.clear()
 
-            # Fixed monitoring fast loop delay
+            # reset the timer for setting the slow monitoring loop delay
+            self.time_last_monitored = time.time()
+
+            # fixed monitoring fast loop delay
             time.sleep(0.5)
 
             # Monitoring dt

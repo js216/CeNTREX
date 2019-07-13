@@ -221,6 +221,9 @@ class NanoLG:
             self.StopSystem()
             self.instr.close()
 
+    def __exitclient__(self, *exc):
+        return
+
     def write(self, data):
         self.instr.write_raw(data)
         while True:

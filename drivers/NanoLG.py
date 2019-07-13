@@ -59,7 +59,7 @@ class NanoLG:
         self.new_attributes = []
 
         # shape and type of the array of returned data
-        self.dtype = 'f16'
+        self.dtype = 'f8'
         self.shape = (15, )
 
         self.warnings = []
@@ -308,21 +308,21 @@ class NanoLG:
           interlock = self.system_status_word_idx[idx]
           if self.data['system_status_word'][interlock]:
               warning_dict = { "message" : ' '.join(interlock.split('_'))+' failed'}
-              self.warnings.append(warning_dict)
+              self.warnings.append([time.time(), warning_dict])
       for idx in range(14,16):
           interlock = self.system_status_word_idx[idx]
           if self.data['system_status_word'][interlock]:
               warning_dict = { "message" : ' '.join(interlock.split('_'))+' failed'}
-              self.warnings.append(warning_dict)
+              self.warnings.append([time.time(), warning_dict])
       if not self.data['system_status_word']['interlock_shutter']:
           warning_dict = { "message" : ' '.join(interlock.split('_'))+' failed'}
-          self.warnings.append(warning_dict)
+          self.warnings.append([time.time(), warning_dict])
 
       for idx in [14,15,16,19]:
           parameter = self.function_status_word_idx[idx]
           if self.data['function_status_word'][parameter]:
               warning_dict = { "message" : ' '.join(parameter.split('_'))+' failed'}
-              self.warnings.append(warning_dict)
+              self.warnings.append([time.time(), warning_dict])
 
     def GetWarnings(self):
         self.CheckWarnings()
@@ -355,6 +355,8 @@ class NanoLG:
         for idx in range(14,16):
             interlock = interlock | self.data['system_status_word'][self.system_status_word_idx[idx]]
         if not self.data['system_status_word']['interlock_shutter']:
+            interlock = interlock | 1
+        if not self.data['system_status_word']['key_state']:
             interlock = interlock | 1
 
         return [time.time()- self.time_offset, system_state, pump_state,
@@ -496,11 +498,13 @@ class NanoLG:
             interlock = interlock | self.data['system_status_word'][self.system_status_word_idx[idx]]
         if not self.data['system_status_word']['interlock_shutter']:
             interlock = interlock | 1
+        if not self.data['system_status_word']['key_state']:
+            interlock = interlock | 1
 
         if interlock:
             logging.warning('NanoLG warning in StartLaser() : interlock prevents starting of laser')
             warning_dict = { "message" : 'interlock prevents starting of laser'}
-            self.warnings.append(warning_dict)
+            self.warnings.append([time.time(), warning_dict])
             return
         elif self.pump_start_time:
           if time.time()- self.pump_start_time > 6:
@@ -508,11 +512,24 @@ class NanoLG:
           else:
             logging.warning('NanoLG warning in StartLaser(): laser requires pump on for at least 5s')
             warning_dict = { "message" : 'laser requires pump on for at least 5s'}
-            self.warnings.append(warning_dict)
+            self.warnings.append([time.time(), warning_dict])
         else:
             logging.warning('NanoLG warning in StartLaser(): laser requires pump on')
             warning_dict = { "message" : 'laser requires pump on'}
-            self.warnings.append(warning_dict)
+            self.warnings.append([time.time(), warning_dict])
+
+    @WriteVisaIOError
+    def StartPump(self):
+        interlock = 0
+        if not self.data['system_status_word']['key_state']:
+            interlock = interlock | 1
+        if interlock:
+            logging.warning("NanoLG warning in StartPump() : key prevents starting of pump")
+            warning_dict = { "message" : "key prevents starting of pump"}
+            self.warnings.append([time.time(), warning_dict])
+        else:
+            self.PumpOn()
+
 
     @WriteVisaIOError
     def SystemOn(self):

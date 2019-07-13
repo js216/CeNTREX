@@ -223,8 +223,7 @@ type and shape, and when starting control, the program instantiates the driver
 in order to access these parameters to correctly initialize storage. However,
 for some devices it may be undesirable to instantiate the device driver twice.
 For such devices, the data type and shape have to be specified in the `.ini`
-file using the `data_type` and `data_shape` options in the `[device]` section of
-the file.
+file using the `dtype` and `dshape` options in the `[device]` section of
 
 ## Error handling
 

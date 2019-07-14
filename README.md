@@ -320,10 +320,13 @@ example, a simple indicator will require the following fields:
     texts = Flooding!, No flood, (flood status?), (flood status?)
     states = error, disabled, error, disabled
 
-An indicator button in addition needs a list of commands to be run that
-correspond to the listed return values. For instance:
+An indicator button in addition needs a list of two commands to be run,
+depending on whether the button is considered `checked` or not. In addition,
+there has to be a list of boolean values that define which return values are
+considered checked and which aren't. For example:
 
     action_commands = StopPump, StartPump
+    checked = True, False, False, True, True
 
 Currently, two kinds of indicator controls are supported:
 

@@ -537,11 +537,13 @@ class Monitoring(threading.Thread):
                         ind.setText(params["texts"][idx])
                         ind_style = "QLabel#" + c_name + "{" + params["styles"][idx] + "}"
                         ind.setStyleSheet(ind_style)
+
                 elif params.get("type") == "indicator_button":
                     if ind.text() != params["texts"][idx]:
                         ind.setText(params["texts"][idx])
-                        ind_style = "QPushButton#" + c_name + "{" + params["styles"][idx] + "}"
-                        ind.setStyleSheet(ind_style)
+                        ind.setChecked(params["checked"][idx])
+                        ind.setProperty("state", params["states"][idx])
+                        ind.setStyle(ind.style())
 
     def display_last_event(self, dev):
         # check device enabled
@@ -1067,6 +1069,8 @@ class DeviceConfig(Config):
                 ctrls[c] = {
                         "label"      : params[c]["label"],
                         "type"       : params[c]["type"],
+                        "rowspan"    : int(params[c]["rowspan"]),
+                        "colspan"    : int(params[c]["colspan"]),
                         "row"        : int(params[c]["row"]),
                         "col"        : int(params[c]["col"]),
                         "argument"   : params[c]["argument"],
@@ -1075,8 +1079,9 @@ class DeviceConfig(Config):
                         "monitoring_command" : params[c]["monitoring_command"],
                         "action_commands"    : split(params[c]["action_commands"]),
                         "return_values"      : split(params[c]["return_values"]),
+                        "checked"            : [True if x in ["1", "True"] else False for x in split(params[c]["checked"])],
+                        "states"             : split(params[c]["states"]),
                         "texts"              : split(params[c]["texts"]),
-                        "styles"             : split(params[c]["styles"]),
                     }
 
 
@@ -1146,8 +1151,9 @@ class DeviceConfig(Config):
                 config[c_name]["monitoring_command"] = str(c.get("monitoring_command"))
                 config[c_name]["action_commands"] = ", ".join(c["action_commands"])
                 config[c_name]["return_values"] = ", ".join(c["return_values"])
+                config[c_name]["checked"] = ", ".join([str(x) for s in c["checked"]])
+                config[c_name]["states"] = ", ".join(c["states"])
                 config[c_name]["texts"] = ", ".join(c["texts"])
-                config[c_name]["styles"] = ", ".join(c["styles"])
                 config[c_name]["argument"] = str(c.get("argument"))
                 config[c_name]["align"] = str(c.get("align"))
 
@@ -1972,16 +1978,12 @@ class ControlGUI(qt.QWidget):
                 elif param.get("type") == "indicator_button":
                     # the QPushButton
                     c["QPushButton"] = qt.QPushButton(param["label"])
-                    df.addWidget(c["QPushButton"], param["row"], param["col"])
+                    c["QPushButton"].setCheckable(True)
+                    c["QPushButton"].setChecked(param["checked"][-1])
 
                     # tooltip
                     if param.get("tooltip"):
                         c["QPushButton"].setToolTip(param["tooltip"])
-
-                    # style
-                    c["QPushButton"].setObjectName(c_name)
-                    ind_style = "QPushButton#" + c_name + "{" + param["styles"][-1] + "}"
-                    c["QPushButton"].setStyleSheet(ind_style)
 
                     # rowspan / colspan
                     if param.get("rowspan") and param.get("colspan"):
@@ -1992,14 +1994,14 @@ class ControlGUI(qt.QWidget):
                     # commands for the QPushButton
                     if param.get("argument"):
                         c["QPushButton"].clicked[bool].connect(
-                                lambda state, dev=dev, cmd=param["action_commands"][0],
+                                lambda state, dev=dev, cmd_list=param["action_commands"],
                                 arg=dev.config["control_params"][param["argument"]]:
-                                    self.queue_command(dev, cmd+"("+arg["value"]+")")
+                                    self.queue_command(dev, cmd_list[int(state)]+"("+arg["value"]+")")
                             )
                     else:
                         c["QPushButton"].clicked[bool].connect(
-                                lambda state, dev=dev, cmd=param["action_commands"][0]:
-                                    self.queue_command(dev, cmd+"()")
+                                lambda state, dev=dev, cmd_list=param["action_commands"]:
+                                    self.queue_command(dev, cmd_list[int(state)]+"()")
                             )
 
             ##################################
@@ -2296,9 +2298,8 @@ class ControlGUI(qt.QWidget):
                     elif params.get("type") == "indicator_button":
                         dev.config["control_GUI_elements"][c_name]["QPushButton"].\
                                 setText(params["texts"][-1])
-                        ind_style = "QPushButton#" + c_name + "{" + params["styles"][-1] + "}"
                         dev.config["control_GUI_elements"][c_name]["QPushButton"].\
-                                setStyleSheet(ind_style)
+                                setChecked(params["checked"][-1])
 
                 # stop the device, and wait for it to finish
                 dev.active.clear()

@@ -310,6 +310,13 @@ will be collected as `monitoring events`. Then, `Monitoring` updates the
 pump's indicator can poll the pump status, and display a green label that says
 the pump is running, or a black one that says the pump is stopped.
 
+Currently, two kinds of indicator controls are supported:
+
+- `indicator`: a `QLabel` that changes text and style depending on the return
+  values of the `monitoring_command`
+- `indicator_button`: a `QPushButton` that changes its text, style, and the
+  command called depending on the return values of the `monitoring_command`
+
 Meanwhile, the `HDF_writer` instance does
 
 - Open the specified HDF file

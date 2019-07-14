@@ -10,6 +10,12 @@
      color: black
 }
 
+*[state="intermediate2"]
+{
+     background-color: orange;
+     color: white
+}
+
 *[state="error"]
 {
      background-color: red;

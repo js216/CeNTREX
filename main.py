@@ -379,9 +379,11 @@ class Monitoring(threading.Thread):
             # check that we have written to HDF recently enough
             HDF_status = self.parent.ControlGUI.HDF_status
             if time.time() - float(HDF_status.text()) > 5.0:
-                HDF_status.setStyleSheet("QLabel#HDF_status { color: white; background-color: red }")
+                HDF_status.setProperty("state", "error")
+                #HDF_status.setStyle(HDF_status.style())
             else:
-                HDF_status.setStyleSheet("QLabel#HDF_status { color: white; background-color: #2a542a }")
+                HDF_status.setProperty("state", "enabled")
+                #HDF_status.setStyle(HDF_status.style())
 
             # Monitoring dt
             try:
@@ -529,14 +531,14 @@ class Monitoring(threading.Thread):
                 try:
                     idx = params["return_values"].index(event[2])
                 except ValueError:
-                    continue
+                    idx = -2
 
                 # update indicator text and style if necessary
                 if params.get("type") == "indicator":
                     if ind.text() != params["texts"][idx]:
                         ind.setText(params["texts"][idx])
-                        ind_style = "QLabel#" + c_name + "{" + params["styles"][idx] + "}"
-                        ind.setStyleSheet(ind_style)
+                        ind.setProperty("state", params["states"][idx])
+                        ind.setStyle(ind.style())
 
                 elif params.get("type") == "indicator_button":
                     if ind.text() != params["texts"][idx]:
@@ -1062,7 +1064,7 @@ class DeviceConfig(Config):
                         "monitoring_command" : params[c]["monitoring_command"],
                         "return_values"      : split(params[c]["return_values"]),
                         "texts"              : split(params[c]["texts"]),
-                        "styles"             : split(params[c]["styles"]),
+                        "states"             : split(params[c]["states"]),
                     }
 
             elif params[c].get("type") == "indicator_button":
@@ -1146,7 +1148,7 @@ class DeviceConfig(Config):
                 config[c_name]["monitoring_command"] = str(c.get("monitoring_command"))
                 config[c_name]["return_values"] = ", ".join(c["return_values"])
                 config[c_name]["texts"] = ", ".join(c["texts"])
-                config[c_name]["styles"] = ", ".join(c["styles"])
+                config[c_name]["states"] = ", ".join(c["states"])
             if c["type"] == "indicator_button":
                 config[c_name]["monitoring_command"] = str(c.get("monitoring_command"))
                 config[c_name]["action_commands"] = ", ".join(c["action_commands"])
@@ -1575,7 +1577,6 @@ class ControlGUI(qt.QWidget):
         # HDF writer status
         gen_f.addWidget(qt.QLabel("Last written to HDF:"), 1, 0)
         self.HDF_status = qt.QLabel("0")
-        self.HDF_status.setObjectName("HDF_status")
         gen_f.addWidget(self.HDF_status, 1, 1, 1, 2)
 
         # disk space usage
@@ -1962,9 +1963,8 @@ class ControlGUI(qt.QWidget):
                             param["label"],
                             alignment = PyQt5.QtCore.Qt.AlignCenter,
                         )
-                    c["QLabel"].setObjectName(c_name)
-                    ind_style = "QLabel#" + c_name + "{" + param["styles"][-1] + "}"
-                    c["QLabel"].setStyleSheet(ind_style)
+                    c["QLabel"].setProperty("state", param["states"][-1])
+                    c["QLabel"].setStyle(c["QLabel"].style())
                     if param.get("rowspan") and param.get("colspan"):
                         df.addWidget(c["QLabel"], param["row"], param["col"], param["rowspan"], param["colspan"])
                     else:
@@ -1980,6 +1980,10 @@ class ControlGUI(qt.QWidget):
                     c["QPushButton"] = qt.QPushButton(param["label"])
                     c["QPushButton"].setCheckable(True)
                     c["QPushButton"].setChecked(param["checked"][-1])
+
+                    # style
+                    c["QPushButton"].setProperty("state", param["states"][-1])
+                    c["QPushButton"].setStyle(c["QPushButton"].style())
 
                     # tooltip
                     if param.get("tooltip"):
@@ -2278,7 +2282,8 @@ class ControlGUI(qt.QWidget):
 
         # remove background color of the HDF status label
         HDF_status = self.parent.ControlGUI.HDF_status
-        HDF_status.setStyleSheet("QLabel#HDF_status { color: white; background-color: #050505 }")
+        HDF_status.setProperty("state", "disabled")
+        HDF_status.setStyle(HDF_status.style())
 
         # stop each Device thread
         for dev_name, dev in self.parent.devices.items():
@@ -2290,16 +2295,17 @@ class ControlGUI(qt.QWidget):
                 # reset the status of all indicators
                 for c_name, params in dev.config["control_params"].items():
                     if params.get("type") == "indicator":
-                        dev.config["control_GUI_elements"][c_name]["QLabel"].\
-                                setText(params["texts"][-1])
-                        ind_style = "QLabel#" + c_name + "{" + params["styles"][-1] + "}"
-                        dev.config["control_GUI_elements"][c_name]["QLabel"].\
-                                setStyleSheet(ind_style)
+                        ind = dev.config["control_GUI_elements"][c_name]["QLabel"]
+                        ind.setText(params["texts"][-1])
+                        ind.setProperty("state", params["states"][-1])
+                        ind.setStyle(ind.style())
+
                     elif params.get("type") == "indicator_button":
-                        dev.config["control_GUI_elements"][c_name]["QPushButton"].\
-                                setText(params["texts"][-1])
-                        dev.config["control_GUI_elements"][c_name]["QPushButton"].\
-                                setChecked(params["checked"][-1])
+                        ind = dev.config["control_GUI_elements"][c_name]["QPushButton"]
+                        ind.setChecked(params["checked"][-1])
+                        ind.setText(params["texts"][-1])
+                        ind.setProperty("state", params["states"][-1])
+                        ind.setStyle(ind.style())
 
                 # stop the device, and wait for it to finish
                 dev.active.clear()
@@ -3223,8 +3229,7 @@ class CentrexGUI(qt.QMainWindow):
         self.app = app
         self.setWindowTitle('CENTREX DAQ')
         #self.setWindowFlags(PyQt5.QtCore.Qt.Window | PyQt5.QtCore.Qt.FramelessWindowHint)
-        with open("darkstyle.qss", 'r') as f:
-            self.app.setStyleSheet(f.read())
+        self.load_stylesheet()
 
         # read program configuration
         self.config = ProgramConfig("config/settings.ini")
@@ -3266,6 +3271,13 @@ class CentrexGUI(qt.QMainWindow):
                 .activated.connect(self.PlotsGUI.stop_all_plots)
 
         self.show()
+
+    def load_stylesheet(self, reset=False):
+        if reset:
+            self.app.setStyleSheet("")
+        else:
+            with open("darkstyle.qss", 'r') as f:
+                self.app.setStyleSheet(f.read())
 
     def toggle_orientation(self):
         if self.config["horizontal_split"]:

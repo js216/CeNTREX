@@ -380,10 +380,12 @@ class Monitoring(threading.Thread):
             HDF_status = self.parent.ControlGUI.HDF_status
             if time.time() - float(HDF_status.text()) > 5.0:
                 HDF_status.setProperty("state", "error")
-                #HDF_status.setStyle(HDF_status.style())
             else:
                 HDF_status.setProperty("state", "enabled")
-                #HDF_status.setStyle(HDF_status.style())
+
+            # warning: if uncommented, the following line causes indicator styles to disappear;
+            # $3 reward to anyone who explains why
+            # HDF_status.setStyle(HDF_status.style())
 
             # Monitoring dt
             try:

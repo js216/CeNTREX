@@ -711,20 +711,12 @@ class HDF_writer(threading.Thread):
                     dset = grp[dev.config["name"]]
                     # check if one queue entry has multiple rows
                     if np.shape(data)[0] >= 2:
-                        arr_len = np.shape(data)[1]
                         list_len = len(data)
-                        if dev.config["compound_dataset"]:
-                            dset.resize(dset.shape[0]+list_len, axis=0)
-                        else:
-                            dset.resize(dset.shape[0]+list_len*arr_len, axis=0)
+                        dset.resize(dset.shape[0]+list_len, axis=0)
                         # iterate over queue entries with multiple rows and append
                         for idx, d in enumerate(data):
-                            if dev.config["compound_dataset"]:
-                                idx_start = -list_len + idx
-                                idx_stop = -list_len+idx+1
-                            else:
-                                idx_start = -arr_len*(list_len-idx)
-                                idx_stop = -arr_len*(list_len-(idx+1))
+                            idx_start = -list_len + idx
+                            idx_stop = -list_len+idx+1
                             if dev.config["compound_dataset"]:
                                 d =np.array([tuple(d)], dtype = dset.dtype)
                             if idx_stop == 0:

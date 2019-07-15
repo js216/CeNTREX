@@ -3081,6 +3081,8 @@ class Plotter(qt.QWidget):
         # ... else apply f(y) to the data
 
         if self.dev.config["slow_data"]:
+            # For slow data, the function evaluated on the data must return an
+            # array of the same shape as the raw data.
             try:
                 y_fn = eval(self.config["f(y)"])
                 if not x.shape == y_fn.shape:
@@ -3093,20 +3095,27 @@ class Plotter(qt.QWidget):
                 return x[x0:x1], y_fn[x0:x1]
 
         if not self.dev.config["slow_data"]:
+            # For fast data, the function evaluated on the data must return either
+            #    (a) an array with same shape as the original data
+            #    (b) a scalar value
             try:
                 y_fn = eval(self.config["f(y)"])
-                # test the result is a scalar
-                try:
-                    float(y_fn)
-                except Exception as err:
-                    raise TypeError(str(err))
+                # case (a)
+                if x.shape == y_fn.shape:
+                    return x[x0:x1], y_fn[x0:x1]
+
+                # case (b)
+                else:
+                    try:
+                        float(y_fn)
+                        self.fast_y.append(y_fn)
+                        return np.arange(len(self.fast_y)), np.array(self.fast_y)
+                    except Exception as err:
+                        raise TypeError(str(err))
+
             except Exception as err:
-                logging.warning(str(err))
                 logging.warning(traceback.format_exc())
                 return x[x0:x1], y[x0:x1]
-            else:
-                self.fast_y.append(y_fn)
-                return np.arange(len(self.fast_y)), np.array(self.fast_y)
 
     def replot(self):
         # check parameters

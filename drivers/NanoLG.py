@@ -376,17 +376,25 @@ class NanoLG:
         else:
             return 'invalid'
 
+    def SystemOnStatus(self):
+        if self.data['system_status_word']['system_state']:
+            return 'System on'
+        elif not self.data['system_status_word']['system_state']:
+            return 'System off'
+        else:
+            return 'invalid'
+
     def PumpStatus(self):
         if self.data['system_status_word']['pump_state']:
-            return 'Pump On'
+            return 'Pump on'
         elif not self.data['system_status_word']['pump_state']:
-            return 'Pump Off'
+            return 'Pump off'
         else:
             return 'invalid'
 
     def LaserStatus(self):
         if self.data['system_status_word']['laser_state']:
-            return 'Laser On'
+            return 'Laser on'
         elif not self.data['system_status_word']['laser_state']:
             return 'Laser off'
         else:
@@ -404,7 +412,7 @@ class NanoLG:
         if self.data['system_status_word']['external_lamp1_trigger']:
             return 'external'
         elif not self.data['system_status_word']['external_lamp1_trigger']:
-            return 'internal':
+            return 'internal'
         else:
             return 'invalid'
 

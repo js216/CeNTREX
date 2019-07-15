@@ -2660,7 +2660,7 @@ class Plotter(qt.QWidget):
         # select device
         self.dev_cbx = qt.QComboBox()
         self.dev_cbx.activated[str].connect(lambda val: self.config.change("device", val))
-        self.dev_cbx.activated[str].connect(lambda val: self.refresh_parameter_lists())
+        self.dev_cbx.activated[str].connect(lambda val: self.refresh_parameter_lists(select_plots_fn = True))
         self.dev_cbx.activated[str].connect(self.update_labels)
         update_QComboBox(
                 cbx     = self.dev_cbx,
@@ -2804,9 +2804,9 @@ class Plotter(qt.QWidget):
         pb.clicked[bool].connect(lambda val: self.destroy())
 
         # update the values of the above controls
-        self.refresh_parameter_lists()
+        self.refresh_parameter_lists(select_plots_fn = True)
 
-    def refresh_parameter_lists(self, select_defaults=True):
+    def refresh_parameter_lists(self, select_defaults=True, select_plots_fn=False):
         # update the list of available devices
         available_devices = self.parent.ControlGUI.get_dev_list()
         update_QComboBox(
@@ -2862,8 +2862,9 @@ class Plotter(qt.QWidget):
                 self.config["y"] = self.param_list[0]
 
         # update the default plot f(y) for the given device
-        self.config["f(y)"] = self.dev.config["plots_fn"]
-        self.fn_qle.setText(self.config["f(y)"])
+        if select_plots_fn:
+            self.config["f(y)"] = self.dev.config["plots_fn"]
+            self.fn_qle.setText(self.config["f(y)"])
 
         # update x, y, and z QComboBoxes
         update_QComboBox(
@@ -3017,6 +3018,7 @@ class Plotter(qt.QWidget):
                 return None
             x = np.arange(dset[0].shape[2])
             y = dset[0][0, self.param_list.index(self.config["y"])]
+            self.dset_attrs = dset[1]
 
             # divide y by z (if applicable)
             if self.config["z"] in self.param_list:

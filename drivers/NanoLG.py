@@ -376,6 +376,46 @@ class NanoLG:
         else:
             return 'invalid'
 
+    def PumpStatus(self):
+        if self.data['system_status_word']['pump_state']:
+            return 'Pump On'
+        elif not self.data['system_status_word']['pump_state']:
+            return 'Pump Off'
+        else:
+            return 'invalid'
+
+    def LaserStatus(self):
+        if self.data['system_status_word']['laser_state']:
+            return 'Laser On'
+        elif not self.data['system_status_word']['laser_state']:
+            return 'Laser off'
+        else:
+            return 'invalid'
+
+    def ShutterStatus(self):
+        if self.data['system_status_word']['shutter_state']:
+            return 'Shutter open'
+        elif not self.data['system_status_word']['shutter_state']:
+            return 'Shutter closed'
+        else:
+            return 'invalid'
+
+    def LampTriggerStatus(self):
+        if self.data['system_status_word']['external_lamp1_trigger']:
+            return 'external'
+        elif not self.data['system_status_word']['external_lamp1_trigger']:
+            return 'internal':
+        else:
+            return 'invalid'
+
+    def QSwitchTriggerStatus(self):
+        if self.data['system_status_word']['external_qswitch1_trigger']:
+            return 'external'
+        elif not self.data['system_status_word']['external_qswitch1_trigger']:
+            return 'internal'
+        else:
+            return 'invalid'
+
     ##############################
     # Packet Parsing Commands
     ##############################

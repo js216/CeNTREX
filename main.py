@@ -298,27 +298,27 @@ class Device(threading.Thread):
                             self.data_queue.append(last_data)
                             self.config["plots_queue"].append(last_data)
 
-                    # keep track of the number of (sequential and total) NaN returns
-                    if isinstance(last_data, float):
-                        if np.isnan(last_data):
-                            self.nan_count += 1
-                            if isinstance(self.previous_data, float) and np.isnan(self.previous_data):
-                                self.sequential_nan_count += 1
-                        else:
-                            self.sequential_nan_count = 0
-                    self.previous_data = last_data
+                        # keep track of the number of (sequential and total) NaN returns
+                        if isinstance(last_data, float):
+                            if np.isnan(last_data):
+                                self.nan_count += 1
+                                if isinstance(self.previous_data, float) and np.isnan(self.previous_data):
+                                    self.sequential_nan_count += 1
+                            else:
+                                self.sequential_nan_count = 0
+                        self.previous_data = last_data
 
-                    # issue a warning if there's been too many sequential NaN returns
-                    try:
-                        max_NaN_count = int(self.config["max_NaN_count"])
-                    except TypeError:
-                        max_NaN_count = 10
-                    if self.sequential_nan_count > max_NaN_count:
-                        warning_dict = {
-                                "message" : "excess sequential NaN returns: " + str(self.sequential_nan_count),
-                                "sequential_NaN_count_exceeded" : 1,
-                            }
-                        self.warnings.append([time.time(), warning_dict])
+                        # issue a warning if there's been too many sequential NaN returns
+                        try:
+                            max_NaN_count = int(self.config["max_NaN_count"])
+                        except TypeError:
+                            max_NaN_count = 10
+                        if self.sequential_nan_count > max_NaN_count:
+                            warning_dict = {
+                                    "message" : "excess sequential NaN returns: " + str(self.sequential_nan_count),
+                                    "sequential_NaN_count_exceeded" : 1,
+                                }
+                            self.warnings.append([time.time(), warning_dict])
 
                     # send control commands, if any, to the device, and record return values
                     for c in self.commands:
@@ -623,11 +623,21 @@ class HDF_writer(threading.Thread):
                 # create dataset for data if only one is needed
                 # (fast devices create a new dataset for each acquisition)
                 if dev.config["slow_data"]:
+                    if dev.config["compound_dataset"]:
+                        dtype = np.dtype([(name, dtype) for name, dtype in
+                                               zip(dev.config["attributes"]["column_names"].split(','),
+                                               dev.config["dtype"])])
+                        shape = (0,)
+                        maxshape = (None,)
+                    else:
+                        dtype = dev.config["dtype"]
+                        shape = (0, *dev.config["shape"])
+                        maxshape = (None, *dev.config["shape"])
                     dset = grp.create_dataset(
                             dev.config["name"],
-                            (0, *dev.config["shape"]),
-                            maxshape=(None, *dev.config["shape"]),
-                            dtype=dev.config["dtype"]
+                            shape,
+                            maxshape=maxshape,
+                            dtype=dtype
                         )
                     for attr_name, attr in dev.config["attributes"].items():
                         dset.attrs[attr_name] = attr
@@ -700,14 +710,23 @@ class HDF_writer(threading.Thread):
                 if dev.config["slow_data"]:
                     dset = grp[dev.config["name"]]
                     # check if one queue entry has multiple rows
-                    if np.ndim(data) == 3:
+                    if np.shape(data)[0] >= 2:
                         arr_len = np.shape(data)[1]
                         list_len = len(data)
-                        dset.resize(dset.shape[0]+list_len*arr_len, axis=0)
+                        if dev.config["compound_dataset"]:
+                            dset.resize(dset.shape[0]+list_len, axis=0)
+                        else:
+                            dset.resize(dset.shape[0]+list_len*arr_len, axis=0)
                         # iterate over queue entries with multiple rows and append
                         for idx, d in enumerate(data):
-                            idx_start = -arr_len*(list_len-idx)
-                            idx_stop = -arr_len*(list_len-(idx+1))
+                            if dev.config["compound_dataset"]:
+                                idx_start = -list_len + idx
+                                idx_stop = -list_len+idx+1
+                            else:
+                                idx_start = -arr_len*(list_len-idx)
+                                idx_stop = -arr_len*(list_len-(idx+1))
+                            if dev.config["compound_dataset"]:
+                                d =np.array([tuple(d)], dtype = dset.dtype)
                             if idx_stop == 0:
                                 dset[idx_start:] = d
                             else:
@@ -715,6 +734,8 @@ class HDF_writer(threading.Thread):
                     else:
                         dset.resize(dset.shape[0]+len(data), axis=0)
                         try:
+                            if dev.config["compound_dataset"]:
+                                data = np.array([tuple(data[0])], dtype = dset.dtype)
                             dset[-len(data):] = data
                         except TypeError as err:
                             logging.error("Error in write_all_queues_to_HDF(): " + str(err))
@@ -853,6 +874,7 @@ class DeviceConfig(Config):
                 "plots_queue_maxlen" : int,
                 "max_NaN_count"      : int,
                 "meta_device"        : bool,
+                "compound_dataset"   : bool,
                 "double_connect_dev" : bool,
                 "dtype"              : str,
                 "shape"              : list,
@@ -880,6 +902,7 @@ class DeviceConfig(Config):
     def set_defaults(self):
         self["control_params"] = {"InfluxDB_enabled" : {"type": "dummy", "value" : True}}
         self["double_connect_dev"] = True
+        self["compound_dataset"] = False
 
     def change_param(self, key, val, sect=None, sub_ctrl=None, row=None, nonTriState=False):
         if row != None:

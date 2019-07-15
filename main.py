@@ -624,19 +624,16 @@ class HDF_writer(threading.Thread):
                 # (fast devices create a new dataset for each acquisition)
                 if dev.config["slow_data"]:
                     if dev.config["compound_dataset"]:
-                        dtype = np.dtype([(name, dtype) for name, dtype in
-                                               zip(dev.config["attributes"]["column_names"].split(','),
-                                               dev.config["dtype"])])
-                        shape = (0,)
-                        maxshape = (None,)
+                        dtype = np.dtype([(name.strip(), dtype) for name, dtype in
+                                          zip(dev.config["attributes"]["column_names"].split(','),
+                                          dev.config["dtype"])])
                     else:
-                        dtype = dev.config["dtype"]
-                        shape = (0, *dev.config["shape"])
-                        maxshape = (None, *dev.config["shape"])
+                        dtype = np.dtype([(name.strip(), dev.config["dtype"]) for name in
+                                          dev.config["attributes"]["column_names"].split(',')])
                     dset = grp.create_dataset(
                             dev.config["name"],
-                            shape,
-                            maxshape=maxshape,
+                            (0,),
+                            maxshape=(None,),
                             dtype=dtype
                         )
                     for attr_name, attr in dev.config["attributes"].items():
@@ -717,8 +714,7 @@ class HDF_writer(threading.Thread):
                         for idx, d in enumerate(data):
                             idx_start = -list_len + idx
                             idx_stop = -list_len+idx+1
-                            if dev.config["compound_dataset"]:
-                                d =np.array([tuple(d)], dtype = dset.dtype)
+                            d =np.array([tuple(d)], dtype = dset.dtype)
                             if idx_stop == 0:
                                 dset[idx_start:] = d
                             else:
@@ -726,8 +722,7 @@ class HDF_writer(threading.Thread):
                     else:
                         dset.resize(dset.shape[0]+len(data), axis=0)
                         try:
-                            if dev.config["compound_dataset"]:
-                                data = np.array([tuple(data[0])], dtype = dset.dtype)
+                            data = np.array([tuple(data[0])], dtype = dset.dtype)
                             dset[-len(data):] = data
                         except TypeError as err:
                             logging.error("Error in write_all_queues_to_HDF(): " + str(err))
@@ -2917,12 +2912,12 @@ class Plotter(qt.QWidget):
 
             if self.dev.config["slow_data"]:
                 dset = grp[self.dev.config["name"]]
-                x = dset[:, self.param_list.index(self.config["x"])]
-                y = dset[:, self.param_list.index(self.config["y"])]
+                x = dset[self.config["x"]]
+                y = dset[self.config["y"]]
 
                 # divide y by z (if applicable)
                 if self.config["z"] in self.param_list:
-                    y /= dset[:, self.param_list.index(self.config["z"])]
+                    y /= dset[self.config["z"]]
 
             if not self.dev.config["slow_data"]:
                 # find the latest record

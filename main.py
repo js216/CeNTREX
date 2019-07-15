@@ -155,9 +155,11 @@ class FlexibleGridLayout(qt.QHBoxLayout):
         for col_num, col in self.cols.items():
             for i in reversed(range(col.count())):
                 try:
-                    col.itemAt(i).layout().itemAt(0).widget().setParent(None)
+                    if col.itemAt(i).layout():
+                        col.itemAt(i).layout().itemAt(0).widget().setParent(None)
                 except AttributeError:
-                    logging.debug(traceback.format_exc())
+                    logging.info("Exception in clear() in class FlexibleGridLayout", exc_info=True)
+                    pass
 
 ##########################################################################
 ##########################################################################
@@ -248,7 +250,7 @@ class Device(threading.Thread):
         try:
             self.config["plots_queue_maxlen"] = int(maxlen)
         except ValueError:
-            logging.debug(traceback.format_exc())
+            logging.info(traceback.format_exc())
             return
 
         # create a new deque with a different maxlen
@@ -277,7 +279,7 @@ class Device(threading.Thread):
                             logging.warning("Device dt too small.")
                             raise ValueError
                     except ValueError:
-                        logging.debug(traceback.format_exc())
+                        logging.info(traceback.format_exc())
                         dt = 0.1
 
                     # 50 Hz loop delay
@@ -314,7 +316,7 @@ class Device(threading.Thread):
                         try:
                             max_NaN_count = int(self.config["max_NaN_count"])
                         except TypeError:
-                            logging.debug(traceback.format_exc())
+                            logging.info(traceback.format_exc())
                             max_NaN_count = 10
                         if self.sequential_nan_count > max_NaN_count:
                             warning_dict = {
@@ -328,7 +330,7 @@ class Device(threading.Thread):
                         try:
                             ret_val = eval("device." + c.strip())
                         except Exception as err:
-                            logging.debug(traceback.format_exc())
+                            logging.info(traceback.format_exc())
                             ret_val = str(err)
                         ret_val = "None" if not ret_val else ret_val
                         self.last_event = [ time.time()-self.time_offset, c, ret_val ]
@@ -340,7 +342,7 @@ class Device(threading.Thread):
                         try:
                             ret_val = eval("device." + c.strip())
                         except Exception as err:
-                            logging.debug(traceback.format_exc())
+                            logging.info(traceback.format_exc())
                             ret_val = str(err)
                         ret_val = "None" if not ret_val else ret_val
                         self.monitoring_events_queue.append( [ time.time()-self.time_offset, c, ret_val ] )
@@ -348,6 +350,7 @@ class Device(threading.Thread):
 
         # report any exception that has occurred in the run() function
         except Exception as err:
+            logging.info(traceback.format_exc())
             err_msg = traceback.format_exc()
             warning_dict = {
                     "message" : "exception in " + self.config["name"] + ": "+err_msg,
@@ -396,7 +399,7 @@ class Monitoring(threading.Thread):
             try:
                 dt = float(self.parent.config["general"]["monitoring_dt"])
             except ValueError:
-                logging.debug(traceback.format_exc())
+                logging.info(traceback.format_exc())
                 dt = 1
 
             # monitor operation of individual devices
@@ -436,10 +439,9 @@ class Monitoring(threading.Thread):
                 self.display_monitoring_events(dev)
 
                 # get the last row of data from the plots_queue
-                try:
+                if len(dev.config["plots_queue"]) > 0:
                     data = dev.config["plots_queue"][-1]
-                except IndexError:
-                    logging.debug(traceback.format_exc())
+                else:
                     data = None
 
                 # format the data
@@ -513,12 +515,8 @@ class Monitoring(threading.Thread):
 
         # empty the monitoring events queue
         monitoring_events = []
-        while True:
-            try:
-                monitoring_events.append( dev.monitoring_events_queue.pop() )
-            except IndexError:
-                logging.debug(traceback.format_exc())
-                break
+        while len(dev.monitoring_events_queue) > 0:
+            monitoring_events.append( dev.monitoring_events_queue.pop() )
 
         # check any events were returned
         if not monitoring_events:
@@ -543,7 +541,7 @@ class Monitoring(threading.Thread):
                 try:
                     idx = params["return_values"].index(event[2])
                 except ValueError:
-                    logging.debug(traceback.format_exc())
+                    logging.info(traceback.format_exc())
                     idx = -2
 
                 # update indicator text and style if necessary
@@ -585,7 +583,7 @@ class Monitoring(threading.Thread):
                 dev.config["monitoring_GUI_elements"]["events"].setText(str(last_event))
                 return last_event
             except IndexError:
-                logging.debug(traceback.format_exc())
+                logging.info(traceback.format_exc())
                 return
 
     def push_warnings_to_influxdb(self, dev_name, warning):
@@ -684,7 +682,7 @@ class HDF_writer(threading.Thread):
                     raise ValueError
                 time.sleep(dt)
             except ValueError:
-                logging.debug(traceback.format_exc())
+                logging.info(traceback.format_exc())
                 time.sleep(float(self.parent.config["general"]["default_hdf_dt"]))
 
         # make sure everything is written to HDF when the thread terminates
@@ -778,12 +776,8 @@ class HDF_writer(threading.Thread):
 
     def get_data(self, fifo):
         data = []
-        while True:
-            try:
-                data.append( fifo.popleft() )
-            except IndexError:
-                logging.debug(traceback.format_exc())
-                break
+        while len(fifo) > 0:
+            data.append( fifo.popleft() )
         return data
 
 ##########################################################################
@@ -2468,9 +2462,9 @@ class PlotsGUI(qt.QSplitter):
     def add_plot(self, row=None, col=None):
         # find column for the plot if not given to the function
         try:
-            col = int(col)
+            col = int(col) if col else 0
         except (ValueError, TypeError):
-            logging.debug(traceback.format_exc())
+            logging.info(traceback.format_exc())
             col = 0
 
         # find row for the plot if not given to the function
@@ -2530,7 +2524,7 @@ class PlotsGUI(qt.QSplitter):
         try:
             x0 = int(x0)
         except ValueError:
-            logging.debug(traceback.format_exc())
+            logging.info(traceback.format_exc())
             x0 = 0
 
         # set the value
@@ -2545,7 +2539,7 @@ class PlotsGUI(qt.QSplitter):
         try:
             x1 = int(x1)
         except ValueError:
-            logging.debug(traceback.format_exc())
+            logging.info(traceback.format_exc())
             x1 = -1
 
         # set the value
@@ -2563,7 +2557,7 @@ class PlotsGUI(qt.QSplitter):
                 logging.warning("Plot dt too small.")
                 raise ValueError
         except ValueError:
-            logging.debug(traceback.format_exc())
+            logging.info(traceback.format_exc())
             dt = float(self.parent.config["general"]["default_plot_dt"])
 
         # set the value
@@ -2847,10 +2841,10 @@ class Plotter(qt.QWidget):
                 self.config["run"] = list(f.keys())[-1]
                 self.run_cbx.setCurrentText(self.config["run"])
         except OSError as err:
-            self.config["run"] = "(no runs found)"
-            self.run_cbx.setCurrentText(self.config["run"])
             logging.warning("Warning in class Plotter: " + str(err))
             logging.warning(traceback.format_exc())
+            self.config["run"] = "(no runs found)"
+            self.run_cbx.setCurrentText(self.config["run"])
 
         # get parameters
         self.param_list = split(self.dev.config["attributes"]["column_names"])
@@ -2915,9 +2909,9 @@ class Plotter(qt.QWidget):
                         logging.warning("Plot error: Run not found in the HDF file:" + self.config["run"])
                         return False
             except OSError:
-                    self.stop_animation()
                     logging.warning("Plot error: Not a valid HDF file.")
                     logging.warning(traceback.format_exc())
+                    self.stop_animation()
                     return False
 
             # check dataset exists in the run
@@ -2925,7 +2919,7 @@ class Plotter(qt.QWidget):
                 try:
                     grp = f[self.config["run"] + "/" + self.dev.config["path"]]
                 except KeyError:
-                    logging.debug(traceback.format_exc())
+                    logging.info(traceback.format_exc())
                     if time.time() - self.parent.config["time_offset"] > 5:
                         logging.warning("Plot error: Dataset not found in this run.")
                     self.stop_animation()
@@ -3022,7 +3016,7 @@ class Plotter(qt.QWidget):
             try:
                 dset = self.dev.config["plots_queue"][-1]
             except IndexError:
-                logging.debug(traceback.format_exc())
+                logging.info(traceback.format_exc())
                 return None
             if dset==[np.nan] or dset==np.nan:
                 return None
@@ -3071,7 +3065,7 @@ class Plotter(qt.QWidget):
             if len(x) < 5: # require at least five datapoints
                 raise ValueError
         except (ValueError, TypeError):
-            logging.debug(traceback.format_exc())
+            logging.info(traceback.format_exc())
             return None
 
         # select indices for subsetting
@@ -3079,7 +3073,7 @@ class Plotter(qt.QWidget):
             x0 = int(float(self.config["x0"]))
             x1 = int(float(self.config["x1"]))
         except ValueError as err:
-            logging.debug(traceback.format_exc())
+            logging.info(traceback.format_exc())
             x0, x1 = 0, -1
         if x0 >= x1:
             if x1 >= 0:
@@ -3158,7 +3152,7 @@ class Plotter(qt.QWidget):
                 x_unit = " [" + units[col_names.index(self.config["x"])] + "]"
                 y_unit = " [" + units[col_names.index(self.config["y"])] + "]"
             except ValueError:
-                logging.debug(traceback.format_exc())
+                logging.info(traceback.format_exc())
                 x_unit, y_unit = "", ""
 
             # set axis labels
@@ -3178,7 +3172,7 @@ class Plotter(qt.QWidget):
             y0 = float(self.config["y0"])
             y1 = float(self.config["y1"])
         except ValueError:
-            logging.debug(traceback.format_exc())
+            logging.info(traceback.format_exc())
             self.plot.enableAutoRange()
         else:
             self.plot.setYRange(y0, y1)
@@ -3202,7 +3196,7 @@ class Plotter(qt.QWidget):
                         logging.warning("Plot dt too small.")
                         raise ValueError
                 except ValueError:
-                    logging.debug(traceback.format_exc())
+                    logging.info(traceback.format_exc())
                     dt = float(self.parent.config["general"]["default_plot_dt"])
                 time.sleep(dt)
 
@@ -3300,6 +3294,9 @@ class CentrexGUI(qt.QMainWindow):
 
         # read program configuration
         self.config = ProgramConfig("config/settings.ini")
+
+        # set debug level
+        logging.getLogger().setLevel(self.config["general"]["debug_level"])
 
         # GUI elements
         self.ControlGUI = ControlGUI(self)

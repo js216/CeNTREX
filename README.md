@@ -306,9 +306,34 @@ used, in the present version of the program, exclusively for the so-called
 `indicator` controls of a device. Each such control will cause `Monitoring` to
 call a command (as specified in the device `.ini` file), and the return values
 will be collected as `monitoring events`. Then, `Monitoring` updates the
-`indicator`'s text and style as a function of the return value. For example, a
-pump's indicator can poll the pump status, and display a green label that says
+`indicator`'s text and style as a function of the return value. For example,
+a pump's indicator can poll the pump status, and display a green label that says
 the pump is running, or a black one that says the pump is stopped.
+
+The text values corresponding to the given return values are to be listed in the
+relevant section of the `.ini` file, and styles can similarly be chosen from a
+list of styles pre-defined in `darkstyle.qss` (see beginning of that file). For
+example, a simple indicator will require the following fields:
+
+    monitoring_command = CheckFlood()
+    return_values = flooding, no flood, invalid, None
+    texts = Flooding!, No flood, (flood status?), (flood status?)
+    states = error, disabled, error, disabled
+
+An indicator button in addition needs a list of two commands to be run,
+depending on whether the button is considered `checked` or not. In addition,
+there has to be a list of boolean values that define which return values are
+considered checked and which aren't. For example:
+
+    action_commands = StopPump, StartPump
+    checked = True, False, False, True, True
+
+Currently, two kinds of indicator controls are supported:
+
+- `indicator`: a `QLabel` that changes text and style depending on the return
+  values of the `monitoring_command`
+- `indicator_button`: a `QPushButton` that changes its text, style, and the
+  command called depending on the return values of the `monitoring_command`
 
 Meanwhile, the `HDF_writer` instance does
 

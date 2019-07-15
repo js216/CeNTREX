@@ -1,3 +1,33 @@
+*[state="enabled"]
+{
+     background-color: #2a542a;
+     color: white
+}
+
+*[state="intermediate"]
+{
+     background-color: yellow;
+     color: black
+}
+
+*[state="intermediate2"]
+{
+     background-color: orange;
+     color: white
+}
+
+*[state="error"]
+{
+     background-color: red;
+     color: white
+}
+
+*[state="inactive"]
+{
+     background-color: #222;
+     color: #aaa
+}
+
 QWidget
 {
      background-color: #111;

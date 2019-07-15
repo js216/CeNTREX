@@ -298,27 +298,27 @@ class Device(threading.Thread):
                             self.data_queue.append(last_data)
                             self.config["plots_queue"].append(last_data)
 
-                    # keep track of the number of (sequential and total) NaN returns
-                    if isinstance(last_data, float):
-                        if np.isnan(last_data):
-                            self.nan_count += 1
-                            if isinstance(self.previous_data, float) and np.isnan(self.previous_data):
-                                self.sequential_nan_count += 1
-                        else:
-                            self.sequential_nan_count = 0
-                    self.previous_data = last_data
+                        # keep track of the number of (sequential and total) NaN returns
+                        if isinstance(last_data, float):
+                            if np.isnan(last_data):
+                                self.nan_count += 1
+                                if isinstance(self.previous_data, float) and np.isnan(self.previous_data):
+                                    self.sequential_nan_count += 1
+                            else:
+                                self.sequential_nan_count = 0
+                        self.previous_data = last_data
 
-                    # issue a warning if there's been too many sequential NaN returns
-                    try:
-                        max_NaN_count = int(self.config["max_NaN_count"])
-                    except TypeError:
-                        max_NaN_count = 10
-                    if self.sequential_nan_count > max_NaN_count:
-                        warning_dict = {
-                                "message" : "excess sequential NaN returns: " + str(self.sequential_nan_count),
-                                "sequential_NaN_count_exceeded" : 1,
-                            }
-                        self.warnings.append([time.time(), warning_dict])
+                        # issue a warning if there's been too many sequential NaN returns
+                        try:
+                            max_NaN_count = int(self.config["max_NaN_count"])
+                        except TypeError:
+                            max_NaN_count = 10
+                        if self.sequential_nan_count > max_NaN_count:
+                            warning_dict = {
+                                    "message" : "excess sequential NaN returns: " + str(self.sequential_nan_count),
+                                    "sequential_NaN_count_exceeded" : 1,
+                                }
+                            self.warnings.append([time.time(), warning_dict])
 
                     # send control commands, if any, to the device, and record return values
                     for c in self.commands:

@@ -882,6 +882,7 @@ class DeviceConfig(Config):
                 "double_connect_dev" : bool,
                 "dtype"              : str,
                 "shape"              : list,
+                "plots_fn"           : str,
             }
 
         # list of keys permitted for runtime data (which cannot be written to .ini file)
@@ -907,6 +908,7 @@ class DeviceConfig(Config):
         self["control_params"] = {"InfluxDB_enabled" : {"type": "dummy", "value" : True}}
         self["double_connect_dev"] = True
         self["compound_dataset"] = False
+        self["plots_fn"] = "2*y"
 
     def change_param(self, key, val, sect=None, sub_ctrl=None, row=None,
             nonTriState=False, GUI_element=None):
@@ -2359,6 +2361,7 @@ class ControlGUI(qt.QWidget):
         self.parent.config['control_active'] = True
         self.status_label.setText("Running")
 
+        # update the values of the above controls
         # make all plots display the current run and file, and clear f(y) for fast data
         self.parent.config["files"]["plotting_hdf_fname"] = self.parent.config["files"]["hdf_fname"]
         self.parent.PlotsGUI.refresh_all_run_lists(select_defaults=False)
@@ -2735,7 +2738,7 @@ class Plotter(qt.QWidget):
         # select device
         self.dev_cbx = qt.QComboBox()
         self.dev_cbx.activated[str].connect(lambda val: self.config.change("device", val))
-        self.dev_cbx.activated[str].connect(lambda val: self.refresh_parameter_lists())
+        self.dev_cbx.activated[str].connect(lambda val: self.refresh_parameter_lists(select_plots_fn = True))
         self.dev_cbx.activated[str].connect(self.update_labels)
         update_QComboBox(
                 cbx     = self.dev_cbx,
@@ -2784,8 +2787,6 @@ class Plotter(qt.QWidget):
         self.z_cbx.activated[str].connect(lambda val: self.config.change("z", val))
         self.z_cbx.activated[str].connect(self.update_labels)
         ctrls_f.addWidget(self.z_cbx, 1, 2)
-
-        self.refresh_parameter_lists()
 
         # plot range controls
         self.x0_qle = qt.QLineEdit()
@@ -2880,7 +2881,10 @@ class Plotter(qt.QWidget):
         ctrls_f.addWidget(pb, 0, 8)
         pb.clicked[bool].connect(lambda val: self.destroy())
 
-    def refresh_parameter_lists(self, select_defaults=True):
+        # update the values of the above controls
+        self.refresh_parameter_lists(select_plots_fn = True)
+
+    def refresh_parameter_lists(self, select_defaults=True, select_plots_fn=False):
         # update the list of available devices
         available_devices = self.parent.ControlGUI.get_dev_list()
         update_QComboBox(
@@ -2934,6 +2938,11 @@ class Plotter(qt.QWidget):
                 self.config["y"] = self.param_list[1]
             else:
                 self.config["y"] = self.param_list[0]
+
+        # update the default plot f(y) for the given device
+        if select_plots_fn:
+            self.config["f(y)"] = self.dev.config["plots_fn"]
+            self.fn_qle.setText(self.config["f(y)"])
 
         # update x, y, and z QComboBoxes
         update_QComboBox(
@@ -3087,6 +3096,7 @@ class Plotter(qt.QWidget):
                 return None
             x = np.arange(dset[0].shape[2])
             y = dset[0][0, self.param_list.index(self.config["y"])]
+            self.dset_attrs = dset[1]
 
             # divide y by z (if applicable)
             if self.config["z"] in self.param_list:

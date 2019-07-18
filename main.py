@@ -391,11 +391,11 @@ class Monitoring(threading.Thread):
             else:
                 HDF_status.setProperty("state", "enabled")
 
-            # warning: if uncommented, the following line causes indicator styles to disappear;
-            # $3 reward to anyone who explains why
-            # HDF_status.setStyle(HDF_status.style())
+            # update style
+            HDF_status.style().unpolish(HDF_status)
+            HDF_status.style().polish(HDF_status)
 
-            # Monitoring dt
+            # monitoring dt
             try:
                 dt = float(self.parent.config["general"]["monitoring_dt"])
             except ValueError:
@@ -430,9 +430,7 @@ class Monitoring(threading.Thread):
 
                 # send monitoring commands
                 for c_name, params in dev.config["control_params"].items():
-                    if params.get("type") == "indicator":
-                        dev.monitoring_commands.append( params["monitoring_command"] )
-                    elif params.get("type") == "indicator_button":
+                    if params.get("type") in ["indicator", "indicator_button", "indicator_lineedit"]:
                         dev.monitoring_commands.append( params["monitoring_command"] )
 
                 # obtain monitoring events and update any indicator controls
@@ -523,12 +521,8 @@ class Monitoring(threading.Thread):
             return
 
         for c_name, params in dev.config["control_params"].items():
-            # get reference to the indicator
-            if params.get("type") == "indicator":
-                ind = dev.config["control_GUI_elements"][c_name]["QLabel"]
-            elif params.get("type") == "indicator_button":
-                ind = dev.config["control_GUI_elements"][c_name]["QPushButton"]
-            else:
+            # check we're dealing with indicator controls
+            if not params.get("type") in ["indicator", "indicator_button", "indicator_lineedit"]:
                 continue
 
             # check the returned events
@@ -538,25 +532,36 @@ class Monitoring(threading.Thread):
                     continue
 
                 # check if there's any matching return value
-                try:
-                    idx = params["return_values"].index(event[2])
-                except ValueError:
-                    logging.info(traceback.format_exc())
-                    idx = -2
+                if params.get("type") in ["indicator", "indicator_button"]:
+                    try:
+                        idx = params["return_values"].index(event[2])
+                    except ValueError:
+                        logging.info(traceback.format_exc())
+                        idx = -2
 
                 # update indicator text and style if necessary
+
                 if params.get("type") == "indicator":
+                    ind = dev.config["control_GUI_elements"][c_name]["QLabel"]
                     if ind.text() != params["texts"][idx]:
-                        ind.setText(params["texts"][idx])
                         ind.setProperty("state", params["states"][idx])
-                        ind.setStyle(ind.style())
+                        ind.style().unpolish(ind)
+                        ind.style().polish(ind)
 
                 elif params.get("type") == "indicator_button":
+                    ind = dev.config["control_GUI_elements"][c_name]["QPushButton"]
                     if ind.text() != params["texts"][idx]:
+                        ind.setText(params["texts"][idx])
                         ind.setText(params["texts"][idx])
                         ind.setChecked(params["checked"][idx])
                         ind.setProperty("state", params["states"][idx])
-                        ind.setStyle(ind.style())
+                        ind.style().unpolish(ind)
+                        ind.style().polish(ind)
+
+                elif params.get("type") == "indicator_lineedit":
+                    if not dev.config["control_GUI_elements"][c_name]["currently_editing"]:
+                        ind = dev.config["control_GUI_elements"][c_name]["QLineEdit"]
+                        ind.setText(str(event[2]))
 
     def display_last_event(self, dev):
         # check device enabled
@@ -903,9 +908,12 @@ class DeviceConfig(Config):
         self["double_connect_dev"] = True
         self["compound_dataset"] = False
 
-    def change_param(self, key, val, sect=None, sub_ctrl=None, row=None, nonTriState=False):
+    def change_param(self, key, val, sect=None, sub_ctrl=None, row=None,
+            nonTriState=False, GUI_element=None):
         if row != None:
             self[sect][key]["value"][sub_ctrl][row] = val
+        elif GUI_element:
+            self["control_GUI_elements"][GUI_element][key] = val
         elif sub_ctrl:
             self[sect][key]["value"][sub_ctrl] = val
         elif sect:
@@ -1110,6 +1118,17 @@ class DeviceConfig(Config):
                         "texts"              : split(params[c]["texts"]),
                     }
 
+            elif params[c].get("type") == "indicator_lineedit":
+                ctrls[c] = {
+                        "label"      : params[c]["label"],
+                        "type"       : params[c]["type"],
+                        "row"        : int(params[c]["row"]),
+                        "col"        : int(params[c]["col"]),
+                        "enter_cmd"  : params[c].get("enter_cmd"),
+                        "value"      : params[c]["value"],
+                        "tooltip"    : params[c].get("tooltip"),
+                        "monitoring_command" : params[c]["monitoring_command"],
+                    }
 
             elif params[c].get("type") == "dummy":
                 ctrls[c] = {
@@ -1182,6 +1201,8 @@ class DeviceConfig(Config):
                 config[c_name]["texts"] = ", ".join(c["texts"])
                 config[c_name]["argument"] = str(c.get("argument"))
                 config[c_name]["align"] = str(c.get("align"))
+            if c["type"] == "indicator_lineedit":
+                config[c_name]["enter_cmd"] = str(c["enter_cmd"])
 
         # write them to file
         with open(self.fname, 'w') as f:
@@ -1990,7 +2011,9 @@ class ControlGUI(qt.QWidget):
                             alignment = PyQt5.QtCore.Qt.AlignCenter,
                         )
                     c["QLabel"].setProperty("state", param["states"][-1])
-                    c["QLabel"].setStyle(c["QLabel"].style())
+                    ind=c["QLabel"]
+                    ind.style().unpolish(ind)
+                    ind.style().polish(ind)
                     if param.get("rowspan") and param.get("colspan"):
                         df.addWidget(c["QLabel"], param["row"], param["col"], param["rowspan"], param["colspan"])
                     else:
@@ -2009,7 +2032,9 @@ class ControlGUI(qt.QWidget):
 
                     # style
                     c["QPushButton"].setProperty("state", param["states"][-1])
-                    c["QPushButton"].setStyle(c["QPushButton"].style())
+                    ind=c["QPushButton"]
+                    ind.style().unpolish(ind)
+                    ind.style().polish(ind)
 
                     # tooltip
                     if param.get("tooltip"):
@@ -2033,6 +2058,55 @@ class ControlGUI(qt.QWidget):
                                 lambda state, dev=dev, cmd_list=param["action_commands"]:
                                     self.queue_command(dev, cmd_list[int(state)]+"()")
                             )
+
+                # place indicators_lineedits
+                elif param.get("type") == "indicator_lineedit":
+                    # the label
+                    df.addWidget(
+                            qt.QLabel(param["label"]),
+                            param["row"], param["col"] - 1,
+                            alignment = PyQt5.QtCore.Qt.AlignRight,
+                        )
+
+                    # the QLineEdit
+                    c["QLineEdit"] = qt.QLineEdit()
+                    c["QLineEdit"].setText(param["value"])
+                    c["QLineEdit"].textChanged[str].connect(
+                            lambda text, dev=dev, ctrl=c_name:
+                                dev.config.change_param(ctrl, text, sect="control_params")
+                        )
+                    df.addWidget(c["QLineEdit"], param["row"], param["col"])
+
+                    # tooltip
+                    if param.get("tooltip"):
+                        c["QLineEdit"].setToolTip(param["tooltip"])
+
+                    # commands for the QLineEdit
+                    if param.get("enter_cmd"):
+                        if param.get("enter_cmd") != "None":
+                            c["QLineEdit"].returnPressed.connect(
+                                    lambda dev=dev, cmd=param["enter_cmd"], qle=c["QLineEdit"]:
+                                    self.queue_command(dev, cmd+"("+qle.text()+")")
+                                )
+
+                    # disable auto-updating when the text is being edited
+                    dev.config.change_param(GUI_element=c_name, key="currently_editing", val=False)
+                    c["QLineEdit"].textEdited[str].connect(
+                            lambda text, dev=dev, c_name=c_name :
+                                dev.config.change_param(
+                                    GUI_element=c_name,
+                                    key="currently_editing",
+                                    val=True
+                                )
+                        )
+                    c["QLineEdit"].returnPressed.connect(
+                            lambda dev=dev, c_name=c_name:
+                                dev.config.change_param(
+                                    GUI_element=c_name,
+                                    key="currently_editing",
+                                    val=False
+                                )
+                        )
 
             ##################################
             # MONITORING                     #
@@ -2332,6 +2406,10 @@ class ControlGUI(qt.QWidget):
                         ind.setText(params["texts"][-1])
                         ind.setProperty("state", params["states"][-1])
                         ind.setStyle(ind.style())
+
+                    elif params.get("type") == "indicator_lineedit":
+                        ind = dev.config["control_GUI_elements"][c_name]["QLineEdit"]
+                        ind.setText(params["label"])
 
                 # stop the device, and wait for it to finish
                 dev.active.clear()

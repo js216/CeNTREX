@@ -281,7 +281,7 @@ strings, and report it as the return value of the command:
 Thus, the user should not be able to crash the program, or any of its parts, by
 simply trying to call inappropriate driver commands.
 
-## Monitoring and HDF writer
+## Monitoring
 
 While the `Device` instances collect data, `Monitoring` and `HDF_writer` are
 also executing their own loops. In `Monitoring`, the loop repeatedly goes
@@ -299,7 +299,7 @@ through the following:
    - Write data to InfluxDB
    - If writing to HDF is disabled, empty the queues (otherwise the `HDF_writer`
      will do it)
-- Sleep for the loop delay
+- Sleep for the loop delayadd thermometers to power supply box
 
 The 'monitoring events' and 'monitoring commands' referred to in the above are
 used, in the present version of the program, exclusively for the so-called
@@ -310,10 +310,20 @@ will be collected as `monitoring events`. Then, `Monitoring` updates the
 a pump's indicator can poll the pump status, and display a green label that says
 the pump is running, or a black one that says the pump is stopped.
 
-The text values corresponding to the given return values are to be listed in the
-relevant section of the `.ini` file, and styles can similarly be chosen from a
-list of styles pre-defined in `darkstyle.qss` (see beginning of that file). For
-example, a simple indicator will require the following fields:
+Currently, three kinds of indicator controls are supported:
+
+- `indicator`: a `QLabel` that changes text and style depending on the return
+  values of the `monitoring_command`
+- `indicator_button`: a `QPushButton` that changes its text, style, and the
+  command called depending on the return values of the `monitoring_command`
+- `indicator_lineedit`: a `QLineEdit` that changes its text to the return value
+  of the `monitoring_command`
+
+For `indicator`s and `indicator_buttons, the text values corresponding to the
+given return values are to be listed in the relevant section of the `.ini` file,
+and styles can similarly be chosen from a list of styles pre-defined in
+`darkstyle.qss` (see beginning of that file). For example, a simple indicator
+will require the following fields:
 
     monitoring_command = CheckFlood()
     return_values = flooding, no flood, invalid, None
@@ -328,14 +338,9 @@ considered checked and which aren't. For example:
     action_commands = StopPump, StartPump
     checked = True, False, False, True, True
 
-Currently, two kinds of indicator controls are supported:
+## HDF writer
 
-- `indicator`: a `QLabel` that changes text and style depending on the return
-  values of the `monitoring_command`
-- `indicator_button`: a `QPushButton` that changes its text, style, and the
-  command called depending on the return values of the `monitoring_command`
-
-Meanwhile, the `HDF_writer` instance does
+The `HDF_writer` instance executes the following loop:
 
 - Open the specified HDF file
 - For each `Device`:

@@ -544,6 +544,7 @@ class Monitoring(threading.Thread):
                 if params.get("type") == "indicator":
                     ind = dev.config["control_GUI_elements"][c_name]["QLabel"]
                     if ind.text() != params["texts"][idx]:
+                        ind.setText(params["texts"][idx])
                         ind.setProperty("state", params["states"][idx])
                         ind.style().unpolish(ind)
                         ind.style().polish(ind)
@@ -551,7 +552,6 @@ class Monitoring(threading.Thread):
                 elif params.get("type") == "indicator_button":
                     ind = dev.config["control_GUI_elements"][c_name]["QPushButton"]
                     if ind.text() != params["texts"][idx]:
-                        ind.setText(params["texts"][idx])
                         ind.setText(params["texts"][idx])
                         ind.setChecked(params["checked"][idx])
                         ind.setProperty("state", params["states"][idx])

@@ -534,7 +534,10 @@ class Monitoring(threading.Thread):
                 # check if there's any matching return value
                 if params.get("type") in ["indicator", "indicator_button"]:
                     try:
-                        idx = params["return_values"].index(event[2])
+                        if event[2] in params["return_values"]:
+                            idx = params["return_values"].index(event[2])
+                        else:
+                            idx = -2
                     except ValueError:
                         logging.info(traceback.format_exc())
                         idx = -2
@@ -1512,40 +1515,21 @@ class ControlGUI(qt.QWidget):
         pb.clicked[bool].connect(self.refresh_COM_ports)
         control_frame.addWidget(pb, 2, 1)
 
-        # the control to send a custom command to a specified device
+        # button to disable all devices
 
-        cmd_frame = qt.QHBoxLayout()
-        control_frame.addLayout(cmd_frame, 3, 0, 1, 2)
+        pb = qt.QPushButton("Enable all")
+        pb.clicked[bool].connect(self.enable_all_devices)
+        control_frame.addWidget(pb, 4, 0, 1, 1)
 
-        cmd_frame.addWidget(qt.QLabel("Cmd:"))
-
-        qle = qt.QLineEdit()
-        qle.setToolTip("Enter a command corresponding to a function in the selected device driver.")
-        qle.setText(self.parent.config["general"]["custom_command"])
-        qle.textChanged[str].connect(lambda val: self.parent.config.change("general", "custom_command", val))
-        cmd_frame.addWidget(qle)
-
-        self.custom_dev_cbx = qt.QComboBox()
-        dev_list = [dev_name for dev_name in self.parent.devices]
-        update_QComboBox(
-                cbx     = self.custom_dev_cbx,
-                options = list(set(dev_list) | set([ self.parent.config["general"]["custom_device"] ])),
-                value   = self.parent.config["general"]["custom_device"],
-            )
-        self.custom_dev_cbx.activated[str].connect(
-                lambda val: self.parent.config.change("general", "custom_device", val)
-            )
-        cmd_frame.addWidget(self.custom_dev_cbx)
-
-        pb = qt.QPushButton("Send")
-        pb.clicked[bool].connect(self.queue_custom_command)
-        cmd_frame.addWidget(pb)
+        pb = qt.QPushButton("Disable all")
+        pb.clicked[bool].connect(self.disable_all_devices)
+        control_frame.addWidget(pb, 4, 1, 1, 1)
 
         ########################################
         # files
         ########################################
 
-        box, files_frame = LabelFrame("Files")
+        box, files_frame = LabelFrame("")
         self.top_frame.addWidget(box)
 
         # config dir
@@ -1606,6 +1590,35 @@ class ControlGUI(qt.QWidget):
         pb.setToolTip("Display or edit device attributes that are written with the data to the HDF file.")
         pb.clicked[bool].connect(self.edit_run_attrs)
         files_frame.addWidget(pb, 4, 2)
+
+        # the control to send a custom command to a specified device
+
+        files_frame.addWidget(qt.QLabel("Cmd:"), 5, 0)
+
+        cmd_frame = qt.QHBoxLayout()
+        files_frame.addLayout(cmd_frame, 5, 1)
+
+        qle = qt.QLineEdit()
+        qle.setToolTip("Enter a command corresponding to a function in the selected device driver.")
+        qle.setText(self.parent.config["general"]["custom_command"])
+        qle.textChanged[str].connect(lambda val: self.parent.config.change("general", "custom_command", val))
+        cmd_frame.addWidget(qle)
+
+        self.custom_dev_cbx = qt.QComboBox()
+        dev_list = [dev_name for dev_name in self.parent.devices]
+        update_QComboBox(
+                cbx     = self.custom_dev_cbx,
+                options = list(set(dev_list) | set([ self.parent.config["general"]["custom_device"] ])),
+                value   = self.parent.config["general"]["custom_device"],
+            )
+        self.custom_dev_cbx.activated[str].connect(
+                lambda val: self.parent.config.change("general", "custom_device", val)
+            )
+        cmd_frame.addWidget(self.custom_dev_cbx)
+
+        pb = qt.QPushButton("Send")
+        pb.clicked[bool].connect(self.queue_custom_command)
+        files_frame.addWidget(pb, 5, 2)
 
         ########################################
         # devices
@@ -1694,6 +1707,20 @@ class ControlGUI(qt.QWidget):
         self.warnings_label = qt.QLabel("(no warnings)")
         self.warnings_label.setWordWrap(True)
         gen_f.addWidget(self.warnings_label, 7, 0, 1, 3)
+
+    def enable_all_devices(self):
+        for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
+            try:
+                dev.config["control_GUI_elements"]["enabled"]["QCheckBox"].setChecked(True)
+            except KeyError:
+                logging.info(traceback.format_exc())
+
+    def disable_all_devices(self):
+        for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
+            try:
+                dev.config["control_GUI_elements"]["enabled"]["QCheckBox"].setChecked(False)
+            except KeyError:
+                logging.info(traceback.format_exc())
 
     def update_col_names_and_units(self):
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):

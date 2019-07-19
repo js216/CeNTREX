@@ -17,7 +17,7 @@ class Hornet:
             return
         self.instr.baud_rate = 19200
         self.instr.data_bits = 8
-        self.instr.timeout = 30*1000
+        self.instr.timeout = 60*1000
         self.instr.parity = pyvisa.constants.Parity.none
         self.instr.stop_bits = pyvisa.constants.StopBits.one
 

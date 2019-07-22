@@ -353,13 +353,19 @@ def wrapperServerMethod(func):
                 if isinstance(command_return[2], type(None)):
                     del args[0].data_server["commandReturn"][command]
                     return None
-                elif 'Exception' in command_return[2]:
-                    logging.warning('{0} warning in {1}: {2}'.format(args[0].device_name,
-                                    command, command_return[2]))
+                try:
+                    if 'Exception' in command_return[2]:
+                        logging.warning('{0} warning in {1}: {2}'.format(args[0].device_name,
+                                        command, command_return[2]))
+                        del args[0].data_server["commandReturn"][command]
+                        return np.nan
+                    else:
+                        del args[0].data_server["commandReturn"][command]
+                        break
+                except:
                     del args[0].data_server["commandReturn"][command]
-                    return np.nan
-                del args[0].data_server["commandReturn"][command]
-                break
+                    break
+
         return command_return[2]
     return wrapper
 
@@ -374,10 +380,16 @@ def wrapperReadValueServerMethod(func):
         while True:
             if args[0].data_server["commandReturn"].get(command):
                 readvalue = args[0].data_server["commandReturn"].get(command)
-                if 'Exception' in readvalue[2]:
-                    logging.warning('{0} warning in {1}: {2}'.format(args[0].device_name,
-                                    'ReadValue', readvalue[2]))
-                    return np.nan
+                try:
+                    if np.isnan(readvalue[2]):
+                        return np.nan
+                        break
+                except:
+                    if 'Exception' in readvalue[2]:
+                        logging.warning('{0} warning in {1}: {2}'.format(args[0].device_name,
+                                        'ReadValue', readvalue[2]))
+                        del args[0].data_server["commandReturn"][command]
+                        return np.nan
                 args[0].data_server['ReadValue'] = (readvalue[0], readvalue[2][1:])
                 del args[0].data_server["commandReturn"][command]
                 break

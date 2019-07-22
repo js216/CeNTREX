@@ -112,6 +112,8 @@ class Bristol671A:
            logging.warning("Verification error : "+str(err))
            self.verification_string = "False"
 
+        self.warnings = []
+
     def __enter__(self):
         return self
 
@@ -120,7 +122,9 @@ class Bristol671A:
             self.instr.close()
 
     def GetWarnings(self):
-        return None
+        warnings = self.warnings.copy()
+        self.warnings = []
+        return warnings
 
     def ReadValue(self):
         return [ time.time() - self.time_offset,

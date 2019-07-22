@@ -93,7 +93,7 @@ class SelfAlignFiberSwitch:
             return
         if (port > 16) or (port < 1):
             logging.warning("SelfAlignFiberSwitch warning in Setport({0}) : ".format(port)\
-                            +"port out of range"))
+                            +"port out of range")
             return
         byte_value = bytes([port-1])
         cmd = b'\x01\x35\x00'+byte_value

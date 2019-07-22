@@ -1,5 +1,5 @@
-from SelfAlignFiberSwitch import *
-from Bristol671A import *
+from drivers.SelfAlignFiberSwitch import *
+from drivers.Bristol671A import *
 
 class Wavelengthmeter:
     def __init__(self, time_offset, connection):
@@ -28,10 +28,6 @@ class Wavelengthmeter:
 
         self.warnings = []
 
-        self.switch.Home()
-        time.sleep(0.5)
-        self.switch.SetChannel(2)
-
     def __enter__(self):
         return self
 
@@ -42,11 +38,23 @@ class Wavelengthmeter:
             self.switch.instr.close()
         return
 
+    def GetWarnings(self):
+        warnings = []
+        switch_warnings = self.switch.GetWarnings()
+        bristol_warnings = self.bristol.GetWarnings()
+        return warnings
+
     def ReadValue(self):
         bristol_values = self.bristol.ReadValue()
         switch_values = self.switch.ReadValue()
         if (not isinstance(switch_values, list)) and np.isnan(switch_values):
             logging.warning("Wavelengthmeter warning in ReadValue() : switch port undetermined")
+            values = [np.nan]*self.shape[0]
+            values[0] = bristol_values[0]
+            values[1:] = bristol_values*3
+            return values
+        if (not isinstance(bristol_values, list)) and np.isnan(bristol_values):
+            logging.warning("Wavelengthmeter warning in ReadValue() : wavelength NaN")
             return np.nan
         values = [np.nan]*self.shape[0]
         values[0] = bristol_values[0]
@@ -62,8 +70,8 @@ class Wavelengthmeter:
         else:
             return np.nan
 
-    def SetPort(self, channel):
-        self.switch.SetPort(channel)
+    def SetPort(self, port):
+        self.switch.SetPort(port)
 
     def GetPort(self):
         return self.switch.port

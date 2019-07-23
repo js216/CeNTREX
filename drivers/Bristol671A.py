@@ -28,7 +28,7 @@ class Bristol671A:
         self.new_attributes = []
 
         # shape and type of the array of returned data from ReadValue
-        self.dtype = ('f4', 'f8')
+        self.dtype = 'f8'
         self.shape = (2, )
 
         self.ESE_register = {0: "Operation Complete (OPC)",
@@ -53,7 +53,7 @@ class Bristol671A:
                              3: "Errors are in the error queue.",
                              5: "A bit is set in the questionable register."}
 
-        self.QSR_register = {0: "The wavelenght has already been read for the current scan.",
+        self.QSR_register = {0: "The wavelenght has already ben read for the current scan.",
                              1: "NA",
                              2: "The previously requested calibration has failed.",
                              3: "The power value is outside the valid range of the instrument.",
@@ -103,7 +103,7 @@ class Bristol671A:
                 self.verification_string = "False"
                 self.instr = False
                 self.__exit__()
-                return None
+                return
 
         # make the verification string
         try:
@@ -111,6 +111,8 @@ class Bristol671A:
         except Bristol671Error as err:
            logging.warning("Verification error : "+str(err))
            self.verification_string = "False"
+
+        self.warnings = []
 
     def __enter__(self):
         return self
@@ -120,7 +122,9 @@ class Bristol671A:
             self.instr.close()
 
     def GetWarnings(self):
-        return None
+        warnings = self.warnings.copy()
+        self.warnings = []
+        return warnings
 
     def ReadValue(self):
         return [ time.time() - self.time_offset,

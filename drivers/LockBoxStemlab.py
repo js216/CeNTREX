@@ -10,6 +10,7 @@ class LockBoxStemlab:
 
         self.reloadfpga = bool(reloadfpga)
 
+        self.verification_string = 'False'
         try:
             self.p = Pyrpl(hostname = hostname, config = config, gui = False,
                            reloadfpga = self.reloadfpga)
@@ -20,21 +21,20 @@ class LockBoxStemlab:
             self.verification_string = 'False'
             print(traceback.print_exc())
             return
-        self.rp.scope.decimaton = 2**8
 
         self._setup()
-
 
         self.new_attributes = []
 
         self.dtype = 'f8'
-        self.shape = (1, 2, self.scope_params['data_length'])
+        self.shape = (1, 2, self.scope.data_length)
 
         self.warnings = []
 
     def _setup(self):
         if self.reloadfpga:
             self._init_fpga()
+        self.rp.scope.decimaton = 2**8
         self._init_ramp_params()
         self._init_pid_params()
         self._init_scope_params()
@@ -44,46 +44,33 @@ class LockBoxStemlab:
         # Function generator default settings
         self.rp.asg0.amplitude = 0.5
         self.rp.asg0.frequency = 50
+        self.rp.asg0.offset = 0.4
         self.rp.asg0.output_direct = 'out1'
         self.rp.asg0.trigger_source = 'immediately'
         self.rp.asg0.on = True
 
         # PID default settings
         self.rp.pid0.input = 'in1'
-        self.rp.pid0.p = -1
-        self.rp.pid0.i = 0
+        self.rp.pid0.p = 5
+        self.rp.pid0.i = 100
         self.rp.pid0.ival = 0
         self.rp.pid0.output_direct = 'off'
+        self.rp.pid0.inputfilter = [1e5, 0, 0, 0]
 
         # Scope default settings
         self.rp.scope.input1 = 'asg0'
         self.rp.scope.input2 = 'in1'
-        self.rp.scope.trigger_source = 'ch1_positive_edge'
-        self.rp.scope.duration = 1/self.rp.asg0.frequency
+        self.rp.scope.trigger_source = 'asg0'
+        self.rp.scope.duration = 0.5*1/self.rp.asg0.frequency
 
     def _init_ramp_params(self):
-        params = ['frequency', 'amplitude', 'offset', 'waveform', 'output_direct',
-                  'trigger_source', 'on']
         self.ramp = self.rp.asg0
-        self.ramp_params = dict([(param, None) for param in params])
-        for param in params:
-            self.ramp_params[param] = eval('self.rp.asg0.'+param)
 
     def _init_pid_params(self):
-        params = ['input', 'proportional', 'integral', 'inputfilter', 'output_direct',
-                  'min_voltage', 'max_voltage', 'setpoint']
         self.pid = self.rp.pid0
-        self.pid_params = dict([(param, None) for param in params])
-        for param in params:
-            self.pid_params[param] = eval('self.rp.pid0.'+param)
 
     def _init_scope_params(self):
-        params = ['input1', 'input2', 'trigger_source',
-                  'trigger_delay', 'data_length', 'duration']
         self.scope = self.rp.scope
-        self.scope_params = dict([(param, None) for param in params])
-        for param in params:
-            self.scope_params[param] = eval('self.rp.scope.'+param)
 
     def __enter__(self):
         return self
@@ -116,15 +103,25 @@ class LockBoxStemlab:
 
     def RampFrequency(self, frequency):
         self.ramp.frequency = float(frequency)
-        self.ramp_params['frequency'] = float(frequency)
+
+    def GetRampFrequency(self):
+        return round(self.ramp.frequency,1)
 
     def RampAmplitude(self, amplitude):
         self.ramp.amplitude = float(amplitude)
-        self.ramp_amplitude['frequency'] = float(amplitude)
+
+    def GetRampAmplitude(self):
+        return round(self.ramp.amplitude,3)
 
     def RampOffset(self, offset):
+        if offset > 0.97:
+            offset = 0.97
+        elif offset < -0.97:
+            offset = -0.97
         self.ramp.offset = float(offset)
-        self.ramp_params['offset'] = float(offset)
+
+    def GetRampOffset(self):
+        return round(self.ramp.offset,3)
 
     def RampOn(self):
         self.pid.output_direct = 'off'
@@ -145,24 +142,50 @@ class LockBoxStemlab:
 
     def PIDSetPoint(self, setpoint):
         self.pid.setpoint = float(setpoint)
-        self.pid_params['setpoint'] = float(setpoint)
+
+    def GetPIDSetpoint(self):
+        return round(self.pid.setpoint,3)
 
     def PIDProportional(self, proportional):
         self.pid.proportional = float(proportional)
-        self.pid_params['proportional'] = float(proportional)
+
+    def GetPIDProportional(self):
+        return round(self.pid.proportional,3)
 
     def PIDIntegral(self, integral):
         self.pid.integral = float(integral)
-        self.pid_params['integral'] = float(integral)
+
+    def GetPIDIntegral(self):
+        return round(self.pid.integral,3)
+
+    def PIDIVal(self, ival):
+        self.pid.ival = float(ival)
+
+    def GetPIDIval(self):
+        return round(self.pid.ival,3)
 
     def PIDReset(self):
         self.pid.ival = 0
+
+    def PIDFilter(self, frequency):
+        self.pid.inputfilter = [frequency, 0, 0, 0]
+
+    def GetPIDFilter(self):
+        return round(self.pid.inputfilter[0], 3)
+
+    # Scope commands
+    def ScopeCH1Input(self, input):
+        self.scope.input1 = input
+
+    def ScopeCH2Input(self, input):
+        self.scope.input2 = input
 
     # Lock commands
 
     def LockCavity(self):
         self.ramp.output_direct = 'off'
         self.pid.output_direct = 'out1'
+        self.pid.ival = 0
 
     def UnlockCavity(self):
         self.pid.output_direct = 'off'

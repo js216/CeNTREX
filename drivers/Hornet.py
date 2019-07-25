@@ -55,7 +55,7 @@ class Hornet:
             return np.nan
 
     def ReadValue(self):
-        return [ 
+        return [
                 time.time()-self.time_offset,
                 self.ReadSystemPressure(),
                 self.ReadCGnPressure(1),
@@ -310,9 +310,9 @@ class Hornet:
     def SetTripPointRelayA(self, val):
         """Set the 'turns on below' (+) pressure point for RLY A and set the
         'turns off above' (-) pressure point for RLY A.
-        
+
         Hint: Set the 'turns off above' (-) setpoint pressure first.
-        
+
         NOTE: RLY A/B may be assigned to either CG1 or CG2 pressure readings.
 
         (e.g., #01SLA+4.00E+02<CR>)
@@ -335,9 +335,9 @@ class Hornet:
     def SetTripPointRelayB(self, val):
         """Set the 'turns on below' (+) pressure point for RLY B and set the
         'turns off above' (-) pressure point for RLY B.
-        
+
         Hint: Set the 'turns off above' (-) setpoint pressure first.
-        
+
         (e.g., #01SLB+4.00E+02<CR>)
         (e.g., #01SLB-5.00E+02<CR>)
         Turn the relay OFF (-) above 500 Torr.

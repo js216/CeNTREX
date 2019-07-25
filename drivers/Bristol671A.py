@@ -28,7 +28,7 @@ class Bristol671A:
         self.new_attributes = []
 
         # shape and type of the array of returned data from ReadValue
-        self.dtype = 'f8'
+        self.dtype = ('f', 'f8')
         self.shape = (2, )
 
         self.ESE_register = {0: "Operation Complete (OPC)",

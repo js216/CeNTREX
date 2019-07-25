@@ -245,6 +245,11 @@ class Device(threading.Thread):
             for attr_name, attr_val in dev.new_attributes:
                 self.config["attributes"][attr_name] = attr_val
 
+        # Check dtype for compound dataset
+        if self.config["compound_dataset"]:
+            if not isinstance(self.config["dtype"], (list, tuple)):
+                logging.warning("Compound dataset device {0} requires list of dtypes".format(self.config["name"]))
+
     def change_plots_queue_maxlen(self, maxlen):
         # sanity check
         try:
@@ -957,9 +962,12 @@ class DeviceConfig(Config):
         # for single-connect devices, make sure data type and shape are defined
         if not self["double_connect_dev"]:
             if not (self["shape"] and self["dtype"]):
-                logging.warning("Single-connect device didn't specify data shape or type.")
+                logging.warning("Single-connect device {0} didn't specify data shape or type.".format(self.fname))
             else:
                 self['shape'] = [float(val) for val in self['shape']]
+            if self["compound_dataset"]:
+                if not isinstance(self["dtype"], (list, tuple)):
+                    logging.warning("Compound dataset device {0} requires list of dtypes.".format(self.fname))
 
 
         # read device attributes

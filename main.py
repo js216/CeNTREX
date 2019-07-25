@@ -392,8 +392,8 @@ class Monitoring(threading.Thread):
                 HDF_status.setProperty("state", "enabled")
 
             # update style
-            HDF_status.style().unpolish(HDF_status)
-            HDF_status.style().polish(HDF_status)
+            ##HDF_status.style().unpolish(HDF_status)
+            #HDF_status.style().polish(HDF_status)
 
             # monitoring dt
             try:
@@ -549,8 +549,8 @@ class Monitoring(threading.Thread):
                     if ind.text() != params["texts"][idx]:
                         ind.setText(params["texts"][idx])
                         ind.setProperty("state", params["states"][idx])
-                        ind.style().unpolish(ind)
-                        ind.style().polish(ind)
+                        #ind.style().unpolish(ind)
+                        #ind.style().polish(ind)
 
                 elif params.get("type") == "indicator_button":
                     ind = dev.config["control_GUI_elements"][c_name]["QPushButton"]
@@ -558,8 +558,8 @@ class Monitoring(threading.Thread):
                         ind.setText(params["texts"][idx])
                         ind.setChecked(params["checked"][idx])
                         ind.setProperty("state", params["states"][idx])
-                        ind.style().unpolish(ind)
-                        ind.style().polish(ind)
+                        #ind.style().unpolish(ind)
+                        #ind.style().polish(ind)
 
                 elif params.get("type") == "indicator_lineedit":
                     if not dev.config["control_GUI_elements"][c_name]["currently_editing"]:
@@ -2041,8 +2041,8 @@ class ControlGUI(qt.QWidget):
                         )
                     c["QLabel"].setProperty("state", param["states"][-1])
                     ind=c["QLabel"]
-                    ind.style().unpolish(ind)
-                    ind.style().polish(ind)
+                    #ind.style().unpolish(ind)
+                    #ind.style().polish(ind)
                     if param.get("rowspan") and param.get("colspan"):
                         df.addWidget(c["QLabel"], param["row"], param["col"], param["rowspan"], param["colspan"])
                     else:
@@ -2062,8 +2062,8 @@ class ControlGUI(qt.QWidget):
                     # style
                     c["QPushButton"].setProperty("state", param["states"][-1])
                     ind=c["QPushButton"]
-                    ind.style().unpolish(ind)
-                    ind.style().polish(ind)
+                    #ind.style().unpolish(ind)
+                    #ind.style().polish(ind)
 
                     # tooltip
                     if param.get("tooltip"):
@@ -3175,7 +3175,7 @@ class Plotter(qt.QWidget):
             x0 = int(float(self.config["x0"]))
             x1 = int(float(self.config["x1"]))
         except ValueError as err:
-            logging.info(traceback.format_exc())
+            logging.debug(traceback.format_exc())
             x0, x1 = 0, -1
         if x0 >= x1:
             if x1 >= 0:

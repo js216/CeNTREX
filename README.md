@@ -1,3 +1,5 @@
+[<img src="http://github.com/js216/CeNTREX/CeNTREX logo.png" width="250" alt="CeNTREX">](http://github.com/js216/CeNTREX)
+
 # CeNTREX data acquisition software
 
    > "Still, I was accumulating experience and information, and I never threw
@@ -5,7 +7,7 @@
    > I think secret services follow, too: No piece of information is superior to
    > any other. Power lies in having them all on file and then finding the
    > connections. There are always connections; you have only to want to find
-   > them. [Umberto Ecco: Foucault's Pendulum] 
+   > them. [Umberto Ecco: Foucault's Pendulum]
 
 This is the software to control and record the parameters of the Centrex experiment.
 
@@ -149,29 +151,29 @@ defines general program settings; the values are read by the instance of
 sections and fields:
 
     [general]
-    default_plot_dt = 
-    default_hdf_dt = 
-    run_name = 
-    hdf_loop_delay = 
-    monitoring_dt = 
-    custom_command = 
-    custom_device = 
-    
+    default_plot_dt =
+    default_hdf_dt =
+    run_name =
+    hdf_loop_delay =
+    monitoring_dt =
+    custom_command =
+    custom_device =
+
     [run_attributes]
-    
+
     [files]
-    config_dir = 
-    hdf_fname = 
-    plotting_hdf_fname = 
-    plotting_config_fname = 
-    
+    config_dir =
+    hdf_fname =
+    plotting_hdf_fname =
+    plotting_config_fname =
+
     [influxdb]
-    enabled = 
+    enabled =
     host =
-    port = 
-    username = 
-    password = 
-    database = 
+    port =
+    username =
+    password =
+    database =
 
 Device configurations are read from `.ini` files in the chosen directory. (Thus
 choosing a different directory allows for a different set of devices or device
@@ -179,7 +181,7 @@ configurations to be loaded.) These files have the structure:
 
     [device]
     ...
-    
+
     [attributes]
     column_names = time, IG pressure
     units = s, torr

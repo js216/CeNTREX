@@ -1,4 +1,4 @@
-[<img src="http://github.com/js216/CeNTREX/CeNTREX logo.png" width="250" alt="CeNTREX">](http://github.com/js216/CeNTREX)
+[<img src="https://raw.githubusercontent.com/ograsdijk/CeNTREX/master/CeNTREX%20logo.png" width="250" alt="CeNTREX">](http://github.com/js216/CeNTREX)
 
 # CeNTREX data acquisition software
 

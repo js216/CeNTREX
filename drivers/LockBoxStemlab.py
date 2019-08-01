@@ -1,20 +1,17 @@
-from pyrpl import Pyrpl
+from stemlab import StemLab
 import numpy as np
 import time
 import logging
 import traceback
 
 class LockBoxStemlab:
-    def __init__(self, time_offset, hostname, config = 'LockBox', reloadfpga = False):
+    def __init__(self, time_offset, hostname, reloadfpga = False):
         self.time_offset = time_offset
-
-        self.reloadfpga = bool(reloadfpga)
+        self.reloadfpga = reloadfpga
 
         self.verification_string = 'False'
         try:
-            self.p = Pyrpl(hostname = hostname, config = config, gui = False,
-                           reloadfpga = self.reloadfpga)
-            self.rp = self.p.rp
+            self.rp = StemLab(hostname = hostname, reloadfpga = reloadfpga)
             self.verification_string = 'True'
         except Exception as err:
             logging.warning("LockBoxStemlab error in __init__(): "+str(err))
@@ -93,7 +90,8 @@ class LockBoxStemlab:
             if self.scope.curve_ready():
                 d = np.array([self.scope._get_curve()])
                 break
-        return [d, [{'name':'test'}]]
+        timestamp = time.time()-self.time_offset
+        return [d, [{'timestamp':timestamp}]]
 
     ##############################
     # Commands
@@ -174,6 +172,9 @@ class LockBoxStemlab:
         return round(self.pid.inputfilter[0], 3)
 
     # Scope commands
+    def ScopeTrigger(self, trigger_source):
+        self.scope.trigger_source = trigger_source
+
     def ScopeCH1Input(self, input):
         self.scope.input1 = input
 

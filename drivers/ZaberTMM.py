@@ -327,7 +327,7 @@ class ZaberTMM:
     #######################################################
 
     def Sweep(self, sweepname):
-        with h5py.File('ablation_sweeps.hdf5', 'r') as f:
+        with h5py.File('ablation_sweeps.sweeps_hdf5', 'r') as f:
             coordinates = f[sweepname].values
         if self.sweep:
             logging.warning('ZaberTMM warning in Sweep: Currently sweeping mirror')

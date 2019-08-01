@@ -1,9 +1,12 @@
+import os
 import time
 import h5py
 import logging
+import threading
 import numpy as np
 from enum import Enum
 from zaber.serial import BinaryCommand, BinaryDevice, BinarySerial, BinaryReply
+from zaber.serial import TimeoutError
 
 class StoppableThread(threading.Thread):
     """Thread class with a stop() method. The thread itself has to check
@@ -26,14 +29,34 @@ class MirrorSweep(StoppableThread):
     """
     def __init__(self, driver, coords):
         super(MirrorSweep, self).__init__()
-        driver.running_sweep = True
+        self.driver = driver
+        self.driver.running_sweep = False
+        self.coordinates = coords
 
     def run(self):
+        self.driver.running_sweep = True
         while True:
-            for coord in coords:
-                self.driver.MoveAbsoluteAll(coord)
+            for coord in self.coordinates:
+                x,y = coord
+                while True:
+                    try:
+                        if self.stopped():
+                            break
+                        self.driver.MoveAbsoluteX(x)
+                        break
+                    except TimeoutError:
+                        continue
+                while True:
+                    try:
+                        if self.stopped():
+                            break
+                        self.driver.MoveAbsoluteY(y)
+                        break
+                    except TimeoutError:
+                        continue
                 if self.stopped():
                     logging.warning("ZaberTMM warning: stopped sweeping")
+                    self.driver.running_sweep = False
                     return
 
 class ZaberCoordinates:
@@ -133,7 +156,7 @@ class ZaberTMM:
         except Exception as err:
             logging.warning("Error in initial connection to Zaber T-MM : "+str(err))
             self.verification_string = "False"
-            self.__exit()
+            self.__exit__()
             return None
 
         try:
@@ -153,19 +176,24 @@ class ZaberTMM:
 
         self.position = ZaberCoordinates(dev1_axis, dev2_axis)
 
-        if dev1_axis = 'x':
-            self.dev1 = 1
-            self.dev2 = 2
-        elif dev2_axis = 'y':
-            self.dev1 = 2
-            self.dev1 = 1
+        if dev1_axis == 'x':
+            self.devx = 1
+            self.devy = 2
+        elif dev1_axis == 'y':
+            self.devx = 2
+            self.devy = 1
 
         self.sweep_thread = None
         self.running_sweep = False
 
+        self.GetPosition()
+
+    def __enter__(self):
+        return self
+
     def __exit__(self, *exc):
         try:
-            if self.sweep:
+            if self.running_sweep:
                 self.sweep_thread.stop()
             if isistance(port.can_read(), bool):
                 port.close()
@@ -178,9 +206,15 @@ class ZaberTMM:
     #######################################################
 
     def CheckWarnings(self):
-        if self.GetPositions() == [62000, 62000]:
-            warning_dict = { "message" : 'power cycle'}
-            self.warnings.append(warning_dict)
+        return
+        while True:
+            try:
+                if self.GetPosition() == [62000, 62000]:
+                    warning_dict = { "message" : 'power cycle'}
+                    self.warnings.append(warning_dict)
+                break
+            except TimeoutError:
+                continue
 
     def GetWarnings(self):
         self.CheckWarnings()
@@ -189,21 +223,12 @@ class ZaberTMM:
         return warnings
 
     def ReadValue(self):
-        return [
+        val = [
                 time.time() - self.time_offset,
                 *self.position.coordinates,
                 *self.position.dev_coordinates,
                ]
-
-    def SetPosition(self, params):
-        x = int(params[0])
-        y = int(params[1])
-
-        if self.dev1 == 1:
-            self.MoveAbsoluteAll((x,y))
-        else:
-            self.MoveAbsoluteAll((y,x))
-
+        return val
     #######################################################
     # Write/Query Commands
     #######################################################
@@ -246,13 +271,15 @@ class ZaberTMM:
                 logging.warning('ZaberTMM warning in MoveAbsoluteAll : motor {0} not @{1} position'.format(msg.device_number, position))
 
     def GetPosition(self):
-        msgs = self.command(0,60,0,2)
-        if isinstance(msgs, type(None)):
-            logging.warning('ZaberTMM warning in GetPositions : no return msgs')
-        pos = [None, None]
-        for msg in msgs:
-            pos[msg.device_number-1] = msg.data
-
+        while True:
+            msgs = self.command(0,60,0,2)
+            if isinstance(msgs, type(None)):
+                logging.warning('ZaberTMM warning in GetPositions : no return msgs')
+            pos = [None, None]
+            for msg in msgs:
+                pos[msg.device_number-1] = msg.data
+            if not type(None) in [type(i) for i in pos]:
+                break
         self.position.dev_coordinates = pos
         return pos
 
@@ -265,20 +292,28 @@ class ZaberTMM:
         if isinstance(msgs, type(None)):
             logging.warning('ZaberTMM warning in MoveAbsoluteX : no return msgs')
         for msg in msgs:
-            if msg.data == position:
-                self.position.x = position
-            elif msg.data != position:
-                logging.warning('ZaberTMM warning in MoveAbsoluteX : motor {0} not @{1} position'.format(msg.device_number, position))
+            if msg.device_number == self.devx:
+                if isinstance(msg.data, int):
+                    self.position.x = msg.data
+            elif msg.device_number == self.devy:
+                if isinstance(msg.data, int):
+                    self.position.y = msg.data
+        if self.position.x != position:
+            logging.warning('ZaberTMM warning in MoveAbsoluteX : motor {0} not @{1} position'.format(self.devx, position))
 
     def MoveAbsoluteY(self, position):
         msgs = self.command(self.devy, 20, position, 1)
         if isinstance(msgs, type(None)):
             logging.warning('ZaberTMM warning in MoveAbsoluteY : no return msgs')
         for msg in msgs:
-            if msg.data == position:
-                self.position.y = position
-            elif msg.data != position:
-                logging.warning('ZaberTMM warning in MoveAbsoluteY : motor {0} not @{1} position'.format(msg.device_number, position))
+            if msg.device_number == self.devx:
+                if isinstance(msg.data, int):
+                    self.position.x = msg.data
+            elif msg.device_number == self.devy:
+                if isinstance(msg.data, int):
+                    self.position.y = msg.data
+            if self.position.y != position:
+                logging.warning('ZaberTMM warning in MoveAbsoluteY : motor {0} not @{1} position'.format(self.devy, position))
 
     def HomeX(self):
         msgs = self.command(self.devx,1,0,1)
@@ -327,24 +362,26 @@ class ZaberTMM:
     #######################################################
 
     def Sweep(self, sweepname):
-        with h5py.File('ablation_sweeps.sweeps_hdf5', 'r') as f:
-            coordinates = f[sweepname].values
-        if self.sweep:
+        with h5py.File('drivers/ablation_sweeps.sweep_hdf5', 'r') as f:
+            coordinates = f[sweepname].value
+        if self.running_sweep:
             logging.warning('ZaberTMM warning in Sweep: Currently sweeping mirror')
         else:
-            self.sweep_thread = MirrorSweep(coordinates)
+            self.sweep_thread = MirrorSweep(self, coordinates)
             self.sweep_thread.start()
 
     def StopSweep(self):
-        if self.sweep:
+        if self.running_sweep:
             self.sweep_thread.stop()
             self.sweep_thread = None
-            self.sweep = False
+            self.running_sweep = False
         else:
             logging.warning("ZaberTMM warning in StopSweep: No sweep running")
 
     def SweepStatus(self):
-        if self.sweep:
+        if self.running_sweep:
             return 'Sweeping'
-        else:
+        elif not self.running_sweep:
             return 'Inactive'
+        else:
+            return 'invalid'

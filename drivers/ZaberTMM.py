@@ -33,27 +33,30 @@ class MirrorSweep(StoppableThread):
         self.driver.running_sweep = False
         self.coordinates = coords
 
+    def move(x,y):
+        while True:
+            try:
+                if self.stopped():
+                    break
+                self.driver.MoveAbsoluteX(x)
+                break
+            except TimeoutError:
+                continue
+        while True:
+            try:
+                if self.stopped():
+                    break
+                self.driver.MoveAbsoluteY(y)
+                break
+            except TimeoutError:
+                continue
+
     def run(self):
         self.driver.running_sweep = True
         while True:
             for coord in self.coordinates:
                 x,y = coord
-                while True:
-                    try:
-                        if self.stopped():
-                            break
-                        self.driver.MoveAbsoluteX(x)
-                        break
-                    except TimeoutError:
-                        continue
-                while True:
-                    try:
-                        if self.stopped():
-                            break
-                        self.driver.MoveAbsoluteY(y)
-                        break
-                    except TimeoutError:
-                        continue
+                self.move(x,y)
                 if self.stopped():
                     logging.warning("ZaberTMM warning: stopped sweeping")
                     self.driver.running_sweep = False
@@ -152,9 +155,12 @@ class ZaberTMM:
 
         try:
             self.port = BinarySerial(COM_port)
-            self.verification_string = "True"
+            msg = self.command(0,50,0,2)
+            msg = [d.data for d in msg]
+            if not all(elem == msg[0] for elem in msg)
+                raise ValueError('ZaberTMM warning in verification : Device IDs not equal')
         except Exception as err:
-            logging.warning("Error in initial connection to Zaber T-MM : "+str(err))
+            logging.warning("ZaberTMM error in initial connection : "+str(err))
             self.verification_string = "False"
             self.__exit__()
             return None
@@ -183,6 +189,15 @@ class ZaberTMM:
             self.devx = 2
             self.devy = 1
 
+        if not self.ReadDeviceModeX()[7]:
+            warning = 'Home Status bit not set in Dev{0}, home device'.format(self.devx)
+            logging.warning('ZaberTMM warning: '+warning)
+            self.CreateWarning(warning)
+        if not self.ReadDeviceModeY()[7]:
+            warning = 'Home Status bit not set in Dev{0}, home device'.format(self.devx)
+            logging.warning('ZaberTMM warning: '+warning)
+            self.CreateWarning(warning)
+
         self.sweep_thread = None
         self.running_sweep = False
 
@@ -205,19 +220,11 @@ class ZaberTMM:
     # CeNTREX DAQ Commands
     #######################################################
 
-    def CheckWarnings(self):
-        return
-        while True:
-            try:
-                if self.GetPosition() == [62000, 62000]:
-                    warning_dict = { "message" : 'power cycle'}
-                    self.warnings.append(warning_dict)
-                break
-            except TimeoutError:
-                continue
+    def CreateWarning(self, warning):
+    warning_dict = { "message" : warning)}
+    self.warnings.append([time.time(), warning_dict])
 
     def GetWarnings(self):
-        self.CheckWarnings()
         warnings = self.warnings.copy()
         self.warnings = []
         return warnings
@@ -282,6 +289,10 @@ class ZaberTMM:
                 break
         self.position.dev_coordinates = pos
         return pos
+
+    def DisablePotentiometer(self):
+        current = self.command(0,53,40,2)[0].data
+        msgs = self.command(0, 40, current+8)
 
     #######################################################
     # Commands for individual devices
@@ -349,6 +360,9 @@ class ZaberTMM:
         self.position.x = msgs[0].data
         return msgs[0].data
 
+    def GetPositionXMemory(self):
+        return self.position.x
+
     def GetPositionY(self):
         msgs = self.command(self.devy,60,0,1)
         if isinstance(msgs, type(None)):
@@ -356,6 +370,27 @@ class ZaberTMM:
             return np.nan
         self.position.y = msgs[0].data
         return msgs[0].data
+
+    def GetPositionY(self):
+        return self.position.y
+
+    def ReadDeviceModeX(self):
+        msg = self.command(self.devx,53,40,1)
+        bits = [int(d) for d in bin(msg[0].data)[2:]][::-1]
+        return bits
+
+    def ReadDeviceModeY(self):
+        msg = self.command(self.devx,53,40,1)
+        bits = [int(d) for d in bin(msg[0].data)[2:]][::-1]
+        return bits
+
+    def DisablePotentiometerX(self):
+        current = self.command(self.devx,53,40,1)[0].data
+        msgs = self.command(self.devx, 40, current+8)
+
+    def DisablePotentiometerY(self):
+        current = self.command(self.devy,53,40,1)[0].data
+        msgs = self.command(self.devy, 40, current+8)
 
     #######################################################
     # Sweep Mirror
@@ -365,6 +400,8 @@ class ZaberTMM:
         with h5py.File('drivers/ablation_sweeps.sweep_hdf5', 'r') as f:
             coordinates = f[sweepname].value
         if self.running_sweep:
+            warning = 'Sweep: Currently sweeping mirror'
+            CreateWarning(warning)
             logging.warning('ZaberTMM warning in Sweep: Currently sweeping mirror')
         else:
             self.sweep_thread = MirrorSweep(self, coordinates)
@@ -376,6 +413,8 @@ class ZaberTMM:
             self.sweep_thread = None
             self.running_sweep = False
         else:
+            warning = 'StopSweep: No sweep running'
+            CreateWarning(warning)
             logging.warning("ZaberTMM warning in StopSweep: No sweep running")
 
     def SweepStatus(self):

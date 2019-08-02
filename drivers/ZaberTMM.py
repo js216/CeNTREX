@@ -33,7 +33,7 @@ class MirrorSweep(StoppableThread):
         self.driver.running_sweep = False
         self.coordinates = coords
 
-    def move(x,y):
+    def move(self, x, y):
         while True:
             try:
                 if self.stopped():
@@ -58,7 +58,7 @@ class MirrorSweep(StoppableThread):
                 x,y = coord
                 self.move(x,y)
                 if self.stopped():
-                    logging.warning("ZaberTMM warning: stopped sweeping")
+                    logging.warning("ZaberTMM info: stopped sweeping")
                     self.driver.running_sweep = False
                     return
 
@@ -157,7 +157,7 @@ class ZaberTMM:
             self.port = BinarySerial(COM_port)
             msg = self.command(0,50,0,2)
             msg = [d.data for d in msg]
-            if not all(elem == msg[0] for elem in msg)
+            if not all(elem == msg[0] for elem in msg):
                 raise ValueError('ZaberTMM warning in verification : Device IDs not equal')
         except Exception as err:
             logging.warning("ZaberTMM error in initial connection : "+str(err))
@@ -210,8 +210,9 @@ class ZaberTMM:
         try:
             if self.running_sweep:
                 self.sweep_thread.stop()
-            if isistance(port.can_read(), bool):
-                port.close()
+            try:
+                self.port.close()
+            except:
                 return
         except:
             return
@@ -221,8 +222,8 @@ class ZaberTMM:
     #######################################################
 
     def CreateWarning(self, warning):
-    warning_dict = { "message" : warning)}
-    self.warnings.append([time.time(), warning_dict])
+        warning_dict = { "message" : warning}
+        self.warnings.append([time.time(), warning_dict])
 
     def GetWarnings(self):
         warnings = self.warnings.copy()
@@ -371,7 +372,7 @@ class ZaberTMM:
         self.position.y = msgs[0].data
         return msgs[0].data
 
-    def GetPositionY(self):
+    def GetPositionYMemory(self):
         return self.position.y
 
     def ReadDeviceModeX(self):

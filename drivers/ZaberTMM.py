@@ -168,7 +168,7 @@ class ZaberTMM:
         self.COM_port = COM_port
 
         # shape and type of the array of returned data from ReadValue
-        self.dtype = ('f4', 'int16', 'in16')
+        self.dtype = ('f4', 'int16', 'int16')
         self.shape = (3, )
 
         try:
@@ -226,10 +226,10 @@ class ZaberTMM:
         self.new_attributes = [
                                 ('dev1_axis', dev1_axis),
                                 ('dev2_axis', dev2_axis),
-                                ('x_speed', self.ReadTargetSpeedX()),
-                                ('y_speed', self.ReadTargetSpeedY()),
-                                ('x_acceleration', self.ReadAccelerationX()),
-                                ('y_acceleration', self.ReadAccelerationY())
+                                ('x_speed', str(self.ReadTargetSpeedX())),
+                                ('y_speed', str(self.ReadTargetSpeedY())),
+                                ('x_acceleration', str(self.ReadAccelerationX())),
+                                ('y_acceleration', str(self.ReadAccelerationY()))
                               ]
 
     def __enter__(self):

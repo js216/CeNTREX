@@ -146,12 +146,9 @@ class ZaberTMM:
         self.time_offset = time_offset
         self.COM_port = COM_port
 
-        # HDF attributes generated when constructor is run
-        self.new_attributes = []
-
         # shape and type of the array of returned data from ReadValue
-        self.dtype = ('f4', int, int, int, int)
-        self.shape = (5, )
+        self.dtype = ('f4', 'int16', 'in16')
+        self.shape = (3, )
 
         try:
             self.port = BinarySerial(COM_port)
@@ -203,6 +200,16 @@ class ZaberTMM:
 
         self.GetPosition()
 
+        # HDF attributes generated when constructor is run
+        self.new_attributes = [
+                                ('dev1_axis', dev1_axis),
+                                ('dev2_axis', dev2_axis),
+                                ('x_speed', self.ReadTargetSpeedX()),
+                                ('y_speed', self.ReadTargetSpeedY()),
+                                ('x_acceleration', self.ReadAccelerationX()),
+                                ('y_acceleration', self.ReadAccelerationY())
+                              ]
+
     def __enter__(self):
         return self
 
@@ -233,8 +240,7 @@ class ZaberTMM:
     def ReadValue(self):
         val = [
                 time.time() - self.time_offset,
-                *self.position.coordinates,
-                *self.position.dev_coordinates,
+                *self.position.coordinates
                ]
         return val
     #######################################################
@@ -387,11 +393,23 @@ class ZaberTMM:
 
     def DisablePotentiometerX(self):
         current = self.command(self.devx,53,40,1)[0].data
-        msgs = self.command(self.devx, 40, current+8)
+        msgs = self.command(self.devx,40, current+8)
 
     def DisablePotentiometerY(self):
         current = self.command(self.devy,53,40,1)[0].data
-        msgs = self.command(self.devy, 40, current+8)
+        msgs = self.command(self.devy,40, current+8)
+
+    def ReadTargetSpeedX(self):
+        return self.command(self.devx,53,42,1)[0].data
+
+    def ReadTargetSpeedY(self):
+        return self.command(self.devy,53,42,1)[0].data
+
+    def ReadAccelerationX(self):
+        return self.command(self.devx,53,43,1)[0].data
+
+    def ReadAccelerationY(self):
+        return self.command(self.devy,53,43,1)[0].data
 
     #######################################################
     # Sweep Mirror

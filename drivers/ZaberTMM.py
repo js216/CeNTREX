@@ -4,6 +4,7 @@ import h5py
 import secrets
 import logging
 import threading
+import functools
 import numpy as np
 from enum import Enum
 from zaber.serial import BinaryCommand, BinaryDevice, BinarySerial, BinaryReply
@@ -56,7 +57,9 @@ class MirrorSweep(StoppableThread):
     def run(self):
         # generating random start position if random_start enabled
         if self.random_start:
-            coordinates = np.roll(self.coordinates, secrets.randbelow(len(coordinates)))
+            coordinates = np.roll(self.coordinates,
+                                  secrets.randbelow(len(self.coordinates)),
+                                  axis = 0)
         else:
             coordinates = self.coordinates
 
@@ -150,12 +153,11 @@ def SweepCheckWrapper(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         if args[0].running_sweep:
-            warning = '{0} : Currently sweeping, unable to set position'.format(func.__name__))
+            warning = '{0} : Currently sweeping, unable to set position'.format(func.__name__)
             logging.warning('ZaberTMM warning in'+warning)
-            self.CreateWarning(warning)
+            args[0].CreateWarning(warning)
         else:
             return func(*args, **kwargs)
-        except pyvisa.errors.VisaIOError as err:
     return wrapper
 
 
@@ -274,20 +276,31 @@ class ZaberTMM:
         else:
             return 'invalid'
 
-    def ActivateRandomStart(self, val):
-        self.random_start = True
+    def ActivateRandomStart(self):
+        self.sweep_random_start = True
 
-    def DeactivateRandomStart(self,val):
-        self.random_start = False
+    def DeactivateRandomStart(self):
+        self.sweep_random_start = False
 
     def RandomStartStatus(self):
-        if self.random_start:
+        if self.sweep_random_start:
             return 'Random'
-        elif not self.running_sweep:
+        elif not self.sweep_random_start:
             return 'Origin'
         else:
             return 'Invalid'
 
+    @SweepCheckWrapper
+    def MoveAbsoluteXGUI(self, position):
+        self.MoveAbsoluteX(position)
+
+    @SweepCheckWrapper
+    def MoveAbsoluteYGUI(self, position):
+        self.MoveAbsoluteY(position)
+
+    @SweepCheckWrapper
+    def HomeAllGUI(self):
+        self.HomeAll()
     #######################################################
     # Write/Query Commands
     #######################################################
@@ -311,7 +324,6 @@ class ZaberTMM:
     # Commands for all devices
     #######################################################
 
-    @SweepCheckWrapper
     def HomeAll(self):
         msgs = self.command(0, 1, 0, 2)
         if isinstance(msgs, type(None)):
@@ -320,7 +332,6 @@ class ZaberTMM:
             if msg.data != -62000:
                 logging.warning('ZaberTMM warning in HomeAll : motor {0} not @home position'.format(msg.device_number))
 
-    @SweepCheckWrapper
     def MoveAbsoluteAll(self, position):
         msgs = self.command(0, 20, position, 2)
         if isinstance(msgs, type(None)):
@@ -352,7 +363,6 @@ class ZaberTMM:
     # Commands for individual devices
     #######################################################
 
-    @SweepCheckWrapper
     def MoveAbsoluteX(self, position):
         msgs = self.command(self.devx, 20, position, 1)
         if isinstance(msgs, type(None)):
@@ -367,7 +377,6 @@ class ZaberTMM:
         if self.position.x != position:
             logging.warning('ZaberTMM warning in MoveAbsoluteX : motor {0} not @{1} position'.format(self.devx, position))
 
-    @SweepCheckWrapper
     def MoveAbsoluteY(self, position):
         msgs = self.command(self.devy, 20, position, 1)
         if isinstance(msgs, type(None)):
@@ -382,7 +391,6 @@ class ZaberTMM:
             if self.position.y != position:
                 logging.warning('ZaberTMM warning in MoveAbsoluteY : motor {0} not @{1} position'.format(self.devy, position))
 
-    @SweepCheckWrapper
     def HomeX(self):
         msgs = self.command(self.devx,1,0,1)
         if isinstance(msgs, type(None)):
@@ -393,7 +401,6 @@ class ZaberTMM:
             elif msg.data != -62000:
                 logging.warning('ZaberTMM warning in HomeX : motor {0} not @home position'.format(msg.device_number))
 
-    @SweepCheckWrapper
     def HomeY(self):
         msgs = self.command(self.devy,1,0,1)
         if isinstance(msgs, type(None)):
@@ -404,11 +411,9 @@ class ZaberTMM:
             elif msg.data != -62000:
                 logging.warning('ZaberTMM warning in HomeY : motor {0} not @home position'.format(msg.device_number))
 
-    @SweepCheckWrapper
     def MoveAbsoluteXNoWait(self, position):
         self.command(self.devx,20,position,0)
 
-    @SweepCheckWrapper
     def MoveAbsoluteYNoWait(self, position):
         self.command(self.devy,20,position,0)
 
@@ -476,7 +481,7 @@ class ZaberTMM:
             CreateWarning(warning)
             logging.warning('ZaberTMM warning in Sweep: Currently sweeping mirror')
         else:
-            self.sweep_thread = MirrorSweep(self, coordinates)
+            self.sweep_thread = MirrorSweep(self, coordinates, self.sweep_random_start)
             self.sweep_thread.start()
 
     def StopSweep(self):

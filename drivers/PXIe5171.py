@@ -142,7 +142,7 @@ class PXIe5171:
                     offset        = 0,
                     record_number = self.rec_num,
                     num_records   = self.num_records,
-                    timeout       = datetime.timedelta(seconds=5)
+                    timeout       = datetime.timedelta(seconds=10)
                 )
             timestamp = time.time()-self.time_offset
         except niscope.errors.DriverError as err:

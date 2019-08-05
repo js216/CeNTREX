@@ -236,7 +236,7 @@ class LaserLock:
     Driver to connect to laser locking on different computer via socket
     communication
     """
-    def __init__(self, time_offset, socket_connection)::
+    def __init__(self, time_offset, socket_connection):
         self.time_offset = time_offset
         self.host = socket_connection['host']
         self.port = int(socket_connection['port'])
@@ -244,6 +244,8 @@ class LaserLock:
 
         self.dtype = ('f', 'bool', 'f8', 'bool', 'bool', 'f', 'f', 'f8', 'f8', 'f8', 'f8')
         self.shape = (11,)
+
+        self.new_attributes = []
 
         self.warnings = []
 
@@ -255,9 +257,12 @@ class LaserLock:
     def __exit__(self, *exc):
         return
 
+    def __enter__(self):
+        return self
+
     def ReadValue(self):
         values = self.request('query', 'ReadValue')
-        t = self.time_offset - time.time()
+        t = time.time() - self.time_offset
         try:
             if np.isnan(values):
                 return np.nan

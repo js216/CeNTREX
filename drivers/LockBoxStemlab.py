@@ -12,8 +12,84 @@ import logging
 import json
 import io
 import struct
+import threading
+
+class SharedData(object):
+    def __init__(self, value):
+        self._data = value
+        self._lock = threading.Lock()
+
+    def __get__(self):
+        with self._lock:
+            return self._data
+
+    def __set__(self, value):
+        with self._lock:
+            self._data = value
+
+    def __repr__(self):
+        with self._lock:
+            return repr(self._data)
+
+
+class StreamReceiver(threading.Thread):
+    """
+    Class for streaming data from red pitaya to any computer through sockets.
+    Keeps the socket connection open, opening and closing for every new request
+    takes too long (~4/s vs at least 100/s for a size 16e3 float array).
+    Modified from https://github.com/ekbanasolutions/numpy-using-socket.
+    """
+    def __init__(self, address, port, obj, attr):
+        self._stop = threading.Event()
+        self.daemon = True
+        self.address = address
+        self.port = port
+        self.obj = obj
+        self.attr = attr
+
+    def stop(self):
+        """
+        Stop the streaming thread.
+        """
+        self._stop.set()
+
+    def initialize_receiver(self):
+        self.socket.bind((self.address, self.port))
+        # print('Socket bind complete')
+        self.socket.listen(10)
+        self.conn, addr = self.socket.accept()
+        # print('Socket now listening')
+        self.payload_size = struct.calcsize("L")  ### CHANGED
+        self.data = b''
+
+    def receive_array(self):
+        while len(self.data) < self.payload_size:
+            self.data += self.conn.recv(4096)
+
+        packed_msg_size = self.data[:self.payload_size]
+        self.data = self.data[self.payload_size:]
+        msg_size = struct.unpack("L", packed_msg_size)[0]
+
+        # Retrieve all data based on message size
+        while len(self.data) < msg_size:
+            self.data += self.conn.recv(4096)
+
+        frame_data = self.data[:msg_size]
+        self.data = self.data[msg_size:]
+
+        # Extract frame
+        frame = pickle.loads(frame_data)
+        return frame
+
+    def run(self):
+        self.obj.send('stream', f'{self.attr},{self.address},{self.port}')
+        self.initialize_receiver()
+        while True:
+            self.obj.data = self.receive_array()
 
 class LockBoxStemlab:
+    data = SharedData(None)
+
     def __init__(self, time_offset, conn):
         self.time_offset = time_offset
 
@@ -34,10 +110,14 @@ class LockBoxStemlab:
 
         self.warnings = []
 
+        self._acquisition = StreamReceiver(address, self.port - 1, self, 'curve')
+        self._acquisition.run()
+
     def __enter__(self):
         return self
 
     def __exit__(self, *exc):
+        self._acquisition.stop()
         return
 
     ##############################
@@ -50,9 +130,9 @@ class LockBoxStemlab:
         return warnings
 
     def ReadValue(self):
-        d = self.send('data', 'curve')
+        d = self.data.copy()
         timestamp = time.time()-self.time_offset
-        if isinstance(d, list):
+        if d or (isinstance(d, (list, np.ndarray))):
             return [np.array([d]), [{'timestamp':timestamp}]]
         else:
             return None

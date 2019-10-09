@@ -155,6 +155,18 @@ class HiPace700:
             logging.warning("HiPace700 warning in ActualSpd(): " + str(err))
             return np.nan
 
+    def BrakeStatus(self):
+        try:
+            status = int(self.query("013"))
+        except ValueError as err:
+            logging.warning("HiPace700 warning in BrakeStatus(): " + str(err))
+            return "invalid"
+
+        if status == 0:
+            return "off"
+        elif status == 111111:
+            return "on"
+
     def TurboStatus(self):
         speed = self.ActualSpd()
         if speed == 0.0:
@@ -299,6 +311,12 @@ class HiPace700:
    #######################################################
     # Control commands
     #######################################################
+
+    def BrakeOn(self):
+        return self.query(param="013", control=True, data_len="06", data="111111")
+
+    def BrakeOff(self):
+        return self.query(param="013", control=True, data_len="06", data="000000")
 
     def StartPump(self):
         return self.query(param="010", control=True, data_len="06", data="111111")

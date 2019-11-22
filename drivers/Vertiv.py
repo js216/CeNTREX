@@ -24,6 +24,11 @@ class Vertiv:
     def ReadValue(self):
         conv = [float, float, float, float, int, int, int, int, float,
                 float, float, float, int, float, int, float, float, int]
+
+        # commands retrieve data for:
+        # returnTemperature, returnHumidity, returnDewPoint, supplyTemperature, coolingCapacity, dehumCapacity, humCapacity,
+        # fanCapacity, tempSetPoint, tempDeadBand, tempPropBand, tempIntegrationTime, humSetPoint, humDeadBand, humPropBand,
+        # humIntegrationTime, fanSpeedTempSetPoint, hotWater/hotGas Valve
         commandsLog = ['1.3.6.1.4.1.476.1.42.3.9.20.1.20.1.2.1.4291', '1.3.6.1.4.1.476.1.42.3.9.20.1.20.1.2.1.5028',
                '1.3.6.1.4.1.476.1.42.3.9.20.1.20.1.2.1.5004', '1.3.6.1.4.1.476.1.42.3.9.20.1.20.1.2.1.5002',
                '1.3.6.1.4.1.476.1.42.3.9.20.1.20.1.2.1.5490', '1.3.6.1.4.1.476.1.42.3.9.20.1.20.1.2.1.5079',
@@ -34,7 +39,7 @@ class Vertiv:
                '1.3.6.1.4.1.476.1.42.3.9.20.1.20.1.2.1.5341', '1.3.6.1.4.1.476.1.42.3.9.20.1.20.1.2.1.5342',
                '1.3.6.1.4.1.476.1.42.3.9.20.1.20.1.2.1.5585', '1.3.6.1.4.1.476.1.42.3.9.20.1.20.1.2.1.5380']
         values = self.queryMultiple(commandsLog)
-        values = [c(v) for c,v in zip(conv, values)]
+        values = [c(v) if v != b'Unavailable' else 0 for c,v in zip(conv, values)]
         return [time.time()-self.time_offset]+values
 
     def GetWarnings(self):

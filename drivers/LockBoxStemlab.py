@@ -1,78 +1,123 @@
-from stemlab import StemLab
 import numpy as np
 import time
 import logging
 import traceback
+import sys
+import importlib
+import socket
+import selectors
+import traceback
+import random
+import logging
+import json
+import io
+import struct
+import threading
+
+class SharedData(object):
+    def __init__(self, value):
+        self._data = value
+        self._lock = threading.Lock()
+
+    def __get__(self):
+        with self._lock:
+            return self._data
+
+    def __set__(self, value):
+        with self._lock:
+            self._data = value
+
+    def __repr__(self):
+        with self._lock:
+            return repr(self._data)
+
+
+class StreamReceiver(threading.Thread):
+    """
+    Class for streaming data from red pitaya to any computer through sockets.
+    Keeps the socket connection open, opening and closing for every new request
+    takes too long (~4/s vs at least 100/s for a size 16e3 float array).
+    Modified from https://github.com/ekbanasolutions/numpy-using-socket.
+    """
+    def __init__(self, address, port, obj, attr):
+        self._stop = threading.Event()
+        self.daemon = True
+        self.address = address
+        self.port = port
+        self.obj = obj
+        self.attr = attr
+
+    def stop(self):
+        """
+        Stop the streaming thread.
+        """
+        self._stop.set()
+
+    def initialize_receiver(self):
+        self.socket.bind((self.address, self.port))
+        # print('Socket bind complete')
+        self.socket.listen(10)
+        self.conn, addr = self.socket.accept()
+        # print('Socket now listening')
+        self.payload_size = struct.calcsize("L")  ### CHANGED
+        self.data = b''
+
+    def receive_array(self):
+        while len(self.data) < self.payload_size:
+            self.data += self.conn.recv(4096)
+
+        packed_msg_size = self.data[:self.payload_size]
+        self.data = self.data[self.payload_size:]
+        msg_size = struct.unpack("L", packed_msg_size)[0]
+
+        # Retrieve all data based on message size
+        while len(self.data) < msg_size:
+            self.data += self.conn.recv(4096)
+
+        frame_data = self.data[:msg_size]
+        self.data = self.data[msg_size:]
+
+        # Extract frame
+        frame = pickle.loads(frame_data)
+        return frame
+
+    def run(self):
+        self.obj.send('stream', f'{self.attr},{self.address},{self.port}')
+        self.initialize_receiver()
+        while True:
+            self.obj.data = self.receive_array()
 
 class LockBoxStemlab:
-    def __init__(self, time_offset, hostname, reloadfpga = False):
-        self.time_offset = time_offset
-        self.reloadfpga = reloadfpga
+    data = SharedData(None)
 
+    def __init__(self, time_offset, conn):
+        self.time_offset = time_offset
+
+        self.hostname, self.port = conn['host'], int(conn['port'])
         self.verification_string = 'False'
         try:
-            self.rp = StemLab(hostname = hostname, reloadfpga = reloadfpga)
-            self.verification_string = 'True'
+            if isinstance(self.send('get', 'locked'), bool):
+                self.verification_string = 'True'
         except Exception as err:
             logging.warning("LockBoxStemlab error in __init__(): "+str(err))
             self.verification_string = 'False'
-            print(traceback.print_exc())
             return
-
-        self._setup()
 
         self.new_attributes = []
 
-        self.dtype = 'f8'
-        self.shape = (1, 2, self.scope.data_length)
+        self.dtype = 'f'
+        self.shape = (1, 2, self.send('rp', 'scope:data_length'))
 
         self.warnings = []
 
-    def _setup(self):
-        if self.reloadfpga:
-            self._init_fpga()
-        self.rp.scope.decimaton = 2**8
-        self._init_ramp_params()
-        self._init_pid_params()
-        self._init_scope_params()
-
-    def _init_fpga(self):
-        logging.warning('Loading FPGA registers')
-        # Function generator default settings
-        self.rp.asg0.amplitude = 0.5
-        self.rp.asg0.frequency = 50
-        self.rp.asg0.offset = 0.4
-        self.rp.asg0.output_direct = 'out1'
-        self.rp.asg0.trigger_source = 'immediately'
-        self.rp.asg0.on = True
-
-        # PID default settings
-        self.rp.pid0.input = 'in1'
-        self.rp.pid0.p = 5
-        self.rp.pid0.i = 100
-        self.rp.pid0.ival = 0
-        self.rp.pid0.output_direct = 'off'
-        self.rp.pid0.inputfilter = [1e5, 0, 0, 0]
-
-        # Scope default settings
-        self.rp.scope.input1 = 'asg0'
-        self.rp.scope.input2 = 'in1'
-        self.rp.scope.trigger_source = 'asg0'
-        self.rp.scope.duration = 0.5*1/self.rp.asg0.frequency
-
-    def _init_ramp_params(self):
-        self.ramp = self.rp.asg0
-
-    def _init_pid_params(self):
-        self.pid = self.rp.pid0
-
-    def _init_scope_params(self):
-        self.scope = self.rp.scope
+        self._acquisition = StreamReceiver(address, self.port - 1, self, 'curve')
+        self._acquisition.run()
 
     def __enter__(self):
         return self
 
     def __exit__(self, *exc):
+        self._acquisition.stop()
         return
 
     ##############################
@@ -85,13 +130,12 @@ class LockBoxStemlab:
         return warnings
 
     def ReadValue(self):
-        self.scope._start_acquisition()
-        while True:
-            if self.scope.curve_ready():
-                d = np.array([self.scope._get_curve()])
-                break
+        d = self.data.copy()
         timestamp = time.time()-self.time_offset
-        return [d, [{'timestamp':timestamp}]]
+        if d or (isinstance(d, (list, np.ndarray))):
+            return [np.array([d]), [{'timestamp':timestamp}]]
+        else:
+            return None
 
     ##############################
     # Commands
@@ -100,104 +144,344 @@ class LockBoxStemlab:
     # Ramp Commands
 
     def RampFrequency(self, frequency):
-        self.ramp.frequency = float(frequency)
+        self.send('set', f'ramp:frequency {frequency}')
 
     def GetRampFrequency(self):
-        return round(self.ramp.frequency,1)
+        return round(self.send('rp', f'asg0:frequency'),2)
 
     def RampAmplitude(self, amplitude):
-        self.ramp.amplitude = float(amplitude)
+        self.send('set', f'ramp:amplitude {amplitude}')
 
     def GetRampAmplitude(self):
-        return round(self.ramp.amplitude,3)
+        return round(self.send('rp', f'asg0:amplitude'),3)
 
     def RampOffset(self, offset):
-        if offset > 0.97:
-            offset = 0.97
-        elif offset < -0.97:
-            offset = -0.97
-        self.ramp.offset = float(offset)
+        self.send('set', f'ramp:offset {offset}')
 
     def GetRampOffset(self):
-        return round(self.ramp.offset,3)
+        return round(self.send('rp', f'asg0:offset'),3)
 
     def RampOn(self):
-        self.pid.output_direct = 'off'
-        self.ramp.output_direct = 'out1'
+        self.send('set', 'locking False')
 
     def RampOff(self):
-        self.ramp.output_direct = 'off'
+        self.send('set', 'locking True')
 
     def RampStatus(self):
-        if self.ramp.output_direct == 'out1':
+        if self.send('rp', 'asg0:output_direct') == 'out1':
             return 'On'
-        elif not self.ramp.output_direct == 'out1':
+        elif not self.get('rp', 'asg0:output_direct') == 'out1':
             return 'Off'
         else:
             return 'invalid'
 
     # PID commands
-
     def PIDSetPoint(self, setpoint):
-        self.pid.setpoint = float(setpoint)
+        self.send('set', f'pid:setpoint {setpoint}')
 
     def GetPIDSetpoint(self):
-        return round(self.pid.setpoint,3)
+        return round(self.send('rp', f'pid0:setpoint'), 3)
 
     def PIDProportional(self, proportional):
-        self.pid.proportional = float(proportional)
+        self.send('set', f'pid:p {proportional}')
 
     def GetPIDProportional(self):
-        return round(self.pid.proportional,3)
+        return round(self.send('rp', f'pid0:proportional'),3)
 
     def PIDIntegral(self, integral):
-        self.pid.integral = float(integral)
+        self.send('set', f'pid:i {integral}')
 
     def GetPIDIntegral(self):
-        return round(self.pid.integral,3)
+        return round(self.send('rp', f'pid0:integral'),3)
 
     def PIDIVal(self, ival):
-        self.pid.ival = float(ival)
+        self.send('rp', f'pid0:ival {ival}')
 
     def GetPIDIval(self):
-        return round(self.pid.ival,3)
+        return round(self.send('rp', 'pid0:ival'),3)
 
     def PIDReset(self):
-        self.pid.ival = 0
+        self.send('rp', 'pid0:ival 0')
 
     def PIDFilter(self, frequency):
-        self.pid.inputfilter = [frequency, 0, 0, 0]
+        self.send('set', f'pid:input_filter {frequency}')
 
     def GetPIDFilter(self):
-        return round(self.pid.inputfilter[0], 3)
+        return self.send('rp', 'pid0:input_filter')
 
     # Scope commands
     def ScopeTrigger(self, trigger_source):
-        self.scope.trigger_source = trigger_source
+        self.send('set', f'scope:trigger_source {trigger_source}')
 
     def ScopeCH1Input(self, input):
-        self.scope.input1 = input
+        self.send('set', f'scope:input1 {input}')
 
     def ScopeCH2Input(self, input):
-        self.scope.input2 = input
+        self.send('set', f'scope:input2 {input}')
 
     # Lock commands
 
     def LockCavity(self):
-        self.ramp.output_direct = 'off'
-        self.pid.output_direct = 'out1'
-        self.pid.ival = 0
+        self.send('set', 'auto_relock True')
+        self.send('set', 'locking True')
 
     def UnlockCavity(self):
-        self.pid.output_direct = 'off'
-        self.ramp.output_direct = 'out1'
+        self.send('set', 'auto_relock False')
+        self.send('set', 'locking False')
 
     def LockStatus(self):
-        if  (not self.ramp.output_direct == 'out1') & (self.pid.output_direct == 'out1'):
+        if self.send('get', 'locked'):
             return 'Locked'
-        elif (self.ramp.output_direct == 'out1') & (not self.pid.output_direct == 'out1'):
-            return 'Unlocked'
-        elif (self.ramp_out_direct == 'out1') & (self.pid.output_direct == 'out1'):
+        elif not self.send('get', 'locked'):
             return 'Unlocked'
         else:
             return 'invalid'
+
+    # Communication commands
+    @staticmethod
+    def _createRequest(action, value):
+        return dict(
+            type="text/json",
+            encoding="utf-8",
+            content=dict(action=action, value=value),
+        )
+
+    def send(self, action, value):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setblocking(False)
+        con = sock.connect_ex((self.hostname, self.port))
+        sel = selectors.DefaultSelector()
+        request = self._createRequest(action, value)
+        message = ClientMessage(sel, sock, (self.hostname, sock), request)
+        events = selectors.EVENT_READ | selectors.EVENT_WRITE
+        sel.register(sock, events, data=message)
+
+        try:
+            while True:
+                events = sel.select(timeout=1)
+                for key, mask in events:
+                    message = key.data
+                    try:
+                        message.process_events(mask)
+                    except Exception as err:
+                        logging.warning("socket warning in get: "
+                                       +str(err))
+                        message.close()
+                # Check for a socket being monitored to continue.
+                if not sel.get_map():
+                    break
+        except Exception as e:
+            logging.warning('socket warning in get: '+str(e))
+            return np.nan
+        finally:
+            sel.close()
+            return message.result
+
+class ClientMessage:
+    """
+    ClientMessage class for communication between the SocketDeviceServer and
+    SocketDeviceClient classes.
+    A message has the following structure:
+    - fixed-lenght header
+    - json header
+    - content
+    See https://realpython.com/python-sockets/#application-client-and-server
+    for a more thorough explanation, most of the code is adapted fromt this.
+    """
+    def __init__(self, selector, sock, addr, request):
+        self.selector = selector
+        self.sock = sock
+        self.addr = addr
+        self.request = request
+        self._recv_buffer = b""
+        self._send_buffer = b""
+        self._request_queued = False
+        self._jsonheader_len = None
+        self.jsonheader = None
+        self.response = None
+        self.result = np.nan
+
+    def _set_selector_events_mask(self, mode):
+        """Set selector to listen for events: mode is 'r', 'w', or 'rw'."""
+        if mode == "r":
+            events = selectors.EVENT_READ
+        elif mode == "w":
+            events = selectors.EVENT_WRITE
+        elif mode == "rw":
+            events = selectors.EVENT_READ | selectors.EVENT_WRITE
+        else:
+            raise ValueError(f"Invalid events mask mode {repr(mode)}.")
+        self.selector.modify(self.sock, events, data=self)
+
+    def _read(self):
+        try:
+            # Should be ready to read
+            data = self.sock.recv(4096)
+        except BlockingIOError:
+            # Resource temporarily unavailable (errno EWOULDBLOCK)
+            pass
+        else:
+            if data:
+                self._recv_buffer += data
+            else:
+                raise RuntimeError("Peer closed.")
+
+    def _write(self):
+        if self._send_buffer:
+            try:
+                # Should be ready to write
+                sent = self.sock.send(self._send_buffer)
+            except BlockingIOError:
+                # Resource temporarily unavailable (errno EWOULDBLOCK)
+                pass
+            else:
+                self._send_buffer = self._send_buffer[sent:]
+
+    def _json_encode(self, obj, encoding):
+        return json.dumps(obj, ensure_ascii=False).encode(encoding)
+
+    def _json_decode(self, json_bytes, encoding):
+        tiow = io.TextIOWrapper(
+            io.BytesIO(json_bytes), encoding=encoding, newline=""
+        )
+        obj = json.load(tiow)
+        tiow.close()
+        return obj
+
+    def _create_message(
+        self, *, content_bytes, content_type, content_encoding
+    ):
+        jsonheader = {
+            "byteorder": sys.byteorder,
+            "content-type": content_type,
+            "content-encoding": content_encoding,
+            "content-length": len(content_bytes),
+        }
+        jsonheader_bytes = self._json_encode(jsonheader, "utf-8")
+        message_hdr = struct.pack(">H", len(jsonheader_bytes))
+        message = message_hdr + jsonheader_bytes + content_bytes
+        return message
+
+    def _process_response_json_content(self):
+        content = self.response
+        if not content.get("result") is None:
+            self.result = content.get("result")
+        else:
+            self.result = np.nan
+            raise ValueError(content.get('error'))
+
+    def _process_response_binary_content(self):
+        content = self.response
+        print(f"got response: {repr(content)}")
+
+    def process_events(self, mask):
+        if mask & selectors.EVENT_READ:
+            self.read()
+        if mask & selectors.EVENT_WRITE:
+            self.write()
+
+    def read(self):
+        self._read()
+
+        if self._jsonheader_len is None:
+            self.process_protoheader()
+
+        if self._jsonheader_len is not None:
+            if self.jsonheader is None:
+                self.process_jsonheader()
+
+        if self.jsonheader:
+            if self.response is None:
+                self.process_response()
+
+    def write(self):
+        if not self._request_queued:
+            self.queue_request()
+
+        self._write()
+
+        if self._request_queued:
+            if not self._send_buffer:
+                # Set selector to listen for read events, we're done writing.
+                self._set_selector_events_mask("r")
+
+    def close(self):
+        try:
+            self.selector.unregister(self.sock)
+        except Exception as e:
+            logging.warning(
+                f"error: selector.unregister() exception for",
+                f"{self.addr}: {repr(e)}",
+            )
+
+        try:
+            self.sock.close()
+        except OSError as e:
+            logging.warning(
+                f"error: socket.close() exception for",
+                f"{self.addr}: {repr(e)}",
+            )
+        finally:
+            # Delete reference to socket object for garbage collection
+            self.sock = None
+
+    def queue_request(self):
+        content = self.request["content"]
+        content_type = self.request["type"]
+        content_encoding = self.request["encoding"]
+        if content_type == "text/json":
+            req = {
+                "content_bytes": self._json_encode(content, content_encoding),
+                "content_type": content_type,
+                "content_encoding": content_encoding,
+            }
+        else:
+            req = {
+                "content_bytes": content,
+                "content_type": content_type,
+                "content_encoding": content_encoding,
+            }
+        message = self._create_message(**req)
+        self._send_buffer += message
+        self._request_queued = True
+
+    def process_protoheader(self):
+        hdrlen = 2
+        if len(self._recv_buffer) >= hdrlen:
+            self._jsonheader_len = struct.unpack(
+                ">H", self._recv_buffer[:hdrlen]
+            )[0]
+            self._recv_buffer = self._recv_buffer[hdrlen:]
+
+    def process_jsonheader(self):
+        hdrlen = self._jsonheader_len
+        if len(self._recv_buffer) >= hdrlen:
+            self.jsonheader = self._json_decode(
+                self._recv_buffer[:hdrlen], "utf-8"
+            )
+            self._recv_buffer = self._recv_buffer[hdrlen:]
+            for reqhdr in (
+                "byteorder",
+                "content-length",
+                "content-type",
+                "content-encoding",
+            ):
+                if reqhdr not in self.jsonheader:
+                    raise ValueError(f'Missing required header "{reqhdr}".')
+
+    def process_response(self):
+        content_len = self.jsonheader["content-length"]
+        if not len(self._recv_buffer) >= content_len:
+            return
+        data = self._recv_buffer[:content_len]
+        self._recv_buffer = self._recv_buffer[content_len:]
+        if self.jsonheader["content-type"] == "text/json":
+            encoding = self.jsonheader["content-encoding"]
+            self.response = self._json_decode(data, encoding)
+            self._process_response_json_content()
+        else:
+            # Binary or unknown content-type
+            self.response = data
+            self._process_response_binary_content()
+        # Close when response has been processed
+        self.close()

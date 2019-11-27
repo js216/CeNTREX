@@ -1,6 +1,8 @@
 from toptica.lasersdk.client import Client, NetworkConnection, DeviceNotFoundError, \
-                                    DecopError, DecopValueError, UserLevel
+                                    DecopError, DecopValueError, UserLevel, \
+                                    SerialConnection
 from toptica.lasersdk.utils.dlcpro import *
+import asyncio
 import logging
 import numpy as np
 import time
@@ -51,15 +53,18 @@ class checkTypeWrapper(object):
         return wrapper
 
 class DLCPro:
-    def __init__(self, time_offset, COM_port):
+    def __init__(self, time_offset, COM_port, connection = 'network'):
+        self.connection = connection
         self.COM_port = COM_port
         self.time_offset = time_offset
 
         self.new_attributes = []
-        self.dtype = 'f16'
-        self.shape = (6,)
+        self.dtype = ('f4', 'bool', 'bool', 'bool', 'f4')
+        self.shape = (5,)
 
         self.warnings = []
+
+        self.loop = asyncio.new_event_loop()
 
         self.verification_string = self.laserProductName(laser = 1)
         if not isinstance(self.verification_string, str):
@@ -113,15 +118,93 @@ class DLCPro:
                         101 : 'outScanOutputChannel',
                         102 : 'inPowerLockInput'
                        }
+        self.messagePriority = {
+            0: 'Info',
+            1: 'Warning',
+            2: 'Error',
+            3: 'Alert'
+        }
+    #######################################################
+    # CeNTREX DAQ Commands
+    #######################################################
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        if self.loop.is_running():
+            self.loop.stop()
+        self.loop.close()
+        return
+
+    def GetWarnings(self):
+        messages = []
+        while self.systemMessagesCountNew() > 0:
+            tmp     = self.systemMessagesLatest().split('*')
+            timestamp   = tmp[0].strip()
+            tmp         = tmp[1].split('(')
+            priority    = int(tmp[0].strip())
+            tmp         = tmp[1].split(')')
+            ID          = int(tmp[0].strip())
+            tmp         = tmp[1].split(':')
+            device      = tmp[0].strip()
+            message     = tmp[1].strip()
+            self.exec('system-messages:mark-as-read', ID)
+            messages.append((time.time(), priority, ID, device, message))
+
+        for timestamp, priority, ID, device, message in messages:
+            warning_dict = {"message" : '{0} for {1}: {2}'.format(
+            self.messagePriority[priority], device, message)}
+            self.warnings.append([timestamp, warning_dict])
+
+        warnings = self.warnings.copy()
+        self.warnings = []
+        return warnings
+
+    def ReadValue(self):
+        lock_enabled        = self.laserDlLockEnabled(laser = 1)
+        if lock_enabled:
+            error_signal = self.grabErrorSignal(laser = 1, timescale = 100)
+            # error_signal = np.nan
+            locked       = np.max(error_signal['y']) > 0.0025
+            # locked = False
+        else:
+            error_signal = np.nan
+            locked       = False
+
+        emission            = self.laserEmission(laser = 1)
+        laser_temperature   = self.laserDlTcTempAct(laser = 1)
+        return [time.time() - self.time_offset,
+                emission, lock_enabled, locked, laser_temperature]
+
+    def EmissionOn(self):
+        self.setLaserDlCcEnabled(laser = 1, enable = True)
+
+    def EmissionOff(self):
+        self.setLaserDlCcEnabled(laser = 1, enable = False)
+
+    def EmissionStatus(self):
+        return str(self.laserEmission(laser = 1))
+    #######################################################
+    # Toptica SDK Interface Convenience functions
+    #######################################################
+
+    def _connection(self):
+        if self.connection == 'serial':
+            return SerialConnection(self.COM_port, loop = self.loop)
+        elif self.connection == 'network':
+            return NetworkConnection(self.COM_port, loop = self.loop)
+        else:
+            logging.warning('DLCProCs warning in _connection() : specify serial or network connection')
 
     @InterfaceErrorWrapper
     def query(self, cmd, type):
-        with Client(NetworkConnection(self.COM_port, timeout = 5)) as client:
+        with Client(self._connection()) as client:
             return client.get(cmd, type)
 
     @InterfaceErrorWrapper
     def set(self, cmd, value):
-        with Client(NetworkConnection(self.COM_port, timeout = 5)) as client:
+        with Client(self._connection()) as client:
             client.set(cmd, value)
             set = client.get(cmd, type(value))
             if set != value:
@@ -130,8 +213,17 @@ class DLCPro:
                                 + str(err))
         return
 
+    @InterfaceErrorWrapper
+    def exec(self, cmd, value):
+        with Client(self._connection()) as client:
+            client.exec(cmd, value)
+        return
+
     @checkTypeWrapper(laser = int)
     def laserEmission(self, laser):
+        """
+        laser : integer either 1 or 2
+        """
         return self.query('laser{0}:emission'.format(laser), bool)
 
     #######################################################
@@ -139,14 +231,28 @@ class DLCPro:
     #######################################################
     @checkTypeWrapper(laser = int)
     def grabErrorSignal(self, laser, timescale):
+        """
+        laser       : integer either 1 or 2
+        timescale   : # ms to grab data
+
+        function returns a dictionary with:
+        x   : time [ms]
+        y   : error signal [V]
+        Y   : current [mA]
+        """
         self.setLaserScopeVariant(laser = laser, variant = 1)
         self.setLaserScopeChannelSignal(laser = laser, channel = 1, signal = 0)
         self.setLaserScopeChannelSignal(laser = laser, channel = 2, signal = 51)
-        self.setLaserScopeUpdateRate(laser = 1, update_rate = 1)
         self.setLaserScopeChannelxScopeTimescale(laser = laser, timescale = timescale)
+        while self.queryLaserScopeChannelxScopeTimescale(laser = laser) != timescale:
+            time.sleep(0.05)
 
         data = self.query('laser{0}:scope:data'.format(laser), bytes)
         data = extract_float_arrays('xyY', data)
+        while np.abs(timescale - np.max(data['x'])) > 50:
+            data = self.query('laser{0}:scope:data'.format(laser), bytes)
+            data = extract_float_arrays('xyY', data)
+            time.sleep(timescale/4)
         return data
 
     #######################################################
@@ -177,8 +283,12 @@ class DLCPro:
     # Laser Current Controller Commands
     #######################################################
 
+    @checkTypeWrapper(laser = int, enable = bool)
+    def setLaserDlCcEnabled(self, laser, enable):
+        self.set('laser{0}:dl:cc:enabled'.format(laser), enable)
+
     @checkTypeWrapper(laser = int)
-    def laserDlCcEnabled(self, laser):
+    def queryLaserDlCcEnabled(self, laser):
         return self.query('laser{0}:dl:cc:enabled'.format(laser), bool)
 
     @checkTypeWrapper(laser = int)
@@ -263,12 +373,12 @@ class DLCPro:
                           int)
 
     @checkTypeWrapper(laser = int, channel = int)
-    def laserScopeChannelUnit(laser, channel):
+    def laserScopeChannelUnit(self, laser, channel):
         return self.query('laser{}:scope:channel{}:name'.format(laser, channel),
                           str)
 
     @checkTypeWrapper(laser = int, channel =  int)
-    def laserScopeChannelName(laser, channel):
+    def laserScopeChannelName(self, laser, channel):
         return self.query('laser{}:scope:channel{}:name'.format(laser, channel),
                           str)
 
@@ -305,18 +415,18 @@ class DLCPro:
 
     @checkTypeWrapper(laser = int)
     def laserRecorderState(self, laser):
-        return self.query('laser{0}:recorder:state', int)
+        return self.query('laser{0}:recorder:state'.format(laser), int)
 
     @checkTypeWrapper(laser = int)
     def laserRecorderStateTxt(self, laser):
-        return self.query('laser{0}:recorder:state-txt', str)
+        return self.query('laser{0}:recorder:state-txt'.format(laser), str)
 
     @checkTypeWrapper(laser = int, channel = int, signal = int)
     def setLaserRecorderSignals(self, laser, channel, signal):
         self.set('laser{0}:recorder:signals:channel{1}'.format(laser, channel),
                    signal)
 
-    @checkTypeWrapper(laser = int, channel = int, signal = int)
+    @checkTypeWrapper(laser = int, channel = int)
     def queryLaserRecorderSignals(self, laser, channel):
         return self.query('laser{0}:recorder:signals:channel{1}'.format(laser,
                           channel), int)
@@ -429,6 +539,9 @@ class DLCPro:
     def systemMessagesCount(self):
         return self.query('system-messages:count', int)
 
+    def systemMessagesCountNew(self):
+        return self.query('system-messages:count-new', int)
+
     def systemMessagesLatest(self):
         return self.query('system-messages:latest-message', str)
 
@@ -440,14 +553,14 @@ class DLCPro:
         return self.query('mc:board-temp', float)
 
     def mcRelativeHumidity(self):
-        return self.query('mc:realtive-humidity', float)
+        return self.query('mc:relative-humidity', float)
 
     def mcAirPressure(self):
         return self.query('mc:air-pressure', float)
 
 
 if __name__ == "__main__":
-    dlc = DLCProCs(0, '172.28.168.181')
+    dlc = DLCPro(0, '172.28.168.181')
     print(dlc.laserProductName(laser = 1))
     print(dlc.tcBoardTemp(tc = 1))
     print(dlc.laserEmission(laser = 1))

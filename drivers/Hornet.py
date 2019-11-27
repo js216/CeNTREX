@@ -92,14 +92,14 @@ class Hornet:
             logging.warning("Hornet warning in ReadSystemPressure(): " + str(err))
             return np.nan
 
-        # check for overpressure
-        if (self.IG_status == "*"+self.address+" 1 IG ON") and (pressure > 1e-3):
-            # turn IG off
-            self.TurnIGOff()
+        ## check for overpressure
+        #if (self.IG_status == "*"+self.address+" 1 IG ON") and (pressure > 1e-3):
+        #    # turn IG off
+        #    self.TurnIGOff()
 
-            # report the warning
-            warning_dict = {"message" : "turning IG off at pressure = " + str(pressure) + " torr"}
-            self.warnings.append([time.time(), warning_dict])
+        #    # report the warning
+        #    warning_dict = {"message" : "turning IG off at pressure = " + str(pressure) + " torr"}
+        #    self.warnings.append([time.time(), warning_dict])
 
         return pressure
 

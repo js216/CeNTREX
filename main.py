@@ -965,10 +965,8 @@ class DeviceConfig(Config):
                 logging.warning("Single-connect device {0} didn't specify data shape or type.".format(self.fname))
             else:
                 self['shape'] = [float(val) for val in self['shape']]
-            if self["compound_dataset"]:
-                if not isinstance(self["dtype"], (list, tuple)):
-                    logging.warning("Compound dataset device {0} requires list of dtypes.".format(self.fname))
-
+                if self["compound_dataset"]:
+                    self["dtype"] = [val.strip() for val in self["dtype"].split(',')]
 
         # read device attributes
         self["attributes"] = params["attributes"]

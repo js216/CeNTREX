@@ -162,7 +162,7 @@ class DLCPro:
         return warnings
 
     def ReadValue(self):
-        lock_enabled        = self.laserDlLockEnabled(laser = 1)
+        lock_enabled = self.laserDlLockEnabled(laser = 1)
         if lock_enabled:
             error_signal = self.grabErrorSignal(laser = 1, timescale = 100)
             # error_signal = np.nan
@@ -171,7 +171,6 @@ class DLCPro:
         else:
             error_signal = np.nan
             locked       = False
-
         emission            = self.laserEmission(laser = 1)
         laser_temperature   = self.laserDlTcTempAct(laser = 1)
         return [time.time() - self.time_offset,

@@ -188,7 +188,7 @@ class Device(threading.Thread):
         self.last_event = []
 
         # for commands sent the Monitoring to the device
-        self.monitoring_commands = []
+        self.monitoring_commands = set()
 
         # for warnings about device abnormal condition
         self.warnings = []
@@ -351,7 +351,7 @@ class Device(threading.Thread):
                             ret_val = str(err)
                         ret_val = "None" if not ret_val else ret_val
                         self.monitoring_events_queue.append( [ time.time()-self.time_offset, c, ret_val ] )
-                    self.monitoring_commands = []
+                    self.monitoring_commands = set()
 
         # report any exception that has occurred in the run() function
         except Exception as err:
@@ -436,7 +436,7 @@ class Monitoring(threading.Thread):
                 # send monitoring commands
                 for c_name, params in dev.config["control_params"].items():
                     if params.get("type") in ["indicator", "indicator_button", "indicator_lineedit"]:
-                        dev.monitoring_commands.append( params["monitoring_command"] )
+                        dev.monitoring_commands.add( params["monitoring_command"] )
 
                 # obtain monitoring events and update any indicator controls
                 self.display_monitoring_events(dev)

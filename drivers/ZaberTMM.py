@@ -170,7 +170,7 @@ class ZaberTMM:
         self.COM_port = COM_port
 
         # shape and type of the array of returned data from ReadValue
-        self.dtype = ('f4', 'int16', 'int16')
+        self.dtype = ('f4', 'int32', 'int32')
         self.shape = (3, )
 
         try:
@@ -331,6 +331,7 @@ class ZaberTMM:
         for msg in msgs:
             if msg.data != -62000:
                 logging.warning('ZaberTMM warning in HomeAll : motor {0} not @home position'.format(msg.device_number))
+        self.position.dev_coordinates = [-62000, -62000]
 
     def MoveAbsoluteAll(self, position):
         msgs = self.command(0, 20, position, 2)

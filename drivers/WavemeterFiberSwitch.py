@@ -4,13 +4,20 @@ from drivers.SelfAlignFiberSwitch import *
 class WavemeterFiberswitch:
     def __init__(self, time_offset, connection_wavemeter, COM_port_fiberswitch, ports):
         self.time_offset    = time_offset
-        self.wavemeter      = Bristol671A(time_offset, connection_wavemeter)
-        self.switch         = SelfAlignFiberSwitch(time_offset, COM_port_fiberswitch)
 
-        self.verification_string = self.wavemeter.verification_string + ', '
-        self.verification_string += self.switch.verification_string
+        if COM_port_fiberswitch not in ['client', '']:
+            self.wavemeter      = Bristol671A(time_offset, connection_wavemeter)
+            self.switch         = SelfAlignFiberSwitch(time_offset, COM_port_fiberswitch)
 
-        self.ports = [int(p) for p in ports.split(',')]
+            self.verification_string = self.wavemeter.verification_string + ', '
+            self.verification_string += self.switch.verification_string
+        else:
+            self.verification_string = 'BRISTOL WAVELENGTH METER, 671A-VIS, 6894, 1.2.0, True'
+
+        if not isinstance(ports, (tuple, list)):
+            self.ports = [int(p) for p in ports.split(',')]
+        else:
+            self.ports = ports
 
         self.dtype = tuple(['f4'] * (len(self.ports)+1))
         self.shape = (1+len(self.ports),)

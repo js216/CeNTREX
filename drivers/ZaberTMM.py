@@ -29,12 +29,12 @@ class MirrorSweep(StoppableThread):
     Mirror sweep in a separate thread to ensure continous data acquisition
     simultaneous to sweeping the mirror.
     """
-    def __init__(self, driver, coords, random_start):
+    def __init__(self, driver, coords, start_position = 'current'):
         super(MirrorSweep, self).__init__()
         self.driver = driver
         self.driver.running_sweep = False
         self.coordinates = coords
-        self.random_start = random_start
+        self.start_position = start_position
 
     def move(self, x, y):
         while True:
@@ -56,11 +56,24 @@ class MirrorSweep(StoppableThread):
 
     def run(self):
         # generating random start position if random_start enabled
-        if self.random_start:
+        if self.start_position == 'random':
             coordinates = np.roll(self.coordinates,
                                   secrets.randbelow(len(self.coordinates)),
                                   axis = 0)
+        elif self.start_position == 'current':
+            current_position    = self.driver.position.coordinates
+            # index_current_pos   = np.where((self.coordinates == current_position).all(axis=1))[0]
+            index_current_pos  = np.argmin(np.abs(self.coordinates - current_position).sum(axis = 1))
+            if index_current_pos.size == 0:
+                logging.error('ZaberTMM error: current position not in sweep coordinates hdf')
+                self.driver.CreateWarning('current position not in sweep coordinates hdf')
+                return
+            coordinates = np.roll(self.coordinates, -index_current_pos, axis = 0)
+        elif self.start_position == 'origin':
+            coordinates = self.coordinates
         else:
+            logging.warning('ZaberTMM warning: sweep start position not specified,'+
+                            'starting at sweep coordinates origin')
             coordinates = self.coordinates
 
         self.driver.running_sweep = True
@@ -76,13 +89,13 @@ class MirrorSweep(StoppableThread):
 class ZaberCoordinates:
     def __init__(self, dev1_axis, dev2_axis):
         if dev1_axis not in ['x', 'y']:
-            logging.warning("ZaberTMM error: Dev01 axis not specified, {0}".format(dev1_axis))
+            logging.error("ZaberTMM error: Dev01 axis not specified, {0}".format(dev1_axis))
             raise ValueError("ZaberTMM Dev01 axis not specified")
         if dev2_axis not in ['x', 'y']:
-            logging.warning("ZaberTMM error: Dev02 axis not specified, {0}".format(dev2_axis))
+            logging.error("ZaberTMM error: Dev02 axis not specified, {0}".format(dev2_axis))
             raise ValueError("ZaberTMM Dev02 axis not specified")
         if dev1_axis == dev2_axis:
-            logging.warning("ZaberTMM error: Dev01 axis == Dev02 axis, {0}".format(dev1_axis))
+            logging.error("ZaberTMM error: Dev01 axis == Dev02 axis, {0}".format(dev1_axis))
             raise ValueError("ZaberTMM Dev01 axis == Dev02 axis")
 
         self._dev1_axis = dev1_axis
@@ -170,7 +183,7 @@ class ZaberTMM:
         self.COM_port = COM_port
 
         # shape and type of the array of returned data from ReadValue
-        self.dtype = ('f4', 'int16', 'int16')
+        self.dtype = ('f4', 'int32', 'int32')
         self.shape = (3, )
 
         try:
@@ -220,7 +233,7 @@ class ZaberTMM:
 
         self.sweep_thread = None
         self.running_sweep = False
-        self.sweep_random_start = False
+        self.sweep_start_position = 'current'
 
         self.GetPosition()
 
@@ -276,19 +289,16 @@ class ZaberTMM:
         else:
             return 'invalid'
 
-    def ActivateRandomStart(self):
-        self.sweep_random_start = True
-
-    def DeactivateRandomStart(self):
-        self.sweep_random_start = False
-
-    def RandomStartStatus(self):
-        if self.sweep_random_start:
-            return 'Random'
-        elif not self.sweep_random_start:
-            return 'Origin'
+    def SweepStartPosition(self, start_position):
+        if start_position in ['current', 'random', 'origin']:
+            self.sweep_start_position = start_position
         else:
-            return 'Invalid'
+            warning = 'SweepStartPosition: start_position can be set to current, origin or random'
+            self.CreateWarning(warning)
+            logging.warning('ZaberTMM warning in '+warning)
+
+    def SweepStartPositionStatus(self):
+        return self.sweep_start_position
 
     @SweepCheckWrapper
     def MoveAbsoluteXGUI(self, position):
@@ -331,6 +341,7 @@ class ZaberTMM:
         for msg in msgs:
             if msg.data != -62000:
                 logging.warning('ZaberTMM warning in HomeAll : motor {0} not @home position'.format(msg.device_number))
+        self.position.dev_coordinates = [-62000, -62000]
 
     def MoveAbsoluteAll(self, position):
         msgs = self.command(0, 20, position, 2)
@@ -478,10 +489,10 @@ class ZaberTMM:
             coordinates = f[sweepname].value
         if self.running_sweep:
             warning = 'Sweep: Currently sweeping mirror'
-            CreateWarning(warning)
+            self.CreateWarning(warning)
             logging.warning('ZaberTMM warning in Sweep: Currently sweeping mirror')
         else:
-            self.sweep_thread = MirrorSweep(self, coordinates, self.sweep_random_start)
+            self.sweep_thread = MirrorSweep(self, coordinates, self.sweep_start_position)
             self.sweep_thread.start()
 
     def StopSweep(self):
@@ -491,5 +502,5 @@ class ZaberTMM:
             self.running_sweep = False
         else:
             warning = 'StopSweep: No sweep running'
-            CreateWarning(warning)
+            self.CreateWarning(warning)
             logging.warning("ZaberTMM warning in StopSweep: No sweep running")

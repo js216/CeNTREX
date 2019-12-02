@@ -36,6 +36,7 @@ class SelfAlignFiberSwitch:
                 self.instr.read_termination = '\r\n'
                 self.instr.baud_rate = 9600
                 self.verification_string = "True"
+                self.SetPort(16)
             except pyvisa.errors.VisaIOError:
                 self.verification_string = "False"
                 self.instr = False

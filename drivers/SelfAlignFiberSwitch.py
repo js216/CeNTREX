@@ -27,18 +27,19 @@ class SelfAlignFiberSwitch:
         self.time_offset = time_offset
         self.rm = pyvisa.ResourceManager()
 
-        try:
-            self.instr = self.rm.open_resource(COM_port)
-            self.instr.parity = pyvisa.constants.Parity.none
-            self.instr.data_bits = 8
-            self.instr.write_termination = '\r\n'
-            self.instr.read_termination = '\r\n'
-            self.instr.baud_rate = 9600
-            self.verification_string = "True"
-        except pyvisa.errors.VisaIOError:
-            self.verification_string = "False"
-            self.instr = False
-            return
+        if COM_port not in ['client', ' ']:
+            try:
+                self.instr = self.rm.open_resource(COM_port)
+                self.instr.parity = pyvisa.constants.Parity.none
+                self.instr.data_bits = 8
+                self.instr.write_termination = '\r\n'
+                self.instr.read_termination = '\r\n'
+                self.instr.baud_rate = 9600
+                self.verification_string = "True"
+            except pyvisa.errors.VisaIOError:
+                self.verification_string = "False"
+                self.instr = False
+                return
 
         # HDF attributes generated when constructor is run
         self.new_attributes = []

@@ -165,8 +165,10 @@ class DLCPro:
         lock_enabled = self.laserDlLockEnabled(laser = 1)
         if lock_enabled:
             error_signal = self.grabErrorSignal(laser = 1, timescale = 100)
-            # error_signal = np.nan
-            locked       = np.max(error_signal['y']) > 0.0025
+            if isinstance(error_signal, float):
+                locked = False
+            else:
+                locked = np.max(error_signal['y']) > 0.0025
             # locked = False
         else:
             error_signal = np.nan
@@ -247,6 +249,8 @@ class DLCPro:
             time.sleep(0.05)
 
         data = self.query('laser{0}:scope:data'.format(laser), bytes)
+        if isinstance(data, float):
+            return np.nan
         data = extract_float_arrays('xyY', data)
         while np.abs(timescale - np.max(data['x'])) > 50:
             data = self.query('laser{0}:scope:data'.format(laser), bytes)

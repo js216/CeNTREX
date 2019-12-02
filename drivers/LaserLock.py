@@ -267,6 +267,7 @@ class LaserLock:
             if np.isnan(values):
                 return np.nan
         except:
+            values = [v if not isinstance(v, type(None)) else np.nan for v in values]
             return [t]+values
 
     def GetWarnings(self):

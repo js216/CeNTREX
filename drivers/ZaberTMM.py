@@ -56,19 +56,20 @@ class MirrorSweep(StoppableThread):
 
     def run(self):
         # generating random start position if random_start enabled
-        if self.start_position = 'random':
+        if self.start_position == 'random':
             coordinates = np.roll(self.coordinates,
                                   secrets.randbelow(len(self.coordinates)),
                                   axis = 0)
-        elif self.start_position = 'current':
-            current_position    = self.driver.GetPosition()
-            index_current_pos   = np.where((coordinates == current_position).all(axis=1))[0]
+        elif self.start_position == 'current':
+            current_position    = self.driver.position.coordinates
+            # index_current_pos   = np.where((self.coordinates == current_position).all(axis=1))[0]
+            index_current_pos  = np.argmin(np.abs(self.coordinates - current_position).sum(axis = 1))
             if index_current_pos.size == 0:
                 logging.error('ZaberTMM error: current position not in sweep coordinates hdf')
-                self.driver.CreateWarning('current position not n sweep coordinates hdf')
+                self.driver.CreateWarning('current position not in sweep coordinates hdf')
                 return
-            coordinates = np.roll(self.coordinates, index_current_pos, axis = 0)
-        elif self.start_position = 'origin':
+            coordinates = np.roll(self.coordinates, -index_current_pos, axis = 0)
+        elif self.start_position == 'origin':
             coordinates = self.coordinates
         else:
             logging.warning('ZaberTMM warning: sweep start position not specified,'+

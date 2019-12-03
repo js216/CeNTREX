@@ -26,6 +26,8 @@ class SelfAlignFiberSwitch:
     def __init__(self, time_offset, COM_port):
         self.time_offset = time_offset
         self.rm = pyvisa.ResourceManager()
+        self.port = None
+        self.warnings = []
 
         if COM_port not in ['client', ' ']:
             try:
@@ -36,7 +38,6 @@ class SelfAlignFiberSwitch:
                 self.instr.read_termination = '\r\n'
                 self.instr.baud_rate = 9600
                 self.verification_string = "True"
-                self.SetPort(16)
             except pyvisa.errors.VisaIOError:
                 self.verification_string = "False"
                 self.instr = False
@@ -49,9 +50,6 @@ class SelfAlignFiberSwitch:
         self.dtype = 'f4'
         self.shape = (1, )
 
-        self.warnings = []
-
-        self.port = None
 
     def __enter__(self):
         return self

@@ -168,7 +168,7 @@ class DLCPro:
             if isinstance(error_signal, float):
                 locked = False
             else:
-                locked = np.max(error_signal['y']) > 0.0025
+                locked = np.max(error_signal['y']) > 0.0019
             # locked = False
         else:
             error_signal = np.nan

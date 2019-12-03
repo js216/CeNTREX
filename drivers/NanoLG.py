@@ -5,6 +5,7 @@ import array
 import numpy as np
 import struct
 import functools
+import threading
 import queue
 
 def WriteVisaIOError(func):
@@ -35,12 +36,13 @@ class InstrumentCommunication(threading.Thread):
         self.active = threading.Event()
         self.rm = pyvisa.ResourceManager()
 
+        self.instr = self.rm.open_resource(resource_name)
+
         self.instr.parity = pyvisa.constants.Parity.none
         self.instr.baud_rate = 9600
         self.instr.stop_bits = pyvisa.constants.StopBits.one
         self.instr.timeout = 150
 
-        self.instr = self.rm.open_resource(resource_name)
         self.system_status_word_idx = {0:'system_state',
                                    1:'pump_state',
                                    2:'laser_state',
@@ -154,12 +156,18 @@ class InstrumentCommunication(threading.Thread):
 
         self.q = queue.Queue()
 
+        self.Ping()
+
     def run(self):
         time_last_communication = time.time()
         dt_communication = 5
         while self.active.is_set():
+            message = self.read_message()
+            if message:
+                self.handle_message(message)
+
             while not self.q.empty():
-                cmd = q.get()
+                cmd = self.q.get()
                 self.write(cmd)
                 time_last_communication = time.time()
                 message = self.read_message()
@@ -168,10 +176,6 @@ class InstrumentCommunication(threading.Thread):
 
             if time.time() - time_last_communication > dt_communication:
                 self.Ping()
-
-            message = self.read_message()
-            if message:
-                self.handle_message(message)
 
     def write(self, data):
         self.instr.write_raw(data)
@@ -396,13 +400,55 @@ class NanoLG:
 
         self.warnings = []
 
+        self.system_status_word_idx = {0:'system_state',
+                                   1:'pump_state',
+                                   2:'laser_state',
+                                   3:'shutter_state',
+                                   4:'interlock_water_flow',
+                                   5:'interlock_water_level',
+                                   6:'interlock_water_temp',
+                                   7:'interlock_charger2',
+                                   8:'interlock_psu_temp',
+                                   9:'interlock_charger1',
+                                   10:'interlock_external',
+                                   11:'interlock_psu_cover',
+                                   12:'interlock_laser_head',
+                                   13:'interlock_shutter',
+                                   14:'interlock_simmer1',
+                                   15:'interlock_simmer2',
+                                   25:'water_flow',
+                                   26:'key_state',
+                                   27:'external_qswitch1_trigger',
+                                   28:'external_qswitch2_trigger',
+                                   29:'external_lamp1_trigger',
+                                   30:'external_lamp2_trigger',
+                                   31:'interlocks_latched'}
+
+        self.function_status_word_idx = {0:'lamp1_trigger_enable',
+                                     1:'lamp2_trigger_enable',
+                                     2:'qswitch1_trigger_enable',
+                                     3:'qswitch2_trigger_enable',
+                                     8:'flashlamp_delay_negative',
+                                     9:'rep_rate_div_mode1',
+                                     10:'rep_rate_div_mode2',
+                                     11:'burst_mode1',
+                                     12:'burst_mode2',
+                                     13:'trig_mode',
+                                     14:'low_frequency1',
+                                     15:'low_frequency2',
+                                     16:'shutter_inhibit',
+                                     19:'crystal_temperature',
+                                     20:'wavelength_selector_position_undefined',
+                                     21:'mirror_mover_position_undefined'}
+
         if resource_name not in ['client', '']:
             self.communication = InstrumentCommunication(resource_name)
-            self.communication.start()
             self.communication.active.set()
+            self.communication.start()
+            time.sleep(0.5)
             try:
                 self.Ping()
-                if type(self.data['system_status_word']['system_state']) == type(None):
+                if type(self.communication.data['system_status_word']['system_state']) == type(None):
                     self.verification_string = "False"
                     self.communication.instr = False
                     return
@@ -410,6 +456,8 @@ class NanoLG:
                 self.verification_string = "False"
                 self.communication.instr = False
                 return
+
+
 
         # make the verification string
         self.verification_string = 'NanoLG'
@@ -430,14 +478,11 @@ class NanoLG:
         self.RequestQSwitchDelayHighLimit()
         self.RepetitionRateDivider(10)
 
-        self.data = self.communcation.data
-
-
     def __enter__(self):
         return self
 
     def __exit__(self, *exc):
-        if self.instr:
+        if self.communication.instr:
             self.StopSystem()
             self.communication.active.clear()
             self.communication.instr.close()
@@ -495,21 +540,21 @@ class NanoLG:
     def CheckWarnings(self):
       for idx in range(4,13):
           interlock = self.system_status_word_idx[idx]
-          if self.data['system_status_word'][interlock]:
+          if self.communication.data['system_status_word'][interlock]:
               warning_dict = { "message" : ' '.join(interlock.split('_'))+' failed'}
               self.warnings.append([time.time(), warning_dict])
       for idx in range(14,16):
           interlock = self.system_status_word_idx[idx]
-          if self.data['system_status_word'][interlock]:
+          if self.communication.data['system_status_word'][interlock]:
               warning_dict = { "message" : ' '.join(interlock.split('_'))+' failed'}
               self.warnings.append([time.time(), warning_dict])
-      if not self.data['system_status_word']['interlock_shutter']:
+      if not self.communication.data['system_status_word']['interlock_shutter']:
           warning_dict = { "message" : ' '.join(interlock.split('_'))+' failed'}
           self.warnings.append([time.time(), warning_dict])
 
       for idx in [14,15,16,19]:
           parameter = self.function_status_word_idx[idx]
-          if self.data['function_status_word'][parameter]:
+          if self.communication.data['function_status_word'][parameter]:
               warning_dict = { "message" : ' '.join(parameter.split('_'))+' failed'}
               self.warnings.append([time.time(), warning_dict])
 
@@ -525,27 +570,27 @@ class NanoLG:
         water_temp = self.RequestCoolerWaterTemperature()
         self.Ping()
 
-        system_state = self.data['system_status_word']['system_state']
-        pump_state = self.data['system_status_word']['pump_state']
-        laser_state = self.data['system_status_word']['laser_state']
-        shutter_state = self.data['system_status_word']['shutter_state']
-        qs_delay = self.data['system_info']['qs_delay'][1]
-        rep_rate_divider = self.data['system_info']['rep_rate_divider'][1]
-        rep_rate_mode = self.data['function_status_word']['rep_rate_div_mode1']
+        system_state = self.communication.data['system_status_word']['system_state']
+        pump_state = self.communication.data['system_status_word']['pump_state']
+        laser_state = self.communication.data['system_status_word']['laser_state']
+        shutter_state = self.communication.data['system_status_word']['shutter_state']
+        qs_delay = self.communication.data['system_info']['qs_delay'][1]
+        rep_rate_divider = self.communication.data['system_info']['rep_rate_divider'][1]
+        rep_rate_mode = self.communication.data['function_status_word']['rep_rate_div_mode1']
         lamp_total = self.RequestFlashlampTotalShots()
         lamp_user = self.RequestFlashlampUserShots()
-        lamp_trigger_external = self.data['system_status_word']['external_lamp1_trigger']
-        qswitch_trigger_external = self.data['system_status_word']['external_qswitch1_trigger']
+        lamp_trigger_external = self.communication.data['system_status_word']['external_lamp1_trigger']
+        qswitch_trigger_external = self.communication.data['system_status_word']['external_qswitch1_trigger']
 
         # interlocks
         interlock = 0
         for idx in range(4,13):
-            interlock = interlock | self.data['system_status_word'][self.system_status_word_idx[idx]]
+            interlock = interlock | self.communication.data['system_status_word'][self.system_status_word_idx[idx]]
         for idx in range(14,16):
-            interlock = interlock | self.data['system_status_word'][self.system_status_word_idx[idx]]
-        if not self.data['system_status_word']['interlock_shutter']:
+            interlock = interlock | self.communication.data['system_status_word'][self.system_status_word_idx[idx]]
+        if not self.communication.data['system_status_word']['interlock_shutter']:
             interlock = interlock | 1
-        if not self.data['system_status_word']['key_state']:
+        if not self.communication.data['system_status_word']['key_state']:
             interlock = interlock | 1
 
         return [time.time()- self.time_offset, system_state, pump_state,
@@ -554,61 +599,61 @@ class NanoLG:
                 lamp_trigger_external, qswitch_trigger_external, interlock]
 
     def NanoLGSystemStatus(self):
-        if self.data['system_status_word']['laser_state'] & self.data['system_status_word']['shutter_state']:
+        if self.communication.data['system_status_word']['laser_state'] & self.communication.data['system_status_word']['shutter_state']:
             return 'Laser On'
-        elif self.data['system_status_word']['laser_state']:
+        elif self.communication.data['system_status_word']['laser_state']:
             return 'Laser On/Shutter Closed'
-        elif self.data['system_status_word']['pump_state']:
+        elif self.communication.data['system_status_word']['pump_state']:
             return 'Pump On'
-        elif not self.data['system_status_word']['pump_state']:
+        elif not self.communication.data['system_status_word']['pump_state']:
             return 'YAG Off'
         else:
             return 'invalid'
 
     def SystemOnStatus(self):
-        if self.data['system_status_word']['system_state']:
+        if self.communication.data['system_status_word']['system_state']:
             return 'System on'
-        elif not self.data['system_status_word']['system_state']:
+        elif not self.communication.data['system_status_word']['system_state']:
             return 'System off'
         else:
             return 'invalid'
 
     def PumpStatus(self):
-        if self.data['system_status_word']['pump_state']:
+        if self.communication.data['system_status_word']['pump_state']:
             return 'Pump on'
-        elif not self.data['system_status_word']['pump_state']:
+        elif not self.communication.data['system_status_word']['pump_state']:
             return 'Pump off'
         else:
             return 'invalid'
 
     def LaserStatus(self):
-        if self.data['system_status_word']['laser_state']:
+        if self.communication.data['system_status_word']['laser_state']:
             return 'Laser on'
-        elif not self.data['system_status_word']['laser_state']:
+        elif not self.communication.data['system_status_word']['laser_state']:
             return 'Laser off'
         else:
             return 'invalid'
 
     def ShutterStatus(self):
-        if self.data['system_status_word']['shutter_state']:
+        if self.communication.data['system_status_word']['shutter_state']:
             return 'Shutter open'
-        elif not self.data['system_status_word']['shutter_state']:
+        elif not self.communication.data['system_status_word']['shutter_state']:
             return 'Shutter closed'
         else:
             return 'invalid'
 
     def LampTriggerStatus(self):
-        if self.data['system_status_word']['external_lamp1_trigger']:
+        if self.communication.data['system_status_word']['external_lamp1_trigger']:
             return 'external'
-        elif not self.data['system_status_word']['external_lamp1_trigger']:
+        elif not self.communication.data['system_status_word']['external_lamp1_trigger']:
             return 'internal'
         else:
             return 'invalid'
 
     def QSwitchTriggerStatus(self):
-        if self.data['system_status_word']['external_qswitch1_trigger']:
+        if self.communication.data['system_status_word']['external_qswitch1_trigger']:
             return 'external'
-        elif not self.data['system_status_word']['external_qswitch1_trigger']:
+        elif not self.communication.data['system_status_word']['external_qswitch1_trigger']:
             return 'internal'
         else:
             return 'invalid'
@@ -627,12 +672,12 @@ class NanoLG:
     def StartLaser(self):
         interlock = 0
         for idx in range(4,13):
-            interlock = interlock | self.data['system_status_word'][self.system_status_word_idx[idx]]
+            interlock = interlock | self.communication.data['system_status_word'][self.system_status_word_idx[idx]]
         for idx in range(14,16):
-            interlock = interlock | self.data['system_status_word'][self.system_status_word_idx[idx]]
-        if not self.data['system_status_word']['interlock_shutter']:
+            interlock = interlock | self.communication.data['system_status_word'][self.system_status_word_idx[idx]]
+        if not self.communication.data['system_status_word']['interlock_shutter']:
             interlock = interlock | 1
-        if not self.data['system_status_word']['key_state']:
+        if not self.communication.data['system_status_word']['key_state']:
             interlock = interlock | 1
 
         if interlock:
@@ -655,7 +700,7 @@ class NanoLG:
     @WriteVisaIOError
     def StartPump(self):
         interlock = 0
-        if not self.data['system_status_word']['key_state']:
+        if not self.communication.data['system_status_word']['key_state']:
             interlock = interlock | 1
         if interlock:
             logging.warning("NanoLG warning in StartPump() : key prevents starting of pump")
@@ -785,21 +830,20 @@ class NanoLG:
         header = bytearray((0xAA, 0xAA, 0x01, 0x00, 0x00, 0x1F))
         cmd = bytearray((0x00, 0x11))
         data = bytearray((0x00, 0x11, 0x00, 0x01))
-        lamp1_trig_internal = self.data['function_status_word']['lamp1_trigger_enable']
-        lamp2_trig_internal = self.data['function_status_word']['lamp1_trigger_enable']
-        qswitch1_trig_internal = self.data['function_status_word']['qswitch1_trigger_enable']
-        qswitch2_trig_internal = self.data['function_status_word']['qswitch2_trigger_enable']
-        flashlamp_delay_neg = self.data['function_status_word']['flashlamp_delay_negative']
+        lamp1_trig_internal = self.communication.data['function_status_word']['lamp1_trigger_enable']
+        lamp2_trig_internal = self.communication.data['function_status_word']['lamp1_trigger_enable']
+        qswitch1_trig_internal = self.communication.data['function_status_word']['qswitch1_trigger_enable']
+        qswitch2_trig_internal = self.communication.data['function_status_word']['qswitch2_trigger_enable']
+        flashlamp_delay_neg = self.communication.data['function_status_word']['flashlamp_delay_negative']
         config = bytearray([lamp1_trig_internal << 0 | lamp2_trig_internal << 1 | qswitch1_trig_internal << 2 | qswitch2_trig_internal << 3 | flashlamp_delay_neg << 4])
-        pulse_period = bytearray(struct.pack(">I", self.data['system_info']['pulse_period'][1]))
-        flashlamp_delay = bytearray(struct.pack(">I", self.data['system_info']['flashlamp_delay'][1]))
+        pulse_period = bytearray(struct.pack(">I", self.communication.data['system_info']['pulse_period'][1]))
+        flashlamp_delay = bytearray(struct.pack(">I", self.communication.data['system_info']['flashlamp_delay'][1]))
         qswitch1_delay = bytearray(struct.pack(">I", int(delay)))
         qswitch2_delay = bytearray(struct.pack(">I", int(delay)))
         data = data + config + pulse_period + flashlamp_delay + qswitch1_delay + qswitch2_delay
         crc = self._calculate_crc(cmd + data)
         command = header+cmd+data+crc
         self.write(bytes(command))
-        raise ValueError('testing')
 
     @WriteVisaIOError
     def Burst(self, bursts):
@@ -825,7 +869,7 @@ class NanoLG:
                             0x00, 0x0B, 0x00, 0x00, 0x00, 0x01,
                             0xF0, 0xF0))
         self.write(bytes(command))
-        return self.data['system_status_word']
+        return self.communication.data['system_status_word']
 
     @RequestVisaIOError
     def RequestFunctionStatus(self):
@@ -852,10 +896,11 @@ class NanoLG:
         self.write(bytes(command))
 
         for _ in range(5):
-            if self.data['system_info']['rep_rate_divider']:
-                t, val = self.data['system_info']['rep_rate_divider']
+            if self.communication.data['system_info']['rep_rate_divider']:
+                t, val = self.communication.data['system_info']['rep_rate_divider']
                 if t >  time.time()-self.param_delay:
                     return val
+            time.sleep(0.05)
         logging.warning('NanoLG warning in RequestRepetitionRate() : no value returned')
         return np.nan
 
@@ -874,10 +919,11 @@ class NanoLG:
         self.write(bytes(command))
 
         for _ in range(5):
-            if self.data['system_info']['burst_value']:
-                t, val = self.data['system_info']['burst_value']
+            if self.communication.data['system_info']['burst_value']:
+                t, val = self.communication.data['system_info']['burst_value']
                 if t >  time.time()-self.param_delay:
                     return val
+            time.sleep(0.05)
         logging.warning('NanoLG warning in RequestBurst() : no value returned')
         return np.nan
 
@@ -894,10 +940,11 @@ class NanoLG:
         self.write(bytes(command))
 
         for _ in range(5):
-            if self.data['lamp']['lamp_total_shotcount']:
-                t, val = self.data['lamp']['lamp_total_shotcount']
+            if self.communication.data['lamp']['lamp_total_shotcount']:
+                t, val = self.communication.data['lamp']['lamp_total_shotcount']
                 if t >  time.time()-self.param_delay:
                     return val
+            time.sleep(0.05)
         logging.warning('NanoLG warning in RequestFlashlampTotalShots() : no value returned')
         return np.nan
 
@@ -914,10 +961,11 @@ class NanoLG:
         self.write(bytes(command))
 
         for _ in range(5):
-            if self.data['lamp']['lamp_user_shotcount']:
-                t, req = self.data['lamp']['lamp_user_shotcount']
+            if self.communication.data['lamp']['lamp_user_shotcount']:
+                t, req = self.communication.data['lamp']['lamp_user_shotcount']
                 if t >  time.time()-self.param_delay:
                     return req
+            time.sleep(0.05)
         logging.warning('NanoLG warning in RequestFlashlampUserShots() : no value returned')
         return np.nan
 
@@ -968,17 +1016,18 @@ class NanoLG:
         self.write(bytes(command))
 
         for _ in range(5):
-            if self.data['head_crystal'][param]:
-                t, req = self.data['head_crystal'][param]
+            if self.communication.data['head_crystal'][param]:
+                t, req = self.communication.data['head_crystal'][param]
                 if t >  time.time()-self.param_delay:
                     return req
+            time.sleep(0.05)
         return np.nan
 
     @RequestVisaIOError
     def RequestHeadCrystalSetpoint(self):
         val = self.request_head_data('head_crystal_setpoint')
-        offset = self.data['head_crystal_cal_offset'][1]
-        slope = self.data['head_crystal_cal_slope'][1]
+        offset = self.communication.data['head_crystal_cal_offset'][1]
+        slope = self.communication.data['head_crystal_cal_slope'][1]
         if not np.isnan(val):
             return (val-offset)*(slope/10000)
         else:
@@ -1006,8 +1055,8 @@ class NanoLG:
     @RequestVisaIOError
     def RequestHeadCrystalTemperature(self):
         val = self.request_head_data('head_crystal_temperature')
-        offset = self.data['head_crystal_cal_offset'][1]
-        slope = self.data['head_crystal_cal_slope'][1]
+        offset = self.communication.data['head_crystal_cal_offset'][1]
+        slope = self.communication.data['head_crystal_cal_slope'][1]
         if not np.isnan(val):
             return (val-offset)*(slope/10000)
         else:
@@ -1027,17 +1076,18 @@ class NanoLG:
         self.write(bytes(command))
 
         for _ in range(5):
-            if self.data['cooler_crystal'][param]:
-                t, req = self.data['cooler_crystal'][param]
+            if self.communication.data['cooler_crystal'][param]:
+                t, req = self.communication.data['cooler_crystal'][param]
                 if t >  time.time()-self.param_delay:
                     return req
+            time.sleep(0.05)
         return np.nan
 
     @RequestVisaIOError
     def RequestCoolerCrystalSetpoint(self):
         val = self.request_cooler_crystal_data('cooler_crystal_setpoint')
-        offset = self.data['cooler_crystal']['cooler_crystal_cal_offset'][1]
-        slope = self.data['cooler_crystal']['cooler_crystal_cal_slope'][1]
+        offset = self.communication.data['cooler_crystal']['cooler_crystal_cal_offset'][1]
+        slope = self.communication.data['cooler_crystal']['cooler_crystal_cal_slope'][1]
         if not np.isnan(val):
             return (val-offset)*(slope/10000)
         else:
@@ -1065,8 +1115,8 @@ class NanoLG:
     @RequestVisaIOError
     def RequestCoolerCrystalTemperature(self):
         val = self.request_cooler_crystal_data('cooler_crystal_temperature')
-        offset = self.data['cooler_crystal']['cooler_crystal_cal_offset'][1]
-        slope = self.data['cooler_crystal']['cooler_crystal_cal_slope'][1]
+        offset = self.communication.data['cooler_crystal']['cooler_crystal_cal_offset'][1]
+        slope = self.communication.data['cooler_crystal']['cooler_crystal_cal_slope'][1]
         if not np.isnan(val):
             return (val-offset)*(slope/10000)
         else:
@@ -1085,17 +1135,18 @@ class NanoLG:
         self.write(bytes(command))
 
         for _ in range(5):
-            if self.data['cooler_water'][param]:
-                t, val = self.data['cooler_water'][param]
+            if self.communication.data['cooler_water'][param]:
+                t, val = self.communication.data['cooler_water'][param]
                 if t >  time.time()-self.param_delay:
                     return val
+            time.sleep(0.05)
         return np.nan
 
     @RequestVisaIOError
     def RequestCoolerWaterSetpoint(self):
         val = self.request_cooler_water_data('cooler_water_setpoint')
-        offset = self.data['cooler_water']['cooler_water_cal_offset'][1]
-        slope = self.data['cooler_water']['cooler_water_cal_slope'][1]
+        offset = self.communication.data['cooler_water']['cooler_water_cal_offset'][1]
+        slope = self.communication.data['cooler_water']['cooler_water_cal_slope'][1]
         if not np.isnan(val):
             return (val-offset)*(slope/10000)
         else:
@@ -1123,8 +1174,8 @@ class NanoLG:
     @RequestVisaIOError
     def RequestCoolerWaterTemperature(self):
         val = self.request_cooler_water_data('cooler_water_temperature')
-        offset = self.data['cooler_water']['cooler_water_cal_offset'][1]
-        slope = self.data['cooler_water']['cooler_water_cal_slope'][1]
+        offset = self.communication.data['cooler_water']['cooler_water_cal_offset'][1]
+        slope = self.communication.data['cooler_water']['cooler_water_cal_slope'][1]
         if not np.isnan(val):
             return (val-offset)*(slope/10000)
         else:
@@ -1144,10 +1195,11 @@ class NanoLG:
         self.write(bytes(command))
 
         for _ in range(5):
-            if self.data['system_info'][param]:
-                t, val = self.data['system_info'][param]
+            if self.communication.data['system_info'][param]:
+                t, val = self.communication.data['system_info'][param]
                 if t >  time.time()-self.param_delay:
                     return val
+            time.sleep(0.05)
         return np.nan
 
     @RequestVisaIOError

@@ -3076,7 +3076,7 @@ class Plotter(qt.QWidget):
                     return None
 
                 x = np.arange(dset.shape[0])
-                y = dset[:, self.param_list.index(self.config["y"])]
+                y = dset[:, self.param_list.index(self.config["y"])].astype(float)
 
                 # divide y by z (if applicable)
                 if self.config["z"] in self.param_list:

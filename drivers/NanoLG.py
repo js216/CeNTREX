@@ -167,6 +167,8 @@ class InstrumentCommunication(threading.Thread):
                 self.handle_message(message)
 
             while not self.q.empty():
+                if not self.active.is_set():
+                    return
                 cmd = self.q.get()
                 self.write(cmd)
                 time_last_communication = time.time()

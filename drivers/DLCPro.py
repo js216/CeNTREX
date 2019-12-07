@@ -1,6 +1,6 @@
 from toptica.lasersdk.client import Client, NetworkConnection, DeviceNotFoundError, \
                                     DecopError, DecopValueError, UserLevel, \
-                                    SerialConnection
+                                    SerialConnection, DeviceTimeoutError
 from toptica.lasersdk.utils.dlcpro import *
 import asyncio
 import logging
@@ -162,19 +162,24 @@ class DLCPro:
         return warnings
 
     def ReadValue(self):
-        lock_enabled = self.laserDlLockEnabled(laser = 1)
-        if lock_enabled:
-            error_signal = self.grabErrorSignal(laser = 1, timescale = 100)
-            if isinstance(error_signal, float):
-                locked = False
+        try:
+            lock_enabled = self.laserDlLockEnabled(laser = 1)
+            if lock_enabled:
+                error_signal = self.grabErrorSignal(laser = 1, timescale = 100)
+                if isinstance(error_signal, float):
+                    locked = False
+                else:
+                    locked = np.max(error_signal['y']) > 0.0019
+                # locked = False
             else:
-                locked = np.max(error_signal['y']) > 0.0019
-            # locked = False
-        else:
-            error_signal = np.nan
-            locked       = False
-        emission            = self.laserEmission(laser = 1)
-        laser_temperature   = self.laserDlTcTempAct(laser = 1)
+                error_signal = np.nan
+                locked       = False
+            emission            = self.laserEmission(laser = 1)
+            laser_temperature   = self.laserDlTcTempAct(laser = 1)
+        except DeviceTimeoutError:
+            return np.nan
+        except Exception as e:
+            logging.warning('DLCProCs warning in ReadValue() : '+str(e))
         return [time.time() - self.time_offset,
                 emission, lock_enabled, locked, laser_temperature]
 

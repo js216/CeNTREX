@@ -139,19 +139,22 @@ class DLCPro:
 
     def GetWarnings(self):
         messages = []
-        while self.systemMessagesCountNew() > 0:
-            tmp     = self.systemMessagesLatest().split('*')
-            timestamp   = tmp[0].strip()
-            tmp         = tmp[1].split('(')
-            priority    = int(tmp[0].strip())
-            tmp         = tmp[1].split(')')
-            ID          = int(tmp[0].strip())
-            tmp         = tmp[1].split(':')
-            device      = tmp[0].strip()
-            message     = tmp[1].strip()
-            self.exec('system-messages:mark-as-read', ID)
-            messages.append((time.time(), priority, ID, device, message))
-
+        try:
+            while self.systemMessagesCountNew() > 0:
+                tmp     = self.systemMessagesLatest().split('*')
+                timestamp   = tmp[0].strip()
+                tmp         = tmp[1].split('(')
+                priority    = int(tmp[0].strip())
+                tmp         = tmp[1].split(')')
+                ID          = int(tmp[0].strip())
+                tmp         = tmp[1].split(':')
+                device      = tmp[0].strip()
+                message     = tmp[1].strip()
+                self.exec('system-messages:mark-as-read', ID)
+                messages.append((time.time(), priority, ID, device, message))
+        except DeviceTimeoutError:
+            logging.warning('DLCProCs warning in GetWarnings() : DeviceTimeoutError')
+            
         for timestamp, priority, ID, device, message in messages:
             warning_dict = {"message" : '{0} for {1}: {2}'.format(
             self.messagePriority[priority], device, message)}
@@ -180,6 +183,7 @@ class DLCPro:
             return np.nan
         except Exception as e:
             logging.warning('DLCProCs warning in ReadValue() : '+str(e))
+            return np.nan
         return [time.time() - self.time_offset,
                 emission, lock_enabled, locked, laser_temperature]
 

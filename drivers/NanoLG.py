@@ -367,7 +367,7 @@ class InstrumentCommunication(threading.Thread):
         self.data['cooler_water']['cooler_water_temperature'] = (time.time(), temperature)
 
 class NanoLG:
-    def __init__(self, time_offset, resource_name):
+    def __init__(self, time_offset, resource_name, rep_rate = 10):
         """
         Control class for the Nano LG pulsed laser.
 
@@ -478,7 +478,7 @@ class NanoLG:
         self.RequestPulsePeriodHighLimit()
         self.RequestQSwitchDelayLowLimit()
         self.RequestQSwitchDelayHighLimit()
-        self.RepetitionRateDivider(10)
+        self.RepetitionRateDivider(rep_rate)
 
     def __enter__(self):
         return self

@@ -13,17 +13,18 @@ import json
 import io
 import struct
 import threading
+import pickle
 
 class SharedData(object):
     def __init__(self, value):
         self._data = value
         self._lock = threading.Lock()
 
-    def __get__(self):
+    def __get__(self, instance, owner):
         with self._lock:
             return self._data
 
-    def __set__(self, value):
+    def __set__(self, instance, value):
         with self._lock:
             self._data = value
 
@@ -40,25 +41,26 @@ class StreamReceiver(threading.Thread):
     Modified from https://github.com/ekbanasolutions/numpy-using-socket.
     """
     def __init__(self, address, port, obj, attr):
+        threading.Thread.__init__(self)
         self._stop = threading.Event()
         self.daemon = True
         self.address = address
         self.port = port
         self.obj = obj
         self.attr = attr
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def stop(self):
         """
         Stop the streaming thread.
         """
         self._stop.set()
+        self.socket.close()
 
     def initialize_receiver(self):
-        self.socket.bind((self.address, self.port))
-        # print('Socket bind complete')
+        self.socket.bind(('', self.port))
         self.socket.listen(10)
         self.conn, addr = self.socket.accept()
-        # print('Socket now listening')
         self.payload_size = struct.calcsize("L")  ### CHANGED
         self.data = b''
 
@@ -82,10 +84,12 @@ class StreamReceiver(threading.Thread):
         return frame
 
     def run(self):
-        self.obj.send('stream', f'{self.attr},{self.address},{self.port}')
+        self.obj.send('stream', f'{self.attr},{self.port}')
         self.initialize_receiver()
-        while True:
+        while not self._stop.isSet():
             self.obj.data = self.receive_array()
+        self.obj.send('stop_stream', f'{self.port}')
+        self.conn.close()
 
 class LockBoxStemlab:
     data = SharedData(None)
@@ -110,8 +114,9 @@ class LockBoxStemlab:
 
         self.warnings = []
 
-        self._acquisition = StreamReceiver(address, self.port - 1, self, 'curve')
-        self._acquisition.run()
+        self._acquisition = StreamReceiver(self.hostname, self.port - 1, self, 'curve')
+        self._acquisition.start()
+        time.sleep(1)
 
     def __enter__(self):
         return self
@@ -130,12 +135,12 @@ class LockBoxStemlab:
         return warnings
 
     def ReadValue(self):
-        d = self.data.copy()
+        d = self.data
         timestamp = time.time()-self.time_offset
-        if d or (isinstance(d, (list, np.ndarray))):
+        if isinstance(d, (list, np.ndarray)):
             return [np.array([d]), [{'timestamp':timestamp}]]
         else:
-            return None
+            return np.nan
 
     ##############################
     # Commands
@@ -226,7 +231,6 @@ class LockBoxStemlab:
         self.send('set', 'locking True')
 
     def UnlockCavity(self):
-        self.send('set', 'auto_relock False')
         self.send('set', 'locking False')
 
     def LockStatus(self):

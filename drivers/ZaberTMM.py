@@ -178,9 +178,13 @@ class ZaberTMMError(Exception):
     pass
 
 class ZaberTMM:
-    def __init__(self, time_offset, COM_port, dev1_axis, dev2_axis):
+    def __init__(self, time_offset, COM_port, dev1_axis, dev2_axis, coordinates_fname):
         self.time_offset = time_offset
         self.COM_port = COM_port
+
+        self.coordinates_fname = coordinates_fname
+        with h5py.File('drivers/' + coordinates_fname, 'r') as f:
+            self.coordinates_random = np.random.shuffle(f['all_points'][()])
 
         # shape and type of the array of returned data from ReadValue
         self.dtype = ('f4', 'int32', 'int32')
@@ -247,8 +251,6 @@ class ZaberTMM:
                                 ('y_acceleration', str(self.ReadAccelerationY()))
                               ]
 
-        # self.Sweep('sweep01')
-
     def __enter__(self):
         return self
 
@@ -313,6 +315,15 @@ class ZaberTMM:
     @SweepCheckWrapper
     def HomeAllGUI(self):
         self.HomeAll()
+
+    @SweepCheckWrapper
+    def RandomPosition(self):
+        x,y = self.coordinates_random[0]
+        self.MoveAbsoluteX(x)
+        self.MoveAbsoluteY(y)
+        self.coordinates_random = np.roll(self.coordinates_random, shift = -1,
+                                          axis = 0)
+
     #######################################################
     # Write/Query Commands
     #######################################################
@@ -487,8 +498,8 @@ class ZaberTMM:
     #######################################################
 
     def Sweep(self, sweepname):
-        with h5py.File('drivers/ablation_sweeps.sweep_hdf5', 'r') as f:
-            coordinates = f[sweepname].value
+        with h5py.File('drivers/'+self.coordinates_fname, 'r') as f:
+            coordinates = f[sweepname][()]
         if self.running_sweep:
             warning = 'Sweep: Currently sweeping mirror'
             self.CreateWarning(warning)

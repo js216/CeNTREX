@@ -247,7 +247,7 @@ class ZaberTMM:
                                 ('y_acceleration', str(self.ReadAccelerationY()))
                               ]
 
-        self.Sweep('sweep01')
+        # self.Sweep('sweep01')
 
     def __enter__(self):
         return self

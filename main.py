@@ -3128,7 +3128,7 @@ class Plotter(qt.QWidget):
             if dset==[np.nan] or dset==np.nan:
                 return None
             x = np.arange(dset[0].shape[2])
-            y = dset[0][0, self.param_list.index(self.config["y"])]
+            y = dset[0][0, self.param_list.index(self.config["y"])].astype(float)
             self.dset_attrs = dset[1]
 
             # divide y by z (if applicable)
@@ -3145,7 +3145,7 @@ class Plotter(qt.QWidget):
                 return x, y
 
             # average last n curves (if applicable)
-            y_avg = np.array(y)
+            y_avg = np.array(y).astype(float)
             for i in range(self.config["n_average"] - 1):
                 try:
                     dset = self.dev.config["plots_queue"][-(i+1)]

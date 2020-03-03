@@ -19,7 +19,7 @@ class WavemeterFiberswitch:
         else:
             self.ports = ports
 
-        self.dtype = tuple(['f4'] * (len(self.ports)+1))
+        self.dtype = tuple(['f8'] * (len(self.ports)+1))
         self.shape = (1+len(self.ports),)
 
         self.new_attributes = []
@@ -31,7 +31,7 @@ class WavemeterFiberswitch:
     def __exit__(self, *exc):
         self.wavemeter.__exit__(exc)
         self.switch.__exit__(exc)
-
+        
     def GetWarnings(self):
         warnings = self.warnings.copy()
         warnings.extend(self.wavemeter.GetWarnings())

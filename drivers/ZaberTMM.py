@@ -184,7 +184,8 @@ class ZaberTMM:
 
         self.coordinates_fname = coordinates_fname
         with h5py.File('drivers/' + coordinates_fname, 'r') as f:
-            self.coordinates_random = np.random.shuffle(f['all_points'][()])
+            self.coordinates_random = f['all_points'][()]
+            np.random.shuffle(self.coordinates_random)
 
         # shape and type of the array of returned data from ReadValue
         self.dtype = ('f4', 'int32', 'int32')

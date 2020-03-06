@@ -369,13 +369,13 @@ class ZaberTMM:
                                           axis = 0)
 
     def SetPointAGUI(self, point_a):
-        self.sweep_square_params['point_a'] = (int(val) for val in point_a.split(','))
+        self.sweep_square_params['point_a'] = point_a
 
     def GetPointAGUI(self):
         return self.sweep_square_params.get('point_a', None)
 
     def SetPointBGUI(self, point_b):
-        self.sweep_square_params['point_b'] = (int(val) for val in point_b.split(','))
+        self.sweep_square_params['point_b'] = point_b
 
     def GetPointBGUI(self):
         return self.sweep_square_params.get('point_b', None)
@@ -387,7 +387,7 @@ class ZaberTMM:
         return self.sweep_square_params.get('step', None)
 
     def SetWaitGUI(self, wait_time):
-        self.sweep_square_params['wait_time'] = wait_time
+        self.sweep_square_params['wait_time'] = float(wait_time)
 
     def GetWaitGUI(self):
         return self.sweep_square_params.get('wait_time', None)
@@ -577,14 +577,14 @@ class ZaberTMM:
             self.sweep_thread.start()
 
     def SweepRectangle(self, sweep_params = None):
-        if isinstance(sweep_params, None):
+        if isinstance(sweep_params, type(None)):
             sweep_params = self.sweep_square_params
         if self.running_sweep:
             warning = "SweepRectangle: Currently sweeping mirror"
             self.CreateWarning(warning)
             logging.warning('ZaberTMM warning in SweepRectangle: Currently sweeping mirror')
         else:
-            self.sweep_thread = MirrorSweepRectangle(self, *sweep_params)
+            self.sweep_thread = MirrorSweepRectangle(self, **sweep_params)
             self.sweep_thread.start()
 
     def StopSweep(self):

@@ -368,14 +368,14 @@ class ZaberTMM:
         self.coordinates_random = np.roll(self.coordinates_random, shift = -1,
                                           axis = 0)
 
-    def SetPointAGUI(self, position_a):
-        self.sweep_square_params['point_a'] = point_a
+    def SetPointAGUI(self, point_a):
+        self.sweep_square_params['point_a'] = (int(val) for val in point_a.split(','))
 
     def GetPointAGUI(self):
         return self.sweep_square_params.get('point_a', None)
 
     def SetPointBGUI(self, point_b):
-        self.sweep_square_params['point_b'] = point_b
+        self.sweep_square_params['point_b'] = (int(val) for val in point_b.split(','))
 
     def GetPointBGUI(self):
         return self.sweep_square_params.get('point_b', None)

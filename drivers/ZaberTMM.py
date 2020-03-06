@@ -24,6 +24,48 @@ class StoppableThread(threading.Thread):
     def stopped(self):
         return self._stop.isSet()
 
+class MirrorSweepRectangle(StoppableThread):
+    def __init__(self, driver, point_a, point_b, step, wait_time = 0):
+        super(MirrorSweepRectangle, self).__init__()
+        self.driver = driver
+        self.driver.running_sweep = False
+        self.point_a = point_a
+        self.point_b = point_b
+        self.step = step
+        self.wait_time = wait_time
+
+    def move(self, x, y):
+        while True:
+            try:
+                if self.stopped():
+                    break
+                self.driver.MoveAbsoluteX(x)
+                break
+            except TimeoutError:
+                continue
+        while True:
+            try:
+                if self.stopped():
+                    break
+                self.driver.MoveAbsoluteY(y)
+                break
+            except TimeoutError:
+                continue
+
+    def run(self):
+        self.driver.running_sweep = True
+        coords_x = np.arange(self.point_a[0], self.point_b[0]+self.step, self.step)
+        coords_y = np.arange(self.point_a[1], self.point_b[1]+self.step, self.step)
+        while True:
+            for x in coords_x:
+                for y in coords_y:
+                    self.move(x,y)
+                    time.sleep(self.wait_time)
+                    if self.stopped():
+                        logging.warning("ZaberTMM info: stopped sweeping")
+                        self.driver.running_sweep = False
+                        return
+
 class MirrorSweep(StoppableThread):
     """
     Mirror sweep in a separate thread to ensure continous data acquisition
@@ -239,6 +281,7 @@ class ZaberTMM:
         self.sweep_thread = None
         self.running_sweep = False
         self.sweep_start_position = 'current'
+        self.sweep_square_params = {}
 
         self.GetPosition()
 
@@ -324,6 +367,30 @@ class ZaberTMM:
         self.MoveAbsoluteY(y)
         self.coordinates_random = np.roll(self.coordinates_random, shift = -1,
                                           axis = 0)
+
+    def SetPointAGUI(self, position_a):
+        self.sweep_square_params['point_a'] = point_a
+
+    def GetPointAGUI(self):
+        return self.sweep_square_params.get('point_a', None)
+
+    def SetPointBGUI(self, point_b):
+        self.sweep_square_params['point_b'] = point_b
+
+    def GetPointBGUI(self):
+        return self.sweep_square_params.get('point_b', None)
+
+    def SetStepGUI(self, step):
+        self.sweep_square_params['step'] = step
+
+    def GetStepGUI(self):
+        return self.sweep_square_params.get('step', None)
+
+    def SetWaitGUI(self, wait_time):
+        self.sweep_square_params['wait_time'] = wait_time
+
+    def GetWaitGUI(self):
+        return self.sweep_square_params.get('wait_time', None)
 
     #######################################################
     # Write/Query Commands
@@ -507,6 +574,17 @@ class ZaberTMM:
             logging.warning('ZaberTMM warning in Sweep: Currently sweeping mirror')
         else:
             self.sweep_thread = MirrorSweep(self, coordinates, self.sweep_start_position)
+            self.sweep_thread.start()
+
+    def SweepRectangle(self, sweep_params = None):
+        if isinstance(sweep_params, None):
+            sweep_params = self.sweep_square_params
+        if self.running_sweep:
+            warning = "SweepRectangle: Currently sweeping mirror"
+            self.CreateWarning(warning)
+            logging.warning('ZaberTMM warning in SweepRectangle: Currently sweeping mirror')
+        else:
+            self.sweep_thread = MirrorSweepRectangle(self, *sweep_params)
             self.sweep_thread.start()
 
     def StopSweep(self):

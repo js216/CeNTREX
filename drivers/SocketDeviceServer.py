@@ -402,7 +402,11 @@ def SocketServerDecorator(cls):
     DAQ system
     """
     for attr_name in dir(cls):
-        attr_value = getattr(cls, attr_name)
+        try:
+            attr_value = getattr(cls, attr_name)
+        except Exception as err:
+            # print(attr_name)
+            continue
         if isinstance(attr_value, FunctionType):
             if attr_name == 'ReadValue':
                 setattr(cls, 'ReadValueServer', copy.deepcopy(attr_value))

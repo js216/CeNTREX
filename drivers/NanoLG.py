@@ -3,7 +3,7 @@ import time
 import logging
 import threading
 from System import Enum
-clr.AddReference('Litron.Control.PulsedLasers')
+clr.AddReference('drivers/Litron.Control.PulsedLasers')
 import Litron
 from Litron.Control.PulsedLasers import pulsedLaser
 
@@ -17,6 +17,7 @@ class SystemStatusData(object):
         if (time.time() - self._time < self._delay) & (not isinstance(self._data, type(None))):
             return self._data
         else:
+            assert instance.PortOpen, 'No connection to YAG'
             instance.Ping()
             while (time.time() - self._time > self._delay) or (isinstance(self._data, type(None))):
                 time.sleep(0.01)
@@ -29,7 +30,7 @@ class SystemStatusData(object):
     def __repr__(self):
         return repr(self._data)
 
-class FunctionStatusDataData(object):
+class FunctionStatusData(object):
     def __init__(self, data = None, delay = 300):
         self._data = data
         self._time = time.time()
@@ -39,7 +40,8 @@ class FunctionStatusDataData(object):
         if (time.time() - self._time < self._delay) & (not isinstance(self._data, type(None))):
             return self._data
         else:
-            instance.RequestFunctionStatusDataData()
+            assert instance.PortOpen, 'No connection to YAG'
+            instance.RequestFunctionStatus()
             while (time.time() - self._time > self._delay) or (isinstance(self._data, type(None))):
                 time.sleep(0.01)
             return self._data
@@ -59,11 +61,12 @@ class ChillerData(object):
         self._delay = delay
 
     def __get__(self, instance, owner):
-        if (time.time() - self._time < self._delay) & (not isinstance(self._data, type(None))):
+        if (time.time() - self._time < self._delay) & (not isinstance(self._data, type(None)) or (self._data != 0)):
             return self._data
         else:
+            assert instance.PortOpen, 'No connection to YAG'
             instance.RequestChillerData(self._enum)
-            while (time.time() - self._time > self._delay) or (isinstance(self._data, type(None))):
+            while (time.time() - self._time > self._delay) or (isinstance(self._data, type(None)) or (self._data == 0)):
                 time.sleep(0.01)
             return self._data
 
@@ -84,6 +87,7 @@ class LampShotData(object):
         if (time.time() - self._time < self._delay) & ((not isinstance(self._data, type(None))) or (self._data != 0)):
             return self._data
         else:
+            assert instance.PortOpen, 'No connection to YAG'
             instance.RequestFlashlampShots()
             while (time.time() - self._time > self._delay) or ((isinstance(self._data, type(None))) or (self._data == 0)):
                 time.sleep(0.01)
@@ -104,7 +108,7 @@ class Interlocks(object):
                             'lamp 1 PSU': 'intcharger1',
                             'lamp 2 PSU': 'intcharger2',
                             'external': 'intexternal',
-                            'PSU temperature': 'intpsutemperature',
+                            'PSU temperature': 'intpsutemp',
                             'PSU cover': 'intpsucover',
                             'laser head cover': 'intlaserhead',
                             'shutter': 'intshutter',
@@ -115,6 +119,7 @@ class Interlocks(object):
                             'crystal temperature': 'tempwrong'}
 
     def __get__(self, instance, owner):
+        assert instance.PortOpen, 'No connection to YAG'
         latched = []
         if instance.interlockslatched:
             for interlock, var in self._interlocks.items():
@@ -144,8 +149,8 @@ class Yag(pulsedLaser):
     intcharger1 = SystemStatusData(delay = smdelay)
     intcharger2 = SystemStatusData(delay = smdelay)
     intexternal = SystemStatusData(delay = smdelay)
-    intpsutemperature = SystemStatusData(delay = smdelay)
-    intpuscover = SystemStatusData(delay = smdelay)
+    intpsutemp = SystemStatusData(delay = smdelay)
+    intpsucover = SystemStatusData(delay = smdelay)
     intlaserhead = SystemStatusData(delay = smdelay)
     intshutter = SystemStatusData(delay = smdelay)
     intsimmer1 = SystemStatusData(delay = smdelay)
@@ -200,32 +205,32 @@ class Yag(pulsedLaser):
         self.PortNumber = com_port
 
     def handler(self, source, args):
-        if args.PropertyName == 'SystemStatus':
-            for value, name in zip(Enum.GetValues(self.SystemStatusMasks_Lamp), Enum.GetNames(self.SystemStatusMasks_Lamp)):
-                exec(f'self.{name.strip("sm").lower()} = self.SystemStatus & {value} > 0')
-        elif args.PropertyName == 'FunctionStatus':
-            for value, name in zip(Enum.GetValues(self.FunctionStatusDataMasks), Enum.GetNames(self.FunctionStatusDataMasks)):
-                exec(f'self.{name.strip("fm").lower()} = self.FunctionStatusData & {value} > 0')
-        elif args.PropertyName == 'LampShotsValue':
-            self.currentlampshotsvalue = self.CurrentLampShotsValue
-            self.currentlampshotsvalue2 = self.CurrentLampShotsValue2
-            self.totallampshotsvalue = self.TotalLampShotsValue
-            self.totallampshotsvalue2 = self.TotalLampShotsValue2
-        elif args.PropertyName == 'ChillerWaterTemperature':
-            self.watertemperature = yag.ChillerWaterTemperature
-        elif args.PropertyName == 'ChillerAmbientTemperature':
-            self.ambienttemperature = yag.ChillerAmbientTemperature
-        elif args.PropertyName == 'ChillerSetpoint':
-            self.chillersetpoint = yag.ChillerSetpoint
-        elif args.PropertyName == 'ChillerFanSpeed':
-            self.fanspeed = yag.ChillerFanSpeed
-        elif args.PropertyName == 'ChillerXtalTemperature':
-            self.xtaltemperature = yag.ChillerXtalTemperature
-        elif args.PropertyName == 'ChillerXtalSetPoint':
-            self.xtalsetpoint = yag.ChillerXtalSetPoint
-        else:
-            print(args.PropertyName)
-
+        try:
+            if args.PropertyName == 'SystemStatus':
+                for value, name in zip(Enum.GetValues(self.SystemStatusMasks_Lamp), Enum.GetNames(self.SystemStatusMasks_Lamp)):
+                    exec(f'self.{name.strip("sm").lower()} = self.SystemStatus & {value} > 0')
+            elif args.PropertyName == 'FunctionStatus':
+                for value, name in zip(Enum.GetValues(self.FunctionStatusMasks), Enum.GetNames(self.FunctionStatusMasks)):
+                    exec(f'self.{name.strip("fm").lower()} = self.FunctionStatus & {value} > 0')
+            elif args.PropertyName == 'LampShotsValue':
+                self.currentlampshotsvalue = self.CurrentLampShotsValue
+                self.currentlampshotsvalue2 = self.CurrentLampShotsValue2
+                self.totallampshotsvalue = self.TotalLampShotsValue
+                self.totallampshotsvalue2 = self.TotalLampShotsValue2
+            elif args.PropertyName == 'ChillerWaterTemperature':
+                self.watertemperature = self.ChillerWaterTemperature
+            elif args.PropertyName == 'ChillerAmbientTemperature':
+                self.ambienttemperature = self.ChillerAmbientTemperature
+            elif args.PropertyName == 'ChillerSetpoint':
+                self.chillersetpoint = self.ChillerSetpoint
+            elif args.PropertyName == 'ChillerFanSpeed':
+                self.fanspeed = self.ChillerFanSpeed
+            elif args.PropertyName == 'ChillerXtalTemperature':
+                self.xtaltemperature = self.ChillerXtalTemperature
+            elif args.PropertyName == 'ChillerXtalSetPoint':
+                self.xtalsetpoint = self.ChillerXtalSetPoint
+        except Exception as e:
+            print(e)
 
 class NanoLG(Yag):
     def __init__(self, time_offset, com_port):
@@ -233,7 +238,7 @@ class NanoLG(Yag):
         Control class for the Nano LG pulsed laser using the supplied .net 2.0
         dll.
         """
-        super(NanoLG, self).__init__()
+        super(NanoLG, self).__init__(com_port)
         self.time_offset = time_offset
 
         # HDF attributes generated when constructor is run
@@ -246,15 +251,14 @@ class NanoLG(Yag):
         self.warnings = []
 
         try:
-            self.OpenPort = True
+            self.PortOpen = True
             self.RequestSystemData()
             self.RequestConfigurationData()
-            self.verification_string = self.yag.get_SerialNumber()
+            self.verification_string = self.get_SerialNumber()
         except Exception as err:
             logging.warning('NanoLG warning in initial connection : '+str(err))
             self.verification_string = "False"
             self.__exit__()
-
         self.warnings = []
         self.new_attributes = []
         self.dtype = ('f8',)
@@ -265,7 +269,8 @@ class NanoLG(Yag):
 
     def __exit__(self, *exc):
         try:
-            self.yag.OpenPort = False
+            self.CloseShutter()
+            self.PortOpen = False
         except Exception as err:
             logging.warning('NanoLG warning in __exit__ : '+str(err))
 
@@ -273,23 +278,14 @@ class NanoLG(Yag):
     # CeNTREX DAQ Commands
     #######################################################
 
-
-    def CheckWarnings(self):
-        self.Checkinterlocks()
+    def GetWarnings(self):
+        self.CheckInterlocks()
         warnings = self.warnings.copy()
         self.warnings = []
         return warnings
 
-    #######################################################
-    # General Utility Commands
-    #######################################################
-
-    def CheckInterlocks(self):
-        for interlock in self.interlocks:
-            warning_dict = {"message": f"NanoLG interlock : {interlock}"}
-            self.warnings.append([time.time(), warning_dict])
-
     def ReadValue(self):
+        self.Ping()
         return [time.time() - self.time_offset,
                 self.systemstate,
                 self.pumpstate,
@@ -304,11 +300,25 @@ class NanoLG(Yag):
                 self.totallampshotsvalue,
                 self.extqtrig,
                 self.extlamptrig,
-                self.interlockslatched
+                self.interlockslatched,
+                self.RepRateDivisor1Value
                ]
+
+    #######################################################
+    # General Utility Commands
+    #######################################################
+
+    def CheckInterlocks(self):
+        if self.interlocks:
+            for interlock in self.interlocks:
+                warning_dict = {"message": f"NanoLG interlock : {interlock}"}
+                self.warnings.append([time.time(), warning_dict])
 
     def SetQSwitchDelay(self, delay):
         self.LampAndQswData(self.FLPeriodValue, self.FLDelayValue, delay, delay, 0xF)
+
+    def GetQSwitchDelay(self):
+        return self.QDelay1Value
 
     def SetRepRateDivider(self, divider):
         self.RepRateDivide1(divider, bool(self.extqtrig))
@@ -316,11 +326,59 @@ class NanoLG(Yag):
     def EnableRepRateDivider(self, enable):
         self.RepRateDivide1(self.RepRateDivide1, enable)
 
-    def EnableExtQTrig(self, enable):
-        self.ExtTrig1 = enable
+    def SetSystemOn(self):
+        self.SystemOn()
 
-    def EnableExtLampTrig(self, enable):
-        self.DirectAccess1 = enable
+    def SetSystemOff(self):
+        self.SystemOff()
+
+    def GetSystemState(self):
+        return str(self.systemstate)
+
+    def SetPumpOn(self):
+        self.PumpOn()
+
+    def SetPumpOff(self):
+        self.PumpOff()
+
+    def GetPumpState(self):
+        return str(self.pumpstate)
+
+    def SetLaserOn(self):
+        self.LaserOn()
+
+    def SetLaserOff(self):
+        self.LaserOff()
+
+    def GetLaserState(self):
+        return str(self.laserstate)
+
+    def SetShutterOpen(self):
+        self.ShutterOpen()
+
+    def SetShutterClosed(self):
+        self.ShutterClosed()
+
+    def GetShutterState(self):
+        return str(self.shutterstate)
+
+    def EnableExtQTrig(self):
+        self.DirectAccess1 = True
+
+    def DisableExtQTrig(self):
+        self.DirectAccess1 = False
+
+    def EnableExtLampTrig(self):
+        self.ExtTrig1 = True
+
+    def DisableExtLampTrig(self):
+        self.ExtTrig1 = False
+
+    def GetExtLampTrig(self):
+        return str(self.extlamptrig)
+
+    def GetExtQTrig(self):
+        return str(self.extqtrig)
 
     def GetSystemStatus(self):
         if self.interlockslatched:
@@ -331,6 +389,8 @@ class NanoLG(Yag):
             return "Laser On/Shutter Closed"
         elif self.pumpstate:
             return "Pump On"
+        elif self.systemstate:
+            return "Pump Off"
         elif not self.systemstate:
             return "YAG Off"
         else:

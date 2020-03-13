@@ -303,7 +303,10 @@ def ClientClassDecorator(cls):
     with the socket client.
     """
     for attr_name in dir(cls):
-        attr_value = getattr(cls, attr_name)
+        try:
+            attr_value = getattr(cls, attr_name)
+        except Exception as e:
+            continue
         if isinstance(attr_value, FunctionType):
             if attr_name == 'ReadValue':
                 attribute = wrapperReadValueClientMethod(attr_value)

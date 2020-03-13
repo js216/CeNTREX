@@ -254,7 +254,7 @@ class NanoLG(Yag):
             self.PortOpen = True
             self.RequestSystemData()
             self.RequestConfigurationData()
-            self.verification_string = self.get_SerialNumber()
+            self.verification_string = self.GetVerificationString()
         except Exception as err:
             logging.warning('NanoLG warning in initial connection : '+str(err))
             self.verification_string = "False"
@@ -277,6 +277,8 @@ class NanoLG(Yag):
     #######################################################
     # CeNTREX DAQ Commands
     #######################################################
+    def GetVerificationString(self):
+        return self.get_SerialNumber()
 
     def GetWarnings(self):
         self.CheckInterlocks()

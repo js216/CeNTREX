@@ -1,4 +1,3 @@
-import io
 import time
 import serial
 import numpy as np
@@ -35,8 +34,8 @@ class KoherasBoostik:
         self.warnings = []
         self.new_attributes = []
 
-        self.dtype = ('f4', 'float', 'float')
-        self.shape = (3,)
+        self.dtype = ('f4', 'bool', 'float', 'float', 'float', 'float')
+        self.shape = (6,)
 
     def __enter__(self):
         return self

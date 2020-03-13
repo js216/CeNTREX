@@ -3189,6 +3189,13 @@ class Plotter(qt.QWidget):
                 x0, x1 = 0, -1
         if x1 >= len(x) - 1:
             x0, y1 = 0, -1
+            x0, x1 = 0, None
+        if not x1 is None:
+            if x0 >= x1:
+                if x1 >= 0:
+                    x0, x1 = 0, None
+            if x1 >= len(x) - 1:
+                x0, x1 = 0, None
 
         # verify data shape
         if not x.shape == y.shape:

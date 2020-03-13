@@ -53,6 +53,7 @@ class KoherasBoostik:
     #######################################################
     # Commands for CeNTREX DAQ
     #######################################################
+
     def GetWarnings(self):
         warnings = self.warnings.copy()
         self.warnings = []
@@ -76,6 +77,16 @@ class KoherasBoostik:
         else:
             return [time.time() - self.time_offset, emission, input_power,
                     current, current_setpoint, booster_temp]
+
+    #######################################################
+    # Commands for CeNTREX DAQ GUI
+    #######################################################
+
+    def EmissionOn(self):
+        self.SetEmission(True)
+
+    def EmissionOff(self):
+        self.SetEmission(False)
 
     #######################################################
     # Commands for device

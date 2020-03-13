@@ -20,6 +20,45 @@ class StoppableThread(threading.Thread):
     def stopped(self):
         return self._stop.isSet()
 
+class PowerSweep(StoppableThread):
+    """
+    Power sweep in separate thread to ensure continous data acquisition
+    simultaneous to sweeping microwave power.
+    """
+    def __init__(self, driver, powers, wait_time):
+        super(PowerSweep, self).__init__()
+        self.driver = driver
+        self.driver.running_sweep = False
+        self.powers = powers
+        self.wait_time = wait_time
+
+    def SetPower(self, power):
+        while True:
+            try:
+                if self.stopped():
+                    break
+                self.driver.power(power)
+                break
+            except serial.SerialTimeoutException:
+                continue
+
+    def run(self):
+        self.driver.running_sweep = True
+        while True:
+            for power in self.powers:
+                self.SetPower(power)
+                time.sleep(self.wait_time)
+                if self.stopped():
+                    logging.warning("SyntHDPro info: stopped sweeping")
+                    self.driver.running_sweep = False
+                    return
+            for power in self.powers[1:-1][::-1]:
+                self.SetPOwer(power)
+                time.sleep(self.wait_time)
+                if self.stopped():
+                    logging.warning("SyntHDPro info: stopped sweeping")
+                    self.driver.running_sweep = False
+                    return
 
 class FrequencySweep(StoppableThread):
     """
@@ -255,7 +294,7 @@ class SynthHDProFrequencySweep:
     def GetPowerGUI(self):
         return self.power_setting
 
-    def Sweep(self):
+    def FrequencySweep(self):
         if self.running_sweep:
             warning = 'Sweep: Currently sweeping frequency'
             self.CreateWarning(warning)
@@ -264,6 +303,18 @@ class SynthHDProFrequencySweep:
             # self.sweep_thread = FrequencySweepPowerSwitching(self, **self.sweep_params, power_low = -18, power_high = -10, pulse_count = 1)
             self.sweep_thread = FrequencySweep(self, **self.sweep_params)
             self.sweep_thread.start()
+
+    def PowerSweep(self, parameters):
+        if self.running_sweep:
+            warning = 'Sweep: Currently sweeping power'
+            self.CreateWarning(warning)
+            logging.warning('SynthHDPro warning in PowerSweep: Currently sweeping')
+        else:
+            if not isintance(parameters, list):
+                logging.warning('SynthHDPro warning in PowerSweep: list required for parameters')
+            else:
+                self.sweep_thread = PowerSweep(self, *parameters)
+                self.sweep_thread.start()
 
     def StopSweep(self):
         if self.running_sweep:

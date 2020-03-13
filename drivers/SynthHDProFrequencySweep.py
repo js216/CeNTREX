@@ -37,7 +37,7 @@ class PowerSweep(StoppableThread):
             try:
                 if self.stopped():
                     break
-                self.driver.power(power)
+                self.driver.SetPower(power)
                 break
             except serial.SerialTimeoutException:
                 continue
@@ -47,13 +47,6 @@ class PowerSweep(StoppableThread):
         while True:
             for power in self.powers:
                 self.SetPower(power)
-                time.sleep(self.wait_time)
-                if self.stopped():
-                    logging.warning("SyntHDPro info: stopped sweeping")
-                    self.driver.running_sweep = False
-                    return
-            for power in self.powers[1:-1][::-1]:
-                self.SetPOwer(power)
                 time.sleep(self.wait_time)
                 if self.stopped():
                     logging.warning("SyntHDPro info: stopped sweeping")
@@ -310,7 +303,7 @@ class SynthHDProFrequencySweep:
             self.CreateWarning(warning)
             logging.warning('SynthHDPro warning in PowerSweep: Currently sweeping')
         else:
-            if not isintance(parameters, list):
+            if not isinstance(parameters, list):
                 logging.warning('SynthHDPro warning in PowerSweep: list required for parameters')
             else:
                 self.sweep_thread = PowerSweep(self, *parameters)

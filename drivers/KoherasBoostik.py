@@ -22,12 +22,13 @@ class KoherasBoostik:
         self.time_offset = time_offset
 
         try:
-            ser = serial.Serial()
-            ser.baudrate = 9600
-            ser.port = COM_port
-            ser.timeout = 0.5
-            ser.open()
-            self.ser = ser
+            if COM_port != 'client':
+                ser = serial.Serial()
+                ser.baudrate = 9600
+                ser.port = COM_port
+                ser.timeout = 0.5
+                ser.open()
+                self.ser = ser
             self.verification_string = self.GetVerificationString()
         except Exception as err:
             logging.warning('KoherasBoostik error in initial connection')

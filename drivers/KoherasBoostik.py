@@ -1,5 +1,6 @@
 import time
 import serial
+import logging
 import numpy as np
 
 class KoherasBoostik:
@@ -24,6 +25,7 @@ class KoherasBoostik:
             ser = serial.Serial()
             ser.baudrate = 9600
             ser.port = COM_port
+            ser.timeout = 0.5
             ser.open()
             self.ser = ser
             self.verification_string = self.GetVerificationString()

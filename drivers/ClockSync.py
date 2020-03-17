@@ -1,7 +1,7 @@
 import time
-import numpy
 import logging
 import subprocess
+import numpy as np
 
 class ClockSync:
     """
@@ -17,7 +17,7 @@ class ClockSync:
         self.password = password
 
         self.dtype = ('f4',)
-        self.shape = (3,)
+        self.shape = (2,)
 
         self.nr_peers, self.peer = self.GetPeer()
         if np.isnan(self.nr_peers):
@@ -52,14 +52,14 @@ class ClockSync:
         return []
 
     def ReadValue(self):
-        process = subprocess.run(f'w32tm /stripchart /computer:{self.peer} /samples:1',
-                                 stdout = subprocess.PIPE,
-                                 stderr = subprocess.PIPE)
-        try:
-            delay_before = float(process.stdout.decode().split('\n')[3].split('o:')[1].split('s')[0])
-        except:
-            delay_before = np.nan
-        self.SyncTime()
+        # process = subprocess.run(f'w32tm /stripchart /computer:{self.peer} /samples:1',
+        #                          stdout = subprocess.PIPE,
+        #                          stderr = subprocess.PIPE)
+        # try:
+        #     delay_before = float(process.stdout.decode().split('\n')[3].split('o:')[1].split('s')[0])
+        # except:
+        #     delay_before = np.nan
+        # self.SyncTime()
         process = subprocess.run(f'w32tm /stripchart /computer:{self.peer} /samples:1',
                                  stdout = subprocess.PIPE,
                                  stderr = subprocess.PIPE)
@@ -67,7 +67,7 @@ class ClockSync:
             delay_after = float(process.stdout.decode().split('\n')[3].split('o:')[1].split('s')[0])
         except:
             delay_after = np.nan
-        return [time.time() - self.time_offset, delay_before, delay_after]
+        return [time.time() - self.time_offset, delay_after]
 
     #######################################################
     # Device Commands

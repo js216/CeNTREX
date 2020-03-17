@@ -281,6 +281,13 @@ class SynthHDProFrequencySweep:
     def SetSweepWaitGUI(self, wait):
         self.sweep_params['wait_time'] = wait
 
+    @SweepCheckWrapper
+    def SetTriggerMode(self, mode):
+        self.trigger_mode = mode
+
+    def SetSweepTimeStep(self, step_time):
+        self.write('sweep_time_step', step_time)
+
     def GetFrequencyGUI(self):
         return self.frequency_setting
 

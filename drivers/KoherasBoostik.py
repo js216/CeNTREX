@@ -80,6 +80,18 @@ class KoherasBoostik:
             return [time.time() - self.time_offset, emission, input_power,
                     current, current_setpoint, booster_temp]
 
+    def SetCurrentGUI(self, current):
+        try:
+            self.SetCurrent(float(current))
+        except:
+            logging.error('KoherasBoostik error in SetCurrentGUI : cannot convert to float')
+
+    def GetEmissionGUI(self):
+        if self.GetEmission():
+            return "True"
+        else:
+            return False
+
     #######################################################
     # Commands for CeNTREX DAQ GUI
     #######################################################

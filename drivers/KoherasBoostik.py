@@ -132,7 +132,6 @@ class KoherasBoostik:
             (float) current setpoint [A]
         """
         current = self.query(b'ACC')
-        print(current)
         try:
             return float(current)
         except Exception as e:

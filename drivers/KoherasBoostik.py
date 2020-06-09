@@ -189,7 +189,7 @@ class KoherasBoostik:
         """
         emission = self.query(b'CDO')
         try:
-            return bool(emission)
+            return bool(int(emission))
         except Exception as e:
             return np.nan
 

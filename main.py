@@ -2275,11 +2275,12 @@ class ControlGUI(qt.QWidget):
 
     def set_config_dir(self, state):
         # ask the user to select a directory
-        self.open_dir("files", "config_dir", self.config_dir_qle)
+        if not self.open_dir("files", "config_dir", self.config_dir_qle):
+            return
 
         # update device controls
         self.devices_frame.clear()
-        self.read_device_config()
+        self.make_devices()
         self.place_device_controls()
 
         # changes the list of devices in send custom command

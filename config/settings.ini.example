@@ -1,4 +1,5 @@
 [general]
+debug_level = INFO
 default_plot_dt = 0.1
 default_hdf_dt = 0.1
 run_name = test

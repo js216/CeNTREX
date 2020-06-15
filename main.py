@@ -2327,7 +2327,7 @@ class ControlGUI(qt.QWidget):
     def refresh_COM_ports(self, button_pressed):
         for dev_name, dev in self.parent.devices.items():
             # check device has a COM_port control
-            if not dev.config["controls"].get("COM_port"):
+            if not dev.config["control_GUI_elements"].get("COM_port"):
                 continue
             else:
                 cbx = dev.config["control_GUI_elements"]["COM_port"]["QComboBox"]

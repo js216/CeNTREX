@@ -3366,18 +3366,22 @@ class Plotter(qt.QWidget):
             logging.warning(traceback.format_exc())
 
     def toggle_HDF_or_queue(self, state=""):
-        if not self.dev.config["control_params"]["HDF_enabled"]["value"]:
-            logging.warning("Plot error: cannot plot from HDF when HDF is disabled")
-            return
-
         if self.config["from_HDF"]:
+            # set data source = queue
             self.config["from_HDF"] = False
-            self.HDF_pb.setText("Queue")
-            self.HDF_pb.setToolTip("Force reading the data from the Queue instead of the HDF file.")
-        else:
-            self.config["from_HDF"] = True
             self.HDF_pb.setText("HDF")
             self.HDF_pb.setToolTip("Force reading the data from HDF instead of the queue.")
+
+        else:
+            # check HDF is enabled
+            if not self.dev.config["control_params"]["HDF_enabled"]["value"]:
+                logging.warning("Plot error: cannot plot from HDF when HDF is disabled")
+                return
+
+            # set data source = HDF
+            self.config["from_HDF"] = True
+            self.HDF_pb.setText("Queue")
+            self.HDF_pb.setToolTip("Force reading the data from the Queue instead of the HDF file.")
 
     def toggle_log_lin(self):
         if not self.config["log"]:

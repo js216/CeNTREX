@@ -184,12 +184,11 @@ class Device(threading.Thread):
         self.operational = False
         self.error_message = ""
 
-        # for commands sent by the user to the device
+        # for commands sent to the device
         self.commands = []
         self.last_event = []
-
-        # for commands sent the Monitoring to the device
         self.monitoring_commands = set()
+        self.sequencer_commands = []
 
         # for warnings about device abnormal condition
         self.warnings = []
@@ -200,6 +199,7 @@ class Device(threading.Thread):
         self.config["plots_queue"] = deque(maxlen=self.config["plots_queue_maxlen"])
         self.events_queue = deque()
         self.monitoring_events_queue = deque()
+        self.sequencer_events_queue = deque()
 
         # the variable for counting the number of NaN returns
         self.nan_count = 0
@@ -342,6 +342,16 @@ class Device(threading.Thread):
                         self.last_event = [ time.time()-self.time_offset, c, ret_val ]
                         self.events_queue.append(self.last_event)
                     self.commands = []
+
+                    # send sequencer commands, if any, to the device, and record return values
+                    for id0,c in self.sequencer_commands:
+                        try:
+                            ret_val = eval("device." + c.strip())
+                        except Exception as err:
+                            logging.warning(traceback.format_exc())
+                            ret_val = None
+                        self.sequencer_events_queue.append([id0, time.time_ns(), c, ret_val])
+                    self.sequencer_commands = []
 
                     # send monitoring commands, if any, to the device, and record return values
                     for c in self.monitoring_commands:
@@ -781,25 +791,28 @@ class HDF_writer(threading.Thread):
             data.append( fifo.popleft() )
         return data
 
-class Sequencer(threading.Thread):
+class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
+    # signal to update the progress bar
+    progress = PyQt5.QtCore.pyqtSignal(int)
+
     def __init__(self, parent):
         threading.Thread.__init__(self)
+        PyQt5.QtCore.QObject.__init__(self)
 
         # access to the outside world
         self.seqGUI = parent.ControlGUI.seq
         self.devices = parent.devices
-        self.queue_command = parent.ControlGUI.queue_command
 
         # to enable stopping the thread
         self.active = threading.Event()
         self.active.set()
 
         # defaults
-        self.default_dt = 1
+        self.default_dt = 0.1
 
     def flatten_tree(self, item):
         # extract information
-        dev, fn = item.text(0), item.text(1)
+        dev, fn, wait = item.text(0), item.text(1), item.text(4)
         params = item.text(2).split(",")
         try:
             dt = float(item.text(3))
@@ -811,7 +824,7 @@ class Sequencer(threading.Thread):
         for p in params:
             if dev and fn:
                 if dev in self.devices:
-                    self.flat_seq.append([dev, fn, p, dt])
+                    self.flat_seq.append([dev, fn, p, dt, wait])
                 else:
                     logging.warning(f"Device does not exist: {dev}")
 
@@ -827,25 +840,39 @@ class Sequencer(threading.Thread):
         self.flatten_tree(root)
         self.seqGUI.progress.setMaximum(len(self.flat_seq))
 
-        # in case there was an error parsing the tree
-        if not self.active.is_set():
-            return
-
         # main sequencer loop
-        for i,(dev,fn,p,dt) in enumerate(self.flat_seq):
+        for i,(dev,fn,p,dt,wait) in enumerate(self.flat_seq):
             # check for user stop request
             if not self.active.is_set():
                 return
 
-            # enqueue the commands
-            self.seqGUI.progress.setValue(i)
-            self.queue_command(self.devices[dev], f"{fn}({p})")
-
-            # loop delay
+            # enqueue the commands and wait
+            id0 = time.time_ns()
+            self.devices[dev].sequencer_commands.append([id0, f"{fn}({p})"])
             time.sleep(dt)
 
+            # wait till completion, if requested
+            if wait:
+                finished = False
+                while not finished:
+                    # check for user stop request
+                    if not self.active.is_set():
+                        return
+
+                    # look for return values
+                    try:
+                        id1, _, _, _ = self.devices[dev].sequencer_events_queue.pop()
+                        if id1 == id0:
+                            finished = True;
+                    except IndexError:
+                        time.sleep(self.default_dt)
+
+
+            # update progress bar
+            self.progress.emit(i)
+
         # when finished
-        self.seqGUI.progress.setValue(len(self.flat_seq))
+        self.progress.emit(len(self.flat_seq))
 
 ##########################################################################
 ##########################################################################
@@ -1497,6 +1524,7 @@ class SequencerGUI(qt.QWidget):
     def __init__(self, parent ):
         super().__init__()
         self.parent = parent
+        self.sequencer = None
 
         # make a box to contain the sequencer
         self.main_frame = qt.QVBoxLayout()
@@ -1505,8 +1533,8 @@ class SequencerGUI(qt.QWidget):
         # make the tree
         self.qtw = qt.QTreeWidget()
         self.main_frame.addWidget(self.qtw)
-        self.qtw.setColumnCount(4)
-        self.qtw.setHeaderLabels(['Device','Function','Parameters','Δt [s]'])
+        self.qtw.setColumnCount(5)
+        self.qtw.setHeaderLabels(['Device','Function','Parameters','Δt [s]','Wait?'])
         self.qtw.setAlternatingRowColors(True)
         self.qtw.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.qtw.setDragEnabled(True)
@@ -1515,17 +1543,25 @@ class SequencerGUI(qt.QWidget):
         self.qtw.setDragDropMode(QtGui.QAbstractItemView.InternalMove)
 
         # populate the tree
-        cities = qt.QTreeWidgetItem(self.qtw);
-        cities.setFlags(cities.flags() | PyQt5.QtCore.Qt.ItemIsEditable);
-        cities.setText(0, "Test1");
-        cities.setText(1, "takeinput");
-        cities.setText(2, "'a', 'b', 'c', 'd'");
-        cities.setText(3, "0.5");
-        oslo = qt.QTreeWidgetItem(cities);
-        oslo.setText(0, "Test2");
-        oslo.setText(1, "beep");
-        oslo.setText(2, "");
-        oslo.setText(3, "1");
+        t1 = qt.QTreeWidgetItem(self.qtw);
+        t1.setFlags(t1.flags() | PyQt5.QtCore.Qt.ItemIsEditable);
+        t1.setText(0, "Test1");
+        t1.setText(1, "takeinput");
+        t1.setText(2, "'a', 'b', 'c', 'd'");
+        t1.setText(3, "0.5");
+        t2 = qt.QTreeWidgetItem(t1);
+        t2.setFlags(t1.flags() | PyQt5.QtCore.Qt.ItemIsEditable);
+        t2.setText(0, "Test2");
+        t2.setText(1, "beep");
+        t2.setText(2, "");
+        t2.setText(3, "1");
+        t3 = qt.QTreeWidgetItem(t1);
+        t3.setFlags(t1.flags() | PyQt5.QtCore.Qt.ItemIsEditable);
+        t3.setText(0, "Test2");
+        t3.setText(1, "wait_seconds");
+        t3.setText(2, "1,3");
+        t3.setText(3, "0");
+        t3.setText(4, "yes, please!");
 
         # box for buttons
         self.bbox = qt.QHBoxLayout()
@@ -1565,10 +1601,19 @@ class SequencerGUI(qt.QWidget):
             else:
                 self.qtw.takeTopLevelItem(index)
 
+    def update_progress(self, i):
+        self.progress.setValue(i)
+
     def start_sequencer(self):
         # instantiate and start the thread
         self.sequencer = Sequencer(self.parent)
         self.sequencer.start()
+
+        # NB: Qt is not thread safe. Calling SequencerGUI.update_progress()
+        # directly from another thread (e.g. from Sequencer) will cause random
+        # race-condition segfaults. Instead, the other thread has to emit a
+        # Signal, which we here connect to update_progress().
+        self.sequencer.progress.connect(self.update_progress)
 
         # change the "Start" button into a "Stop" button
         self.start_pb.setText("Stop")
@@ -1581,8 +1626,9 @@ class SequencerGUI(qt.QWidget):
 
     def stop_sequencer(self):
         # signal the thread to stop
-        if self.sequencer.active.is_set():
-            self.sequencer.active.clear()
+        if self.sequencer:
+            if self.sequencer.active.is_set():
+                self.sequencer.active.clear()
 
         # change the "Stop" button into a "Start" button
         self.start_pb.setText("Start")

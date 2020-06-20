@@ -1,4 +1,3 @@
-import pyvisa
 import numpy as np
 import time
 import logging
@@ -44,3 +43,7 @@ class Test:
 
     def takeinput(self, param):
         print(f"Received the parameter: {param}")
+
+    def wait_seconds(self, dt):
+        print(f"Gonna sleep for {dt} seconds.")
+        time.sleep(dt)

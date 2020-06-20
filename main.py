@@ -781,6 +781,27 @@ class HDF_writer(threading.Thread):
             data.append( fifo.popleft() )
         return data
 
+class Sequencer(threading.Thread):
+    def __init__(self, parent):
+        threading.Thread.__init__(self)
+        self.parent = parent
+        self.seqGUI = self.parent.ControlGUI.seq
+        self.active = threading.Event()
+        self.active.set()
+
+    def run(self):
+        # calculate the expected duration of the sequence
+        # TODO
+        self.seqGUI.progress.setMaximum(5)
+        start_time = time.time()
+
+        # main sequencer loop
+        while self.active.is_set():
+            time.sleep(1)
+            num = time.time()-start_time
+            self.seqGUI.progress.setValue(num)
+            print(f"Sequencer running at {num}")
+
 ##########################################################################
 ##########################################################################
 #######                                                 ##################
@@ -1427,6 +1448,100 @@ class AttrEditor(QtGui.QDialog):
                     val = self.qtw.item(row, 1).text()
                     self.parent.config["run_attributes"][key] = val
 
+class SequencerGUI(qt.QWidget):
+    def __init__(self, parent ):
+        super().__init__()
+        self.parent = parent
+
+        # make a box to contain the sequencer
+        self.main_frame = qt.QVBoxLayout()
+        self.setLayout(self.main_frame)
+
+        # make the tree
+        self.qtw = qt.QTreeWidget()
+        self.main_frame.addWidget(self.qtw)
+        self.qtw.setColumnCount(4)
+        self.qtw.setHeaderLabels(['Device','Function','Parameters','Δt [s]'])
+        self.qtw.setAlternatingRowColors(True)
+        self.qtw.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+        self.qtw.setDragEnabled(True)
+        self.qtw.setAcceptDrops(True)
+        self.qtw.setDropIndicatorShown(True)
+        self.qtw.setDragDropMode(QtGui.QAbstractItemView.InternalMove)
+
+        # populate the tree
+        cities = qt.QTreeWidgetItem(self.qtw);
+        cities.setFlags(cities.flags() | PyQt5.QtCore.Qt.ItemIsEditable);
+        cities.setText(0, "Cities");
+        oslo = qt.QTreeWidgetItem(cities);
+        oslo.setText(0, "Oslo");
+        oslo.setText(1, "Yea");
+
+        # box for buttons
+        self.bbox = qt.QHBoxLayout()
+        self.main_frame.addLayout(self.bbox)
+
+        # button to add new item
+        pb = qt.QPushButton("Add line")
+        pb.clicked[bool].connect(self.add_line)
+        self.bbox.addWidget(pb)
+
+        # button to remove currently selected line
+        pb = qt.QPushButton("Remove selected line(s)")
+        pb.clicked[bool].connect(self.remove_line)
+        self.bbox.addWidget(pb)
+
+        # button to start/stop the sequence
+        self.start_pb = qt.QPushButton("Start")
+        self.start_pb.clicked[bool].connect(self.start_sequencer)
+        self.bbox.addWidget(self.start_pb)
+
+        # progress bar
+        self.progress = qt.QProgressBar()
+        self.progress.setFixedWidth(200)
+        self.progress.setMinimum(0)
+        self.progress.hide()
+        self.bbox.addWidget(self.progress)
+
+    def add_line(self):
+        line = qt.QTreeWidgetItem(self.qtw)
+        line.setFlags(line.flags() | PyQt5.QtCore.Qt.ItemIsEditable);
+
+    def remove_line(self):
+        for line in self.qtw.selectedItems():
+            index = self.qtw.indexOfTopLevelItem(line)
+            if index == -1:
+                line.parent().takeChild(line.parent().indexOfChild(line))
+            else:
+                self.qtw.takeTopLevelItem(index)
+
+    def start_sequencer(self):
+        # instantiate and start the thread
+        self.sequencer = Sequencer(self.parent)
+        self.sequencer.start()
+
+        # change the "Start" button into a "Stop" button
+        self.start_pb.setText("Stop")
+        self.start_pb.disconnect()
+        self.start_pb.clicked[bool].connect(self.stop_sequencer)
+
+        # show the progress bar
+        self.progress.setValue(0)
+        self.progress.show()
+
+    def stop_sequencer(self):
+        # signal the thread to stop
+        if self.sequencer.active.is_set():
+            self.sequencer.active.clear()
+
+        # change the "Stop" button into a "Start" button
+        self.start_pb.setText("Start")
+        self.start_pb.disconnect()
+        self.start_pb.clicked[bool].connect(self.start_sequencer)
+
+        # hide the progress bar
+        self.progress.hide()
+
 class ControlGUI(qt.QWidget):
     def __init__(self, parent):
         super().__init__()
@@ -1626,6 +1741,18 @@ class ControlGUI(qt.QWidget):
         pb = qt.QPushButton("Send")
         pb.clicked[bool].connect(self.queue_custom_command)
         files_frame.addWidget(pb, 5, 2)
+
+        ########################################
+        # sequencer
+        ########################################
+
+        # frame for the sequencer
+        box, self.seq_frame = LabelFrame("Sequencer")
+        self.main_frame.addWidget(box)
+
+        # make and place the sequencer
+        self.seq = SequencerGUI(self.parent)
+        self.seq_frame.addWidget(self.seq)
 
         ########################################
         # devices

@@ -1,6 +1,6 @@
 [general]
 default_plot_dt = 0.1
-default_hdf_dt = 0.1
+default_hdf_dt = 1
 run_name = test
 hdf_loop_delay = .1
 monitoring_dt = 1.0

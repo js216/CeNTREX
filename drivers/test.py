@@ -38,3 +38,9 @@ class Test:
         warnings = self.warnings
         self.warnings = []
         return warnings
+
+    def beep(self):
+        print("Beeping!")
+
+    def takeinput(self, param):
+        print(f"Received the parameter: {param}")

@@ -336,7 +336,7 @@ class Device(threading.Thread):
                         try:
                             ret_val = eval("device." + c.strip())
                         except Exception as err:
-                            logging.info(traceback.format_exc())
+                            logging.warning(traceback.format_exc())
                             ret_val = str(err)
                         ret_val = "None" if not ret_val else ret_val
                         self.last_event = [ time.time()-self.time_offset, c, ret_val ]
@@ -683,7 +683,7 @@ class HDF_writer(threading.Thread):
                     self.write_all_queues_to_HDF(fname)
             except OSError as err:
                 logging.warning("HDF_writer error: {0}".format(err))
-                logging.warning(traceback.format_exc())
+                logging.info(traceback.format_exc())
 
             # loop delay
             try:
@@ -784,23 +784,68 @@ class HDF_writer(threading.Thread):
 class Sequencer(threading.Thread):
     def __init__(self, parent):
         threading.Thread.__init__(self)
-        self.parent = parent
-        self.seqGUI = self.parent.ControlGUI.seq
+
+        # access to the outside world
+        self.seqGUI = parent.ControlGUI.seq
+        self.devices = parent.devices
+        self.queue_command = parent.ControlGUI.queue_command
+
+        # to enable stopping the thread
         self.active = threading.Event()
         self.active.set()
 
+        # defaults
+        self.default_dt = 1
+
+    def flatten_tree(self, item):
+        # extract information
+        dev, fn = item.text(0), item.text(1)
+        params = item.text(2).split(",")
+        try:
+            dt = float(item.text(3))
+        except ValueError:
+            logging.info(f"Cannot convert to float: {item.text(3)}")
+            dt = self.default_dt
+
+        # iterate over the given parameter list
+        for p in params:
+            if dev and fn:
+                if dev in self.devices:
+                    self.flat_seq.append([dev, fn, p, dt])
+                else:
+                    logging.warning(f"Device does not exist: {dev}")
+
+            # get information about the item's children
+            child_count = item.childCount()
+            for i in range(child_count):
+                self.flatten_tree(item.child(i))
+
     def run(self):
-        # calculate the expected duration of the sequence
-        # TODO
-        self.seqGUI.progress.setMaximum(5)
-        start_time = time.time()
+        # flatten the tree into sequence of rows
+        self.flat_seq = []
+        root = self.seqGUI.qtw.invisibleRootItem()
+        self.flatten_tree(root)
+        self.seqGUI.progress.setMaximum(len(self.flat_seq))
+
+        # in case there was an error parsing the tree
+        if not self.active.is_set():
+            return
 
         # main sequencer loop
-        while self.active.is_set():
-            time.sleep(1)
-            num = time.time()-start_time
-            self.seqGUI.progress.setValue(num)
-            print(f"Sequencer running at {num}")
+        for i,(dev,fn,p,dt) in enumerate(self.flat_seq):
+            # check for user stop request
+            if not self.active.is_set():
+                return
+
+            # enqueue the commands
+            self.seqGUI.progress.setValue(i)
+            self.queue_command(self.devices[dev], f"{fn}({p})")
+
+            # loop delay
+            time.sleep(dt)
+
+        # when finished
+        self.seqGUI.progress.setValue(len(self.flat_seq))
 
 ##########################################################################
 ##########################################################################
@@ -1472,10 +1517,15 @@ class SequencerGUI(qt.QWidget):
         # populate the tree
         cities = qt.QTreeWidgetItem(self.qtw);
         cities.setFlags(cities.flags() | PyQt5.QtCore.Qt.ItemIsEditable);
-        cities.setText(0, "Cities");
+        cities.setText(0, "Test1");
+        cities.setText(1, "takeinput");
+        cities.setText(2, "'a', 'b', 'c', 'd'");
+        cities.setText(3, "0.5");
         oslo = qt.QTreeWidgetItem(cities);
-        oslo.setText(0, "Oslo");
-        oslo.setText(1, "Yea");
+        oslo.setText(0, "Test2");
+        oslo.setText(1, "beep");
+        oslo.setText(2, "");
+        oslo.setText(3, "1");
 
         # box for buttons
         self.bbox = qt.QHBoxLayout()
@@ -1930,7 +1980,8 @@ class ControlGUI(qt.QWidget):
     def place_device_controls(self):
         for dev_name, dev in self.parent.devices.items():
             # frame for device controls and monitoring
-            box, dcf = LabelFrame(dev.config["label"], type="vbox")
+            label = dev.config["label"] + " [" + dev.config["name"] + "]"
+            box, dcf = LabelFrame(label, type="vbox")
             self.devices_frame.addWidget(box, dev.config["row"], dev.config["column"])
 
             # layout for controls
@@ -2530,6 +2581,9 @@ class ControlGUI(qt.QWidget):
         self.parent.PlotsGUI.clear_all_fast_y()
 
     def stop_control(self):
+        # stop the sequencer
+        self.seq.stop_sequencer()
+
         # check we're not stopped already
         if not self.parent.config['control_active']:
             return
@@ -3614,6 +3668,7 @@ class CentrexGUI(qt.QMainWindow):
             self.ControlGUI.orientation_pb.setToolTip("Put controls and plots/monitoring on top of each other (Ctrl+V).")
 
     def closeEvent(self, event):
+        self.ControlGUI.seq.stop_sequencer()
         if self.config['control_active']:
             if qt.QMessageBox.question(self, 'Confirm quit',
                 "Control running. Do you really want to quit?", qt.QMessageBox.Yes |

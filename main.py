@@ -1,6 +1,7 @@
 import re
 import h5py
 import time
+import json
 import PyQt5
 import pickle
 import pyvisa
@@ -1543,25 +1544,7 @@ class SequencerGUI(qt.QWidget):
         self.qtw.setDragDropMode(QtGui.QAbstractItemView.InternalMove)
 
         # populate the tree
-        t1 = qt.QTreeWidgetItem(self.qtw);
-        t1.setFlags(t1.flags() | PyQt5.QtCore.Qt.ItemIsEditable);
-        t1.setText(0, "Test1");
-        t1.setText(1, "takeinput");
-        t1.setText(2, "'a', 'b', 'c', 'd'");
-        t1.setText(3, "0.5");
-        t2 = qt.QTreeWidgetItem(t1);
-        t2.setFlags(t1.flags() | PyQt5.QtCore.Qt.ItemIsEditable);
-        t2.setText(0, "Test2");
-        t2.setText(1, "beep");
-        t2.setText(2, "");
-        t2.setText(3, "1");
-        t3 = qt.QTreeWidgetItem(t1);
-        t3.setFlags(t1.flags() | PyQt5.QtCore.Qt.ItemIsEditable);
-        t3.setText(0, "Test2");
-        t3.setText(1, "wait_seconds");
-        t3.setText(2, "1,3");
-        t3.setText(3, "0");
-        t3.setText(4, "yes, please!");
+        self.load_from_file()
 
         # box for buttons
         self.bbox = qt.QHBoxLayout()
@@ -1588,6 +1571,47 @@ class SequencerGUI(qt.QWidget):
         self.progress.setMinimum(0)
         self.progress.hide()
         self.bbox.addWidget(self.progress)
+
+    def load_from_file(self):
+        # check file exists
+        fname = self.parent.config["files"]["sequence_fname"]
+        if not os.path.exists(fname):
+            logging.warning("Sequencer load warning: file does not exist.")
+            return
+
+        # read from file
+        with open(fname, 'r') as f:
+            tree_list = json.load(f)
+
+        # populate the tree
+        self.list_to_tree(tree_list, self.qtw, self.qtw.columnCount())
+
+    def list_to_tree(self, tree_list, item, ncols):
+        for x in tree_list:
+            t = qt.QTreeWidgetItem(item);
+            t.setFlags(t.flags() | PyQt5.QtCore.Qt.ItemIsEditable);
+            for i in range(ncols):
+                t.setText(i, x[i]);
+
+            # if there are children
+            self.list_to_tree(x[ncols], t, ncols)
+
+    def save_to_file(self):
+        # convert to list
+        tree_list = self.tree_to_list(self.qtw.invisibleRootItem(), self.qtw.columnCount())
+
+        # write to file
+        fname = self.parent.config["files"]["sequence_fname"]
+        with open(fname, 'w') as f:
+            json.dump(tree_list, f)
+
+    def tree_to_list(self, item, ncols):
+        tree_list = []
+        for i in range(item.childCount()):
+            row = [item.child(i).text(j) for j in range(ncols)]
+            row.append(self.tree_to_list(item.child(i), ncols))
+            tree_list.append(row)
+        return tree_list
 
     def add_line(self):
         line = qt.QTreeWidgetItem(self.qtw)
@@ -1849,6 +1873,38 @@ class ControlGUI(qt.QWidget):
         # make and place the sequencer
         self.seq = SequencerGUI(self.parent)
         self.seq_frame.addWidget(self.seq)
+
+        # label
+        files_frame.addWidget(qt.QLabel("Sequencer file:"), 6, 0)
+
+        # box for some of the buttons and stuff
+        b_frame = qt.QHBoxLayout()
+        files_frame.addLayout(b_frame, 6, 1, 1, 2)
+
+        # filename
+        self.fname_qle = qt.QLineEdit()
+        self.fname_qle.setToolTip("Filename for storing a sequence.")
+        self.fname_qle.setText(self.parent.config["files"]["sequence_fname"])
+        self.fname_qle.textChanged[str].connect(lambda val: self.parent.config.change("files", "sequence_fname", val))
+        b_frame.addWidget(self.fname_qle)
+
+        # open button
+        pb = qt.QPushButton("Open...")
+        pb.clicked[bool].connect(
+                lambda val, qle=self.fname_qle: self.open_file("files", "hdf_fname", self.fname_qle)
+            )
+        b_frame.addWidget(pb)
+
+        # load button
+        pb = qt.QPushButton("Load")
+        pb.clicked[bool].connect(self.seq.load_from_file)
+        b_frame.addWidget(pb)
+
+        # save button
+        pb = qt.QPushButton("Save")
+        pb.clicked[bool].connect(self.seq.save_to_file)
+        b_frame.addWidget(pb)
+
 
         ########################################
         # devices

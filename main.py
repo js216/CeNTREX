@@ -800,7 +800,7 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
     # signal emitted when sequence terminates
     finished = PyQt5.QtCore.pyqtSignal()
 
-    def __init__(self, parent, circular):
+    def __init__(self, parent, circular, n_repeats):
         threading.Thread.__init__(self)
         PyQt5.QtCore.QObject.__init__(self)
 
@@ -813,8 +813,10 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
         self.active.set()
 
         # defaults
+        # TODO: use a Config class to do this
         self.default_dt = 0.1
         self.circular = circular
+        self.n_repeats = n_repeats
 
     def flatten_tree(self, item):
         # extract information
@@ -840,10 +842,10 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
                     else:
                         logging.warning(f"Device does not exist: {dev}")
 
-            # get information about the item's children
-            child_count = item.childCount()
-            for i in range(child_count):
-                self.flatten_tree(item.child(i))
+                # get information about the item's children
+                child_count = item.childCount()
+                for i in range(child_count):
+                    self.flatten_tree(item.child(i))
 
     def run(self):
         # flatten the tree into sequence of rows
@@ -851,6 +853,9 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
         root = self.seqGUI.qtw.invisibleRootItem()
         self.flatten_tree(root)
         self.seqGUI.progress.setMaximum(len(self.flat_seq))
+
+        # repeat the entire sequence n times
+        self.flat_seq = self.n_repeats * self.flat_seq
 
         # if we want to cycle over the same loop forever
         if self.circular:
@@ -879,7 +884,7 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
                     try:
                         id1, _, _, _ = self.devices[dev].sequencer_events_queue.pop()
                         if id1 == id0:
-                            finished = True;
+                            finished = True
                     except IndexError:
                         time.sleep(self.default_dt)
 
@@ -1576,7 +1581,14 @@ class SequencerGUI(qt.QWidget):
         pb.clicked[bool].connect(self.remove_line)
         self.bbox.addWidget(pb)
 
-        # button to start/stop the sequence
+        # text box to enter the number of repetitions of the entire sequence
+        self.repeat_le = qt.QLineEdit("# of repeats")
+        sp = qt.QSizePolicy(qt.QSizePolicy.Preferred, qt.QSizePolicy.Preferred)
+        sp.setHorizontalStretch(.1)
+        self.repeat_le.setSizePolicy(sp)
+        self.bbox.addWidget(self.repeat_le)
+
+        # button to loop forever, or not, the entire sequence
         self.loop_pb = qt.QPushButton("Single run")
         self.loop_pb.clicked[bool].connect(self.toggle_loop)
         self.bbox.addWidget(self.loop_pb)
@@ -1594,6 +1606,7 @@ class SequencerGUI(qt.QWidget):
         self.bbox.addWidget(self.progress)
 
         # settings / defaults
+        # TODO: use a Config class to do this
         self.circular = False
 
     def toggle_loop(self):
@@ -1621,10 +1634,10 @@ class SequencerGUI(qt.QWidget):
 
     def list_to_tree(self, tree_list, item, ncols):
         for x in tree_list:
-            t = qt.QTreeWidgetItem(item);
-            t.setFlags(t.flags() | PyQt5.QtCore.Qt.ItemIsEditable);
+            t = qt.QTreeWidgetItem(item)
+            t.setFlags(t.flags() | PyQt5.QtCore.Qt.ItemIsEditable)
             for i in range(ncols):
-                t.setText(i, x[i]);
+                t.setText(i, x[i])
 
             # if there are children
             self.list_to_tree(x[ncols], t, ncols)
@@ -1648,7 +1661,7 @@ class SequencerGUI(qt.QWidget):
 
     def add_line(self):
         line = qt.QTreeWidgetItem(self.qtw)
-        line.setFlags(line.flags() | PyQt5.QtCore.Qt.ItemIsEditable);
+        line.setFlags(line.flags() | PyQt5.QtCore.Qt.ItemIsEditable)
 
     def remove_line(self):
         for line in self.qtw.selectedItems():
@@ -1662,8 +1675,14 @@ class SequencerGUI(qt.QWidget):
         self.progress.setValue(i)
 
     def start_sequencer(self):
+        # determine how many times to repeat the entire sequence
+        try:
+            n_repeats = int(self.repeat_le.text())
+        except ValueError:
+            n_repeats = 1
+
         # instantiate and start the thread
-        self.sequencer = Sequencer(self.parent, self.circular)
+        self.sequencer = Sequencer(self.parent, self.circular, n_repeats)
         self.sequencer.start()
 
         # NB: Qt is not thread safe. Calling SequencerGUI.update_progress()
@@ -2695,7 +2714,7 @@ class ControlGUI(qt.QWidget):
         self.HDF_writer = HDF_writer(self.parent)
         self.HDF_writer.start()
 
-        # start control for all devices;
+        # start control for all devices
         for dev_name, dev in self.parent.devices.items():
             if dev.config["control_params"]["enabled"]["value"]:
                 dev.clear_queues()

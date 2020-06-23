@@ -81,12 +81,12 @@ QProgressBar
    color: white;
 }
 
-QTableView
+QTableView,QTreeView
 {
    alternate-background-color: #191919;
 }
 
-QTableView QHeaderView::section
+QTableView,QTreeView QHeaderView::section
 {
   background-color: #222;
 }

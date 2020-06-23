@@ -1,4 +1,3 @@
-import pyvisa
 import numpy as np
 import time
 import logging
@@ -38,3 +37,13 @@ class Test:
         warnings = self.warnings
         self.warnings = []
         return warnings
+
+    def beep(self):
+        print("Beeping!")
+
+    def takeinput(self, param):
+        print(f"Received the parameter: {param}")
+
+    def wait_seconds(self, dt):
+        print(f"Gonna sleep for {dt} seconds.")
+        time.sleep(dt)

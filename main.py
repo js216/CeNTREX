@@ -1,10 +1,12 @@
 import re
 import h5py
 import time
+import json
 import PyQt5
 import pickle
 import pyvisa
 import logging
+import itertools
 import traceback
 import threading
 import numpy as np
@@ -184,12 +186,11 @@ class Device(threading.Thread):
         self.operational = False
         self.error_message = ""
 
-        # for commands sent by the user to the device
+        # for commands sent to the device
         self.commands = []
         self.last_event = []
-
-        # for commands sent the Monitoring to the device
         self.monitoring_commands = set()
+        self.sequencer_commands = []
 
         # for warnings about device abnormal condition
         self.warnings = []
@@ -200,6 +201,7 @@ class Device(threading.Thread):
         self.config["plots_queue"] = deque(maxlen=self.config["plots_queue_maxlen"])
         self.events_queue = deque()
         self.monitoring_events_queue = deque()
+        self.sequencer_events_queue = deque()
 
         # the variable for counting the number of NaN returns
         self.nan_count = 0
@@ -336,12 +338,22 @@ class Device(threading.Thread):
                         try:
                             ret_val = eval("device." + c.strip())
                         except Exception as err:
-                            logging.info(traceback.format_exc())
+                            logging.warning(traceback.format_exc())
                             ret_val = str(err)
                         ret_val = "None" if not ret_val else ret_val
                         self.last_event = [ time.time()-self.time_offset, c, ret_val ]
                         self.events_queue.append(self.last_event)
                     self.commands = []
+
+                    # send sequencer commands, if any, to the device, and record return values
+                    for id0,c in self.sequencer_commands:
+                        try:
+                            ret_val = eval("device." + c.strip())
+                        except Exception as err:
+                            logging.warning(traceback.format_exc())
+                            ret_val = None
+                        self.sequencer_events_queue.append([id0, time.time_ns(), c, ret_val])
+                    self.sequencer_commands = []
 
                     # send monitoring commands, if any, to the device, and record return values
                     for c in self.monitoring_commands:
@@ -684,7 +696,7 @@ class HDF_writer(threading.Thread):
                     self.write_all_queues_to_HDF(fname)
             except OSError as err:
                 logging.warning("HDF_writer error: {0}".format(err))
-                logging.warning(traceback.format_exc())
+                logging.info(traceback.format_exc())
 
             # loop delay
             try:
@@ -781,6 +793,109 @@ class HDF_writer(threading.Thread):
         while len(fifo) > 0:
             data.append( fifo.popleft() )
         return data
+
+class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
+    # signal to update the progress bar
+    progress = PyQt5.QtCore.pyqtSignal(int)
+
+    # signal emitted when sequence terminates
+    finished = PyQt5.QtCore.pyqtSignal()
+
+    def __init__(self, parent, circular, n_repeats):
+        threading.Thread.__init__(self)
+        PyQt5.QtCore.QObject.__init__(self)
+
+        # access to the outside world
+        self.seqGUI = parent.ControlGUI.seq
+        self.devices = parent.devices
+
+        # to enable stopping the thread
+        self.active = threading.Event()
+        self.active.set()
+
+        # defaults
+        # TODO: use a Config class to do this
+        self.default_dt = 0.1
+        self.circular = circular
+        self.n_repeats = n_repeats
+
+    def flatten_tree(self, item):
+        # extract information
+        dev, fn, wait = item.text(0), item.text(1), item.text(4)
+        params = item.text(2).split(",")
+        try:
+            dt = float(item.text(3))
+        except ValueError:
+            logging.info(f"Cannot convert to float: {item.text(3)}")
+            dt = self.default_dt
+        try:
+            n_rep = int(item.text(5))
+        except ValueError:
+            logging.info(f"Cannot convert to int: {item.text(5)}")
+            n_rep = 1
+
+        # iterate over the given parameter list
+        for i in range(n_rep):
+            for p in params:
+                if dev and fn:
+                    if dev in self.devices:
+                        self.flat_seq.append([dev, fn, p, dt, wait])
+                    else:
+                        logging.warning(f"Device does not exist: {dev}")
+
+                # get information about the item's children
+                child_count = item.childCount()
+                for i in range(child_count):
+                    self.flatten_tree(item.child(i))
+
+    def run(self):
+        # flatten the tree into sequence of rows
+        self.flat_seq = []
+        root = self.seqGUI.qtw.invisibleRootItem()
+        self.flatten_tree(root)
+        self.seqGUI.progress.setMaximum(len(self.flat_seq))
+
+        # repeat the entire sequence n times
+        self.flat_seq = self.n_repeats * self.flat_seq
+
+        # if we want to cycle over the same loop forever
+        if self.circular:
+            self.flat_seq = itertools.cycle(self.flat_seq)
+
+        # main sequencer loop
+        for i,(dev,fn,p,dt,wait) in enumerate(self.flat_seq):
+            # check for user stop request
+            if not self.active.is_set():
+                return
+
+            # enqueue the commands and wait
+            id0 = time.time_ns()
+            self.devices[dev].sequencer_commands.append([id0, f"{fn}({p})"])
+            time.sleep(dt)
+
+            # wait till completion, if requested
+            if wait:
+                finished = False
+                while not finished:
+                    # check for user stop request
+                    if not self.active.is_set():
+                        return
+
+                    # look for return values
+                    try:
+                        id1, _, _, _ = self.devices[dev].sequencer_events_queue.pop()
+                        if id1 == id0:
+                            finished = True
+                    except IndexError:
+                        time.sleep(self.default_dt)
+
+
+            # update progress bar
+            self.progress.emit(i)
+
+        # when finished
+        self.progress.emit(len(self.flat_seq))
+        self.finished.emit()
 
 ##########################################################################
 ##########################################################################
@@ -1428,6 +1543,179 @@ class AttrEditor(QtGui.QDialog):
                     val = self.qtw.item(row, 1).text()
                     self.parent.config["run_attributes"][key] = val
 
+class SequencerGUI(qt.QWidget):
+    def __init__(self, parent ):
+        super().__init__()
+        self.parent = parent
+        self.sequencer = None
+
+        # make a box to contain the sequencer
+        self.main_frame = qt.QVBoxLayout()
+        self.setLayout(self.main_frame)
+
+        # make the tree
+        self.qtw = qt.QTreeWidget()
+        self.main_frame.addWidget(self.qtw)
+        self.qtw.setColumnCount(6)
+        self.qtw.setHeaderLabels(['Device','Function','Parameters','Δt [s]','Wait?','Repeat'])
+        self.qtw.setAlternatingRowColors(True)
+        self.qtw.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+        self.qtw.setDragEnabled(True)
+        self.qtw.setAcceptDrops(True)
+        self.qtw.setDropIndicatorShown(True)
+        self.qtw.setDragDropMode(QtGui.QAbstractItemView.InternalMove)
+
+        # populate the tree
+        self.load_from_file()
+
+        # box for buttons
+        self.bbox = qt.QHBoxLayout()
+        self.main_frame.addLayout(self.bbox)
+
+        # button to add new item
+        pb = qt.QPushButton("Add line")
+        pb.clicked[bool].connect(self.add_line)
+        self.bbox.addWidget(pb)
+
+        # button to remove currently selected line
+        pb = qt.QPushButton("Remove selected line(s)")
+        pb.clicked[bool].connect(self.remove_line)
+        self.bbox.addWidget(pb)
+
+        # text box to enter the number of repetitions of the entire sequence
+        self.repeat_le = qt.QLineEdit("# of repeats")
+        sp = qt.QSizePolicy(qt.QSizePolicy.Preferred, qt.QSizePolicy.Preferred)
+        sp.setHorizontalStretch(.1)
+        self.repeat_le.setSizePolicy(sp)
+        self.bbox.addWidget(self.repeat_le)
+
+        # button to loop forever, or not, the entire sequence
+        self.loop_pb = qt.QPushButton("Single run")
+        self.loop_pb.clicked[bool].connect(self.toggle_loop)
+        self.bbox.addWidget(self.loop_pb)
+
+        # button to start/stop the sequence
+        self.start_pb = qt.QPushButton("Start")
+        self.start_pb.clicked[bool].connect(self.start_sequencer)
+        self.bbox.addWidget(self.start_pb)
+
+        # progress bar
+        self.progress = qt.QProgressBar()
+        self.progress.setFixedWidth(200)
+        self.progress.setMinimum(0)
+        self.progress.hide()
+        self.bbox.addWidget(self.progress)
+
+        # settings / defaults
+        # TODO: use a Config class to do this
+        self.circular = False
+
+    def toggle_loop(self):
+        if self.circular:
+            self.circular = False
+            self.loop_pb.setText("Single run")
+        else:
+            self.circular = True
+            self.loop_pb.setText("Looping forever")
+
+    def load_from_file(self):
+        # check file exists
+        fname = self.parent.config["files"]["sequence_fname"]
+        if not os.path.exists(fname):
+            logging.warning("Sequencer load warning: file does not exist.")
+            return
+
+        # read from file
+        with open(fname, 'r') as f:
+            tree_list = json.load(f)
+
+        # populate the tree
+        self.list_to_tree(tree_list, self.qtw, self.qtw.columnCount())
+        self.qtw.expandAll()
+
+    def list_to_tree(self, tree_list, item, ncols):
+        for x in tree_list:
+            t = qt.QTreeWidgetItem(item)
+            t.setFlags(t.flags() | PyQt5.QtCore.Qt.ItemIsEditable)
+            for i in range(ncols):
+                t.setText(i, x[i])
+
+            # if there are children
+            self.list_to_tree(x[ncols], t, ncols)
+
+    def save_to_file(self):
+        # convert to list
+        tree_list = self.tree_to_list(self.qtw.invisibleRootItem(), self.qtw.columnCount())
+
+        # write to file
+        fname = self.parent.config["files"]["sequence_fname"]
+        with open(fname, 'w') as f:
+            json.dump(tree_list, f)
+
+    def tree_to_list(self, item, ncols):
+        tree_list = []
+        for i in range(item.childCount()):
+            row = [item.child(i).text(j) for j in range(ncols)]
+            row.append(self.tree_to_list(item.child(i), ncols))
+            tree_list.append(row)
+        return tree_list
+
+    def add_line(self):
+        line = qt.QTreeWidgetItem(self.qtw)
+        line.setFlags(line.flags() | PyQt5.QtCore.Qt.ItemIsEditable)
+
+    def remove_line(self):
+        for line in self.qtw.selectedItems():
+            index = self.qtw.indexOfTopLevelItem(line)
+            if index == -1:
+                line.parent().takeChild(line.parent().indexOfChild(line))
+            else:
+                self.qtw.takeTopLevelItem(index)
+
+    def update_progress(self, i):
+        self.progress.setValue(i)
+
+    def start_sequencer(self):
+        # determine how many times to repeat the entire sequence
+        try:
+            n_repeats = int(self.repeat_le.text())
+        except ValueError:
+            n_repeats = 1
+
+        # instantiate and start the thread
+        self.sequencer = Sequencer(self.parent, self.circular, n_repeats)
+        self.sequencer.start()
+
+        # NB: Qt is not thread safe. Calling SequencerGUI.update_progress()
+        # directly from another thread (e.g. from Sequencer) will cause random
+        # race-condition segfaults. Instead, the other thread has to emit a
+        # Signal, which we here connect to update_progress().
+        self.sequencer.progress.connect(self.update_progress)
+        self.sequencer.finished.connect(self.stop_sequencer)
+
+        # change the "Start" button into a "Stop" button
+        self.start_pb.setText("Stop")
+        self.start_pb.disconnect()
+        self.start_pb.clicked[bool].connect(self.stop_sequencer)
+
+        # show the progress bar
+        self.progress.setValue(0)
+        self.progress.show()
+
+    def stop_sequencer(self):
+        # signal the thread to stop
+        if self.sequencer:
+            if self.sequencer.active.is_set():
+                self.sequencer.active.clear()
+
+        # change the "Stop" button into a "Start" button
+        self.start_pb.setText("Start")
+        self.start_pb.disconnect()
+        self.start_pb.clicked[bool].connect(self.start_sequencer)
+
+        # hide the progress bar
+        self.progress.hide()
+
 class ControlGUI(qt.QWidget):
     def __init__(self, parent):
         super().__init__()
@@ -1633,6 +1921,50 @@ class ControlGUI(qt.QWidget):
         files_frame.addWidget(pb, 5, 2)
 
         ########################################
+        # sequencer
+        ########################################
+
+        # frame for the sequencer
+        box, self.seq_frame = LabelFrame("Sequencer")
+        self.main_frame.addWidget(box)
+
+        # make and place the sequencer
+        self.seq = SequencerGUI(self.parent)
+        self.seq_frame.addWidget(self.seq)
+
+        # label
+        files_frame.addWidget(qt.QLabel("Sequencer file:"), 6, 0)
+
+        # box for some of the buttons and stuff
+        b_frame = qt.QHBoxLayout()
+        files_frame.addLayout(b_frame, 6, 1, 1, 2)
+
+        # filename
+        self.fname_qle = qt.QLineEdit()
+        self.fname_qle.setToolTip("Filename for storing a sequence.")
+        self.fname_qle.setText(self.parent.config["files"]["sequence_fname"])
+        self.fname_qle.textChanged[str].connect(lambda val: self.parent.config.change("files", "sequence_fname", val))
+        b_frame.addWidget(self.fname_qle)
+
+        # open button
+        pb = qt.QPushButton("Open...")
+        pb.clicked[bool].connect(
+                lambda val, qle=self.fname_qle: self.open_file("files", "hdf_fname", self.fname_qle)
+            )
+        b_frame.addWidget(pb)
+
+        # load button
+        pb = qt.QPushButton("Load")
+        pb.clicked[bool].connect(self.seq.load_from_file)
+        b_frame.addWidget(pb)
+
+        # save button
+        pb = qt.QPushButton("Save")
+        pb.clicked[bool].connect(self.seq.save_to_file)
+        b_frame.addWidget(pb)
+
+
+        ########################################
         # devices
         ########################################
 
@@ -1808,7 +2140,8 @@ class ControlGUI(qt.QWidget):
     def place_device_controls(self):
         for dev_name, dev in self.parent.devices.items():
             # frame for device controls and monitoring
-            box, dcf = LabelFrame(dev.config["label"], type="vbox")
+            label = dev.config["label"] + " [" + dev.config["name"] + "]"
+            box, dcf = LabelFrame(label, type="vbox")
             self.devices_frame.addWidget(box, dev.config["row"], dev.config["column"])
 
             # layout for controls
@@ -2384,7 +2717,7 @@ class ControlGUI(qt.QWidget):
         self.HDF_writer = HDF_writer(self.parent)
         self.HDF_writer.start()
 
-        # start control for all devices;
+        # start control for all devices
         for dev_name, dev in self.parent.devices.items():
             if dev.config["control_params"]["enabled"]["value"]:
                 dev.clear_queues()
@@ -2407,6 +2740,9 @@ class ControlGUI(qt.QWidget):
         self.parent.PlotsGUI.clear_all_fast_y()
 
     def stop_control(self):
+        # stop the sequencer
+        self.seq.stop_sequencer()
+
         # check we're not stopped already
         if not self.parent.config['control_active']:
             return
@@ -3491,6 +3827,7 @@ class CentrexGUI(qt.QMainWindow):
             self.ControlGUI.orientation_pb.setToolTip("Put controls and plots/monitoring on top of each other (Ctrl+V).")
 
     def closeEvent(self, event):
+        self.ControlGUI.seq.stop_sequencer()
         if self.config['control_active']:
             if qt.QMessageBox.question(self, 'Confirm quit',
                 "Control running. Do you really want to quit?", qt.QMessageBox.Yes |

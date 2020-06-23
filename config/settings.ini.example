@@ -1,7 +1,7 @@
 [general]
-debug_level = INFO
+debug_level = WARNING
 default_plot_dt = 0.1
-default_hdf_dt = 0.1
+default_hdf_dt = 1.0
 run_name = test
 hdf_loop_delay = .1
 monitoring_dt = 1.0
@@ -11,10 +11,11 @@ custom_device = Select device ...
 [run_attributes]
 
 [files]
-config_dir = C:/Users/Jakob Kastelic/Documents/temp/CENTREX Jakob/0 common/software/DAQ/config/test
-hdf_fname = C:/Users/Jakob Kastelic/Documents/temp/test.hdf
-plotting_hdf_fname = C:/Users/Jakob Kastelic/Documents/temp/test.hdf
-plotting_config_fname = C:/Users/Jakob Kastelic/Documents/temp/plots.pkl
+config_dir = //vmware-host/Shared Folders/temp/CENTREX Jakob/0 common/DAQ_software/config/test
+hdf_fname = C:/Users/Jakob Kastelic/Documents/DAQtest/test.hdf
+plotting_hdf_fname = C:/Users/Jakob Kastelic/Documents/DAQtest/test.hdf
+plotting_config_fname = C:/Users/Jakob Kastelic/Documents/DAQtest/test.hdf
+sequence_fname = //vmware-host/Shared Folders/temp/CENTREX Jakob/0 common/DAQ_software/config/test/sequence.txt
 
 [influxdb]
 enabled = False

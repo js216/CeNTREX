@@ -364,9 +364,13 @@ class Device(threading.Thread):
                 }
             self.warnings.append([time.time(), warning_dict])
 
-class Monitoring(threading.Thread):
+class Monitoring(threading.Thread,PyQt5.QtCore.QObject):
+    # signal to update the style of a QWidget
+    update_style = PyQt5.QtCore.pyqtSignal(qt.QWidget)
+
     def __init__(self, parent):
         threading.Thread.__init__(self)
+        PyQt5.QtCore.QObject.__init__(self)
         self.parent = parent
         self.active = threading.Event()
 
@@ -398,8 +402,7 @@ class Monitoring(threading.Thread):
                 HDF_status.setProperty("state", "enabled")
 
             # update style
-            ##HDF_status.style().unpolish(HDF_status)
-            #HDF_status.style().polish(HDF_status)
+            self.update_style.emit(HDF_status)
 
             # monitoring dt
             try:
@@ -555,8 +558,7 @@ class Monitoring(threading.Thread):
                     if ind.text() != params["texts"][idx]:
                         ind.setText(params["texts"][idx])
                         ind.setProperty("state", params["states"][idx])
-                        #ind.style().unpolish(ind)
-                        #ind.style().polish(ind)
+                        self.update_style.emit(ind)
 
                 elif params.get("type") == "indicator_button":
                     ind = dev.config["control_GUI_elements"][c_name]["QPushButton"]
@@ -564,8 +566,7 @@ class Monitoring(threading.Thread):
                         ind.setText(params["texts"][idx])
                         ind.setChecked(params["checked"][idx])
                         ind.setProperty("state", params["states"][idx])
-                        #ind.style().unpolish(ind)
-                        #ind.style().polish(ind)
+                        self.update_style.emit(ind)
 
                 elif params.get("type") == "indicator_lineedit":
                     if not dev.config["control_GUI_elements"][c_name]["currently_editing"]:
@@ -1435,6 +1436,10 @@ class ControlGUI(qt.QWidget):
         self.place_GUI_elements()
         self.place_device_controls()
 
+    def update_style(ind):
+        ind.style().unpolish(ind)
+        ind.style().polish(ind)
+
     def make_devices(self):
         self.parent.devices = {}
 
@@ -2048,8 +2053,7 @@ class ControlGUI(qt.QWidget):
                         )
                     c["QLabel"].setProperty("state", param["states"][-1])
                     ind=c["QLabel"]
-                    #ind.style().unpolish(ind)
-                    #ind.style().polish(ind)
+                    self.update_style(ind)
                     if param.get("rowspan") and param.get("colspan"):
                         df.addWidget(c["QLabel"], param["row"], param["col"], param["rowspan"], param["colspan"])
                     else:
@@ -2069,8 +2073,7 @@ class ControlGUI(qt.QWidget):
                     # style
                     c["QPushButton"].setProperty("state", param["states"][-1])
                     ind=c["QPushButton"]
-                    #ind.style().unpolish(ind)
-                    #ind.style().polish(ind)
+                    self.update_style(ind)
 
                     # tooltip
                     if param.get("tooltip"):
@@ -2389,6 +2392,7 @@ class ControlGUI(qt.QWidget):
 
         # update and start the monitoring thread
         self.monitoring = Monitoring(self.parent)
+        self.monitoring.update_style.connect(self.update_style)
         self.monitoring.active.set()
         self.monitoring.start()
 

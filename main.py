@@ -797,6 +797,9 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
     # signal to update the progress bar
     progress = PyQt5.QtCore.pyqtSignal(int)
 
+    # signal emitted when sequence terminates
+    finished = PyQt5.QtCore.pyqtSignal()
+
     def __init__(self, parent, circular):
         threading.Thread.__init__(self)
         PyQt5.QtCore.QObject.__init__(self)
@@ -886,6 +889,7 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
 
         # when finished
         self.progress.emit(len(self.flat_seq))
+        self.finished.emit()
 
 ##########################################################################
 ##########################################################################
@@ -1613,6 +1617,7 @@ class SequencerGUI(qt.QWidget):
 
         # populate the tree
         self.list_to_tree(tree_list, self.qtw, self.qtw.columnCount())
+        self.qtw.expandAll()
 
     def list_to_tree(self, tree_list, item, ncols):
         for x in tree_list:
@@ -1666,6 +1671,7 @@ class SequencerGUI(qt.QWidget):
         # race-condition segfaults. Instead, the other thread has to emit a
         # Signal, which we here connect to update_progress().
         self.sequencer.progress.connect(self.update_progress)
+        self.sequencer.finished.connect(self.stop_sequencer)
 
         # change the "Start" button into a "Stop" button
         self.start_pb.setText("Stop")

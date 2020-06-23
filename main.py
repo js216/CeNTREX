@@ -2275,11 +2275,12 @@ class ControlGUI(qt.QWidget):
 
     def set_config_dir(self, state):
         # ask the user to select a directory
-        self.open_dir("files", "config_dir", self.config_dir_qle)
+        if not self.open_dir("files", "config_dir", self.config_dir_qle):
+            return
 
         # update device controls
         self.devices_frame.clear()
-        self.read_device_config()
+        self.make_devices()
         self.place_device_controls()
 
         # changes the list of devices in send custom command
@@ -2326,7 +2327,7 @@ class ControlGUI(qt.QWidget):
     def refresh_COM_ports(self, button_pressed):
         for dev_name, dev in self.parent.devices.items():
             # check device has a COM_port control
-            if not dev.config["controls"].get("COM_port"):
+            if not dev.config["control_GUI_elements"].get("COM_port"):
                 continue
             else:
                 cbx = dev.config["control_GUI_elements"]["COM_port"]["QComboBox"]
@@ -3365,18 +3366,22 @@ class Plotter(qt.QWidget):
             logging.warning(traceback.format_exc())
 
     def toggle_HDF_or_queue(self, state=""):
-        if not self.dev.config["control_params"]["HDF_enabled"]["value"]:
-            logging.warning("Plot error: cannot plot from HDF when HDF is disabled")
-            return
-
         if self.config["from_HDF"]:
+            # set data source = queue
             self.config["from_HDF"] = False
-            self.HDF_pb.setText("Queue")
-            self.HDF_pb.setToolTip("Force reading the data from the Queue instead of the HDF file.")
-        else:
-            self.config["from_HDF"] = True
             self.HDF_pb.setText("HDF")
             self.HDF_pb.setToolTip("Force reading the data from HDF instead of the queue.")
+
+        else:
+            # check HDF is enabled
+            if not self.dev.config["control_params"]["HDF_enabled"]["value"]:
+                logging.warning("Plot error: cannot plot from HDF when HDF is disabled")
+                return
+
+            # set data source = HDF
+            self.config["from_HDF"] = True
+            self.HDF_pb.setText("Queue")
+            self.HDF_pb.setToolTip("Force reading the data from the Queue instead of the HDF file.")
 
     def toggle_log_lin(self):
         if not self.config["log"]:

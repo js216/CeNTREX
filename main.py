@@ -936,6 +936,7 @@ class ProgramConfig(Config):
                 "control_active"     : bool,
                 "control_visible"    : bool,
                 "monitoring_visible" : bool,
+                "sequencer_visible"  : bool,
                 "plots_visible"      : bool,
                 "horizontal_split"   : bool,
             }
@@ -953,6 +954,7 @@ class ProgramConfig(Config):
         self["control_active"]     = False
         self["control_visible"]    = True
         self["monitoring_visible"] = False
+        self["sequencer_visible"]  = False
         self["plots_visible"]      = False
         self["horizontal_split"]   = True
 
@@ -1925,8 +1927,10 @@ class ControlGUI(qt.QWidget):
         ########################################
 
         # frame for the sequencer
-        box, self.seq_frame = LabelFrame("Sequencer")
-        self.main_frame.addWidget(box)
+        self.seq_box, self.seq_frame = LabelFrame("Sequencer")
+        self.main_frame.addWidget(self.seq_box)
+        if not self.parent.config["sequencer_visible"]:
+            self.seq_box.hide()
 
         # make and place the sequencer
         self.seq = SequencerGUI(self.parent)
@@ -1963,6 +1967,10 @@ class ControlGUI(qt.QWidget):
         pb.clicked[bool].connect(self.seq.save_to_file)
         b_frame.addWidget(pb)
 
+        # buttons to show/hide the sequencer
+        self.hs_pb = qt.QPushButton("Show sequencer")
+        self.hs_pb.clicked[bool].connect(self.toggle_sequencer)
+        b_frame.addWidget(self.hs_pb)
 
         ########################################
         # devices
@@ -2104,6 +2112,16 @@ class ControlGUI(qt.QWidget):
             self.hide()
             self.parent.PlotsGUI.ctrls_box.hide()
             self.parent.PlotsGUI.toggle_all_plot_controls()
+
+    def toggle_sequencer(self, val=""):
+        if not self.parent.config["sequencer_visible"]:
+            self.seq_box.show()
+            self.parent.config["sequencer_visible"] = True
+            self.hs_pb.setText("Hide sequencer")
+        else:
+            self.seq_box.hide()
+            self.parent.config["sequencer_visible"] = False
+            self.hs_pb.setText("Show sequencer")
 
     def toggle_monitoring(self, val=""):
         if not self.parent.config["monitoring_visible"]:

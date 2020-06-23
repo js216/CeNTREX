@@ -1436,7 +1436,7 @@ class ControlGUI(qt.QWidget):
         self.place_GUI_elements()
         self.place_device_controls()
 
-    def update_style(ind):
+    def update_style(self, ind):
         ind.style().unpolish(ind)
         ind.style().polish(ind)
 

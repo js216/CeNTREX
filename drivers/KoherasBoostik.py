@@ -93,6 +93,19 @@ class KoherasBoostik:
         else:
             return False
 
+    def SetCurrentWait(self, current):
+        try:
+            self.SetCurrent(float(current))
+            while True:
+                if self.GetCurrentSetpoint() == float(current):
+                    break
+                else:
+                    time.sleep(0.05)
+            return True
+        except:
+            logging.error('KoherasBoostik error in SetCurrentWait : cannot convert to float')
+            return False
+
     #######################################################
     # Commands for CeNTREX DAQ GUI
     #######################################################

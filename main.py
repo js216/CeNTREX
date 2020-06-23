@@ -6,6 +6,7 @@ import PyQt5
 import pickle
 import pyvisa
 import logging
+import itertools
 import traceback
 import threading
 import numpy as np
@@ -796,7 +797,7 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
     # signal to update the progress bar
     progress = PyQt5.QtCore.pyqtSignal(int)
 
-    def __init__(self, parent):
+    def __init__(self, parent, circular):
         threading.Thread.__init__(self)
         PyQt5.QtCore.QObject.__init__(self)
 
@@ -810,6 +811,7 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
 
         # defaults
         self.default_dt = 0.1
+        self.circular = circular
 
     def flatten_tree(self, item):
         # extract information
@@ -840,6 +842,10 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
         root = self.seqGUI.qtw.invisibleRootItem()
         self.flatten_tree(root)
         self.seqGUI.progress.setMaximum(len(self.flat_seq))
+
+        # if we want to cycle over the same loop forever
+        if self.circular:
+            self.flat_seq = itertools.cycle(self.flat_seq)
 
         # main sequencer loop
         for i,(dev,fn,p,dt,wait) in enumerate(self.flat_seq):
@@ -1561,6 +1567,11 @@ class SequencerGUI(qt.QWidget):
         self.bbox.addWidget(pb)
 
         # button to start/stop the sequence
+        self.loop_pb = qt.QPushButton("Single run")
+        self.loop_pb.clicked[bool].connect(self.toggle_loop)
+        self.bbox.addWidget(self.loop_pb)
+
+        # button to start/stop the sequence
         self.start_pb = qt.QPushButton("Start")
         self.start_pb.clicked[bool].connect(self.start_sequencer)
         self.bbox.addWidget(self.start_pb)
@@ -1571,6 +1582,17 @@ class SequencerGUI(qt.QWidget):
         self.progress.setMinimum(0)
         self.progress.hide()
         self.bbox.addWidget(self.progress)
+
+        # settings / defaults
+        self.circular = False
+
+    def toggle_loop(self):
+        if self.circular:
+            self.circular = False
+            self.loop_pb.setText("Single run")
+        else:
+            self.circular = True
+            self.loop_pb.setText("Looping forever")
 
     def load_from_file(self):
         # check file exists
@@ -1630,7 +1652,7 @@ class SequencerGUI(qt.QWidget):
 
     def start_sequencer(self):
         # instantiate and start the thread
-        self.sequencer = Sequencer(self.parent)
+        self.sequencer = Sequencer(self.parent, self.circular)
         self.sequencer.start()
 
         # NB: Qt is not thread safe. Calling SequencerGUI.update_progress()

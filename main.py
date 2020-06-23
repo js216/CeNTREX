@@ -822,14 +822,20 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
         except ValueError:
             logging.info(f"Cannot convert to float: {item.text(3)}")
             dt = self.default_dt
+        try:
+            n_rep = int(item.text(5))
+        except ValueError:
+            logging.info(f"Cannot convert to int: {item.text(5)}")
+            n_rep = 1
 
         # iterate over the given parameter list
-        for p in params:
-            if dev and fn:
-                if dev in self.devices:
-                    self.flat_seq.append([dev, fn, p, dt, wait])
-                else:
-                    logging.warning(f"Device does not exist: {dev}")
+        for i in range(n_rep):
+            for p in params:
+                if dev and fn:
+                    if dev in self.devices:
+                        self.flat_seq.append([dev, fn, p, dt, wait])
+                    else:
+                        logging.warning(f"Device does not exist: {dev}")
 
             # get information about the item's children
             child_count = item.childCount()
@@ -1540,8 +1546,8 @@ class SequencerGUI(qt.QWidget):
         # make the tree
         self.qtw = qt.QTreeWidget()
         self.main_frame.addWidget(self.qtw)
-        self.qtw.setColumnCount(5)
-        self.qtw.setHeaderLabels(['Device','Function','Parameters','Δt [s]','Wait?'])
+        self.qtw.setColumnCount(6)
+        self.qtw.setHeaderLabels(['Device','Function','Parameters','Δt [s]','Wait?','Repeat'])
         self.qtw.setAlternatingRowColors(True)
         self.qtw.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.qtw.setDragEnabled(True)

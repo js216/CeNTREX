@@ -85,7 +85,7 @@ class KoherasBoostik:
         try:
             self.SetCurrent(float(current))
         except:
-            logging.error('KoherasBoostik error in SetCurrentGUI : cannot convert to float')
+            logging.error('KoherasBoostik error in SetCurrentGUI : cannot convert to {0} to float'.format(current))
 
     def GetEmissionGUI(self):
         if self.GetEmission():
@@ -122,7 +122,7 @@ class KoherasBoostik:
             except Exception as e:
                 logging.warning('KoherasBoostik warning in SetCurrent() : '+str(e))
         else:
-            logging.warning('KoherasBoostik warning in SetCurrent() : supply float for current')
+            logging.warning('KoherasBoostik warning in SetCurrent() : supply float for current {0}'.format(current))
 
     def GetCurrentSetpoint(self):
         """

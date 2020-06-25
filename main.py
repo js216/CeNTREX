@@ -3555,19 +3555,12 @@ class Plotter(qt.QWidget):
             x1 = int(float(self.config["x1"]))
         except ValueError as err:
             logging.debug(traceback.format_exc())
-            x0, x1 = 0, -1
+            x0, x1 = 0, len(x)
         if x0 >= x1:
             if x1 >= 0:
-                x0, x1 = 0, -1
+                x0, x1 = 0, len(x)
         if x1 >= len(x) - 1:
-            x0, y1 = 0, -1
-            x0, x1 = 0, None
-        if not x1 is None:
-            if x0 >= x1:
-                if x1 >= 0:
-                    x0, x1 = 0, None
-            if x1 >= len(x) - 1:
-                x0, x1 = 0, None
+            x0, x1 = 0, len(x)
 
         # verify data shape
         if not x.shape == y.shape:

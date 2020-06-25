@@ -17,6 +17,15 @@ class HistogramPlotter:
         self.dev1, self.param1, self.processing, self.dev2, self.param2, \
         self.lower, self.higher, self.width = params
 
+        # Need the " marks surrounding the expression otherwise the CeNTREX DAQ
+        # enter_cmd fails due to the eval inside main, this is a workaround
+        # that's only necessary on startup, to remove the quotation marks
+        self.dev1 = self.Strip(self.dev1, '"')
+        self.dev2 = self.Strip(self.dev2, '"')
+        self.param1 = self.Strip(self.param1, '"')
+        self.param2 = self.Strip(self.param2, '"')
+        self.processing = self.Strip(self.processing, '"')
+
         # lower and higher bounds for the bin range
         self.lower = float(self.lower)
         self.higher = float(self.higher)
@@ -48,6 +57,16 @@ class HistogramPlotter:
     def __exit__(self, *exc):
         pass
 
+    #################################################
+    # Helper Functions
+    #################################################
+    def Strip(self, string, to_strip):
+        return string.strip(to_strip)
+
+    #################################################
+    # CeNTREX DAQ Commands
+    #################################################
+
     def GetWarnings(self):
         return []
 
@@ -67,6 +86,51 @@ class HistogramPlotter:
         bin_means = np.array([y_data[bin_indices == i].mean() for i in range(1,len(bins))])
         data = np.concatenate((bins[:-1]+self.width/2, bin_means)).reshape(self.shape)
         return [data, [{'timestamp': time.time() - self.time_offset}]]
+
+    def SetProcessing(self, processing):
+        self.processing = processing
+        self.ClearData()
+
+    def SetDevice1(self, dev1):
+        self.dev1 = dev1
+        self.ClearData()
+
+    def SetParam1(self, param1):
+        self.param1 = param1
+        self.ClearData()
+
+    def SetDevice2(self, dev2):
+        self.dev2 = dev2
+        self.ClearData()
+
+    def SetParam2(self, param2):
+        self.param2 = param2
+        self.ClearData()
+
+    def SetLower(self, lower):
+        self.lower = lower
+        self.SetBins()
+
+    def SetHigher(self, higher):
+        self.higher = higher
+        self.SetBins()
+
+    def SetWidth(self, width):
+        self.width = width
+        self.SetBins()
+
+    def ClearData(self):
+        self.x_data = []
+        self.y_data = []
+        self.dev1_hash = None
+
+    def SetBins(self):
+        self.bins = np.arange(self.lower, self.higher+self.width, self.width)
+        self.shape = (1, 2, len(self.bins)-1)
+
+    #################################################
+    # Device Commands
+    #################################################
 
     def FetchData(self):
         """

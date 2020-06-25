@@ -29,4 +29,6 @@ class DummyDataTrace:
         t = time.time() - self.time_offset
         amp = signal.sawtooth(2*np.pi/self.period * t, width = 0.5)/2+0.5+np.random.random(1)/5-1
         dset = [(amp*(signal.gaussian(2000,200)+np.random.random(2000)/10)).reshape(self.shape), [{'timestamp':t}]]
+        # amp = np.sin(2*np.pi/self.period * t)
+        # dset = [(amp*np.ones(2000)+np.random.random(2000)).reshape(self.shape), [{'timestamp':t}]]
         return dset

@@ -826,7 +826,16 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
     def flatten_tree(self, item):
         # extract information
         dev, fn, wait = item.text(0), item.text(1), item.text(4)
-        params = item.text(2).split(",")
+
+        eval_matches = ["linspace", "range", "arange", "logspace"]
+        if any(x in item.text(2) for x in eval_matches):
+            try:
+                params = list(eval(item.text(2)))
+            except Exception as e:
+                logging.warning(f"Cannot eval {item.text(2)}")
+                return
+        else:
+            params = item.text(2).split(",")
         try:
             dt = float(item.text(3))
         except ValueError:

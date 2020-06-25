@@ -3081,7 +3081,8 @@ class PlotsGUI(qt.QSplitter):
     def toggle_all_plot_controls(self):
         for col, col_plots in self.all_plots.items():
             for row, plot in col_plots.items():
-                plot.toggle_controls()
+                if plot:
+                    plot.toggle_controls()
 
     def save_plots(self, dt):
         # put essential information about plot configuration in a dictionary

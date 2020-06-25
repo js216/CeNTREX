@@ -19,7 +19,8 @@ class Test:
         self.warnings = []
 
         # make use of the constr_param1
-        print(f"Constructor got passed the following parameter: {constr_param1}")
+        self.constr_param1 = constr_param1
+        print(f"Constructor got passed the following parameter: {self.constr_param1}")
 
     def __enter__(self):
         return self
@@ -39,10 +40,10 @@ class Test:
         return warnings
 
     def beep(self):
-        print("Beeping!")
+        print("Beeping ({self.constr_param1})!")
 
     def takeinput(self, param):
-        print(f"Received the parameter: {param}")
+        print(f"Received the parameter: {self.constr_param1}.{param}")
 
     def wait_seconds(self, dt):
         print(f"Gonna sleep for {dt} seconds.")

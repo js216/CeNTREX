@@ -317,6 +317,7 @@ class Device(threading.Thread):
                     # send sequencer commands, if any, to the device, and record return values
                     for id0,c in self.sequencer_commands:
                         try:
+                            print(c)
                             ret_val = eval("device." + c.strip())
                         except Exception as err:
                             logging.warning(traceback.format_exc())
@@ -823,24 +824,30 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
         self.circular = circular
         self.n_repeats = n_repeats
 
-    def flatten_tree(self, item):
-        # extract information
+    def flatten_tree(self, item, parent_info):
+        # extract basic information
         dev, fn, wait = item.text(0), item.text(1), item.text(4)
 
-        eval_matches = ["linspace", "range", "arange", "logspace"]
+        # extract the parameters
+        eval_matches = ["linspace", "range", "arange", "logspace", "parent_info"]
         if any(x in item.text(2) for x in eval_matches):
             try:
-                params = list(eval(item.text(2)))
+                params = eval(item.text(2))
             except Exception as e:
-                logging.warning(f"Cannot eval {item.text(2)}")
+                logging.warning(f"Cannot eval {item.text(2)}: {str(e)}")
                 return
         else:
             params = item.text(2).split(",")
+        print(f"XXXX {params}")
+        
+        # extract the time delay
         try:
             dt = float(item.text(3))
         except ValueError:
             logging.info(f"Cannot convert to float: {item.text(3)}")
             dt = self.default_dt
+
+        # extract number of repetitions of the line
         try:
             n_rep = int(item.text(5))
         except ValueError:
@@ -852,20 +859,20 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
             for p in params:
                 if dev and fn:
                     if dev in self.devices:
-                        self.flat_seq.append([dev, fn, p, dt, wait])
+                        self.flat_seq.append([dev, fn, p, dt, wait, parent_info])
                     else:
                         logging.warning(f"Device does not exist: {dev}")
 
                 # get information about the item's children
                 child_count = item.childCount()
                 for i in range(child_count):
-                    self.flatten_tree(item.child(i))
+                    self.flatten_tree(item.child(i), parent_info+[[dev,fn,p]])
 
     def run(self):
         # flatten the tree into sequence of rows
         self.flat_seq = []
         root = self.seqGUI.qtw.invisibleRootItem()
-        self.flatten_tree(root)
+        self.flatten_tree(root, parent_info=[])
         self.seqGUI.progress.setMaximum(len(self.flat_seq))
 
         # repeat the entire sequence n times
@@ -876,7 +883,7 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
             self.flat_seq = itertools.cycle(self.flat_seq)
 
         # main sequencer loop
-        for i,(dev,fn,p,dt,wait) in enumerate(self.flat_seq):
+        for i,(dev,fn,p,dt,wait,parent_info) in enumerate(self.flat_seq):
             # check for user stop request
             if not self.active.is_set():
                 return

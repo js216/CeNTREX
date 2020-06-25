@@ -293,14 +293,54 @@ class Device(threading.Thread):
                     # 50 Hz loop delay
                     time.sleep(0.02)
 
-                    # check device is enabled
-                    if not self.config["control_params"]["enabled"]["value"] == 2:
+                    # level 1: check device is enabled for sending commands
+                    if self.config["control_params"]["enabled"]["value"] < 1:
                         continue
 
                     # check device for abnormal conditions
                     warning = device.GetWarnings()
                     if warning:
                         self.warnings += warning
+
+                    # send control commands, if any, to the device, and record return values
+                    for c in self.commands:
+                        try:
+                            ret_val = eval("device." + c.strip())
+                        except Exception as err:
+                            logging.warning(traceback.format_exc())
+                            ret_val = str(err)
+                        ret_val = "None" if not ret_val else ret_val
+                        self.last_event = [ time.time()-self.time_offset, c, ret_val ]
+                        self.events_queue.append(self.last_event)
+                    self.commands = []
+
+                    # send sequencer commands, if any, to the device, and record return values
+                    for id0,c in self.sequencer_commands:
+                        try:
+                            ret_val = eval("device." + c.strip())
+                        except Exception as err:
+                            logging.warning(traceback.format_exc())
+                            ret_val = None
+                        if (c == "ReadValue()") and ret_val:
+                            self.data_queue.append(ret_val)
+                            self.config["plots_queue"].append(ret_val)
+                        self.sequencer_events_queue.append([id0, time.time_ns(), c, ret_val])
+                    self.sequencer_commands = []
+
+                    # send monitoring commands, if any, to the device, and record return values
+                    for c in self.monitoring_commands:
+                        try:
+                            ret_val = eval("device." + c.strip())
+                        except Exception as err:
+                            logging.info(traceback.format_exc())
+                            ret_val = str(err)
+                        ret_val = "None" if not ret_val else ret_val
+                        self.monitoring_events_queue.append( [ time.time()-self.time_offset, c, ret_val ] )
+                    self.monitoring_commands = set()
+
+                    # level 2: check device is enabled for regular ReadValue
+                    if self.config["control_params"]["enabled"]["value"] < 2:
+                        continue
 
                     # record numerical values
                     if time.time() - self.time_last_read >= dt:
@@ -333,38 +373,6 @@ class Device(threading.Thread):
                                 }
                             self.warnings.append([time.time(), warning_dict])
 
-                    # send control commands, if any, to the device, and record return values
-                    for c in self.commands:
-                        try:
-                            ret_val = eval("device." + c.strip())
-                        except Exception as err:
-                            logging.warning(traceback.format_exc())
-                            ret_val = str(err)
-                        ret_val = "None" if not ret_val else ret_val
-                        self.last_event = [ time.time()-self.time_offset, c, ret_val ]
-                        self.events_queue.append(self.last_event)
-                    self.commands = []
-
-                    # send sequencer commands, if any, to the device, and record return values
-                    for id0,c in self.sequencer_commands:
-                        try:
-                            ret_val = eval("device." + c.strip())
-                        except Exception as err:
-                            logging.warning(traceback.format_exc())
-                            ret_val = None
-                        self.sequencer_events_queue.append([id0, time.time_ns(), c, ret_val])
-                    self.sequencer_commands = []
-
-                    # send monitoring commands, if any, to the device, and record return values
-                    for c in self.monitoring_commands:
-                        try:
-                            ret_val = eval("device." + c.strip())
-                        except Exception as err:
-                            logging.info(traceback.format_exc())
-                            ret_val = str(err)
-                        ret_val = "None" if not ret_val else ret_val
-                        self.monitoring_events_queue.append( [ time.time()-self.time_offset, c, ret_val ] )
-                    self.monitoring_commands = set()
 
         # report any exception that has occurred in the run() function
         except Exception as err:
@@ -648,11 +656,7 @@ class HDF_writer(threading.Thread):
 
             for dev_name, dev in self.parent.devices.items():
                 # check device is enabled
-                if not dev.config["control_params"]["enabled"]["value"] == 2:
-                    continue
-
-                # check writing to HDF is enabled for this device
-                if not dev.config["control_params"]["HDF_enabled"]["value"]:
+                if dev.config["control_params"]["enabled"]["value"] < 1:
                     continue
 
                 grp = root.require_group(dev.config["path"])
@@ -2702,6 +2706,15 @@ class ControlGUI(qt.QWidget):
     def start_control(self):
         # check we're not running already
         if self.parent.config['control_active']:
+            return
+
+        # check at least one device is enabled
+        at_least_one_enabled = False
+        for dev_name, dev in self.parent.devices.items():
+            if dev.config["control_params"]["enabled"]["value"]:
+                at_least_one_enabled = True
+        if not at_least_one_enabled:
+            logging.warning("Cannot start: no device enabled.")
             return
 
         # select the time offset

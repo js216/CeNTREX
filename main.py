@@ -317,7 +317,6 @@ class Device(threading.Thread):
                     # send sequencer commands, if any, to the device, and record return values
                     for id0,c in self.sequencer_commands:
                         try:
-                            print(c)
                             ret_val = eval("device." + c.strip())
                         except Exception as err:
                             logging.warning(traceback.format_exc())
@@ -838,7 +837,6 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
                 return
         else:
             params = item.text(2).split(",")
-        print(f"XXXX {params}")
         
         # extract the time delay
         try:

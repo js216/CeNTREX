@@ -117,6 +117,8 @@ class PXIe5171:
         # index of which waveform to acquire
         self.rec_num = 0
 
+        self.trace_attrs = {}
+
         # start acquisition
         self.session.initiate()
 
@@ -156,6 +158,7 @@ class PXIe5171:
         all_attrs = []
         for i in range(self.num_records):
             attrs = {}
+            attrs.update(self.trace_attrs)
             for info in infos:
                 if info.record == i:
                     attrs_upd = {
@@ -175,3 +178,20 @@ class PXIe5171:
 
     def GetWarnings(self):
         return None
+
+    def UpdateSequenceAttrs(self, parent_info):
+        if len(np.shape(parent_info)) == 2:
+            for info in parent_info:
+                device, function, param = info
+                self.UpdateTraceAttrs({f'{device} {function}':param})
+        else:
+            device, function, param = parent_info
+            if device == "":
+                return
+            self.UpdateTraceAttrs({f'{device} {function}':param})
+
+    def UpdateTraceAttrs(self, attrs):
+        self.trace_attrs.update(attrs)
+
+    def DummyFunc(self, val):
+        print('DummyFunc', val)

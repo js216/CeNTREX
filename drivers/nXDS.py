@@ -69,6 +69,8 @@ class nXDS:
         self.dtype = 'f'
         self.shape = (6, )
 
+        self.warnings = []
+
     def __enter__(self):
         return self
 
@@ -77,6 +79,7 @@ class nXDS:
             self.instr.close()
 
     def ReadValue(self):
+        self.CheckWarningsFaults()
         return [time.time()-self.time_offset,
                 self.MotorCurrent(),
                 self.MotorPower(),
@@ -86,6 +89,11 @@ class nXDS:
                ]
 
     def GetWarnings(self):
+        warnings = self.warnings
+        self.warnings = []
+        return warnings
+
+    def CheckWarningsFaults(self):
         registers = self.SystemStatus()
         for register_name, register in zip(self.registers[2:], registers[2:]):
             # not adding system status registers to warnings
@@ -94,11 +102,9 @@ class nXDS:
                 register_desc = eval('self.'+register_name).get(idx)
                 if (register & 1) and register_desc:
                     warning_dict = {"message" : register_desc}
-                    self.warnings.append(warning_dict)
+                    self.warnings.append([time.time(), warning_dict])
                 idx += 1
-        warnings = self.warnings
-        self.warnings = []
-        return warnings
+                register >>= 1
 
     def QueryIdentification(self):
         try:
@@ -275,12 +281,12 @@ class nXDS:
         warning register 01 and fault register 01
         """
         try:
-            status = self.instr.query("?V802")[6:]
-            words = status.split(';')
+            status = self.instr.query("?V802")
+            words = status.split(';')[-4:]
             registers = []
             for word in words:
                 tmp = 0
-                for idx, char in zip(reversed(range(4)),words):
+                for idx, char in zip(reversed(range(4)),word):
                     tmp += int(char, 16) << idx*4
                 registers.append(tmp)
             return registers

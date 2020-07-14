@@ -91,7 +91,7 @@ class nXDS:
             # not adding system status registers to warnings
             idx = 0
             while register:
-                register_desc = eval(register_name).get(idx)
+                register_desc = eval('self.'+register_name).get(idx)
                 if (register & 1) and register_desc:
                     warning_dict = {"message" : register_desc}
                     self.warnings.append(warning_dict)

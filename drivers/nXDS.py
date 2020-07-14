@@ -4,6 +4,46 @@ import numpy as np
 import logging
 
 class nXDS:
+    registers = ('system_status_register1', 'system_status_register2',
+                 'warning_register', 'fault_register')
+    system_status_register1 = {
+        0   : 'decelleration',
+        1   : 'acceleration/running',
+        2   : 'standby speed',
+        3   : 'normal speed',
+        4   : 'above ramp speed',
+        5   : 'above overload speed',
+        10  : 'serial enable active'
+    }
+    system_status_register2 = {
+        0   : 'upper power regulator active',
+        1   : 'lower power regulator active',
+        2   : 'upper voltage regulator active',
+        4   : 'service due',
+        6   : 'warning',
+        7   : 'alarm'
+    }
+    warning_register = {
+        1   : 'low pump-controller temperature',
+        6   : 'pump-controller temperature regulator active',
+        10  : 'high pump-controller temperature',
+        15  : 'self test warning'
+    }
+    fault_register = {
+        1   : 'over voltage trip',
+        2   : 'over current trip',
+        3   : 'over temperature trip',
+        4   : 'under temperature trip',
+        5   : 'power stage fault',
+        8   : 'H/W fault latch set',
+        9   : 'EEPROM fault',
+        11  : 'no parameter set',
+        12  : 'self test fault',
+        13  : 'serial control mode interlock',
+        14  : 'overload time out',
+        15  : 'acceleration time out'
+    }
+
     def __init__(self, time_offset, resource_name):
         self.time_offset = time_offset
         self.rm = pyvisa.ResourceManager()
@@ -31,7 +71,7 @@ class nXDS:
 
     def __enter__(self):
         return self
-    
+
     def __exit__(self, *exc):
         if self.instr:
             self.instr.close()
@@ -46,7 +86,19 @@ class nXDS:
                ]
 
     def GetWarnings(self):
-        return None
+        registers = self.SystemStatus()
+        for register_name, register in zip(self.registers[2:], registers[2:]):
+            # not adding system status registers to warnings
+            idx = 0
+            while register:
+                register_desc = eval(register_name).get(idx)
+                if (register & 1) and register_desc:
+                    warning_dict = {"message" : register_desc}
+                    self.warnings.append(warning_dict)
+                idx += 1
+        warnings = self.warnings
+        self.warnings = []
+        return warnings
 
     def QueryIdentification(self):
         try:
@@ -211,6 +263,27 @@ class nXDS:
         """
         try:
             return self.instr.query("?V815")[6:]
+        except pyvisa.errors.VisaIOError as err:
+            return str(err)
+
+    def SystemStatus(self):
+        """
+        Current system status:
+
+        system status register 01;
+        system status register 02;
+        warning register 01 and fault register 01
+        """
+        try:
+            status = self.instr.query("?V802")[6:]
+            words = status.split(';')
+            registers = []
+            for word in words:
+                tmp = 0
+                for idx, char in zip(reversed(range(4)),words):
+                    tmp += int(char, 16) << idx*4
+                registers.append(tmp)
+            return registers
         except pyvisa.errors.VisaIOError as err:
             return str(err)
 

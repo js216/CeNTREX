@@ -16,7 +16,7 @@ class ClockSync:
         self.user = user
         self.password = password
 
-        self.dtype = ('f4',)
+        self.dtype = 'f4'
         self.shape = (2,)
 
         self.nr_peers, self.peer = self.GetPeer()

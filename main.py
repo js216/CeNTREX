@@ -1,4 +1,4 @@
-import re
+﻿import re
 import h5py
 import time
 import json
@@ -2676,7 +2676,7 @@ class ControlGUI(qt.QWidget):
     def queue_custom_command(self):
         # check the command is valid
         cmd = self.parent.config["general"]["custom_command"]
-        search = re.compile(r'[^A-Za-z0-9()"?!*#]').search
+        search = re.compile(r'[^A-Za-z0-9()".?!*# ]').search
         if bool(search(cmd)):
             error_box("Command error", "Invalid command.")
             return

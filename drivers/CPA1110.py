@@ -58,11 +58,12 @@ and the rest of the input registers are in 32bit floating point format."
 [CPAxxxx Digital Panel User Manual]
 """
 
-from pymodbus.client.sync import ModbusSerialClient
-from pymodbus.exceptions import ConnectionException, ModbusIOException
+import time
 import struct
 import pyvisa
-import time
+import numpy as np
+from pymodbus.client.sync import ModbusSerialClient
+from pymodbus.exceptions import ConnectionException, ModbusIOException
 
 # utility functions (see manual pp 21-22)
 def to_float(b12, b34):

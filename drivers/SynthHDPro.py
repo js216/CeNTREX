@@ -8,8 +8,9 @@ class SynthHDPro:
         self.time_offset = time_offset
         self.COM_port = COM_port
 
-        self.dtype = ('f4', 'float', 'float')
-        self.shape = (2,)
+
+        self.dtype = ('f4', 'float', 'float', 'float', 'float', 'bool', 'bool')
+        self.shape = (7,)
 
         try:
             self.synth = SynthHD(COM_port)
@@ -31,24 +32,25 @@ class SynthHDPro:
 
         self.new_attributes = []
 
-        self.channels = {'A': 0, 'B': 1}
-
-        self.frequency_setting  = {'A': self.GetFrequency('A'), 'B': self.GetFrequency('B')}
-        self.power_setting      = {'A': self.GetPower('A'), 'B': self.GetPower('B')}
+        # Loading device state to prevent continuous serial communication for common data
+        # device only knows setpoints, not actual frequency or power levels
+        self.channels           = {'A': 0, 'B': 1}
+        self.frequency_setting  = {}
+        self.GetFrequency('A')
+        self.GetFrequency('B')
+        self.power_setting      = {}
+        self.GetPower('A')
+        self.GetPower('B')
+        self.enabled            = {}
+        self.GetStatus('A')
+        self.GetStatus('B')
 
     def __enter__(self):
         return self
 
     def __exit__(self, *exc):
-        try:
-            if self.running_sweep:
-                self.sweep_thread.stop()
-            try:
-                self.synth.close()
-            except:
-                return
-        except:
-            return
+        self.synth.close()
+        return
 
     #######################################################
     # CeNTREX DAQ Commands
@@ -69,7 +71,9 @@ class SynthHDPro:
                 self.frequency_setting['A'],
                 self.frequency_setting['B'],
                 self.power_setting['A'],
-                self.power_setting['B']
+                self.power_setting['B'],
+                self.enabled['A'],
+                self.enabled['B']
                 ]
         return val
 
@@ -77,11 +81,41 @@ class SynthHDPro:
     # GUI Commands
     #######################################################
 
-    def GetFrequencyGUI(self):
-        return self.frequency_setting
+    def GetFrequencyCHAGUI(self):
+        return self.frequency_setting['A']
 
-    def GetPowerGUI(self):
-        return self.power_setting
+    def SetFrequencyCHAGUI(self, frequency):
+        self.SetFrequency(frequency, 'A')
+
+    def SetPowerCHAGUI(self, power):
+        self.SetPower(power, 'A')
+
+    def GetPowerCHAGUI(self):
+        return self.power_setting['A']
+
+    def GetCHAStatus(self):
+        if self.enabled['A']:
+            return 'on'
+        else:
+            return 'off'
+
+    def GetCHBStatus(self):
+        if self.enabled['B']:
+            return 'on'
+        else:
+            return 'off'
+
+    def EnableCHA(self):
+        self.Enable(ch = 'A')
+    
+    def DisableCHA(self):
+        self.Disable(ch = 'A')
+
+    def EnableCHB(self):
+        self.Enable(ch = 'B')
+    
+    def DisableCHB(self):
+        self.Disable(ch = 'B')
 
     #######################################################
     # Device Commands
@@ -91,17 +125,19 @@ class SynthHDPro:
         self.write('sweep_time_step', step_time)
 
     def GetFrequency(self, ch = 'A'):
-        ch = self.channels[ch]
-        return self.synth[ch].frequency
+        chn = self.channels[ch]
+        self.frequency_setting[ch] = self.synth[chn].frequency
+        return self.frequency_setting[ch]
 
     def GetPower(self, ch = 'A'):
-        ch = self.channels[ch]
-        return self.synth[ch].power
+        chn = self.channels[ch]
+        self.power_setting[ch] = self.synth[chn].power
+        return self.power_setting[ch]
 
     def SetFrequency(self, frequency, ch = 'A'):
-        ch = self.channels[ch]
+        chn = self.channels[ch]
         try:
-            self.synth[ch].frequency = frequency
+            self.synth[chn].frequency = frequency
             self.frequency_setting[ch] = frequency
         except ValueError as warning:
             self.CreateWarning(warning)
@@ -111,9 +147,9 @@ class SynthHDPro:
             pass
 
     def SetPower(self, power, ch = 'A'):
-        ch = self.channels[ch]
+        chn = self.channels[ch]
         try:
-            self.synth[ch].power = power
+            self.synth[chn].power = power
             self.power_setting[ch] = power
         except ValueError as warning:
             self.CreateWarning(warning)
@@ -122,12 +158,14 @@ class SynthHDPro:
             logging.warning("SynthHDPro warning in SetPower() : "+str(err))
 
     def Enable(self, ch = 'A'):
-        ch = self.channels[ch]
-        self.synth[ch].enable = True
+        chn = self.channels[ch]
+        self.synth[chn].enable = True
+        self.enabled[ch] = True
 
     def Disable(self, ch = 'A'):
-        ch = self.channels[ch]
-        self.synth[ch].enable = False
+        chn = self.channels[ch]
+        self.synth[chn].enable = False
+        self.enabled[ch] = False
 
     def FrequencyReference(self, reference):
         references = {'10 MHz': 'internal 10mHz',
@@ -138,10 +176,16 @@ class SynthHDPro:
     def GetFrequencyReference(self, reference):
         return self.synth.reference_mode
 
+    def GetStatus(self, ch = 'A'):
+        chn = self.channels[ch]
+        self.enabled[ch] = self.synth[chn].enable
+        return self.enabled[ch]
+
 
 if __name__ == '__main__':
     com = input('COM PORT : ')
     synth = SynthHDPro(time.time(), com)
+    print(synth.verification_string)
     synth.SetFrequency(100e6)
     time.sleep(5)
     synth.SetFrequency(55e6)

@@ -126,5 +126,7 @@ if __name__ == "__main__":
     print(yag.verification_string)
     for _ in range(9):
         yag.NrQswitches(4)
+        print(yag.QswitchStatusGUI())
         time.sleep(0.085)
+        print(yag.QswitchStatusGUI())
     yag.__exit__()

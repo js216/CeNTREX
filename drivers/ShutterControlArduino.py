@@ -60,7 +60,8 @@ class ShutterControlArduino:
     #################################################################
 
     def StateGUI(self):
-        status = bool(self.State())
+        state = self.State()
+        status = bool(state)
         if status:
             return 'open'
         else:
@@ -99,15 +100,25 @@ class ShutterControlArduino:
             logging.warning("ShutterControl warning in Close(): "+ret)
 
     def State(self):
-        return self.instr.query("state")
+        try:
+            return int(self.instr.query("state"))
+        except pyvisa.errors.VisaIOError as err:
+            logging.warning("ShutterControlArduino warning in State(): " + str(err))
+            return np.nan
+        except Exception as err:
+            logging.warning("ShutterControlArduino warning in State(): " + str(err))
+            return np.nan
 
 if __name__ == "__main__":
     resource_name = input('specify resource name : ')
-    shutter = ShutterControl(time.time(), resource_name)
+    shutter = ShutterControlArduino(time.time(), resource_name)
     print(shutter.verification_string)
-    for _ in range(9):
+    for _ in range(4):
+        print('='*23)
         shutter.Open()
+        print(shutter.StateGUI())
         time.sleep(2)
         shutter.Close()
+        print(shutter.StateGUI())
         time.sleep(2)
     shutter.__exit__()

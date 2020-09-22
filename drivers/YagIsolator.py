@@ -1,7 +1,6 @@
 import time
 import pyvisa
 import logging
-import numpy as np
 
 class YagIsolator:
     def __init__(self, time_offset, resource_name):
@@ -28,7 +27,7 @@ class YagIsolator:
 
         # shape and type of the array of returned data
         self.dtype = 'f'
-        self.shape = (2, )
+        self.shape = (1, )
 
         self.warnings = []
 
@@ -63,7 +62,8 @@ class YagIsolator:
         try:
             return self.instr.query("*IDN?")
         except pyvisa.errors.VisaIOError as err:
-            logging.warning("YagIsolator warning in QueryIdentification(): " + str(err))
+            logging.warning("YagIsolator warning in QueryIdentification(): "
+                            + str(err))
             return str(err)
 
 

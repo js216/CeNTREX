@@ -2,7 +2,7 @@ import time
 import pyvisa
 import logging
 
-class ShutterControl:
+class ShutterControlArduino:
     def __init__(self, time_offset, resource_name):
         self.time_offset = time_offset
         self.rm = pyvisa.ResourceManager()
@@ -54,6 +54,18 @@ class ShutterControl:
             self.instr.read()
         except:
             pass
+
+    #################################################################
+    ##########           GUI COMMANDS                      ##########
+    #################################################################
+
+    def StateGUI(self):
+        status = bool(self.State())
+        if status:
+            return 'open'
+        else:
+            return 'close'
+
 
     #################################################################
     ##########           SERIAL COMMANDS                   ##########

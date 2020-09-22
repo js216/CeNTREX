@@ -31,6 +31,11 @@ class YagIsolator:
 
         self.warnings = []
 
+        # convenience attributes to cut down on serial communication for
+        # monitoring commands
+        self.qswitch_status = bool(self.instr.query("status D"))
+        self.nr_qswitches = 0
+
     def __enter__(self):
         return self
 
@@ -55,6 +60,31 @@ class YagIsolator:
             pass
 
     #################################################################
+    ##########           GUI COMMANDS                      ##########
+    #################################################################
+    def DisableQswitchGUI(self):
+        self.Disable('D')
+        self.qswitch_status = bool(self.instr.query("status D"))
+
+    def EnableQswitchGUI(self):
+        self.Enable('D')
+        self.qswitch_status = bool(self.instr.query("status D"))
+
+    def QswitchStatusGUI(self):
+        if self.qswitch_status:
+            return 'enabled'
+        else:
+            return 'disabled'
+
+    def SetNrQswitchesGUI(self, nr_qswitches):
+        self.NrQswitches(nr_qswitches)
+        self.nr_qswitches = nr_qswitches
+    
+    def GetNrQswitchesGUI(self, nr_qswitches):
+        return self.nr_qswitches
+
+
+    #################################################################
     ##########           SERIAL COMMANDS                   ##########
     #################################################################
 
@@ -65,7 +95,6 @@ class YagIsolator:
             logging.warning("YagIsolator warning in QueryIdentification(): "
                             + str(err))
             return str(err)
-
 
     def NrQswitches(self, nr_qswitches):
         """
@@ -89,6 +118,7 @@ class YagIsolator:
         ret = self.instr.query(cmd)
         if ret != cmd:
             logging.warning("YagIsolator warning in Disable(): "+ret)
+
 
 if __name__ == "__main__":
     resource_name = input('specify resource name : ')

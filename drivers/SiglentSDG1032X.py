@@ -1,6 +1,16 @@
 import time
 import pyvisa
+import inspect
+import logging
 import numpy as np
+
+def validate_channel(func):
+    def wrapper(*args, **kwargs):
+        if args[1] in [1,2]:
+            return func(*args, **kwargs)
+        else:
+            logging.warning(f'SiglentSDG1032X warning in {func.__name__}: invalid channel')
+    return wrapper
 
 class SiglentSDG1032X:
     def __init__(self, time_offset, resource_name):
@@ -15,7 +25,7 @@ class SiglentSDG1032X:
         self.instr.parity = pyvisa.constants.Parity.odd
         self.instr.data_bits = 7
         self.instr.baud_rate = 9600
-        self.instr.term_char = '\r'
+        self.instr.term_char = '\n\r'
 
         # make the verification string
         self.verification_string = self.QueryIdentification()
@@ -24,8 +34,18 @@ class SiglentSDG1032X:
         self.new_attributes = []
 
         # shape and type of the array of returned data
-        self.dtype = 'f'
+        self.dtype = ('f', 'bool', 'float', 'float', 'float', 
+                           'bool', 'float', 'float', 'float')
         self.shape = (9, )
+
+        self.waveforms = {1: {}, 2: {}}
+        self.outputs = {1: {}, 2: {}}
+
+        self.units = ['HZ', 'S', 'V', 'Vrms']
+        self.ParseBasicWave(1)
+        self.ParseBasicWave(2)
+        self.ParseOutput(1)
+        self.ParseOutput(2)
 
     def __enter__(self):
         return self
@@ -35,7 +55,14 @@ class SiglentSDG1032X:
             self.instr.close()
 
     def ReadValue(self):
-        return [time.time()-self.time_offset]
+        vars = ['FRQ', 'AMP', 'OFST']
+        ret = [time.time()-self.time_offset, self.outputs[1]['STATE']]
+        for var in vars:
+            ret += [self.waveforms[1][var]]
+        ret += [self.outputs[2]['STATE']]
+        for var in vars:
+            ret += [self.waveforms[2][var]]       
+        return ret
 
     def GetWarnings(self):
         return None
@@ -50,6 +77,38 @@ class SiglentSDG1032X:
             return self.instr.query("*IDN?")
         except pyvisa.errors.VisaIOError:
             return np.nan
+    
+    #################################################################
+    ##########           CONVENIENCE COMMANDS              ##########
+    #################################################################
+
+    @validate_channel
+    def ParseBasicWave(self, ch: int):
+        string = self.GetBasicWave(ch)
+        data = string.split(':')[1].split(' ')[1].split(',')
+        self.waveforms[ch] = {}
+        for idx in range(0,len(data),2):
+            d = data[idx+1].strip()
+            for u in self.units:
+                if d.endswith(u):
+                    self.waveforms[ch][data[idx]] = float(d[:-len(u)])
+                    break
+            else:
+                try:
+                    self.waveforms[ch][data[idx]] = float(d)
+                except ValueError:
+                    self.waveforms[ch][data[idx]] = d
+    
+    @validate_channel
+    def ParseOutput(self, ch: int):
+        string = self.GetOutput(ch)
+        data = string.split(':')[1].split(' ')[1].split(',')
+        self.outputs[ch] = {}
+        self.outputs[ch]['STATE'] = True if data[0] == 'ON' else False
+        for idx in range(1,len(data),2):
+            key = data[idx]
+            val = data[idx+1].strip()
+            self.outputs[ch][key] = val
 
     #################################################################
     ##########           IEEE-488/SERIAL COMMANDS          ##########
@@ -70,15 +129,91 @@ class SiglentSDG1032X:
     def OPC(self):
         self.instr.query('*OPC?')
 
-    def GetOutput(self, ch):
+    @validate_channel
+    def GetOutput(self, ch: int):
         cmd = f'C{ch}:OUTP?'
         return self.instr.query(cmd)
 
-    def Output(self, ch, output):
-        cmd = f'C{CH}OUTP {output}'
+    @validate_channel
+    def Output(self, ch: int, output: str):
+        cmd = f'C{ch}:OUTP {output}'
         self.instr.write(cmd)
 
-    def ClockSource(self, source):
-        cmd = f'ROSCL {source}'
+    @validate_channel
+    def OutputImpedance(self, ch: int, impedance: str):
+        if impedance in [50, '50', 'HZ']:
+            cmd = f'C{ch}:OUTP LOAD,{impedance}'
+            self.instr.write(cmd)
+        else:
+            logging.warning(f'SiglentSDG1032X warning in OutputImpedance: invalid impedance')
+
+    def GetClockSource(self):
+        cmd = f'ROSC?'
+        return self.instr.query(cmd)
+
+    def ClockSource(self, source: str):
+        cmd = f'ROSC {source}'
         self.instr.write(cmd)
+
+    def GetBasicWave(self, ch: int):
+        cmd = f'C{ch}:BSWV?'
+        return self.instr.query(cmd)
+
+    @validate_channel
+    def BasicWaveType(self, ch: int, wave: str):
+        cmd = f'C{ch}:BSWV WVTP,{wave}'
+        self.instr.write(cmd)
+        self.ParseBasicWave(ch)
+        
+    @validate_channel
+    def BasicWaveFrequency(self, ch: int, freq: float):
+        cmd = f'C{ch}:BSWV FRQ,{freq}'
+        self.instr.write(cmd)
+        self.ParseBasicWave(ch)
+
+    @validate_channel
+    def BasicWaveAmplitude(self, ch: int, amp: float):
+        cmd = f'C{ch}:BSWV AMP,{amp}'
+        self.instr.write(cmd)
+        self.ParseBasicWave(ch)
     
+    @validate_channel
+    def Sinusoidal(self, ch: int, freq: float, amp: float = 1., offset: float = 0., phase: float = 0.):
+        cmd = f'C{ch}:BSWV WVTP,SINE,FRQ,{freq},AMP,{amp},OFST,{offset},PHSE,{phase}'
+        self.instr.write(cmd)
+        self.ParseBasicWave(ch)
+
+    @validate_channel
+    def Square(self, ch: int, freq: float, amp: float = 1., offset: float = 0., phase: float = 0.,
+               duty: float = 50.):
+        cmd = f'C{ch}:BSWV WVTP,SQUARE,FRQ,{freq},AMP,{amp},OFST,{offset},PHSE,{phase},DUTY,{duty}'
+        self.instr.write(cmd)
+        self.ParseBasicWave(ch)
+    
+if __name__ == "__main__":
+    com_port = "USB0::0xF4EC::0x1103::SDG1XCAD2R3284::INSTR"
+    sdg = SiglentSDG1032X(time.time(), com_port)
+    
+    print(sdg.GetClockSource())
+
+    sdg.BasicWaveFrequency(1, 10e3)
+    sdg.BasicWaveType(1,'SQUARE')
+    print(sdg.waveforms)
+    print()
+    sdg.Output(1,'ON')
+    time.sleep(2)
+    sdg.Square(1,20e3, 3)
+    time.sleep(2)
+    sdg.Output(1,'OFF')
+    sdg.OutputImpedance(1,50)
+    time.sleep(2)
+    sdg.OutputImpedance(1,'HZ')
+
+    print('='*75)
+    print('Checking handling of invalid channel assignment')
+    sdg.OutputImpedance(3,'HZ')
+    print('='*75)
+
+    sdg.ParseOutput(1)
+    print(sdg.ReadValue())
+    sdg.__exit__()

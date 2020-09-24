@@ -15,7 +15,8 @@ class GWInstekAFG2100:
         self.instr.parity = pyvisa.constants.Parity.odd
         self.instr.data_bits = 7
         self.instr.baud_rate = 9600
-        self.instr.term_char = '\r'
+        self.instr.term_char = '\r\n'
+        self.instr.read_termination = '\r\n'
 
         # make the verification string
         self.verification_string = self.QueryIdentification()
@@ -90,50 +91,52 @@ class GWInstekAFG2100:
         cmd = f'*RCL {loc}'
         self.instr.write(cmd)
 
-    def GetSourceFunction(self, ch):
+    def GetSourceFunction(self, ch: int = 1):
         cmd = f'SOUR{ch}:FUNC?'
         return self.query(cmd)
 
-    def GetSourceFrequency(self, ch):
+    def GetSourceFrequency(self, ch: int = 1):
         cmd = f'SOUR{ch}:FREQ?'
         return self.instr.query(cmd)
     
-    def GetSourceAmplitude(self, ch):
+    def GetSourceAmplitude(self, ch: int = 1):
         cmd = f'SOUR{ch}:AMPL?'
         return self.instr.query(cmd)
     
-    def GetSourceDCOffset(self, ch):
+    def GetSourceDCOffset(self, ch: int = 1):
         cmd = f'SOUR{ch}:DCO?'
         return self.instr.query(cmd)
 
-    def GetOutput(self):
-        cmd = f'OUTP?'
+    def GetOutput(self, ch: int = 1):
+        cmd = f'SOUR{ch}:OUTP?'
         return self.instr.query(cmd)
 
-    def Output(self, ch, output):
-        cmd = f'OUTP {output}'
+    def Output(self, ch: int = 1, output):
+        cmd = f'SOUR{ch}:OUTP {output}'
         self.instr.write(cmd)
 
-    def GetOutputLoad(self):
-        cmd = f'OUTP:LOAD?'
-        return self.instr.query(cmd)
-
-    def OutputLoad(self, load):
-        cmd = f'OUTP:LOAD {load}'
-        self.instr.write(cmd)
-
-    def GetSourceVoltageUnit(self, ch):
+    def GetSourceVoltageUnit(self, ch: int = 1):
         cmd = f'SOUR{ch}:VOLT:UNIT?'
         return self.instr.query(cmd)
 
-    def SourceVoltageUnit(self, ch, unit):
+    def SourceVoltageUnit(self, ch: int = 1, unit):
         cmd = f'SOUR{ch}:VOLT:UNIT {unit}'
         return self.instr.write(cmd)
 
-    def GetSourceApply(self, ch):
+    def GetSourceApply(self, ch: int = 1):
         cmd = f'SOUR{ch}:APPL?'
         return self.instr.query(cmd)
 
-    def SourceApplySinusoid(self, ch, frequency, amplitude, offset):
-        cmd = f'SOUR{ch}:APPL:SIN {frequency}, {amplitude}, {offset}'
+    def SourceApplySinusoid(self, ch: int = 1, frequency, amplitude, offset):
+        cmd = f'SOUR{ch}:APPL:SIN {frequency},{amplitude},{offset}'
+        print()
         self.instr.write(cmd)
+
+
+if __name__ == "__main__":
+    resource_name = input('specify resource name : ')
+    afg = GWInstekAFG2100(time.time(), resource_name)
+    print(afg.verification_string)
+    print(afg.GetOutput())
+
+    afg.__exit__()

@@ -1,6 +1,5 @@
 import time
 import pyvisa
-import inspect
 import logging
 import numpy as np
 
@@ -176,7 +175,15 @@ class SiglentSDG1032X:
         cmd = f'C{ch}:BSWV AMP,{amp}'
         self.instr.write(cmd)
         self.ParseBasicWave(ch)
+
+    @validate_channel
+    def BasicWaveDelay(self, ch: int, delay: float):
+        cmd = f'C{ch}:BSWV DLY,{delay}'
+        self.instr.write(cmd)
+        self.ParseBasicWave(ch)
     
+
+
     @validate_channel
     def Sinusoidal(self, ch: int, freq: float, amp: float = 1., offset: float = 0., phase: float = 0.):
         cmd = f'C{ch}:BSWV WVTP,SINE,FRQ,{freq},AMP,{amp},OFST,{offset},PHSE,{phase}'
@@ -189,31 +196,49 @@ class SiglentSDG1032X:
         cmd = f'C{ch}:BSWV WVTP,SQUARE,FRQ,{freq},AMP,{amp},OFST,{offset},PHSE,{phase},DUTY,{duty}'
         self.instr.write(cmd)
         self.ParseBasicWave(ch)
+
+    @validate_channel
+    def Pulse(self, ch: int, freq: float, amp: float = 3.3, offset: float = 1.625, delay: float = 0.,
+               duty: float = 50.):
+        cmd = f'C{ch}:BSWV WVTP,PULSE,FRQ,{freq},AMP,{amp},OFST,{offset},DLY,{delay},DUTY,{duty}'
+        self.instr.write(cmd)
+        self.ParseBasicWave(ch)
+
+    @validate_channel
+    def BurstWave(self, ch: int, state: str, gate_ncyc: str = 'gate', trigger: str = 'EXT', 
+                       polarity: str = 'POS', delay: float = 0, edge: str = 'RISE'):
+        cmd = f'C{ch}:BTWV STATE,{state},GATE_NCYC,{gate_ncyc},TRSR,{trigger},DLY,{delay},PLRT,{polarity},'
+        cmd += f'EDGE,{edge}'
+        self.instr.write(cmd)
     
 if __name__ == "__main__":
     com_port = "USB0::0xF4EC::0x1103::SDG1XCAD2R3284::INSTR"
     sdg = SiglentSDG1032X(time.time(), com_port)
-    
-    print(sdg.GetClockSource())
 
-    sdg.BasicWaveFrequency(1, 10e3)
-    sdg.BasicWaveType(1,'SQUARE')
-    print(sdg.waveforms)
-    print()
+    sdg.Pulse(1,1.5e6, amp = 3.3, offset = 1.625)
+    sdg.Pulse(2,1.5e6, amp = 3.3, offset = 1.625)
     sdg.Output(1,'ON')
-    time.sleep(2)
-    sdg.Square(1,20e3, 3)
-    time.sleep(2)
-    sdg.Output(1,'OFF')
-    sdg.OutputImpedance(1,50)
-    time.sleep(2)
-    sdg.OutputImpedance(1,'HZ')
 
-    print('='*75)
-    print('Checking handling of invalid channel assignment')
-    sdg.OutputImpedance(3,'HZ')
-    print('='*75)
+    # print(sdg.GetClockSource())
 
-    sdg.ParseOutput(1)
-    print(sdg.ReadValue())
+    # sdg.BasicWaveFrequency(1, 10e3)
+    # sdg.BasicWaveType(1,'SQUARE')
+    # print(sdg.waveforms)
+    # print()
+    # sdg.Output(1,'ON')
+    # time.sleep(2)
+    # sdg.Square(1,20e3, 3)
+    # time.sleep(2)
+    # sdg.Output(1,'OFF')
+    # sdg.OutputImpedance(1,50)
+    # time.sleep(2)
+    # sdg.OutputImpedance(1,'HZ')
+
+    # print('='*75)
+    # print('Checking handling of invalid channel assignment')
+    # sdg.OutputImpedance(3,'HZ')
+    # print('='*75)
+
+    # sdg.ParseOutput(1)
+    # print(sdg.ReadValue())
     sdg.__exit__()

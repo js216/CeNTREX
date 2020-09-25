@@ -91,52 +91,82 @@ class GWInstekAFG2100:
         cmd = f'*RCL {loc}'
         self.instr.write(cmd)
 
-    def GetSourceFunction(self, ch: int = 1):
+    def GetSourceFunction(self, ch: int):
         cmd = f'SOUR{ch}:FUNC?'
         return self.query(cmd)
 
-    def GetSourceFrequency(self, ch: int = 1):
+    def GetSourceFrequency(self, ch: int):
         cmd = f'SOUR{ch}:FREQ?'
         return self.instr.query(cmd)
     
-    def GetSourceAmplitude(self, ch: int = 1):
+    def GetSourceAmplitude(self, ch: int):
         cmd = f'SOUR{ch}:AMPL?'
         return self.instr.query(cmd)
     
-    def GetSourceDCOffset(self, ch: int = 1):
+    def GetSourceDCOffset(self, ch: int):
         cmd = f'SOUR{ch}:DCO?'
         return self.instr.query(cmd)
 
-    def GetOutput(self, ch: int = 1):
+    def GetOutput(self, ch: int):
         cmd = f'SOUR{ch}:OUTP?'
         return self.instr.query(cmd)
 
-    def Output(self, ch: int = 1, output):
+    def Output(self, ch: int, output):
         cmd = f'SOUR{ch}:OUTP {output}'
         self.instr.write(cmd)
 
-    def GetSourceVoltageUnit(self, ch: int = 1):
+    def GetSourceVoltageUnit(self, ch: int):
         cmd = f'SOUR{ch}:VOLT:UNIT?'
         return self.instr.query(cmd)
 
-    def SourceVoltageUnit(self, ch: int = 1, unit):
+    def SourceVoltageUnit(self, ch: int, unit):
         cmd = f'SOUR{ch}:VOLT:UNIT {unit}'
         return self.instr.write(cmd)
 
-    def GetSourceApply(self, ch: int = 1):
+    def GetSourceApply(self, ch: int):
         cmd = f'SOUR{ch}:APPL?'
         return self.instr.query(cmd)
 
-    def SourceApplySinusoid(self, ch: int = 1, frequency, amplitude, offset):
+    def SourceApplySinusoid(self, ch: int, frequency, amplitude, offset):
         cmd = f'SOUR{ch}:APPL:SIN {frequency},{amplitude},{offset}'
-        print()
         self.instr.write(cmd)
 
+    def SourceApplySquare(self, ch: int, frequency, amplitude, offset):
+        cmd = f'SOUR{ch}:APPL:SQU {frequency},{amplitude},{offset}'
+        self.instr.write(cmd)
+
+    def SourceFrequency(self, ch: int, frequency):
+        cmd = f'SOUR{ch}:FREQ {frequency}'
+        self.instr.write(cmd)
+
+    def SourceAmplitude(self, ch: int, amplitude):
+        cmd = f'SOUR{ch}:AMPL {amplitude}'
+        self.instr.write(cmd)
+    
+    def SourceDCOffset(self, ch: int, offset):
+        cmd = f'SOUR{ch}:DCO {offset}'
+        self.instr.write(cmd)
 
 if __name__ == "__main__":
     resource_name = input('specify resource name : ')
     afg = GWInstekAFG2100(time.time(), resource_name)
     print(afg.verification_string)
-    print(afg.GetOutput())
+    print(afg.GetOutput(1))
+    afg.Output(1, "OFF")
+    afg.SourceFrequency(1,2e6)
+    afg.SourceAmplitude(1,0.5)
+    afg.SourceDCOffset(1,0.25)
+    afg.Output(1, "ON")
+    time.sleep(5)
+    afg.Output(1, "OFF")
+    afg.SourceFrequency(1,1.562e6)
+    afg.SourceAmplitude(1,0.75)
+    afg.SourceDCOffset(1,0)
+    afg.Output(1, "ON")
+    time.sleep(5)
+    afg.SourceApplySquare(1,1.5e6,1.5,1.5/2)
+    time.sleep(5)
+    afg.Output(1, "OFF")
+
 
     afg.__exit__()

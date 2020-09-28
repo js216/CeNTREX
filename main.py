@@ -1,4 +1,4 @@
-import re
+﻿import re
 import h5py
 import time
 import json
@@ -837,7 +837,7 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
                 return
         else:
             params = item.text(2).split(",")
-        
+
         # extract the time delay
         try:
             dt = float(item.text(3))
@@ -2676,7 +2676,7 @@ class ControlGUI(qt.QWidget):
     def queue_custom_command(self):
         # check the command is valid
         cmd = self.parent.config["general"]["custom_command"]
-        search = re.compile(r'[^A-Za-z0-9()"]').search
+        search = re.compile(r'[^A-Za-z0-9()".?!*# ]').search
         if bool(search(cmd)):
             error_box("Command error", "Invalid command.")
             return
@@ -3337,7 +3337,11 @@ class Plotter(qt.QWidget):
             self.run_cbx.setCurrentText(self.config["run"])
 
         # get parameters
-        self.param_list = split(self.dev.config["attributes"]["column_names"])
+        # self.param_list = split(self.dev.config["attributes"]["column_names"])
+        if self.dev.config['slow_data']:
+            self.param_list = split(self.dev.config["attributes"]["column_names"])
+        elif not self.dev.config['slow_data']:
+            self.param_list = split(self.dev.config["attributes"]["column_names"])+['(none)']
         if not self.param_list:
             logging.warning("Plot error: No parameters to plot.")
             return
@@ -3356,7 +3360,7 @@ class Plotter(qt.QWidget):
             else:
                 self.config["x"] = "(none)"
             if len(self.param_list) > 1:
-                self.config["y"] = self.param_list[1]
+                self.config["y"] = self.param_list[0]
             else:
                 self.config["y"] = self.param_list[0]
 
@@ -3373,7 +3377,7 @@ class Plotter(qt.QWidget):
             )
         update_QComboBox(
                 cbx     = self.y_cbx,
-                options = ["(none)"] + self.param_list,
+                options = self.param_list,
                 value   = self.config["y"]
             )
         update_QComboBox(
@@ -3463,7 +3467,14 @@ class Plotter(qt.QWidget):
                     logging.warning(traceback.format_exc())
                     return None
 
-                x = np.arange(dset.shape[0])
+                if self.config['x'] == "(none)":
+                    x = np.arange(dset[0].shape[2])
+                else:
+                    x = dset[0][0, self.param_list.index(self.config["x"])].astype(float)
+                if self.config["y"] == "(none)":
+                    logging.warning("Plot error: y not valid.")
+                    logging.warning("Plot warning: bad parameters")
+                    return None
                 y = dset[:, self.param_list.index(self.config["y"])].astype(np.float)
 
                 # divide y by z (if applicable)
@@ -3515,7 +3526,14 @@ class Plotter(qt.QWidget):
                 return None
             if dset==[np.nan] or dset==np.nan:
                 return None
-            x = np.arange(dset[0].shape[2])
+            if self.config['x'] == "(none)":
+                x = np.arange(dset[0].shape[2])
+            else:
+                x = dset[0][0, self.param_list.index(self.config["x"])].astype(float)
+            if self.config["y"] == "(none)":
+                logging.warning("Plot error: y not valid.")
+                logging.warning("Plot warning: bad parameters")
+                return None
             y = dset[0][0, self.param_list.index(self.config["y"])].astype(float)
             self.dset_attrs = dset[1]
 

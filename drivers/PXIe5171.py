@@ -65,6 +65,8 @@ class PXIe5171:
             self.session.trigger_type = niscope.TriggerType.EDGE
         if trigger["trigger_type"] == "Immediate":
             self.session.trigger_type = niscope.TriggerType.IMMEDIATE
+        if trigger['trigger_type'] == "Digital":
+            self.session.trigger_type = niscope.TriggerType.DIGITAL
         self.session.trigger_source = edge["trigger_src"]
         if edge["trigger_slope"] == "Falling":
             self.session.trigger_slope = niscope.TriggerSlope.NEGATIVE

@@ -33,7 +33,10 @@ class YagIsolator:
 
         # convenience attributes to cut down on serial communication for
         # monitoring commands
+        self.Enable('C')
+        self.flashlamp_status = bool(self.instr.query("status C"))
         self.qswitch_status = bool(self.instr.query("status D"))
+        print(self.instr.query("status C"))
         self.nr_qswitches = 0
 
     def __enter__(self):
@@ -44,7 +47,7 @@ class YagIsolator:
             self.instr.close()
 
     def ReadValue(self):
-        return [ 
+        return [
                 time.time()-self.time_offset
                ]
 
@@ -79,8 +82,8 @@ class YagIsolator:
     def SetNrQswitchesGUI(self, nr_qswitches):
         self.NrQswitches(nr_qswitches)
         self.nr_qswitches = nr_qswitches
-    
-    def GetNrQswitchesGUI(self, nr_qswitches):
+
+    def GetNrQswitchesGUI(self):
         return self.nr_qswitches
 
 
@@ -104,7 +107,7 @@ class YagIsolator:
         ret = self.instr.query(cmd)
         if ret != cmd:
             logging.warning("YagIsolator warning in QswitchCounter(): "+ret)
-    
+
     def Enable(self, channel):
         assert channel in ['C', 'D'], f'invalid channel : {channel}'
         cmd = f'enable {channel}'

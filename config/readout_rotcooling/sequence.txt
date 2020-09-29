@@ -1,0 +1,1 @@
+[["PXIe5171", "DummyFunc", "np.linspace(0,50,51)", "0", "", "", [["YagIsolator", "SetNrQswitchesGUI", "1", "0", "", "", []], ["PXIe5171", "UpdateSequenceAttrs", "parent_info", "0", "", "", []], ["PXIe5171", "ReadValue", "", "0", "", "", []]]]]

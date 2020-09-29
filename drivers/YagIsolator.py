@@ -33,10 +33,17 @@ class YagIsolator:
 
         self.warnings = []
 
-        # convenience attributes to cut down on serial communication for
-        # monitoring commands
-        self.qswitch_status = False
-        self.nr_qswitches = 0
+        if resource_name == 'client':
+            self.qswitch_status = False
+            self.nr_qswitches = 0
+        else:
+            # convenience attributes to cut down on serial communication for
+            # monitoring commands
+            self.Enable('C')
+            self.flashlamp_status = bool(self.instr.query("status C"))
+            self.qswitch_status = bool(self.instr.query("status D"))
+            print(self.instr.query("status C"))
+            self.nr_qswitches = 0
 
     def __enter__(self):
         return self
@@ -44,7 +51,7 @@ class YagIsolator:
     def __exit__(self, *exc):
         if self.instr:
             self.instr.close()
-            
+
     def ReadValue(self):
         return [
                 time.time()-self.time_offset
@@ -82,7 +89,7 @@ class YagIsolator:
         self.NrQswitches(nr_qswitches)
         self.nr_qswitches = nr_qswitches
 
-    def GetNrQswitchesGUI(self, nr_qswitches):
+    def GetNrQswitchesGUI(self):
         return self.nr_qswitches
 
 

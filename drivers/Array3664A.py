@@ -27,10 +27,10 @@ class Array3664A:
         # shape and type of the array of returned data
         self.dtype = ('f', 'float', 'float')
         self.shape = (3, )
-    
+
     def __enter__(self):
         return self
-    
+
     def __exit__(self, *exc):
         if self.instr:
             self.instr.close()
@@ -44,7 +44,7 @@ class Array3664A:
 
     def QueryIdentification(self):
         """Identifies the instrument model and software level.
-        
+
         Returns:
         <manufacturer>, <model number>, <serial number>, <firmware date>
         """
@@ -69,6 +69,12 @@ class Array3664A:
     def GetVoltage(self):
         return float(self.instr.query('MEAS:SCAL:VOLT?'))
 
+    def Set5V(self):
+        self.Apply(5.0, 1.0)
+        self.Output(1)
+
+    def Off(self):
+        self.Output(0)
 
 if __name__ == '__main__':
     resource_name = input('specify resource name : ')
@@ -79,4 +85,3 @@ if __name__ == '__main__':
     print(psu.ReadValue())
     psu.Output(0)
     psu.__exit__()
-    

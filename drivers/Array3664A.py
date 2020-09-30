@@ -7,16 +7,18 @@ class Array3664A:
     def __init__(self, time_offset, resource_name):
         self.time_offset = time_offset
         self.rm = pyvisa.ResourceManager()
-        try:
-            self.instr = self.rm.open_resource(resource_name)
-        except pyvisa.errors.VisaIOError:
-            self.verification_string = "False"
-            self.instr = False
-            return
-        self.instr.parity = pyvisa.constants.Parity.none
-        self.instr.data_bits = 8
-        self.instr.baud_rate = 9600
-        self.instr.term_char = '\r\n'
+
+        if resource_name != 'client':
+            try:
+                self.instr = self.rm.open_resource(resource_name)
+            except pyvisa.errors.VisaIOError:
+                self.verification_string = "False"
+                self.instr = False
+                return
+            self.instr.parity = pyvisa.constants.Parity.none
+            self.instr.data_bits = 8
+            self.instr.baud_rate = 9600
+            self.instr.term_char = '\r\n'
 
         # make the verification string
         self.verification_string = self.QueryIdentification()

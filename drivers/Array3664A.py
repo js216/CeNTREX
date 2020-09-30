@@ -71,12 +71,8 @@ class Array3664A:
     def GetVoltage(self):
         return float(self.instr.query('MEAS:SCAL:VOLT?'))
 
-    def Set5V(self):
-        self.Apply(5.0, 1.0)
-        self.Output(1)
-
-    def Off(self):
-        self.Output(0)
+    def SetVoltage(self, voltage):
+        self.instr.write(f'SOUR:VOLT:LEV:IMM:AMPL {voltage}')
 
 if __name__ == '__main__':
     resource_name = input('specify resource name : ')

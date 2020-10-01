@@ -198,3 +198,26 @@ class PXIe5171:
     def DummyFunc(self, val):
         return None
         print('DummyFunc', val)
+
+    def ClearBuffer(self):
+        """
+        Convenience function for sequencer to assert that no missed triggers are in 
+        the device buffer before changing a parameter of a different device
+        """
+        waveforms_flat = np.ndarray(len(self.active_channels) * self.num_records * self.num_samples, dtype = np.int16)
+
+        # fetch until no more present in memory
+        while True:
+            try:
+                infos = self.session.channels[self.active_channels].fetch_into(
+                        waveform      = waveforms_flat,
+                        relative_to   = niscope.FetchRelativeTo.PRETRIGGER,
+                        offset        = 0,
+                        record_number = self.rec_num,
+                        num_records   = self.num_records,
+                        timeout       = datetime.timedelta(seconds=0.1)
+                    )
+                timestamp = time.time()-self.time_offset
+            except niscope.errors.DriverError as err:
+                break
+        return

@@ -196,4 +196,5 @@ class PXIe5171:
         self.trace_attrs.update(attrs)
 
     def DummyFunc(self, val):
+        return None
         print('DummyFunc', val)

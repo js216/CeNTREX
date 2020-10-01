@@ -79,8 +79,15 @@ class HistogramPlotter:
         y_data = np.array(self.y_data)
         bins = self.bins
 
-        if (len(x_data) == 0) or (len(y_data) == 0):
-            return np.nan
+        # return zeros if no data present
+        if (len(x_data)) == 0:
+            data = np.concatenate((np.linspace(-1,1,self.shape[-1]),
+                                  np.zeros(self.shape[-1]))).reshape(self.shape)
+            return [data, [{'timestamp': time.time() - self.time_offset}]]
+
+        if (len(y_data) == 0):
+            data = np.concatenate((bins[:-1]+self.width/2, np.zeros(self.shape[-1]))).reshape(self.shape)
+            return [data, [{'timestamp': time.time() - self.time_offset}]]
 
         bin_indices = np.digitize(x_data, bins)
         bin_means = np.array([y_data[bin_indices == i].mean() for i in range(1,len(bins))])

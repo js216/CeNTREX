@@ -199,7 +199,7 @@ class PXIe5171:
         return None
         print('DummyFunc', val)
 
-    def ClearBuffer(self):
+    def ClearBuffer(self, timeout = 0.1):
         """
         Convenience function for sequencer to assert that no missed triggers are in 
         the device buffer before changing a parameter of a different device
@@ -215,9 +215,8 @@ class PXIe5171:
                         offset        = 0,
                         record_number = self.rec_num,
                         num_records   = self.num_records,
-                        timeout       = datetime.timedelta(seconds=0.1)
+                        timeout       = datetime.timedelta(seconds=timeout)
                     )
-                timestamp = time.time()-self.time_offset
             except niscope.errors.DriverError as err:
                 break
         return

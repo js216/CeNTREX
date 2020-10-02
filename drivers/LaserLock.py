@@ -283,9 +283,9 @@ class LaserLock:
 
     def SetLockPoint(self, seed, lockpoint):
         if seed == 'seed1':
-            values = self.request('command', f'lock.set_laser_lockpoint({lockpoint},0)')
+            values = self.request('command', f'set_laser_lockpoint({lockpoint},0)')
         elif seed == 'seed2':
-            values = self.request('command', f'lock.set_laser_lockpoint({lockpoint},1')
+            values = self.request('command', f'set_laser_lockpoint({lockpoint},1)')
         return
 
     def _createRequest(self, action, value):

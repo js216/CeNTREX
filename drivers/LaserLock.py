@@ -275,6 +275,13 @@ class LaserLock:
         self.warnings = []
         return warnings
 
+    def SetLockPoint(self, seed, lockpoint):
+        if seed == 'seed1':
+            values = self.request('command', f'set_laser_lockpoint(0,{lockpoint})')
+        elif seed = 'seed2':
+            values = self.request('command', f'set_laser_lockpoitn(1,{lockpoint}')
+        return
+
     def _createRequest(self, action, value):
         return dict(
             type="text/json",

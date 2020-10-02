@@ -60,6 +60,7 @@ class HistogramPlotter:
     #################################################
     # Helper Functions
     #################################################
+    
     def Strip(self, string, to_strip):
         return string.strip(to_strip)
 

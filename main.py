@@ -309,6 +309,9 @@ class Device(threading.Thread):
                         except Exception as err:
                             logging.warning(traceback.format_exc())
                             ret_val = str(err)
+                        if (c == "ReadValue()") and ret_val:
+                            self.data_queue.append(ret_val)
+                            self.config["plots_queue"].append(ret_val)                            
                         ret_val = "None" if not ret_val else ret_val
                         self.last_event = [ time.time()-self.time_offset, c, ret_val ]
                         self.events_queue.append(self.last_event)

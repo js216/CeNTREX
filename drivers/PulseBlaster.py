@@ -5,7 +5,6 @@ import numpy as np
 from spinapi import *
 from functools import reduce
 
-from functools import reduce
 def gcd(a, b):
     """Return greatest common divisor using Euclid's Algorithm."""
     while b:

@@ -33,7 +33,8 @@ class ServerMessage:
     See https://realpython.com/python-sockets/#application-client-and-server
     for a more thorough explanation, most of the code is adapted from this.
     """
-    def __init__(self, selector, sock, addr, data, commands, timeout):
+    def __init__(self, device_name, selector, sock, addr, data, commands, timeout):
+        self.device_name = device_name
         self.selector = selector
         self.sock = sock
         self.addr = addr
@@ -114,6 +115,7 @@ class ServerMessage:
 
     def _create_response_json_content(self):
         action = self.request.get("action")
+        logging.info(f'{self.device_name}: {self.request.get("value")}')
         if action == "query":
             query = self.request.get("value")
             if self.data.get(query):
@@ -281,7 +283,7 @@ class socketServer(threading.Thread):
         conn, addr = sock.accept()  # Should be ready to read
         logging.info("{0} accepted connection from".format(self.device.device_name), addr)
         conn.setblocking(False)
-        message = ServerMessage(self.sel, conn, addr, self.device.data_server,
+        message = ServerMessage(self.device.device_name, self.sel, conn, addr, self.device.data_server,
                                 self.device.commands_server, self.timeout)
         self.sel.register(conn, selectors.EVENT_READ, data=message)
 

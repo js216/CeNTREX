@@ -74,7 +74,7 @@ class MonitorSignal:
             logging.warning(f'MonitorSignal warning in SetNshots : invalid nr shots specified ({nshots})')
         self.nshots = int(nshots)
 
-    def GetNshots(self, nshots):
+    def GetNshots(self):
         return self.nshots
 
     def SetMaxSpots(self, max_spots):

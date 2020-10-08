@@ -263,12 +263,12 @@ class PulseBlaster:
         pb_stop_programming()
 
 if __name__ == "__main__":
-    qswitch_delay = 165 # microseconds
+    qswitch_delay = 170 # microseconds
     # trigger = {'frequency':10, 'offset':0, 'high': int(round(1e-4/1e-9,2)), 'channels':[0],
     #            'active_high':True}
-    flashlamp = {'frequency':50, 'offset':0, 'high': int(round(10e-3/1e-9,2)), 'channels':[1],
+    flashlamp = {'frequency':50, 'offset':0, 'high': int(1e6), 'channels':[1],
                  'active_high':True}
-    qswitch = {'frequency':25, 'offset':int(round(qswitch_delay*1e-6/1e-9,2)), 'high':int(round(10e-3/1e-9,2)), 'channels':[2],
+    qswitch = {'frequency':10, 'offset':int(qswitch_delay*1e3), 'high': int(1e6), 'channels':[2],
                'active_high':True}
     # shutter = {'frequency': 5/10,'offset':int(round(20e-3/1e-9,2)), 'high':int(round(1/1e-9,2)), 'channels':[3],
     #            'active_high':True}

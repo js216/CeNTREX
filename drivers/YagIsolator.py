@@ -42,7 +42,6 @@ class YagIsolator:
             self.Enable('C')
             self.flashlamp_status = bool(self.instr.query("status C"))
             self.qswitch_status = bool(self.instr.query("status D"))
-            print(self.instr.query("status C"))
             self.nr_qswitches = 0
 
     def __enter__(self):

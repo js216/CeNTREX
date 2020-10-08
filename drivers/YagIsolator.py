@@ -24,7 +24,7 @@ class YagIsolator:
             self.ClearBuffer()
         self.verification_string = self.QueryIdentification()
 
-        # HDF attributes generated when constructor is run
+        # HDF attributes generated when constructor is runf
         self.new_attributes = []
 
         # shape and type of the array of returned data

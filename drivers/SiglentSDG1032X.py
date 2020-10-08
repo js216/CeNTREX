@@ -15,52 +15,57 @@ class SiglentSDG1032X:
     def __init__(self, time_offset, resource_name):
         self.time_offset = time_offset
         self.rm = pyvisa.ResourceManager()
-        try:
-            self.instr = self.rm.open_resource(resource_name)
-        except pyvisa.errors.VisaIOError:
-            self.verification_string = "False"
-            self.instr = False
-            return
-        self.instr.parity = pyvisa.constants.Parity.odd
-        self.instr.data_bits = 7
-        self.instr.baud_rate = 9600
-        self.instr.term_char = '\n\r'
+        if resource_name != 'client':
+            try:
+                self.instr = self.rm.open_resource(resource_name)
+            except pyvisa.errors.VisaIOError:
+                self.verification_string = "False"
+                self.instr = False
+                return
+            self.instr.parity = pyvisa.constants.Parity.odd
+            self.instr.data_bits = 7
+            self.instr.baud_rate = 9600
+            self.instr.term_char = '\n\r'
 
-        # make the verification string
-        self.verification_string = self.QueryIdentification()
+            # make the verification string
+            self.verification_string = self.QueryIdentification()
+        else:
+            self.verification_string = True
 
         # HDF attributes generated when constructor is run
         self.new_attributes = []
 
         # shape and type of the array of returned data
-        self.dtype = ('f', 'bool', 'float', 'float', 'float', 
-                           'bool', 'float', 'float', 'float')
-        self.shape = (9, )
+        self.dtype = ('f', 'bool', 'S5', 'float', 'float', 'float',
+                           'bool', 'S5', 'float', 'float', 'float')
+        self.shape = (11, )
 
         self.waveforms = {1: {}, 2: {}}
         self.outputs = {1: {}, 2: {}}
 
         self.units = ['HZ', 'S', 'V', 'Vrms']
-        self.ParseBasicWave(1)
-        self.ParseBasicWave(2)
-        self.ParseOutput(1)
-        self.ParseOutput(2)
+
+        if resource_name != 'client':
+            self.ParseBasicWave(1)
+            self.ParseBasicWave(2)
+            self.ParseOutput(1)
+            self.ParseOutput(2)
 
     def __enter__(self):
         return self
-    
+
     def __exit__(self, *exc):
         if self.instr:
             self.instr.close()
 
     def ReadValue(self):
-        vars = ['FRQ', 'AMP', 'OFST']
+        vars = ['WVTP', 'FRQ', 'AMP', 'OFST']
         ret = [time.time()-self.time_offset, self.outputs[1]['STATE']]
         for var in vars:
             ret += [self.waveforms[1][var]]
         ret += [self.outputs[2]['STATE']]
         for var in vars:
-            ret += [self.waveforms[2][var]]       
+            ret += [self.waveforms[2][var]]
         return ret
 
     def GetWarnings(self):
@@ -68,7 +73,7 @@ class SiglentSDG1032X:
 
     def QueryIdentification(self):
         """Identifies the instrument model and software level.
-        
+
         Returns:
         <manufacturer>, <model number>, <serial number>, <firmware date>
         """
@@ -76,7 +81,21 @@ class SiglentSDG1032X:
             return self.instr.query("*IDN?")
         except pyvisa.errors.VisaIOError:
             return np.nan
-    
+
+    #################################################################
+    ##########         CeNTREX DAQ GUI COMMANDS            ##########
+    #################################################################
+
+    def GetOutputState1(self):
+        if self.outputs[1]['STATE']:
+            return 'On'
+        else:
+            return 'Off'
+
+    def SetOutputState1(self, state):
+        self.Output(1,state)
+        self.ParseOutput()
+
     #################################################################
     ##########           CONVENIENCE COMMANDS              ##########
     #################################################################
@@ -97,7 +116,7 @@ class SiglentSDG1032X:
                     self.waveforms[ch][data[idx]] = float(d)
                 except ValueError:
                     self.waveforms[ch][data[idx]] = d
-    
+
     @validate_channel
     def ParseOutput(self, ch: int):
         string = self.GetOutput(ch)
@@ -163,7 +182,7 @@ class SiglentSDG1032X:
         cmd = f'C{ch}:BSWV WVTP,{wave}'
         self.instr.write(cmd)
         self.ParseBasicWave(ch)
-        
+
     @validate_channel
     def BasicWaveFrequency(self, ch: int, freq: float):
         cmd = f'C{ch}:BSWV FRQ,{freq}'
@@ -181,8 +200,6 @@ class SiglentSDG1032X:
         cmd = f'C{ch}:BSWV DLY,{delay}'
         self.instr.write(cmd)
         self.ParseBasicWave(ch)
-    
-
 
     @validate_channel
     def Sinusoidal(self, ch: int, freq: float, amp: float = 1., offset: float = 0., phase: float = 0.):
@@ -205,19 +222,22 @@ class SiglentSDG1032X:
         self.ParseBasicWave(ch)
 
     @validate_channel
-    def BurstWave(self, ch: int, state: str, gate_ncyc: str = 'gate', trigger: str = 'EXT', 
+    def BurstWave(self, ch: int, state: str, gate_ncyc: str = 'gate', trigger: str = 'EXT',
                        polarity: str = 'POS', delay: float = 0, edge: str = 'RISE'):
         cmd = f'C{ch}:BTWV STATE,{state},GATE_NCYC,{gate_ncyc},TRSR,{trigger},DLY,{delay},PLRT,{polarity},'
         cmd += f'EDGE,{edge}'
         self.instr.write(cmd)
-    
+
 if __name__ == "__main__":
     com_port = "USB0::0xF4EC::0x1103::SDG1XCAD2R3284::INSTR"
     sdg = SiglentSDG1032X(time.time(), com_port)
+    print(sdg.QueryIdentification())
+    print(sdg.GetOutputState1())
+    print(sdg.ReadValue())
 
-    sdg.Pulse(1,1.5e6, amp = 3.3, offset = 1.625)
-    sdg.Pulse(2,1.5e6, amp = 3.3, offset = 1.625)
-    sdg.Output(1,'ON')
+    # sdg.Pulse(1,1.5e6, amp = 3.3, offset = 1.625)
+    # sdg.Pulse(2,1.5e6, amp = 3.3, offset = 1.625)
+    # sdg.Output(1,'ON')
 
     # print(sdg.GetClockSource())
 

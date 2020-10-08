@@ -60,7 +60,7 @@ class HistogramPlotter:
     #################################################
     # Helper Functions
     #################################################
-    
+
     def Strip(self, string, to_strip):
         return string.strip(to_strip)
 
@@ -90,11 +90,21 @@ class HistogramPlotter:
             data = np.concatenate((bins[:-1]+self.width/2, np.zeros(self.shape[-1]))).reshape(self.shape)
             return [data, [{'timestamp': time.time() - self.time_offset}]]
 
-        bin_indices = np.digitize(x_data, bins)
-        bin_means = np.array([y_data[bin_indices == i].mean() for i in range(1,len(bins))])
-        data = np.concatenate((bins[:-1]+self.width/2, bin_means)).reshape(self.shape)
-        return [data, [{'timestamp': time.time() - self.time_offset}]]
+        try:
+            if np.diff(bins)[0] <= 0:
+                data = np.concatenate((np.linspace(-1,1,self.shape[-1]),
+                                      np.zeros(self.shape[-1]))).reshape(self.shape)
+                return [data, [{'timestamp': time.time() - self.time_offset}]]
 
+            bin_indices = np.digitize(x_data, bins)
+            bin_means = np.array([y_data[bin_indices == i].mean() for i in range(1,len(bins))])
+            data = np.concatenate((bins[:-1]+self.width/2, bin_means)).reshape(self.shape)
+            return [data, [{'timestamp': time.time() - self.time_offset}]]
+        except Exception as e:
+            data = np.concatenate((np.linspace(-1,1,self.shape[-1]),
+                                  np.zeros(self.shape[-1]))).reshape(self.shape)
+            return [data, [{'timestamp': time.time() - self.time_offset}]]
+            
     def SetProcessing(self, processing):
         self.processing = processing
         self.ClearData()

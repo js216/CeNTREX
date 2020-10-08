@@ -93,8 +93,11 @@ class SiglentSDG1032X:
             return 'Off'
 
     def SetOutputState1(self, state):
-        self.Output(1,state)
-        self.ParseOutput()
+        if state:
+            self.Output(1,"ON")
+        else:
+            self.Output(1, "OFF")
+        self.ParseOutput(1)
 
     #################################################################
     ##########           CONVENIENCE COMMANDS              ##########
@@ -122,7 +125,7 @@ class SiglentSDG1032X:
         string = self.GetOutput(ch)
         data = string.split(':')[1].split(' ')[1].split(',')
         self.outputs[ch] = {}
-        self.outputs[ch]['STATE'] = True if data[0] == 'ON' else False
+        self.outputs[ch]['STATE'] = True if data[0] in ['ON', 'On'] else False
         for idx in range(1,len(data),2):
             key = data[idx]
             val = data[idx+1].strip()

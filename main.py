@@ -311,7 +311,7 @@ class Device(threading.Thread):
                             ret_val = str(err)
                         if (c == "ReadValue()") and ret_val:
                             self.data_queue.append(ret_val)
-                            self.config["plots_queue"].append(ret_val)                            
+                            self.config["plots_queue"].append(ret_val)
                         ret_val = "None" if not ret_val else ret_val
                         self.last_event = [ time.time()-self.time_offset, c, ret_val ]
                         self.events_queue.append(self.last_event)
@@ -478,7 +478,7 @@ class Monitoring(threading.Thread,PyQt5.QtCore.QObject):
                 if isinstance(data, list):
                     try:
                         if dev.config["slow_data"]:
-                            formatted_data = [np.format_float_scientific(x, precision=3) for x in data]
+                            formatted_data = [np.format_float_scientific(x, precision=3) if not isinstance(x,str) else x for x in data]
                         else:
                             formatted_data = [np.format_float_scientific(x, precision=3) for x in data[0][0,:,0]]
                     except TypeError as err:

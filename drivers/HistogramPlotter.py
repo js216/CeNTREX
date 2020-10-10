@@ -51,6 +51,8 @@ class HistogramPlotter:
         self.shape = (1, 2, len(self.bins)-1)
         self.dtype = np.float
 
+        self.no_data_err = False
+
     def __enter__(self):
         return self
 
@@ -104,7 +106,7 @@ class HistogramPlotter:
             data = np.concatenate((np.linspace(-1,1,self.shape[-1]),
                                   np.zeros(self.shape[-1]))).reshape(self.shape)
             return [data, [{'timestamp': time.time() - self.time_offset}]]
-            
+
     def SetProcessing(self, processing):
         self.processing = processing
         self.ClearData()
@@ -141,6 +143,7 @@ class HistogramPlotter:
         self.x_data = []
         self.y_data = []
         self.dev1_hash = None
+        self.no_data_err = False
 
     def SetBins(self):
         self.bins = np.arange(self.lower, self.higher+self.width, self.width)
@@ -158,7 +161,6 @@ class HistogramPlotter:
             data1 = self.parent.devices[self.dev1].config["plots_queue"][-1]
             data2 = self.parent.devices[self.dev2].config["plots_queue"][-1]
         except IndexError:
-            logging.error('HistogramPlotter error in FetchData() : IndexError')
             return
 
         # extract the desired parameter 1 and 2
@@ -182,8 +184,11 @@ class HistogramPlotter:
         """
         data = self.FetchData()
         if data is None:
-            logging.warning('Warning in HistogramPlotter ProcessData() : no data retrieved')
+            if not self.no_data_err:
+                logging.warning('Warning in HistogramPlotter ProcessData() : no data retrieved')
+                self.no_data_err = True
             return
+        self.no_data_err = False
 
         y, param2_val = data
 

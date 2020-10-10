@@ -66,22 +66,13 @@ class MonitorSignal:
     def SetThreshold(self, threshold):
         self.threshold = float(threshold)
 
-    def GetThreshold(self):
-        return self.threshold
-
     def SetNshots(self, nshots):
         if int(nshots) < 1:
             logging.warning(f'MonitorSignal warning in SetNshots : invalid nr shots specified ({nshots})')
         self.nshots = int(nshots)
 
-    def GetNshots(self):
-        return self.nshots
-
     def SetMaxSpots(self, max_spots):
         self.max_spots = int(max_spots)
-
-    def GetMaxSpots(self):
-        return self.max_spots
 
     #################################################
     # Device Commands

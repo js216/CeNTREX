@@ -3793,11 +3793,15 @@ class Plotter(qt.QWidget):
 
     def toggle_points(self):
         if not self.config["symbol"]:
-            self.curve.clear()
+            if self.curve is not None
+                self.curve.clear()
+                self.curve = None
             self.curve = None
             self.config["symbol"] = 'o'
         else:
-            self.curve.clear()
+            if self.curve is not None
+                self.curve.clear()
+                self.curve = None
             self.curve = None
             self.config["symbol"] = None
 

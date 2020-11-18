@@ -30,7 +30,7 @@ class SiglentSDG1032X:
             # make the verification string
             self.verification_string = self.QueryIdentification()
         else:
-            self.verification_string = True
+            self.verification_string = 'True'
 
         # HDF attributes generated when constructor is run
         self.new_attributes = []

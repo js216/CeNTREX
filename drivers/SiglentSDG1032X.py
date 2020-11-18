@@ -59,6 +59,10 @@ class SiglentSDG1032X:
             self.instr.close()
 
     def ReadValue(self):
+        self.ParseBasicWave(1)
+        self.ParseBasicWave(2)
+        self.ParseOutput(1)
+        self.ParseOutput(2)
         vars = ['WVTP', 'FRQ', 'AMP', 'OFST']
         ret = [time.time()-self.time_offset, self.outputs[1]['STATE']]
         for var in vars:
@@ -98,6 +102,12 @@ class SiglentSDG1032X:
         else:
             self.Output(1, "OFF")
         self.ParseOutput(1)
+
+    def SetChannel1Frequency(self, freq):
+        self.BasicWaveFrequency(1, freq)
+
+    def SetChannel2Frequency(self, freq):
+        self.BasicWaveFrequency(2, freq)
 
     #################################################################
     ##########           CONVENIENCE COMMANDS              ##########

@@ -52,10 +52,16 @@ class MirrorSweepRectangle(StoppableThread):
             except TimeoutError:
                 continue
 
+    def calculate_coords_range(self, a, b, step):
+        if a > b:
+            return np.arange(a,b-step,-step)
+        else:
+            return np.arange(a,b+step,step)
+
     def run(self):
         self.driver.running_sweep = True
-        coords_x = np.arange(self.point_a[0], self.point_b[0]+self.step, self.step)
-        coords_y = np.arange(self.point_a[1], self.point_b[1]+self.step, self.step)
+        coords_x = self.calculate_coords_range(self.point_a[0], self.point_b[0], self.step)
+        coords_x = self.calculate_coords_range(self.point_a[1], self.point_b[1], self.step)
         while True:
             for x in coords_x:
                 for y in coords_y:

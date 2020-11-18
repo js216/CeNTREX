@@ -822,7 +822,7 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
 
         # defaults
         # TODO: use a Config class to do this
-        self.default_dt = 0.1
+        self.default_dt = 1e-4
         self.circular = circular
         self.n_repeats = n_repeats
 
@@ -1974,7 +1974,7 @@ class ControlGUI(qt.QWidget):
         # open button
         pb = qt.QPushButton("Open...")
         pb.clicked[bool].connect(
-                lambda val, qle=self.fname_qle: self.open_file("files", "hdf_fname", self.fname_qle)
+                lambda val, qle=self.fname_qle: self.open_file("files", "sequence_fname", self.fname_qle)
             )
         b_frame.addWidget(pb)
 

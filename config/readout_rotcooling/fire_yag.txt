@@ -1,0 +1,1 @@
+[["PXIe5171", "ClearBuffer", "0.1", "", "True", "", []], ["YagIsolator", "SetNrQswitchesGUI", "10", "", "", "", []], ["PXIe5171", "ReadValue", "", "", "True", "10", []]]

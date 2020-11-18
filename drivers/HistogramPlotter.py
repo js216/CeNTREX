@@ -146,6 +146,9 @@ class HistogramPlotter:
         self.no_data_err = False
 
     def SetBins(self):
+        if self.lower >= self.higher:
+            logging.error("Error in HistogramPlotter: lower bin is larger than higher bin")
+            return
         self.bins = np.arange(self.lower, self.higher+self.width, self.width)
         self.shape = (1, 2, len(self.bins)-1)
 
@@ -169,12 +172,12 @@ class HistogramPlotter:
         try:
             param1_dset = data1[0][0, col_names1.index(self.param1)].astype(float)
         except IndexError:
-            logging.error("Error in HistogramShutterPlotter: param not found: " + self.param1)
+            logging.error("Error in HistogramPlotter: param not found: " + self.param1)
             return
         try:
             param2_val = float(data2[col_names2.index(self.param2)])
         except IndexError:
-            logging.error("Error in HistogramShutterPlotter: param not found: " + self.param2)
+            logging.error("Error in HistogramPlotter: param not found: " + self.param2)
             return
         return param1_dset, param2_val
 

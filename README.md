@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="300" src="https://raw.githubusercontent.com/ograsdijk/CeNTREX/master/CeNTREX%20logo.png">
+  <img width="300" src="https://raw.githubusercontent.com/js216/CeNTREX/master/CeNTREX%20logo.png">
 </p>
 
 # CeNTREX data acquisition software

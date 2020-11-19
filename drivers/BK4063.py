@@ -96,12 +96,25 @@ class BK4063:
         else:
             return 'Off'
 
+    def GetOutputState2(self):
+        if self.outputs[2]['STATE']:
+            return 'On'
+        else:
+            return 'Off'
+
     def SetOutputState1(self, state):
         if state:
             self.Output(1,"ON")
         else:
             self.Output(1, "OFF")
         self.ParseOutput(1)
+
+    def SetOutputState2(self,state):
+        if state:
+            self.Output(2,"ON")
+        else:
+            self.Output(2, "OFF")
+        self.ParseOutput(2)
 
     def SetChannel1Frequency(self, freq):
         self.BasicWaveFrequency(1, freq)

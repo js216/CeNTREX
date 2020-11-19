@@ -11,7 +11,7 @@ def validate_channel(func):
             logging.warning(f'SiglentSDG1032X warning in {func.__name__}: invalid channel')
     return wrapper
 
-class SiglentSDG1032X:
+class BK4063:
     def __init__(self, time_offset, resource_name):
         self.time_offset = time_offset
         self.rm = pyvisa.ResourceManager()
@@ -109,32 +109,14 @@ class SiglentSDG1032X:
     def SetChannel2Frequency(self, freq):
         self.BasicWaveFrequency(2, freq)
 
-    def SetBurstMicrowaveDelay(self, freq, phase_offset=60):
-        self.BasicWaveFrequency(1,freq)
-        self.BasicWaveFrequency(2,freq)
+
+    @validate_channel
+    def BurstMicrowaveDelay(self, freq, phase_offset):
         period = 1/freq
-        delay1 = (180+phase_offset)*period/360
-        delay2 = (180+(2*phase_offset))*period/360
-        # minimum delay for a square wave is 591 ns, offset by half the period
-        # to compensate
-        if delay1 < 591e9:
-            delay1 += period/2
-            delay2 += period/2
+        delay1 = (180+phase_offset*p)/360
+        delay2 = (180+(2*phase_offset))/360
         self.BurstWaveDelay(1, delay1)
         self.BurstWaveDelay(2, delay2)
-        self.BurstWaveState(1,"OFF")
-        self.BurstWaveState(2,"OFF")
-        self.BurstWaveState(1,"ON")
-        self.BurstWaveState(2, "ON")
-        if not np.isclose(delay1, float(self.instr.query("C1:BTWV?")[8:].split(",")[9].strip('S')),atol = 1e-9):
-            logging.warning("SiglentSDG1032X warning in BurstMicrowaveDelay: ch1 delay not set")
-        if not np.isclose(delay2, float(self.instr.query("C2:BTWV?")[8:].split(",")[9].strip('S')),atol = 1e-9):
-            logging.warning("SiglentSDG1032X warning in BurstMicrowaveDelay: ch2 delay not set")
-        return
-
-
-
-
 
 
     #################################################################
@@ -280,8 +262,8 @@ class SiglentSDG1032X:
         self.instr.write(cmd)
 
 if __name__ == "__main__":
-    com_port = "USB0::0xF4EC::0x1103::SDG1XCAD2R3284::INSTR"
-    sdg = SiglentSDG1032X(time.time(), com_port)
+    com_port = "USB0::0xF4ED::0xEE3A::446A17107::INSTR"
+    sdg = BK4063(time.time(), com_port)
     print(sdg.QueryIdentification())
     print(sdg.GetOutputState1())
     print(sdg.ReadValue())

@@ -117,7 +117,7 @@ class SiglentSDG1032X:
         delay2 = (180+(2*phase_offset))*period/360
         # minimum delay for a square wave is 591 ns, offset by half the period
         # to compensate
-        if delay1 < 591e9:
+        while delay1 < 591e9:
             delay1 += period/2
             delay2 += period/2
         self.BurstWaveDelay(1, delay1)

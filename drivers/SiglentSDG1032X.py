@@ -132,7 +132,18 @@ class SiglentSDG1032X:
             logging.warning("SiglentSDG1032X warning in BurstMicrowaveDelay: ch2 delay not set")
         return
 
-
+    def GetFrequencyFromSequencerBurst(self, parent_info):
+        if len(np.shape(parent_info)) == 2:
+            for info in parent_info:
+                device, function, param = info
+                if 'Frequency' in function:
+                    self.SetBurstMicrowaveDelay(float(param))
+        else:
+            device, function, param = parent_info
+            if device == "":
+                return
+            if 'Frequency' in function:
+                self.SetBurstMicrowaveDelay(float(param))
 
 
 

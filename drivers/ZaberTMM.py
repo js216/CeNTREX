@@ -28,7 +28,7 @@ class StepRectangle:
     """
     Rectangle in mirror coordinates to step through manually.
     """
-    def __init__(self, driver, point_a, point_b, step):
+    def __init__(self, driver, point_a, point_b, step, **kwargs):
         self.driver = driver
         self.point_a = point_a
         self.point_b = point_b
@@ -56,8 +56,10 @@ class StepRectangle:
             pass
 
     def next(self):
-        self.move(*self.coords[self.index])
+        self.move(*self.coordinates[self.index])
         self.index += 1
+        if self.index == len(self.coordinates):
+            self.index = 0
 
 class MirrorSweepRectangle(StoppableThread):
     """
@@ -101,7 +103,7 @@ class MirrorSweepRectangle(StoppableThread):
     def run(self):
         self.driver.running_sweep = True
         coords_x = self.calculate_coords_range(self.point_a[0], self.point_b[0], self.step)
-        coords_x = self.calculate_coords_range(self.point_a[1], self.point_b[1], self.step)
+        coords_y = self.calculate_coords_range(self.point_a[1], self.point_b[1], self.step)
         while True:
             for x in coords_x:
                 for y in coords_y:

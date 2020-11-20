@@ -122,15 +122,18 @@ class BK4063:
     def SetChannel2Frequency(self, freq):
         self.BasicWaveFrequency(2, freq)
 
-
-    @validate_channel
-    def BurstMicrowaveDelay(self, freq, phase_offset):
-        period = 1/freq
-        delay1 = (180+phase_offset*p)/360
-        delay2 = (180+(2*phase_offset))/360
-        self.BurstWaveDelay(1, delay1)
-        self.BurstWaveDelay(2, delay2)
-
+    def GetFrequencyFromSequencerBasicWave2(self, parent_info):
+        if len(np.shape(parent_info)) == 2:
+            for info in parent_info:
+                device, function, param = info
+                if 'Frequency' in function:
+                    self.BasicWaveFrequency(2,float(param))
+        else:
+            device, function, param = parent_info
+            if device == "":
+                return
+            if 'Frequency' in function:
+                self.BasicWaveFrequency(2,float(param))
 
     #################################################################
     ##########           CONVENIENCE COMMANDS              ##########

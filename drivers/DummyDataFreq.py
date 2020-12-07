@@ -29,4 +29,4 @@ class DummyDataFreq:
 
     def ReadValue(self):
         t = time.time() - self.time_offset
-        return t, self.frequency_span*signal.sawtooth(2*np.pi/self.period * t, width = 1)
+        return [t, self.frequency_span*signal.sawtooth(2*np.pi/self.period * t, width = 1)]

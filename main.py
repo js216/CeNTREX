@@ -1,4 +1,6 @@
 ﻿import re
+import zmq
+import uuid
 import h5py
 import time
 import json
@@ -191,6 +193,7 @@ class Device(threading.Thread):
         self.last_event = []
         self.monitoring_commands = set()
         self.sequencer_commands = []
+        self.networking_commands = []
 
         # for warnings about device abnormal condition
         self.warnings = []
@@ -202,6 +205,9 @@ class Device(threading.Thread):
         self.events_queue = deque()
         self.monitoring_events_queue = deque()
         self.sequencer_events_queue = deque()
+        # use a dictionary for the networking queue to allow use of .get() to 
+        # allow for unique ids if multiple network clients are connected
+        self.networking_events_queue = {}
 
         # the variable for counting the number of NaN returns
         self.nan_count = 0
@@ -344,6 +350,15 @@ class Device(threading.Thread):
                     # level 2: check device is enabled for regular ReadValue
                     if self.config["control_params"]["enabled"]["value"] < 2:
                         continue
+
+                    for uid, cmd in self.networking_commands:
+                        try:
+                            ret_val = eval("device." + cmd.strip())
+                        except Exception as err:
+                            logging.info(traceback.format_exc())
+                            ret_val = str(err)
+                        self.networking_events_queue[uid] = ret_val
+                    self.networking_commands = []
 
                     # record numerical values
                     if time.time() - self.time_last_read >= dt:
@@ -637,6 +652,156 @@ class Monitoring(threading.Thread,PyQt5.QtCore.QObject):
                     }
                 ]
         self.influxdb_client.write_points(json_body, time_precision='ms')
+
+class NetworkingDeviceWorker(threading.Thread):
+    def __init__(self, parent):
+        super(NetworkingDeviceWorker, self).__init__()
+        self.active = threading.Event()
+        self.daemon = True
+        self.parent = parent
+        self.context = zmq.Context()
+        self.socket = self.context.socket(zmq.REP)
+        #connect to the ipc backend
+        self.socket.connect("ipc://backend.ipc")
+
+        # each worker has an unique id for the return value queue
+        self.uid = uuid.uuid1().int>>64
+
+    def run(self):
+        while self.active.is_set():
+            # receive the request from a client
+            request = self.socket.recv_string()
+            # requests are sent as a "'device':'command'" pair in a string
+            device, command = request.split(':')
+            # strip both to prevent whitespace errors during eval on device
+            device.strip()
+            command.strip()
+            # check if device present
+            if device not in self.parent.devices:
+                self.socket.send_json("device not present")
+                continue
+            dev = self.parent.devices[device]
+            # check if device control is started
+            if not dev.control_started:
+                self.socket.send_json("device not started")
+                continue
+            # check if device is enabled
+            elif not dev.config["control_params"]["enabled"]["value"] == 2:
+                self.socket.send_json("device not enabled")
+                continue
+            # check if device is slow data
+            # ndarrays are not serializable by default, and fast devices return
+            # ndarrays on ReadValue()
+            elif not dev.config['slow_data']:
+                self.socket.send_json("device does not support slow data")
+            else:
+                # put command into the networking queue
+                dev.networking_commands.append((self.uid, command))
+                while True:
+                    # check if uid is present in return val dictionary and pop
+                    # if present
+                    if self.uid in dev.networking_events_queue:
+                        ret_val = dev.networking_events_queue.pop(self.uid)
+                        # serialize with json and send back to client
+                        self.socket.send_json(ret_val)
+                        break
+
+        self.socket.close()
+        self.context.term()
+
+
+class NetworkingBroker(threading.Thread):
+    def __init__(self, outward_port):
+        super(NetworkingBroker, self).__init__()
+        self.daemon = True
+
+        # message broker for control
+        self.context = zmq.Context()
+        self.frontend = self.context.socket(zmq.XREP)
+        self.backend = self.context.socket(zmq.XREQ)
+        # external connections (clients) connect to frontend
+        self.frontend.bind(f"tcp://*:{outward_port}")
+        # workers connect to the backend
+        self.backend.bind("ipc://backend.ipc")
+
+    def __exit__(self, *args):
+        self.frontend.close()
+        self.backend.close()
+        self.context.term()
+
+    def run(self):
+        # try-except because zmq.device throws an error when the sockets and 
+        # context are closed when running
+        # TODO: better method of closing the message broker
+        try:
+            zmq.device(zmq.QUEUE, self.frontend, self.backend)
+        except zmq.error.ZMQError:
+            pass
+
+class Networking(threading.Thread):
+    def __init__(self, parent):
+        super(Networking, self).__init__()
+        self.parent = parent
+        self.active = threading.Event()
+        self.conf = self.parent.config["networking"]
+
+        # deamon = True ensures this thread terminates when the main threads 
+        # are terminated
+        self.daemon = True
+
+        self.context_readout = zmq.Context()
+        self.socket_readout = self.context_readout.socket(zmq.PUB)
+        self.socket_readout.bind(f"tcp://*:{self.conf['port_readout']}")
+
+        # dictionary with timestamps of last ReadValue update per device
+        self.devices_last_updated = {dev_name: 0 for dev_name in 
+                                                    self.parent.devices.keys()}
+        
+        # initialize the broker for network control of devices
+        self.control_broker = NetworkingBroker(self.conf['port_control'])
+        
+        # initialize the workers used for network control of devices
+        self.workers = [NetworkingDeviceWorker(parent) for _ in range(int(self.conf['workers']))]
+
+    def run(self):
+        # start the message borker
+        self.control_broker.start()
+        # start the workers
+        for worker in self.workers:
+            worker.active.set()
+            worker.start()
+
+        while self.active.is_set():
+            for dev_name, dev in self.parent.devices.items():
+                # check device running
+                if not dev.control_started:
+                    continue
+                # check device enabled
+                if not dev.config["control_params"]["enabled"]["value"] == 2:
+                    continue
+
+                if len(dev.config["plots_queue"]) > 0:
+                    data = dev.config["plots_queue"][-1]
+                else:
+                    data = None
+                
+                if isinstance(data, list):
+                    if dev.config["slow_data"]:
+                        t_readout = data[0]
+                        if self.devices_last_updated[dev_name] != t_readout:
+                            self.devices_last_updated[dev_name] = t_readout
+                            topic = f"{self.conf['control_name']}-{dev_name}"
+                            message = f"{topic}: {str([dev.time_offset + data[0]] +data[1:])}"
+                            self.socket_readout.send_string(message)
+
+                time.sleep(1e-5)
+
+        # close the message broker and workers when stopping network control
+        for worker in self.workers:
+            worker.active.clear()
+        self.control_broker.__exit__()
+        self.socket_readout.close()
+        self.context_readout.term()
 
 class HDF_writer(threading.Thread):
     def __init__(self, parent):
@@ -968,6 +1133,7 @@ class ProgramConfig(Config):
                 "run_attributes" : dict,
                 "files"          : dict,
                 "influxdb"       : dict,
+                "networking"     : dict,
             }
 
     def set_defaults(self):
@@ -2777,6 +2943,11 @@ class ControlGUI(qt.QWidget):
         self.monitoring.active.set()
         self.monitoring.start()
 
+        # start the networking thread
+        self.networking = Networking(self.parent)
+        self.networking.active.set()
+        self.networking.start()
+
         # update program status
         self.parent.config['control_active'] = True
         self.status_label.setText("Running")
@@ -2801,6 +2972,10 @@ class ControlGUI(qt.QWidget):
         # stop monitoring
         if self.monitoring.active.is_set():
             self.monitoring.active.clear()
+
+        # stop networking
+        if self.networking.active.is_set():
+            self.networking.active.clear()
 
         # stop HDF writer
         if self.HDF_writer.active.is_set():

@@ -670,30 +670,28 @@ class NetworkingDeviceWorker(threading.Thread):
     def run(self):
         while self.active.is_set():
             # receive the request from a client
-            request = self.socket.recv_string()
-            # requests are sent as a "'device':'command'" pair in a string
-            device, command = request.split(':')
+            device, command = self.socket.recv_json()
             # strip both to prevent whitespace errors during eval on device
             device.strip()
             command.strip()
             # check if device present
             if device not in self.parent.devices:
-                self.socket.send_json("device not present")
+                self.socket.send_json(["ERROR", "device not present"])
                 continue
             dev = self.parent.devices[device]
             # check if device control is started
             if not dev.control_started:
-                self.socket.send_json("device not started")
+                self.socket.send_json(["ERROR", "device not started"])
                 continue
             # check if device is enabled
             elif not dev.config["control_params"]["enabled"]["value"] == 2:
-                self.socket.send_json("device not enabled")
+                self.socket.send_json(["ERROR", "device not enabled"])
                 continue
             # check if device is slow data
             # ndarrays are not serializable by default, and fast devices return
             # ndarrays on ReadValue()
-            elif not dev.config['slow_data']:
-                self.socket.send_json("device does not support slow data")
+            elif not dev.config['slow_data'] and command == 'ReadValue()':
+                self.socket.send_json(["ERROR", "device does not support slow data"])
             else:
                 # put command into the networking queue
                 dev.networking_commands.append((self.uid, command))
@@ -703,7 +701,7 @@ class NetworkingDeviceWorker(threading.Thread):
                     if self.uid in dev.networking_events_queue:
                         ret_val = dev.networking_events_queue.pop(self.uid)
                         # serialize with json and send back to client
-                        self.socket.send_json(ret_val)
+                        self.socket.send_json(["OK", ret_val])
                         break
 
         self.socket.close()
@@ -763,6 +761,12 @@ class Networking(threading.Thread):
         # initialize the workers used for network control of devices
         self.workers = [NetworkingDeviceWorker(parent) for _ in range(int(self.conf['workers']))]
 
+    def encode(self, topic, message):
+        """
+        Function encodes the message from the publisher via json serialization
+        """
+        return topic + " " + json.dumps(message)
+
     def run(self):
         # start the message borker
         self.control_broker.start()
@@ -791,8 +795,8 @@ class Networking(threading.Thread):
                         if self.devices_last_updated[dev_name] != t_readout:
                             self.devices_last_updated[dev_name] = t_readout
                             topic = f"{self.conf['control_name']}-{dev_name}"
-                            message = f"{topic}: {str([dev.time_offset + data[0]] +data[1:])}"
-                            self.socket_readout.send_string(message)
+                            message = f"{topic}:{str([dev.time_offset + data[0]] +data[1:])}"
+                            self.socket_readout.send_string(self.encode(topic, message))
 
                 time.sleep(1e-5)
 

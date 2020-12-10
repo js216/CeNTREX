@@ -22,6 +22,14 @@ import scipy.signal as signal
 from collections import deque
 import sys, os, glob, importlib
 from influxdb import InfluxDBClient
+from rich.logging import RichHandler
+
+# fancy colors and formatting for logging
+FORMAT = "%(message)s"
+logging.basicConfig(
+    level="NOTSET", format=FORMAT, datefmt="[%X]", 
+    handlers=[RichHandler(rich_tracebacks=True)]
+)
 
 ##########################################################################
 ##########################################################################
@@ -347,10 +355,7 @@ class Device(threading.Thread):
                         self.monitoring_events_queue.append( [ time.time()-self.time_offset, c, ret_val ] )
                     self.monitoring_commands = set()
 
-                    # level 2: check device is enabled for regular ReadValue
-                    if self.config["control_params"]["enabled"]["value"] < 2:
-                        continue
-
+                    # send networking commands, if any, to the device, and record return values
                     for uid, cmd in self.networking_commands:
                         try:
                             ret_val = eval("device." + cmd.strip())
@@ -360,13 +365,14 @@ class Device(threading.Thread):
                         self.networking_events_queue[uid] = ret_val
                     self.networking_commands = []
 
+                    # level 2: check device is enabled for regular ReadValue
+                    if self.config["control_params"]["enabled"]["value"] < 2:
+                        continue
+
                     # record numerical values
                     if time.time() - self.time_last_read >= dt:
                         last_data = device.ReadValue()
                         self.time_last_read = time.time()
-                        if last_data:
-                            self.data_queue.append(last_data)
-                            self.config["plots_queue"].append(last_data)
 
                         # keep track of the number of (sequential and total) NaN returns
                         if isinstance(last_data, float):
@@ -376,7 +382,13 @@ class Device(threading.Thread):
                                     self.sequential_nan_count += 1
                             else:
                                 self.sequential_nan_count = 0
+                            self.previous_data = last_data
+                            continue
                         self.previous_data = last_data
+
+                        if last_data:
+                            self.data_queue.append(last_data)
+                            self.config["plots_queue"].append(last_data)
 
                         # issue a warning if there's been too many sequential NaN returns
                         try:
@@ -703,10 +715,11 @@ class NetworkingDeviceWorker(threading.Thread):
                         # serialize with json and send back to client
                         self.socket.send_json(["OK", ret_val])
                         break
-
+            # need a sleep to release to other threads
+            time.sleep(1e-4)
+        self.socket.setsockopt(zmq.LINGER, 0)
         self.socket.close()
         self.context.term()
-
 
 class NetworkingBroker(threading.Thread):
     def __init__(self, outward_port):
@@ -723,6 +736,8 @@ class NetworkingBroker(threading.Thread):
         self.backend.bind("ipc://backend.ipc")
 
     def __exit__(self, *args):
+        self.frontend.setsockopt(zmq.LINGER, 0)
+        self.backend.setsockopt(zmq.LINGER, 0)
         self.frontend.close()
         self.backend.close()
         self.context.term()
@@ -795,7 +810,7 @@ class Networking(threading.Thread):
                         if self.devices_last_updated[dev_name] != t_readout:
                             self.devices_last_updated[dev_name] = t_readout
                             topic = f"{self.conf['control_name']}-{dev_name}"
-                            message = f"{topic}:{str([dev.time_offset + data[0]] +data[1:])}"
+                            message = [dev.time_offset + data[0]] + data[1:]
                             self.socket_readout.send_string(self.encode(topic, message))
 
                 time.sleep(1e-5)
@@ -2288,8 +2303,8 @@ class ControlGUI(qt.QWidget):
                 size_MB = float(d.Size) / 1024/1024
                 free_MB = float(d.FreeSpace) / 1024/1024
                 self.free_qpb.setMinimum(0)
-                self.free_qpb.setMaximum(size_MB)
-                self.free_qpb.setValue(size_MB - free_MB)
+                self.free_qpb.setMaximum(int(size_MB))
+                self.free_qpb.setValue(int(size_MB - free_MB))
                 self.parent.app.processEvents()
 
     def toggle_control(self, val="", show_only=False):

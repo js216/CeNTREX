@@ -71,6 +71,8 @@ class ReadValueThread(threading.Thread):
                 # need a sleep to release to other threads
                 time.sleep(1e-4)
             except zmq.error.ContextTerminated:
+                warning_dict = {"message" : "stopped ReadValueThread because context was terminated"}
+                self.parent.warnings.append([time.time(), warning_dict])
                 logging.info(f"{self.parent.device_name} networking info in " +
                                     f"ReadValueThread : stopped subscription")
                 pass
@@ -132,6 +134,8 @@ def NetworkingClient(time_offset, driver, connection, *args):
 
             self.dtype = eval(dtype)
             self.shape = eval(shape)
+            
+            self.is_networking_client = True
 
         def __exit__(self, *args):
             self.readvalue_thread.active.clear()
@@ -142,7 +146,9 @@ def NetworkingClient(time_offset, driver, connection, *args):
             self.context.term()
 
         def GetWarnings(self):
-            return self.warnings
+            warnings = self.warnings.copy()
+            self.warnings = []
+            return warnings
 
         def OpenConnection(self):
             # starting the context
@@ -193,6 +199,8 @@ def NetworkingClient(time_offset, driver, connection, *args):
             # error handling if no reply received withing timeout
             logging.warning(f"{device_name} networking warning in " +
                         +"ExecuteNetworkCommand : no response from server")
+            warning_dict = {f"message" : "ExecuteNetworkCommand for {device_name}: no response from server"}
+            self.warnings.append([time.time(), warning_dict])
             self.socket_control.setsockopt(zmq.LINGER, 0)
             self.socket_control.close()
             self.socket_control = self.context.socket(zmq.REQ)

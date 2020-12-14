@@ -798,6 +798,11 @@ class Networking(threading.Thread):
                 # check device enabled
                 if not dev.config["control_params"]["enabled"]["value"] == 2:
                     continue
+                
+                # check if device is a network client, don't retransmit data 
+                # from a network client device
+                if getattr(dev, 'is_networking_client', None):
+                    continue
 
                 if len(dev.config["plots_queue"]) > 0:
                     data = dev.config["plots_queue"][-1]

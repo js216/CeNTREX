@@ -286,18 +286,25 @@ class nXDS:
         system status register 02;
         warning register 01 and fault register 01
         """
-        try:
-            status = self.instr.query("?V802")
-            words = status.split(';')[-4:]
-            registers = []
-            for word in words:
-                tmp = 0
-                for idx, char in zip(reversed(range(4)),word):
-                    tmp += int(char, 16) << idx*4
-                registers.append(tmp)
-            return registers
-        except pyvisa.errors.VisaIOError as err:
-            return str(err)
+        ntries = 5
+        attempt = 0
+        while True:
+            try:
+                status = self.instr.query("?V802")
+                words = status.split(';')[-4:]
+                registers = []
+                for word in words:
+                    tmp = 0
+                    for idx, char in zip(reversed(range(4)),word):
+                        tmp += int(char, 16) << idx*4
+                    registers.append(tmp)
+                return registers
+            except pyvisa.errors.VisaIOError as err:
+                return str(err)
+            except ValueError as e:
+                attemp += 1
+                if attempt == ntries:
+                    raise e
 
     def FaultHistory1(self):
         """

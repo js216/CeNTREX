@@ -245,22 +245,27 @@ def wrapperSocketClientMethods(func):
             if np.isnan(value):
                 logging.warning("SocketClient warning in {0}: cannot connect to server".format(func.__name__))
                 return np.nan
-        except Exception:
+        except Exception as err:
             pass
-        if func.__name__ not in  value[1]:
+
+        if func.__name__ not in value[1]:
             logging.warning("{1} socket warning in {0}: wrong function return".format(func.__name__, device_name))
             return np.nan
         elif isinstance(value[2], type(None)):
             # some functions return None, such as GetWarnings, then the strings
             # search will fail
             return value[2]
-        elif "not executed" in value[2]:
-            logging.warning("{2} socket warning in {0}: {1}".format(func.__name__, value[2], device_name))
-            return np.nan
-        elif "Exception" in value[2]:
-            logging.warning("{2} socket warning in {0}: {1}".format(func.__name__, value[2], device_name))
-            return np.nan
-        return value[2]
+        try:
+            if "not executed" in value[2]:
+                logging.warning("{2} socket warning in {0}: {1}".format(func.__name__, value[2], device_name))
+                return np.nan
+            elif "Exception" in value[2]:
+                logging.warning("{2} socket warning in {0}: {1}".format(func.__name__, value[2], device_name))
+                return np.nan
+            else:
+                return value[2]
+        except Exception as err:
+            return value[2]
     return wrapper
 
 def wrapperReadValueClientMethod(func):

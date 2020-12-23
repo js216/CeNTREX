@@ -65,6 +65,8 @@ class PXIe5171:
             self.session.trigger_type = niscope.TriggerType.EDGE
         if trigger["trigger_type"] == "Immediate":
             self.session.trigger_type = niscope.TriggerType.IMMEDIATE
+        if trigger['trigger_type'] == "Digital":
+            self.session.trigger_type = niscope.TriggerType.DIGITAL
         self.session.trigger_source = edge["trigger_src"]
         if edge["trigger_slope"] == "Falling":
             self.session.trigger_slope = niscope.TriggerSlope.NEGATIVE
@@ -134,7 +136,9 @@ class PXIe5171:
     def ReadValue(self):
         # the structures for reading waveform data into
         attrs = {}
-        waveforms_flat = np.ndarray(len(self.active_channels) * self.num_records * self.num_samples, dtype = np.int16)
+        waveforms_flat = np.ndarray(len(self.active_channels) * 
+                                    self.num_records * self.num_samples, 
+                                    dtype = np.int16)
 
         # fetch data & metadata
         try:
@@ -194,4 +198,27 @@ class PXIe5171:
         self.trace_attrs.update(attrs)
 
     def DummyFunc(self, val):
+        return None
         print('DummyFunc', val)
+
+    def ClearBuffer(self, timeout = 0.1):
+        """
+        Convenience function for sequencer to assert that no missed triggers are in 
+        the device buffer before changing a parameter of a different device
+        """
+        waveforms_flat = np.ndarray(len(self.active_channels) * self.num_records * self.num_samples, dtype = np.int16)
+
+        # fetch until no more present in memory
+        while True:
+            try:
+                infos = self.session.channels[self.active_channels].fetch_into(
+                        waveform      = waveforms_flat,
+                        relative_to   = niscope.FetchRelativeTo.PRETRIGGER,
+                        offset        = 0,
+                        record_number = self.rec_num,
+                        num_records   = self.num_records,
+                        timeout       = datetime.timedelta(seconds=timeout)
+                    )
+            except niscope.errors.DriverError as err:
+                break
+        return

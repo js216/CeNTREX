@@ -1,134 +1,207 @@
-import pyvisa
 import time
-import numpy as np
 import logging
+import numpy as np
+from windfreak import SynthHD
 
 class SynthHDPro:
-    def __init__(self, time_offset, resource_name):
+    def __init__(self, time_offset, COM_port):
         self.time_offset = time_offset
-        self.rm = pyvisa.ResourceManager()
+        self.COM_port = COM_port
+
+
+        self.dtype = ('f4', 'float', 'float', 'float', 'float', 'bool', 'bool')
+        self.shape = (7,)
+
         try:
-            self.instr = self.rm.open_resource(resource_name)
-        except pyvisa.errors.VisaIOError:
+            self.synth = SynthHD(COM_port)
+        except Exception as err:
+            logging.warning('SynthHDPro error in initial connection : '+str(err))
             self.verification_string = "False"
-            self.instr = False
+            self.__exit__()
             return
 
-        # make the verification string
         try:
-            self.verification_string = self.instr.query('-')[:-1]
-        except pyvisa.errors.VisaIOError:
-            self.verification_string = "False"
+            if self.synth.hardware_version == 'Hardware Version 1.4a':
+                self.verification_string = "True"
+            else:
+                self.verification_string = "False"
+        except Exception as err:
+            logging.warning('SynthHDPro error in device verification : '+str(err))
 
-        # HDF attributes generated when constructor is run
+        self.warnings = []
+
         self.new_attributes = []
 
-        # shape and type of the array of returned data
-        self.dtype = 'f'
-        self.shape = (2, )
+        # Loading device state to prevent continuous serial communication for common data
+        # device only knows setpoints, not actual frequency or power levels
+        self.channels           = {'A': 0, 'B': 1}
+        self.frequency_setting  = {}
+        self.GetFrequency('A')
+        self.GetFrequency('B')
+        self.power_setting      = {}
+        self.GetPower('A')
+        self.GetPower('B')
+        self.enabled            = {}
+        self.GetStatus('A')
+        self.GetStatus('B')
 
     def __enter__(self):
         return self
-    
-    def __exit__(self, *exc):
-        if self.instr:
-            try:
-                self.instr.close()
-            except pyvisa.errors.VisaIOError as err:
-                logging.warning("SynthHDPro warning in __exit__(): " + str(err))
 
-    def ReadValue(self):
-        return [
-                time.time() - self.time_offset,
-                self.DeviceTemp(),
-               ]
+    def __exit__(self, *exc):
+        self.synth.close()
+        return
+
+    #######################################################
+    # CeNTREX DAQ Commands
+    #######################################################
+
+    def CreateWarning(self, warning):
+        warning_dict = { "message" : warning}
+        self.warnings.append([time.time(), warning_dict])
 
     def GetWarnings(self):
-        return None
+        warnings = self.warnings.copy()
+        self.warnings = []
+        return warnings
 
-    def DeviceTemp(self):
-        try:
-            return float(self.instr.query('z')[:-1])
-        except (pyvisa.errors.VisaIOError, ValueError) as err:
-            return np.nan
-            logging.warning("SynthHDPro warning in DeviceTemp(): " + str(err))
+    def ReadValue(self):
+        val = [
+                time.time() - self.time_offset,
+                self.frequency_setting['A'],
+                self.frequency_setting['B'],
+                self.power_setting['A'],
+                self.power_setting['B'],
+                self.enabled['A'],
+                self.enabled['B']
+                ]
+        return val
 
-    def SetReference(self, param):
-        if param == "internal 27MHz":
-            self.instr.write('x1')
-        elif param == "internal 10MHz":
-            self.instr.write('x2')
-        elif param == "external":
-            self.instr.write('x0')
+    #######################################################
+    # GUI Commands
+    #######################################################
 
-    def SetExternalClockSpeed(self, param):
-        try:
-            freq = float(param)
-        except ValueError as err:
-            logging.warning("SynthHDPro warning in SetExternalClockSpeed(): " + str(err))
+    def GetFrequencyCHAGUI(self):
+        return self.frequency_setting['A']
+
+    def SetFrequencyCHAGUI(self, frequency):
+        self.SetFrequency(frequency, 'A')
+
+    def GetFrequencyCHBGUI(self):
+        return self.frequency_setting['B']
+
+    def SetFrequencyCHBGUI(self, frequency):
+        self.SetFrequency(frequency, 'B')
+
+    def SetPowerCHAGUI(self, power):
+        self.SetPower(power, 'A')
+
+    def GetPowerCHAGUI(self):
+        return self.power_setting['A']
+
+    def SetPowerCHBGUI(self, power):
+        self.SetPower(power, 'B')
+
+    def GetPowerCHBGUI(self):
+        return self.power_setting['B']
+
+    def GetCHAStatus(self):
+        if self.enabled['A']:
+            return 'on'
         else:
-            self.instr.write('*' + str(freq))
+            return 'off'
 
-    def ControlChannelA(self):
-        self.instr.write('C0')
-
-    def ControlChannelB(self):
-        self.instr.write('C1')
-
-    def SetRFFreq(self, param):
-        try:
-            freq = float(param)
-        except ValueError as err:
-            logging.warning("SynthHDPro warning in SetRFFreq(): " + str(err))
+    def GetCHBStatus(self):
+        if self.enabled['B']:
+            return 'on'
         else:
-            self.instr.write('f' + str(freq))
+            return 'off'
 
-    def SetRFPower(self, param):
+    def EnableCHA(self):
+        self.Enable(ch = 'A')
+
+    def DisableCHA(self):
+        self.Disable(ch = 'A')
+
+    def EnableCHB(self):
+        self.Enable(ch = 'B')
+
+    def DisableCHB(self):
+        self.Disable(ch = 'B')
+
+    #######################################################
+    # Device Commands
+    #######################################################
+
+    def SetSweepTimeStep(self, step_time):
+        self.write('sweep_time_step', step_time)
+
+    def GetFrequency(self, ch = 'A'):
+        chn = self.channels[ch]
+        self.frequency_setting[ch] = self.synth[chn].frequency
+        return self.frequency_setting[ch]
+
+    def GetPower(self, ch = 'A'):
+        chn = self.channels[ch]
+        self.power_setting[ch] = self.synth[chn].power
+        return self.power_setting[ch]
+
+    def SetFrequency(self, frequency, ch = 'A'):
+        chn = self.channels[ch]
         try:
-            power = float(param)
-        except ValueError as err:
-            logging.warning("SynthHDPro warning in SetRFPower(): " + str(err))
-        else:
-            self.instr.write('W' + str(power))
+            self.synth[chn].frequency = frequency
+            self.frequency_setting[ch] = frequency
+        except ValueError as warning:
+            self.CreateWarning(warning)
+            self.logging("SynthHDPro warning in SetFrequency() : frequency out of range")
+        except Exception as err:
+            logging.warning("SynthHDPro warning in SetFrequency() : "+str(err))
+            pass
 
-    def RFon(self):
-        self.instr.write('E1r1')
+    def SetPower(self, power, ch = 'A'):
+        chn = self.channels[ch]
+        try:
+            self.synth[chn].power = power
+            self.power_setting[ch] = power
+        except ValueError as warning:
+            self.CreateWarning(warning)
+            self.logging("SynthHDPro warning in SetPower() : power out of range")
+        except Exception as err:
+            logging.warning("SynthHDPro warning in SetPower() : "+str(err))
 
-    def RFoff(self):
-        self.instr.write('E0r0')
+    def Enable(self, ch = 'A'):
+        chn = self.channels[ch]
+        self.synth[chn].enable = True
+        self.enabled[ch] = True
 
-    ############################################
-    # Convenience functions that work on one channel only
-    ############################################
+    def Disable(self, ch = 'A'):
+        chn = self.channels[ch]
+        self.synth[chn].enable = False
+        self.enabled[ch] = False
 
-    def SetRFFreqA(self, param):
-        self.ControlChannelA
-        self.SetRFFreq(param)
+    def FrequencyReference(self, reference):
+        references = {'10 MHz': 'internal 10mHz',
+                      '27 MHz': 'internal 27mHz',
+                      'external': 'external'}
+        self.synth.reference_mode = references[reference]
 
-    def SetRFPowerA(self, param):
-        self.ControlChannelA
-        self.SetRFPower(param)
+    def GetFrequencyReference(self, reference):
+        return self.synth.reference_mode
 
-    def RFonA(self):
-        self.ControlChannelA
-        self.RFon()
+    def GetStatus(self, ch = 'A'):
+        chn = self.channels[ch]
+        self.enabled[ch] = self.synth[chn].enable
+        return self.enabled[ch]
 
-    def RFoffA(self):
-        self.ControlChannelA
-        self.RFoff()
 
-    def SetRFFreqB(self, param):
-        self.ControlChannelB
-        self.SetRFFreq(param)
-
-    def SetRFPowerB(self, param):
-        self.ControlChannelB
-        self.SetRFPower(param)
-
-    def RFonB(self):
-        self.ControlChannelB
-        self.RFon()
-
-    def RFoffB(self):
-        self.ControlChannelB
-        self.RFoff()
+if __name__ == '__main__':
+    com = input('COM PORT : ')
+    synth = SynthHDPro(time.time(), com)
+    print(synth.verification_string)
+    synth.Enable()
+    synth.SetFrequency(100e6)
+    time.sleep(5)
+    synth.SetFrequency(55e6)
+    time.sleep(5)
+    synth.Disable()
+    synth.__exit__()

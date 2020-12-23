@@ -309,6 +309,9 @@ class Device(threading.Thread):
                         except Exception as err:
                             logging.warning(traceback.format_exc())
                             ret_val = str(err)
+                        if (c == "ReadValue()") and ret_val:
+                            self.data_queue.append(ret_val)
+                            self.config["plots_queue"].append(ret_val)
                         ret_val = "None" if not ret_val else ret_val
                         self.last_event = [ time.time()-self.time_offset, c, ret_val ]
                         self.events_queue.append(self.last_event)
@@ -475,7 +478,7 @@ class Monitoring(threading.Thread,PyQt5.QtCore.QObject):
                 if isinstance(data, list):
                     try:
                         if dev.config["slow_data"]:
-                            formatted_data = [np.format_float_scientific(x, precision=3) for x in data]
+                            formatted_data = [np.format_float_scientific(x, precision=3) if not isinstance(x,str) else x for x in data]
                         else:
                             formatted_data = [np.format_float_scientific(x, precision=3) for x in data[0][0,:,0]]
                     except TypeError as err:
@@ -819,7 +822,7 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
 
         # defaults
         # TODO: use a Config class to do this
-        self.default_dt = 0.1
+        self.default_dt = 1e-4
         self.circular = circular
         self.n_repeats = n_repeats
 
@@ -1971,7 +1974,7 @@ class ControlGUI(qt.QWidget):
         # open button
         pb = qt.QPushButton("Open...")
         pb.clicked[bool].connect(
-                lambda val, qle=self.fname_qle: self.open_file("files", "hdf_fname", self.fname_qle)
+                lambda val, qle=self.fname_qle: self.open_file("files", "sequence_fname", self.fname_qle)
             )
         b_frame.addWidget(pb)
 
@@ -3337,7 +3340,11 @@ class Plotter(qt.QWidget):
             self.run_cbx.setCurrentText(self.config["run"])
 
         # get parameters
-        self.param_list = split(self.dev.config["attributes"]["column_names"])
+        # self.param_list = split(self.dev.config["attributes"]["column_names"])
+        if self.dev.config['slow_data']:
+            self.param_list = split(self.dev.config["attributes"]["column_names"])
+        elif not self.dev.config['slow_data']:
+            self.param_list = split(self.dev.config["attributes"]["column_names"])+['(none)']
         if not self.param_list:
             logging.warning("Plot error: No parameters to plot.")
             return
@@ -3356,7 +3363,7 @@ class Plotter(qt.QWidget):
             else:
                 self.config["x"] = "(none)"
             if len(self.param_list) > 1:
-                self.config["y"] = self.param_list[1]
+                self.config["y"] = self.param_list[0]
             else:
                 self.config["y"] = self.param_list[0]
 
@@ -3373,7 +3380,7 @@ class Plotter(qt.QWidget):
             )
         update_QComboBox(
                 cbx     = self.y_cbx,
-                options = ["(none)"] + self.param_list,
+                options = self.param_list,
                 value   = self.config["y"]
             )
         update_QComboBox(
@@ -3463,7 +3470,14 @@ class Plotter(qt.QWidget):
                     logging.warning(traceback.format_exc())
                     return None
 
-                x = np.arange(dset.shape[0])
+                if self.config['x'] == "(none)":
+                    x = np.arange(dset[0].shape[2])
+                else:
+                    x = dset[0][0, self.param_list.index(self.config["x"])].astype(float)
+                if self.config["y"] == "(none)":
+                    logging.warning("Plot error: y not valid.")
+                    logging.warning("Plot warning: bad parameters")
+                    return None
                 y = dset[:, self.param_list.index(self.config["y"])].astype(np.float)
 
                 # divide y by z (if applicable)
@@ -3515,7 +3529,14 @@ class Plotter(qt.QWidget):
                 return None
             if dset==[np.nan] or dset==np.nan:
                 return None
-            x = np.arange(dset[0].shape[2])
+            if self.config['x'] == "(none)":
+                x = np.arange(dset[0].shape[2])
+            else:
+                x = dset[0][0, self.param_list.index(self.config["x"])].astype(float)
+            if self.config["y"] == "(none)":
+                logging.warning("Plot error: y not valid.")
+                logging.warning("Plot warning: bad parameters")
+                return None
             y = dset[0][0, self.param_list.index(self.config["y"])].astype(float)
             self.dset_attrs = dset[1]
 
@@ -3772,11 +3793,15 @@ class Plotter(qt.QWidget):
 
     def toggle_points(self):
         if not self.config["symbol"]:
-            self.curve.clear()
+            if self.curve is not None:
+                self.curve.clear()
+                self.curve = None
             self.curve = None
             self.config["symbol"] = 'o'
         else:
-            self.curve.clear()
+            if self.curve is not None:
+                self.curve.clear()
+                self.curve = None
             self.curve = None
             self.config["symbol"] = None
 

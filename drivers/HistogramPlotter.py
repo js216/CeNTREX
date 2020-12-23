@@ -51,6 +51,8 @@ class HistogramPlotter:
         self.shape = (1, 2, len(self.bins)-1)
         self.dtype = np.float
 
+        self.no_data_err = False
+
     def __enter__(self):
         return self
 
@@ -60,6 +62,7 @@ class HistogramPlotter:
     #################################################
     # Helper Functions
     #################################################
+
     def Strip(self, string, to_strip):
         return string.strip(to_strip)
 
@@ -79,13 +82,30 @@ class HistogramPlotter:
         y_data = np.array(self.y_data)
         bins = self.bins
 
-        if (len(x_data) == 0) or (len(y_data) == 0):
-            return np.nan
+        # return zeros if no data present
+        if (len(x_data)) == 0:
+            data = np.concatenate((np.linspace(-1,1,self.shape[-1]),
+                                  np.zeros(self.shape[-1]))).reshape(self.shape)
+            return [data, [{'timestamp': time.time() - self.time_offset}]]
 
-        bin_indices = np.digitize(x_data, bins)
-        bin_means = np.array([y_data[bin_indices == i].mean() for i in range(1,len(bins))])
-        data = np.concatenate((bins[:-1]+self.width/2, bin_means)).reshape(self.shape)
-        return [data, [{'timestamp': time.time() - self.time_offset}]]
+        if (len(y_data) == 0):
+            data = np.concatenate((bins[:-1]+self.width/2, np.zeros(self.shape[-1]))).reshape(self.shape)
+            return [data, [{'timestamp': time.time() - self.time_offset}]]
+
+        try:
+            if np.diff(bins)[0] <= 0:
+                data = np.concatenate((np.linspace(-1,1,self.shape[-1]),
+                                      np.zeros(self.shape[-1]))).reshape(self.shape)
+                return [data, [{'timestamp': time.time() - self.time_offset}]]
+
+            bin_indices = np.digitize(x_data, bins)
+            bin_means = np.array([y_data[bin_indices == i].mean() for i in range(1,len(bins))])
+            data = np.concatenate((bins[:-1]+self.width/2, bin_means)).reshape(self.shape)
+            return [data, [{'timestamp': time.time() - self.time_offset}]]
+        except Exception as e:
+            data = np.concatenate((np.linspace(-1,1,self.shape[-1]),
+                                  np.zeros(self.shape[-1]))).reshape(self.shape)
+            return [data, [{'timestamp': time.time() - self.time_offset}]]
 
     def SetProcessing(self, processing):
         self.processing = processing
@@ -123,8 +143,12 @@ class HistogramPlotter:
         self.x_data = []
         self.y_data = []
         self.dev1_hash = None
+        self.no_data_err = False
 
     def SetBins(self):
+        if self.lower >= self.higher:
+            logging.error("Error in HistogramPlotter: lower bin is larger than higher bin")
+            return
         self.bins = np.arange(self.lower, self.higher+self.width, self.width)
         self.shape = (1, 2, len(self.bins)-1)
 
@@ -140,7 +164,6 @@ class HistogramPlotter:
             data1 = self.parent.devices[self.dev1].config["plots_queue"][-1]
             data2 = self.parent.devices[self.dev2].config["plots_queue"][-1]
         except IndexError:
-            logging.error('HistogramPlotter error in FetchData() : IndexError')
             return
 
         # extract the desired parameter 1 and 2
@@ -149,12 +172,12 @@ class HistogramPlotter:
         try:
             param1_dset = data1[0][0, col_names1.index(self.param1)].astype(float)
         except IndexError:
-            logging.error("Error in HistogramShutterPlotter: param not found: " + self.param1)
+            logging.error("Error in HistogramPlotter: param not found: " + self.param1)
             return
         try:
             param2_val = float(data2[col_names2.index(self.param2)])
         except IndexError:
-            logging.error("Error in HistogramShutterPlotter: param not found: " + self.param2)
+            logging.error("Error in HistogramPlotter: param not found: " + self.param2)
             return
         return param1_dset, param2_val
 
@@ -164,8 +187,11 @@ class HistogramPlotter:
         """
         data = self.FetchData()
         if data is None:
-            logging.warning('Warning in HistogramPlotter ProcessData() : no data retrieved')
+            if not self.no_data_err:
+                logging.warning('Warning in HistogramPlotter ProcessData() : no data retrieved')
+                self.no_data_err = True
             return
+        self.no_data_err = False
 
         y, param2_val = data
 

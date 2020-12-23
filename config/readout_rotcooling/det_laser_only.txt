@@ -1,0 +1,1 @@
+[["YagIsolator", "SetNrQswitchesGUI", "25", "", "", "", []], ["PXIe5171", "ReadValue", "", "", "True", "25", []], ["", "", "", "", "", "", []]]

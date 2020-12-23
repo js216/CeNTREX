@@ -14,7 +14,7 @@ class KoherasBoostik:
     SetEmission(bool)       : set emission state
     GetCurrent()            : (float) amplifier current [A]
     GetCurrentSetpoint()    : (float) amplifier current setpoint [A]
-    SetCurrent(float [A])       : set amplifier current [A]
+    SetCurrent(float [A])   : set amplifier current [A]
     GetInputPower()         : (float) seed input power [A]
     GetBoosterTemperature() : (float) amplifier booster temperature [C]
     """

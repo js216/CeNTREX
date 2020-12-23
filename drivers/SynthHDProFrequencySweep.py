@@ -55,8 +55,7 @@ class PowerSweep(StoppableThread):
 
 class FrequencySweep(StoppableThread):
     """
-    Mirror sweep in a separate thread to ensure continous data acquisition
-    simultaneous to sweeping the mirror.
+    Microwave frequency sweep
     """
     def __init__(self, driver, start_frequency, stop_frequency, frequency_step,
                  wait_time):
@@ -100,8 +99,7 @@ class FrequencySweep(StoppableThread):
 
 class FrequencySweepPowerPulsed(StoppableThread):
     """
-    Mirror sweep in a separate thread to ensure continous data acquisition
-    simultaneous to sweeping the mirror.
+    Frequency sweep with pulsed power
     """
     def __init__(self, driver, start_frequency, stop_frequency, frequency_step,
                  wait_time, power_high, power_low, pulse_count):

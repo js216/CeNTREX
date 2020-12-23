@@ -95,16 +95,22 @@ class nXDS:
 
     def CheckWarningsFaults(self):
         registers = self.SystemStatus()
-        for register_name, register in zip(self.registers[2:], registers[2:]):
-            # not adding system status registers to warnings
-            idx = 0
-            while register:
-                register_desc = eval('self.'+register_name).get(idx)
-                if (register & 1) and register_desc:
-                    warning_dict = {"message" : register_desc}
-                    self.warnings.append([time.time(), warning_dict])
-                idx += 1
-                register >>= 1
+        if isinstance(registers, str):
+            return
+        else:
+            for register_name, register in zip(self.registers[2:], registers[2:]):
+                if isinstance(register, str):
+                    logging.warning("nXDS warning in CheckWarningsFaults: register value is " + register)
+                    continue  
+                # not adding system status registers to warnings
+                idx = 0
+                while register:
+                    register_desc = eval('self.'+register_name).get(idx)
+                    if (register & 1) and register_desc:
+                        warning_dict = {"message" : register_desc}
+                        self.warnings.append([time.time(), warning_dict])
+                    idx += 1
+                    register >>= 1
 
     def QueryIdentification(self):
         try:

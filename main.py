@@ -524,6 +524,7 @@ class Monitoring(threading.Thread,PyQt5.QtCore.QObject):
                 return
         except Exception as e:
             try:
+                print('Exception in write_to_influxdb')
                 for key,val in zip(dev.col_names_list[1:], data[1:]):
                     print(f"Error in write_to_influxdb: {key}, {val}")
                     logging.warning(f"Error in write_to_influxdb: {key}, {val}")

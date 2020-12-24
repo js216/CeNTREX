@@ -20,6 +20,13 @@ import scipy.signal as signal
 from collections import deque
 import sys, os, glob, importlib
 from influxdb import InfluxDBClient
+from rich.logging import RichHandler
+
+FORMAT = "%(message)s"
+logging.basicConfig(
+    level="WARNING", format=FORMAT, datefmt="[%X]", handlers=[RichHandler()]
+)
+
 
 ##########################################################################
 ##########################################################################
@@ -524,13 +531,11 @@ class Monitoring(threading.Thread,PyQt5.QtCore.QObject):
                 return
         except Exception as e:
             try:
-                print('Exception in write_to_influxdb')
                 for key,val in zip(dev.col_names_list[1:], data[1:]):
-                    print(f"Error in write_to_influxdb: {key}, {val}")
                     logging.warning(f"Error in write_to_influxdb: {key}, {val}")
                     np.isnan(val)
             except Exception:
-                raise e
+                return
         # format the message for InfluxDB
         json_body = [
                 {

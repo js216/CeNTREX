@@ -515,12 +515,19 @@ class Monitoring(threading.Thread,PyQt5.QtCore.QObject):
             return
 
         # check there is any non-np.nan data to write
-        fields = dict(  (key, val) for key, val in \
-                        zip(dev.col_names_list[1:], data[1:]) \
-                        if not np.isnan(val) )
-        if not fields:
-            return
-
+        # try-except because something crashes here
+        try:
+            fields = dict(  (key, val) for key, val in \
+                            zip(dev.col_names_list[1:], data[1:]) \
+                            if not np.isnan(val) )
+            if not fields:
+                return
+        except Exception as e:
+            try:
+                for key,val in zip(dev.col_names_list[1:], data[1:]):
+                    print(key, val, np.isnan(val))
+            except Exception:
+                raise e
         # format the message for InfluxDB
         json_body = [
                 {

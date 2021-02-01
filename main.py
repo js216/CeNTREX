@@ -681,8 +681,11 @@ class NetworkingDeviceWorker(threading.Thread):
         self.parent = parent
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REP)
-        #connect to the ipc backend
-        self.socket.connect("ipc://backend.ipc")
+        # connect to the ipc backend
+        # ipc doesn't work on windows, switch to tcp, port is centrex typed into
+        # a keypad
+        # self.socket.connect("ipc://backend.ipc")
+        self.socket.connect("tcp://localhost:2368739")
 
         # each worker has an unique id for the return value queue
         self.uid = uuid.uuid1().int>>64
@@ -740,8 +743,9 @@ class NetworkingBroker(threading.Thread):
         self.backend = self.context.socket(zmq.XREQ)
         # external connections (clients) connect to frontend
         self.frontend.bind(f"tcp://*:{outward_port}")
-        # workers connect to the backend
-        self.backend.bind("ipc://backend.ipc")
+        # workers connect to the backend (ipc doesn't work on windows, use tcp)
+        # self.backend.bind("ipc://backend.ipc")
+        self.socket.connect("tcp://localhost:2368739")
 
     def __exit__(self, *args):
         self.frontend.setsockopt(zmq.LINGER, 0)

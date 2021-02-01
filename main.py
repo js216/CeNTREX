@@ -382,11 +382,11 @@ class Device(threading.Thread):
                                     self.sequential_nan_count += 1
                             else:
                                 self.sequential_nan_count = 0
-                            self.previous_data = last_data
-                            continue
+                        else:
+                            self.sequential_nan_count = 0
                         self.previous_data = last_data
 
-                        if last_data:
+                        if last_data and not isinstance(last_data, float):
                             self.data_queue.append(last_data)
                             self.config["plots_queue"].append(last_data)
 

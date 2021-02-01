@@ -20,6 +20,13 @@ import scipy.signal as signal
 from collections import deque
 import sys, os, glob, importlib
 from influxdb import InfluxDBClient
+from rich.logging import RichHandler
+
+FORMAT = "%(message)s"
+logging.basicConfig(
+    level="WARNING", format=FORMAT, datefmt="[%X]", handlers=[RichHandler()]
+)
+
 
 ##########################################################################
 ##########################################################################
@@ -515,12 +522,20 @@ class Monitoring(threading.Thread,PyQt5.QtCore.QObject):
             return
 
         # check there is any non-np.nan data to write
-        fields = dict(  (key, val) for key, val in \
-                        zip(dev.col_names_list[1:], data[1:]) \
-                        if not np.isnan(val) )
-        if not fields:
-            return
-
+        # try-except because something crashes here
+        try:
+            fields = dict(  (key, val) for key, val in \
+                            zip(dev.col_names_list[1:], data[1:]) \
+                            if not np.isnan(val) )
+            if not fields:
+                return
+        except Exception as e:
+            try:
+                for key,val in zip(dev.col_names_list[1:], data[1:]):
+                    logging.warning(f"Error in write_to_influxdb: {key}, {val}")
+                    np.isnan(val)
+            except Exception:
+                return
         # format the message for InfluxDB
         json_body = [
                 {
@@ -822,7 +837,7 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
 
         # defaults
         # TODO: use a Config class to do this
-        self.default_dt = 0.1
+        self.default_dt = 1e-4
         self.circular = circular
         self.n_repeats = n_repeats
 
@@ -1974,7 +1989,7 @@ class ControlGUI(qt.QWidget):
         # open button
         pb = qt.QPushButton("Open...")
         pb.clicked[bool].connect(
-                lambda val, qle=self.fname_qle: self.open_file("files", "hdf_fname", self.fname_qle)
+                lambda val, qle=self.fname_qle: self.open_file("files", "sequence_fname", self.fname_qle)
             )
         b_frame.addWidget(pb)
 
@@ -2679,7 +2694,7 @@ class ControlGUI(qt.QWidget):
     def queue_custom_command(self):
         # check the command is valid
         cmd = self.parent.config["general"]["custom_command"]
-        search = re.compile(r'[^A-Za-z0-9()".?!*# ]').search
+        search = re.compile(r'[^A-Za-z0-9()".?!*# ]_=').search
         if bool(search(cmd)):
             error_box("Command error", "Invalid command.")
             return
@@ -3793,11 +3808,15 @@ class Plotter(qt.QWidget):
 
     def toggle_points(self):
         if not self.config["symbol"]:
-            self.curve.clear()
+            if self.curve is not None:
+                self.curve.clear()
+                self.curve = None
             self.curve = None
             self.config["symbol"] = 'o'
         else:
-            self.curve.clear()
+            if self.curve is not None:
+                self.curve.clear()
+                self.curve = None
             self.curve = None
             self.config["symbol"] = None
 

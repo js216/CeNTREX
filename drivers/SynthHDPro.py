@@ -87,11 +87,23 @@ class SynthHDPro:
     def SetFrequencyCHAGUI(self, frequency):
         self.SetFrequency(frequency, 'A')
 
+    def GetFrequencyCHBGUI(self):
+        return self.frequency_setting['B']
+
+    def SetFrequencyCHBGUI(self, frequency):
+        self.SetFrequency(frequency, 'B')
+
     def SetPowerCHAGUI(self, power):
         self.SetPower(power, 'A')
 
     def GetPowerCHAGUI(self):
         return self.power_setting['A']
+
+    def SetPowerCHBGUI(self, power):
+        self.SetPower(power, 'B')
+
+    def GetPowerCHBGUI(self):
+        return self.power_setting['B']
 
     def GetCHAStatus(self):
         if self.enabled['A']:
@@ -107,13 +119,13 @@ class SynthHDPro:
 
     def EnableCHA(self):
         self.Enable(ch = 'A')
-    
+
     def DisableCHA(self):
         self.Disable(ch = 'A')
 
     def EnableCHB(self):
         self.Enable(ch = 'B')
-    
+
     def DisableCHB(self):
         self.Disable(ch = 'B')
 
@@ -172,7 +184,7 @@ class SynthHDPro:
                       '27 MHz': 'internal 27mHz',
                       'external': 'external'}
         self.synth.reference_mode = references[reference]
-    
+
     def GetFrequencyReference(self, reference):
         return self.synth.reference_mode
 

@@ -24,7 +24,49 @@ class StoppableThread(threading.Thread):
     def stopped(self):
         return self._stop.isSet()
 
+class StepRectangle:
+    """
+    Rectangle in mirror coordinates to step through manually.
+    """
+    def __init__(self, driver, point_a, point_b, step, **kwargs):
+        self.driver = driver
+        self.point_a = point_a
+        self.point_b = point_b
+        self.step = step
+        self.index = 0
+        self.coords_x = self.calculate_coords_range(point_a[0], point_b[0], step)
+        self.coords_y = self.calculate_coords_range(point_a[1], point_b[1], step)
+        # generate the coordinates as an array [[x0,y0],[x1,y1],...] to sweep through
+        self.coordinates = np.array(np.meshgrid(self.coords_x, self.coords_y)).T.reshape(-1,2)
+
+    def calculate_coords_range(self, a, b, step):
+        if a > b:
+            return np.arange(a,b-step,-step)
+        else:
+            return np.arange(a,b+step,step)
+
+    def move(self, x, y):
+        try:
+            self.driver.MoveAbsoluteX(x)
+        except TimeoutError:
+            pass
+        try:
+            self.driver.MoveAbsoluteY(y)
+        except TimeoutError:
+            pass
+
+    def next(self):
+        self.move(*self.coordinates[self.index])
+        self.index += 1
+        if self.index == len(self.coordinates):
+            self.index = 0
+
 class MirrorSweepRectangle(StoppableThread):
+    """
+    Mirror sweep in a separate thread to ensure continous data acquisition
+    simultaneous to sweeping the mirror.
+    Define a rectangle by two opposing corners to sweep through.
+    """
     def __init__(self, driver, point_a, point_b, step, wait_time = 0):
         super(MirrorSweepRectangle, self).__init__()
         self.driver = driver
@@ -52,10 +94,16 @@ class MirrorSweepRectangle(StoppableThread):
             except TimeoutError:
                 continue
 
+    def calculate_coords_range(self, a, b, step):
+        if a > b:
+            return np.arange(a,b-step,-step)
+        else:
+            return np.arange(a,b+step,step)
+
     def run(self):
         self.driver.running_sweep = True
-        coords_x = np.arange(self.point_a[0], self.point_b[0]+self.step, self.step)
-        coords_y = np.arange(self.point_a[1], self.point_b[1]+self.step, self.step)
+        coords_x = self.calculate_coords_range(self.point_a[0], self.point_b[0], self.step)
+        coords_y = self.calculate_coords_range(self.point_a[1], self.point_b[1], self.step)
         while True:
             for x in coords_x:
                 for y in coords_y:
@@ -282,6 +330,7 @@ class ZaberTMM:
         self.running_sweep = False
         self.sweep_start_position = 'current'
         self.sweep_square_params = {}
+        self.step_rectangle = None
 
         self.GetPosition()
 
@@ -596,3 +645,14 @@ class ZaberTMM:
             warning = 'StopSweep: No sweep running'
             self.CreateWarning(warning)
             logging.warning("ZaberTMM warning in StopSweep: No sweep running")
+
+    def setupStepRectangle(self, sweep_params = None):
+        if isinstance(sweep_params, type(None)):
+            sweep_params = self.sweep_square_params
+        self.step_rectangle = StepRectangle(self, **sweep_params)
+
+    def nextStep(self):
+        if not self.step_rectangle is None:
+            self.step_rectangle.next()
+        else:
+            logging.warning("ZaberTMM warning in nextStep: No rectangle defined")

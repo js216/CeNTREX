@@ -136,7 +136,9 @@ class PXIe5171:
     def ReadValue(self):
         # the structures for reading waveform data into
         attrs = {}
-        waveforms_flat = np.ndarray(len(self.active_channels) * self.num_records * self.num_samples, dtype = np.int16)
+        waveforms_flat = np.ndarray(len(self.active_channels) * 
+                                    self.num_records * self.num_samples, 
+                                    dtype = np.int16)
 
         # fetch data & metadata
         try:

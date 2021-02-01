@@ -11,7 +11,7 @@ def validate_channel(func):
             logging.warning(f'SiglentSDG1032X warning in {func.__name__}: invalid channel')
     return wrapper
 
-class SiglentSDG1032X:
+class BK4063:
     def __init__(self, time_offset, resource_name):
         self.time_offset = time_offset
         self.rm = pyvisa.ResourceManager()
@@ -96,6 +96,12 @@ class SiglentSDG1032X:
         else:
             return 'Off'
 
+    def GetOutputState2(self):
+        if self.outputs[2]['STATE']:
+            return 'On'
+        else:
+            return 'Off'
+
     def SetOutputState1(self, state):
         if state:
             self.Output(1,"ON")
@@ -103,50 +109,31 @@ class SiglentSDG1032X:
             self.Output(1, "OFF")
         self.ParseOutput(1)
 
+    def SetOutputState2(self,state):
+        if state:
+            self.Output(2,"ON")
+        else:
+            self.Output(2, "OFF")
+        self.ParseOutput(2)
+
     def SetChannel1Frequency(self, freq):
         self.BasicWaveFrequency(1, freq)
 
     def SetChannel2Frequency(self, freq):
         self.BasicWaveFrequency(2, freq)
 
-    def SetBurstMicrowaveDelay(self, freq, phase_offset=60):
-        self.BasicWaveFrequency(1,freq)
-        self.BasicWaveFrequency(2,freq)
-        period = 1/freq
-        delay1 = (180+phase_offset)*period/360
-        delay2 = (180+(2*phase_offset))*period/360
-        # minimum delay for a square wave is 591 ns, offset by half the period
-        # to compensate
-        while delay1 < 591e-9:
-            delay1 += period/2
-            delay2 += period/2
-        self.BurstWaveDelay(1, delay1)
-        self.BurstWaveDelay(2, delay2)
-        self.BurstWaveState(1,"OFF")
-        self.BurstWaveState(2,"OFF")
-        self.BurstWaveState(1,"ON")
-        self.BurstWaveState(2, "ON")
-        if not np.isclose(delay1, float(self.instr.query("C1:BTWV?")[8:].split(",")[9].strip('S')),atol = 1e-9):
-            logging.warning("SiglentSDG1032X warning in BurstMicrowaveDelay: ch1 delay not set")
-        if not np.isclose(delay2, float(self.instr.query("C2:BTWV?")[8:].split(",")[9].strip('S')),atol = 1e-9):
-            logging.warning("SiglentSDG1032X warning in BurstMicrowaveDelay: ch2 delay not set")
-        return
-
-    def GetFrequencyFromSequencerBurst(self, parent_info):
+    def GetFrequencyFromSequencerBasicWave2(self, parent_info):
         if len(np.shape(parent_info)) == 2:
             for info in parent_info:
                 device, function, param = info
                 if 'Frequency' in function:
-                    self.SetBurstMicrowaveDelay(float(param))
+                    self.BasicWaveFrequency(2,float(param))
         else:
             device, function, param = parent_info
             if device == "":
                 return
             if 'Frequency' in function:
-                self.SetBurstMicrowaveDelay(float(param))
-
-
-
+                self.BasicWaveFrequency(2,float(param))
 
     #################################################################
     ##########           CONVENIENCE COMMANDS              ##########
@@ -291,8 +278,8 @@ class SiglentSDG1032X:
         self.instr.write(cmd)
 
 if __name__ == "__main__":
-    com_port = "USB0::0xF4EC::0x1103::SDG1XCAD2R3284::INSTR"
-    sdg = SiglentSDG1032X(time.time(), com_port)
+    com_port = "USB0::0xF4ED::0xEE3A::446A17107::INSTR"
+    sdg = BK4063(time.time(), com_port)
     print(sdg.QueryIdentification())
     print(sdg.GetOutputState1())
     print(sdg.ReadValue())

@@ -745,7 +745,7 @@ class NetworkingBroker(threading.Thread):
         self.frontend.bind(f"tcp://*:{outward_port}")
         # workers connect to the backend (ipc doesn't work on windows, use tcp)
         # self.backend.bind("ipc://backend.ipc")
-        self.socket.connect("tcp://localhost:2368739")
+        self.backend.bind("tcp://*:2368739")
 
     def __exit__(self, *args):
         self.frontend.setsockopt(zmq.LINGER, 0)

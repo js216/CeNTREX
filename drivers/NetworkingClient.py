@@ -209,7 +209,9 @@ def NetworkingClient(time_offset, driver, connection, *args):
 
         def ReadValue(self):
             if self.readvalue_thread.value:
-                return self.readvalue_thread.value
+                value = self.readvalue_thread.value
+                self.readvalue_thread.value = None
+                return value
             else:
                 return np.nan
     

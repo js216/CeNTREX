@@ -27,7 +27,7 @@ from rich.logging import RichHandler
 # fancy colors and formatting for logging
 FORMAT = "%(message)s"
 logging.basicConfig(
-    level="NOTSET", format=FORMAT, datefmt="[%X]", 
+    level="NOTSET", format=FORMAT, datefmt="[%X]",
     handlers=[RichHandler(rich_tracebacks=True)]
 )
 
@@ -213,7 +213,7 @@ class Device(threading.Thread):
         self.events_queue = deque()
         self.monitoring_events_queue = deque()
         self.sequencer_events_queue = deque()
-        # use a dictionary for the networking queue to allow use of .get() to 
+        # use a dictionary for the networking queue to allow use of .get() to
         # allow for unique ids if multiple network clients are connected
         self.networking_events_queue = {}
 
@@ -542,12 +542,20 @@ class Monitoring(threading.Thread,PyQt5.QtCore.QObject):
             return
 
         # check there is any non-np.nan data to write
-        fields = dict(  (key, val) for key, val in \
-                        zip(dev.col_names_list[1:], data[1:]) \
-                        if not np.isnan(val) )
-        if not fields:
-            return
-
+        # try-except because something crashes here
+        try:
+            fields = dict(  (key, val) for key, val in \
+                            zip(dev.col_names_list[1:], data[1:]) \
+                            if not np.isnan(val) )
+            if not fields:
+                return
+        except Exception as e:
+            try:
+                for key,val in zip(dev.col_names_list[1:], data[1:]):
+                    logging.warning(f"Error in write_to_influxdb: {key}, {val}")
+                    np.isnan(val)
+            except Exception:
+                return
         # format the message for InfluxDB
         json_body = [
                 {
@@ -743,7 +751,7 @@ class NetworkingBroker(threading.Thread):
         self.context.term()
 
     def run(self):
-        # try-except because zmq.device throws an error when the sockets and 
+        # try-except because zmq.device throws an error when the sockets and
         # context are closed when running
         # TODO: better method of closing the message broker
         try:
@@ -758,7 +766,7 @@ class Networking(threading.Thread):
         self.active = threading.Event()
         self.conf = self.parent.config["networking"]
 
-        # deamon = True ensures this thread terminates when the main threads 
+        # deamon = True ensures this thread terminates when the main threads
         # are terminated
         self.daemon = True
 
@@ -767,12 +775,12 @@ class Networking(threading.Thread):
         self.socket_readout.bind(f"tcp://*:{self.conf['port_readout']}")
 
         # dictionary with timestamps of last ReadValue update per device
-        self.devices_last_updated = {dev_name: 0 for dev_name in 
+        self.devices_last_updated = {dev_name: 0 for dev_name in
                                                     self.parent.devices.keys()}
-        
+
         # initialize the broker for network control of devices
         self.control_broker = NetworkingBroker(self.conf['port_control'])
-        
+
         # initialize the workers used for network control of devices
         self.workers = [NetworkingDeviceWorker(parent) for _ in range(int(self.conf['workers']))]
 
@@ -798,8 +806,8 @@ class Networking(threading.Thread):
                 # check device enabled
                 if not dev.config["control_params"]["enabled"]["value"] == 2:
                     continue
-                
-                # check if device is a network client, don't retransmit data 
+
+                # check if device is a network client, don't retransmit data
                 # from a network client device
                 if getattr(dev, 'is_networking_client', None):
                     continue
@@ -808,7 +816,7 @@ class Networking(threading.Thread):
                     data = dev.config["plots_queue"][-1]
                 else:
                     data = None
-                
+
                 if isinstance(data, list):
                     if dev.config["slow_data"]:
                         t_readout = data[0]
@@ -2869,7 +2877,7 @@ class ControlGUI(qt.QWidget):
     def queue_custom_command(self):
         # check the command is valid
         cmd = self.parent.config["general"]["custom_command"]
-        search = re.compile(r'[^A-Za-z0-9()".?!*# ]').search
+        search = re.compile(r'[^A-Za-z0-9()".?!*# ]_=').search
         if bool(search(cmd)):
             error_box("Command error", "Invalid command.")
             return

@@ -35,6 +35,7 @@ class SRSPS350:
         self.instr.data_bits = 8
         self.instr.baud_rate = 9600
         self.instr.term_char = '\r\n'
+        self.instr.read_termination = '\n'
 
         # make the verification string
         self.verification_string = self.QueryIdentification()
@@ -103,6 +104,19 @@ class SRSPS350:
         except pyvisa.errors.VisaIOError:
             return np.nan
 
+    def TurnHVOn(self):
+        self.SetHV(True)
+
+    def TurnHVOff(self):
+        self.SetHV(False)
+
+    def GetHVState(self):
+        hv_status = self.GetSerialStatusRegister() >> 7
+        if hv_status:
+            return 'HV On'
+        else:
+            return 'HV Off'
+
     def _CheckCommandExecution(self, cmd):
         esr = get_set_bits(self.GetStandardStatusRegister())
         for val in esr:
@@ -133,7 +147,7 @@ class SRSPS350:
     @CheckCommandExecution
     def SetVoltage(self, voltage):
         self.instr.write(f"VSET{voltage}")
-    
+
     def GetSetVoltage(self):
         return float(self.instr.query('VSET?'))
 
@@ -145,7 +159,8 @@ class SRSPS350:
         self.instr.write(f"VLIM{voltage}")
 
     def GetSerialStatusRegister(self):
-        return float(self.instr.query("*STB?"))
-    
+        serial_status_register = self.instr.query("*STB?")
+        return int(serial_status_register)
+
     def GetStandardStatusRegister(self):
-        return float(self.instr.query("*ESR?"))
+        return int(self.instr.query("*ESR?"))

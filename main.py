@@ -690,7 +690,10 @@ class NetworkingDeviceWorker(threading.Thread):
         # each worker has an unique id for the return value queue
         self.uid = uuid.uuid1().int>>64
 
+        logging.info(f"NetworkingDeviceWorker: initialized worker {self.uid}")
+
     def run(self):
+        logging.info(f"NetworkingDeviceWorker: started worker {self.uid}")
         while self.active.is_set():
             # receive the request from a client
             device, command = self.socket.recv_json()
@@ -746,6 +749,7 @@ class NetworkingBroker(threading.Thread):
         # workers connect to the backend (ipc doesn't work on windows, use tcp)
         # self.backend.bind("ipc://backend.ipc")
         self.backend.bind("tcp://*:2368739")
+        logging.info("NetworkingBroker: initialized broker")
 
     def __exit__(self, *args):
         self.frontend.setsockopt(zmq.LINGER, 0)
@@ -758,6 +762,7 @@ class NetworkingBroker(threading.Thread):
         # try-except because zmq.device throws an error when the sockets and
         # context are closed when running
         # TODO: better method of closing the message broker
+        logging.info("NetworkingBroker: started broker")
         try:
             zmq.device(zmq.QUEUE, self.frontend, self.backend)
         except zmq.error.ZMQError:
@@ -795,7 +800,8 @@ class Networking(threading.Thread):
         return topic + " " + json.dumps(message)
 
     def run(self):
-        # start the message borker
+        logging.info("Networking: started main thread")
+        # start the message broker
         self.control_broker.start()
         # start the workers
         for worker in self.workers:
@@ -826,7 +832,7 @@ class Networking(threading.Thread):
                         t_readout = data[0]
                         if self.devices_last_updated[dev_name] != t_readout:
                             self.devices_last_updated[dev_name] = t_readout
-                            topic = f"{self.conf['control_name']}-{dev_name}"
+                            topic = f"{self.conf['name']}-{dev_name}"
                             message = [dev.time_offset + data[0]] + data[1:]
                             self.socket_readout.send_string(self.encode(topic, message))
 
@@ -2278,10 +2284,56 @@ class ControlGUI(qt.QWidget):
             )
         gen_f.addWidget(qle, 6, 2)
 
+        # Networking controls
+        qch = qt.QCheckBox("Networking")
+        qch.setToolTip("Networking enabled")
+        qch.setTristate(False)
+        qch.setChecked(True if self.parent.config["networking"]["enabled"] in ["1", "True"] else False)
+        qch.stateChanged[int].connect(
+                lambda val: self.parent.config.change("networking", "enabled", val)
+            )
+        gen_f.addWidget(qch, 7, 0)
+
+        qle = qt.QLineEdit()
+        qle.setToolTip("Read port")
+        qle.setMaximumWidth(50)
+        qle.setText(self.parent.config["networking"]["port_readout"])
+        qle.textChanged[str].connect(
+                lambda val: self.parent.config.change("networking", "port_readout", val)
+            )
+        gen_f.addWidget(qle, 7, 1)
+
+        qle = qt.QLineEdit()
+        qle.setToolTip("Control port")
+        qle.setMaximumWidth(50)
+        qle.setText(self.parent.config["networking"]["port_control"])
+        qle.textChanged[str].connect(
+                lambda val: self.parent.config.change("networking", "port_control", val)
+            )
+        gen_f.addWidget(qle, 7, 2)
+
+        qle = qt.QLineEdit()
+        qle.setToolTip("Name")
+        qle.setMaximumWidth(50)
+        qle.setText(self.parent.config["networking"]["name"])
+        qle.textChanged[str].connect(
+                lambda val: self.parent.config.change("networking", "name", val)
+            )
+        gen_f.addWidget(qle, 8, 1)
+
+        qle = qt.QLineEdit()
+        qle.setToolTip("# Workers")
+        qle.setMaximumWidth(50)
+        qle.setText(self.parent.config["networking"]["workers"])
+        qle.textChanged[str].connect(
+                lambda val: self.parent.config.change("networking", "workers", val)
+            )
+        gen_f.addWidget(qle, 8, 2)
+
         # for displaying warnings
         self.warnings_label = qt.QLabel("(no warnings)")
         self.warnings_label.setWordWrap(True)
-        gen_f.addWidget(self.warnings_label, 7, 0, 1, 3)
+        gen_f.addWidget(self.warnings_label, 9, 0, 1, 3)
 
     def enable_all_devices(self):
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
@@ -2980,9 +3032,10 @@ class ControlGUI(qt.QWidget):
         self.monitoring.start()
 
         # start the networking thread
-        self.networking = Networking(self.parent)
-        self.networking.active.set()
-        self.networking.start()
+        if self.parent.config["networking"]["enabled"]:
+            self.networking = Networking(self.parent)
+            self.networking.active.set()
+            self.networking.start()
 
         # update program status
         self.parent.config['control_active'] = True

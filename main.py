@@ -5,6 +5,7 @@ import h5py
 import time
 import json
 import PyQt5
+import socket
 import pickle
 import pyvisa
 import logging
@@ -2330,10 +2331,15 @@ class ControlGUI(qt.QWidget):
             )
         gen_f.addWidget(qle, 8, 2)
 
+        qla = qt.QLabel()
+        qla.setToolTip("IP address")
+        qla.setText(socket.gethostbyname(socket.gethostname()))
+        gen_f.addWidget(qla, 9, 1,1,2)
+
         # for displaying warnings
         self.warnings_label = qt.QLabel("(no warnings)")
         self.warnings_label.setWordWrap(True)
-        gen_f.addWidget(self.warnings_label, 9, 0, 1, 3)
+        gen_f.addWidget(self.warnings_label, 10, 0, 1, 3)
 
     def enable_all_devices(self):
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):

@@ -1,7 +1,7 @@
-import telnetlib
 import time
-import numpy as np
 import logging
+import telnetlib
+import numpy as np
 
 class Bristol671Error(Exception):
     pass

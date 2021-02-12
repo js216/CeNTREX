@@ -1,13 +1,13 @@
+import sys
+import time
+import asyncio
+import logging
+import functools
+import numpy as np
+from toptica.lasersdk.utils.dlcpro import *
 from toptica.lasersdk.client import Client, NetworkConnection, DeviceNotFoundError, \
                                     DecopError, DecopValueError, UserLevel, \
                                     SerialConnection, DeviceTimeoutError
-from toptica.lasersdk.utils.dlcpro import *
-import asyncio
-import logging
-import numpy as np
-import time
-import functools
-import sys
 
 def InterfaceErrorWrapper(func):
     @functools.wraps(func)

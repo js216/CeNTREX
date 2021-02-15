@@ -153,6 +153,7 @@ def NetworkingClient(time_offset, driver, connection, *args):
         def OpenConnection(self):
             # starting the context
             self.context = zmq.Context()
+
             # opening the sockets
             self.socket_control = self.context.socket(zmq.REQ)
             self.socket_readout = self.context.socket(zmq.SUB)
@@ -167,6 +168,8 @@ def NetworkingClient(time_offset, driver, connection, *args):
         
         def CloseConnection(self):
             # close all connections
+            self.socket_readout.setsockopt(zmq.LINGER, 0)
+            self.socket_control.setsockopt(zmq.LINGER, 0)
             self.socket_control.close()
             self.socket_readout.close()
             self.context.term()
@@ -192,12 +195,12 @@ def NetworkingClient(time_offset, driver, connection, *args):
                 if status == "OK":
                     return retval
                 else:
-                    logging.warning(f"{device_name} networking warning in " +
+                    logging.warning(f"{self.device_name} networking warning in " +
                     f"ExecuteNetworkCommand : error for {command} -> {retval}")
                     return np.nan
 
             # error handling if no reply received withing timeout
-            logging.warning(f"{device_name} networking warning in " +
+            logging.warning(f"{self.device_name} networking warning in " +
                         +"ExecuteNetworkCommand : no response from server")
             warning_dict = {f"message" : "ExecuteNetworkCommand for {device_name}: no response from server"}
             self.warnings.append([time.time(), warning_dict])

@@ -11,3 +11,4 @@ __pycache__
 *.swo
 settings.ini
 *.hdf
+.vscode/settings.json

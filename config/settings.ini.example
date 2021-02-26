@@ -12,7 +12,7 @@ custom_device = Select device ...
 
 [networking]
 enabled = False
-control_name = test
+name = test
 port_readout = 123456
 port_control = 123457
 workers = 10

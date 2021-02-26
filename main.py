@@ -675,7 +675,7 @@ class Monitoring(threading.Thread,PyQt5.QtCore.QObject):
         self.influxdb_client.write_points(json_body, time_precision='ms')
 
 class NetworkingDeviceWorker(threading.Thread):
-    def __init__(self, parent):
+    def __init__(self, parent, backend_port):
         super(NetworkingDeviceWorker, self).__init__()
         self.active = threading.Event()
         self.daemon = True
@@ -686,7 +686,7 @@ class NetworkingDeviceWorker(threading.Thread):
         # ipc doesn't work on windows, switch to tcp, port is centrex typed into
         # a keypad
         # self.socket.connect("ipc://backend.ipc")
-        self.socket.connect("tcp://localhost:2368739")
+        self.socket.connect(f"tcp://localhost:{backend_port}")
 
         # each worker has an unique id for the return value queue
         self.uid = uuid.uuid1().int>>64
@@ -749,7 +749,7 @@ class NetworkingBroker(threading.Thread):
         self.frontend.bind(f"tcp://*:{outward_port}")
         # workers connect to the backend (ipc doesn't work on windows, use tcp)
         # self.backend.bind("ipc://backend.ipc")
-        self.backend.bind("tcp://*:2368739")
+        self.backend_port = self.backend.bind_to_random_port("tcp://*")
         logging.info("NetworkingBroker: initialized broker")
 
     def __exit__(self, *args):
@@ -792,7 +792,9 @@ class Networking(threading.Thread):
         self.control_broker = NetworkingBroker(self.conf['port_control'])
 
         # initialize the workers used for network control of devices
-        self.workers = [NetworkingDeviceWorker(parent) for _ in range(int(self.conf['workers']))]
+        backend_port = self.control_broker.backend_port
+        self.workers = [NetworkingDeviceWorker(parent, backend_port)
+                                    for _ in range(int(self.conf['workers']))]
 
     def encode(self, topic, message):
         """

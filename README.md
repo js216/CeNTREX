@@ -463,6 +463,48 @@ another driver. For instance, if the beam source temperature exceeds a specified
 value, the thermal watchdog can turn off the heaters --- see
 `config/beam_source/thermal_watchdog.ini` for details.
 
+
+## Networking
+Network control and readout is implemented using ZMQ. The `settings.ini` file should 
+contain a section `networking`
+
+    [networking]
+    enabled = 
+    name = 
+    workers = 
+    port_readout = 
+    port_control = 
+
+* `enabled` is a boolean value to allow network control and readout.
+* `name` is a user chosen name for network readout
+* `workers` is the number of thread to spin up for network control. Each worker 
+  can handle one command at a time, e.g. one client
+* `port_readout` is the port over which the ReadValue() results are pushed
+* `port_readout` is the port over which network control is run
+
+For readout of the ReadValue() results the zmq Publisher-Subscriper (`PUB-SUB`) model is used.
+The server (`PUB`) is sends out the results as soon as they are acquired by each device. 
+The messages are prefaced by a the networking name and device name as follows `{name}-{device name}` followed by a space and then the ReadValue result encoded with `json.dumps()`. Some devices are networking devices, e.g. they control and readout devices on other computers. These devices have a class attribute `is_networking_client` and are skipped in the publishing (the physical device is attached to a different computer after all).
+
+Device control is done over the control port `port_control`, and requires authentication to prevent malicious control. For now all servers share a key, as do all clients. A set of keys can be generated with `generate_keys.py` in `./authentication/`, which places the keys in `./authentication/private_keys` and `./authentication/public_keys`. Once they are generated they should be distributed to all other computers that require networking and placed in the same folders. Device control is achieved with public port to which all clients send commands. Internally a zmq `QUEUE` device distributes the commands to the workers over an internal `tcp` network which is bound to a random port at runtime. Each worker has a unique id and palces the command inside the appropriate device's `networking_commands` queue (a dictionary with the UID as key) and polls the `networking_events_queue` for a returned result. This result (or error handling message in case of failure such as the device not existing) is returned to the zmq `QUEUE` device and subsequently returned to the client.
+
+A `NetworkingClient` wrapper in the `drivers` directory allows for easy wrapping of existing drivers to enable remote control of the same device on a networked computer. The wrapper 
+```Python
+def NetworkingClient(time_offset, driver, connection, *args):
+```
+requires the name of the original driver (`driver`), which then has every class method wrapped to send the command to the networked computer. `connection` is either a `str` or `dict` with the connection information for the networked computer; e.g.:
+```Python
+{
+  'server'       : , # server address
+  'port_readout' : ,
+  'port_control' : ,
+  'port_control' : ,
+  'publisher'    : , # name of the networked acquisition instance
+  'device_name'  : , # name of the device on the networked acquisition instance
+}
+```
+Verification of a successfull connection (and to the correct device) has not been implemented yet.
+
 ### Slow and fast devices
 
 The device `.ini` file should specify whether the device is a slow or a fast

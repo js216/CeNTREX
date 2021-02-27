@@ -12,3 +12,5 @@ __pycache__
 settings.ini
 *.hdf
 .vscode/settings.json
+*.key_secret
+*.key

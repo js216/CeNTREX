@@ -3,11 +3,14 @@ import json
 import time
 import logging
 import inspect
+import zmq.auth
 import threading
 import importlib
 import functools
 import numpy as np
+from pathlib import Path
 from types import FunctionType
+from zmq.auth.thread import ThreadAuthenticator
 
 def wrapperNetworkClientMethods(func):
     """
@@ -157,6 +160,20 @@ def NetworkingClient(time_offset, driver, connection, *args):
             # opening the sockets
             self.socket_control = self.context.socket(zmq.REQ)
             self.socket_readout = self.context.socket(zmq.SUB)
+
+            # loading authentication keys
+            file_path = Path(__file__).resolve()
+            public_keys_dir = file_path.parent.parent / "authentication" / "public_keys"
+            secret_keys_dir = file_path.parent.parent / "authentication" / "private_keys"
+            server_public_file = public_keys_dir / "server.key"
+            client_secret_file = secret_keys_dir / "client.key_secret"
+
+            server_public, _ = zmq.auth.load_certificate(str(server_public_file))
+            client_public, client_secret = zmq.auth.load_certificate(str(client_secret_file))
+
+            self.socket_control.curve_secretkey = client_secret
+            self.socket_control.curve_public = client_public
+            self.socket_control.curve_server = server_public
 
             # starting readout
             self.socket_readout.setsockopt_string(zmq.SUBSCRIBE, 

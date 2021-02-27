@@ -9,6 +9,7 @@ import socket
 import pickle
 import pyvisa
 import logging
+import zmq.auth
 import itertools
 import traceback
 import threading
@@ -17,6 +18,7 @@ import configparser
 import datetime as dt
 import wmi, pythoncom
 import pyqtgraph as pg
+from pathlib import Path
 import PyQt5.QtGui as QtGui
 import PyQt5.QtWidgets as qt
 import scipy.signal as signal
@@ -24,6 +26,7 @@ from collections import deque
 import sys, os, glob, importlib
 from influxdb import InfluxDBClient
 from rich.logging import RichHandler
+from zmq.auth.thread import ThreadAuthenticator
 
 # fancy colors and formatting for logging
 FORMAT = "%(message)s"
@@ -698,6 +701,8 @@ class NetworkingDeviceWorker(threading.Thread):
         while self.active.is_set():
             # receive the request from a client
             device, command = self.socket.recv_json()
+            logging.info(f"{self.uid} : {device} {command}")
+            
             # strip both to prevent whitespace errors during eval on device
             device.strip()
             command.strip()
@@ -741,15 +746,36 @@ class NetworkingBroker(threading.Thread):
         super(NetworkingBroker, self).__init__()
         self.daemon = True
 
-        # message broker for control
         self.context = zmq.Context()
+
+        # setup authentication
+        self.auth = ThreadAuthenticator()
+        self.auth.start()
+        self.auth.allow('127.0.0.1')
+
+        # load authentication keys
+        file_path = Path(__file__).resolve()
+        public_keys_dir = file_path.parent / "authentication" / "public_keys"
+        # self.auth.configure_curve(domain = '*', location = str(public_keys_dir))
+        self.auth.configure_curve(domain = '*', location = zmq.auth.base.CURVE_ALLOW_ANY)
+        server_secret_file = file_path.parent / "authentication" / "private_keys" / "server.key_secret"
+        server_public, server_secret = zmq.auth.load_certificate(str(server_secret_file))
+
+        # message broker for control
         self.frontend = self.context.socket(zmq.XREP)
         self.backend = self.context.socket(zmq.XREQ)
+
+        # add keys to frontend
+        self.frontend.curve_secretkey = server_secret
+        self.frontend.curve_publickey = server_public
+        self.frontend.curve_server = True
+
         # external connections (clients) connect to frontend
         self.frontend.bind(f"tcp://*:{outward_port}")
+        
         # workers connect to the backend (ipc doesn't work on windows, use tcp)
         # self.backend.bind("ipc://backend.ipc")
-        self.backend_port = self.backend.bind_to_random_port("tcp://*")
+        self.backend_port = self.backend.bind_to_random_port("tcp://127.0.0.1")
         logging.info("NetworkingBroker: initialized broker")
 
     def __exit__(self, *args):
@@ -757,6 +783,7 @@ class NetworkingBroker(threading.Thread):
         self.backend.setsockopt(zmq.LINGER, 0)
         self.frontend.close()
         self.backend.close()
+        self.auth.stop()
         self.context.term()
 
     def run(self):

@@ -776,7 +776,12 @@ class HDF_writer(threading.Thread):
                         for idx, d in enumerate(data):
                             idx_start = -list_len + idx
                             idx_stop = -list_len+idx+1
-                            d =np.array([tuple(d)], dtype = dset.dtype)
+                            try:
+                                d = np.array([tuple(d)], dtype = dset.dtype)
+                            except Exception as e:
+                                err = f"HDF_writer error: {dev_name} writing {str(tuple(d))} to hdf"
+                                logging.error(err)
+                                raise e
                             if idx_stop == 0:
                                 dset[idx_start:] = d
                             else:

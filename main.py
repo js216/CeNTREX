@@ -338,7 +338,11 @@ class Device(threading.Thread):
                     self.sequencer_commands = []
 
                     # send monitoring commands, if any, to the device, and record return values
-                    for c in self.monitoring_commands:
+                    # copy set and clear before iterating to prevent an error when adding to
+                    # monitoring commands while iterating over them
+                    mc = self.monitoring_commands.copy()
+                    self.monitoring_commands.clear()
+                    for c in mc:
                         try:
                             ret_val = eval("device." + c.strip())
                         except Exception as err:
@@ -346,7 +350,6 @@ class Device(threading.Thread):
                             ret_val = str(err)
                         ret_val = "None" if not ret_val else ret_val
                         self.monitoring_events_queue.append( [ time.time()-self.time_offset, c, ret_val ] )
-                    self.monitoring_commands = set()
 
                     # level 2: check device is enabled for regular ReadValue
                     if self.config["control_params"]["enabled"]["value"] < 2:
@@ -776,12 +779,7 @@ class HDF_writer(threading.Thread):
                         for idx, d in enumerate(data):
                             idx_start = -list_len + idx
                             idx_stop = -list_len+idx+1
-                            try:
-                                d = np.array([tuple(d)], dtype = dset.dtype)
-                            except Exception as e:
-                                err = f"HDF_writer error: {dev_name} writing {str(tuple(d))} to hdf"
-                                logging.error(err)
-                                raise e
+                            d = np.array([tuple(d)], dtype = dset.dtype)
                             if idx_stop == 0:
                                 dset[idx_start:] = d
                             else:
@@ -792,7 +790,7 @@ class HDF_writer(threading.Thread):
                             data = np.array([tuple(data[0])], dtype = dset.dtype)
                             dset[-len(data):] = data
                         except (ValueError, TypeError) as err:
-                            logging.error("Error in write_all_queues_to_HDF(): " + str(err))
+                            logging.error("Error in write_all_queues_to_HDF(): "+f{"{dev_name}; "} + str(err))
                             logging.error(traceback.format_exc())
 
                 # if writing each acquisition record to a separate dataset

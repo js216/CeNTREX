@@ -779,11 +779,14 @@ class HDF_writer(threading.Thread):
                         for idx, d in enumerate(data):
                             idx_start = -list_len + idx
                             idx_stop = -list_len+idx+1
-                            d = np.array([tuple(d)], dtype = dset.dtype)
-                            if idx_stop == 0:
-                                dset[idx_start:] = d
-                            else:
-                                dset[idx_start:idx_stop] = d
+                            try:
+                                d = np.array([tuple(d)], dtype = dset.dtype)
+                                if idx_stop == 0:
+                                    dset[idx_start:] = d
+                                else:
+                                    dset[idx_start:idx_stop] = d
+                            except Exception as err:
+                                logging.error(f"Error in write_all_queues_to_HDF: {dev_name}; {str(err)}")
                     else:
                         dset.resize(dset.shape[0]+len(data), axis=0)
                         try:

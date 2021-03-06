@@ -790,7 +790,7 @@ class HDF_writer(threading.Thread):
                             data = np.array([tuple(data[0])], dtype = dset.dtype)
                             dset[-len(data):] = data
                         except (ValueError, TypeError) as err:
-                            logging.error("Error in write_all_queues_to_HDF(): "+f{"{dev_name}; "} + str(err))
+                            logging.error("Error in write_all_queues_to_HDF(): "+f"{dev_name}; " + str(err))
                             logging.error(traceback.format_exc())
 
                 # if writing each acquisition record to a separate dataset

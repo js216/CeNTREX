@@ -1,5 +1,6 @@
 import ast
 import time
+import pickle
 import logging
 import numpy as np
 from spinapi import *
@@ -158,32 +159,34 @@ def generate_repeating_pulses(pulses, masking_pulses, duration = None):
     return t, c, pulse_sequence
 
 class PulseBlaster:
-    def __init__(self, time_offset, board_number, addresses, sequence, clock = 250e6, ):
+    def __init__(self, time_offset, board_number, addresses = {}, sequence = None, clock = 250e6, ):
         self.time_offset = time_offset
-        self.board_number = board_number
+        self.board_number = int(board_number)
         self.addresses = addresses
         self.clock = clock
         self.sequence = sequence
         try:
-            pb_select_board(board_number)
+            pb_select_board(self.board_number)
             if pb_init() != 0:
                 self.verification_string = "False"
                 logging.warning("PulseBlaster error in itial connection : could not initialize")
                 self.__exit__()
-            self.verification_string = pb_get_firmware_id()
+            self.verification_string = str(pb_get_firmware_id())
         except Exception as err:
             logging.warning("PulseBlaster error in initial connection : "+str(err))
             self.verification_string = "False"
             self.__exit__()
 
+        self.sequence_parts = None
         self.warnings = []
         self.new_attributes = []
         self.dtype = ('f4', 'int')
         self.shape = (2,)
 
         try:
-            self.ProgramDevice()
-            pb_start()
+            if sequence:
+                self.ProgramDevice()
+                pb_start()
         except Exception as err:
             logging.warning("PulseBlaster error in programming sequence : "+str(err))
             self.__exit__()
@@ -215,10 +218,27 @@ class PulseBlaster:
     # PulseBlaster Commands
     #######################################################
 
+    def GenerateSequenceQSwitch(self, qswitch_delay):
+        """
+        Hardcoded sequence generation with settable qswitch delay.
+        Function used for scanning the qswitch delay when optimizing YAG
+        alignment and settings
+        """
+        flashlamp = {'frequency':50, 'offset':0, 'high': int(1e6), 'channels':[1],
+                     'active_high':True}
+        qswitch = {'frequency':10, 'offset':int(qswitch_delay*1e3), 'high': int(1e6), 'channels':[2],
+                   'active_high':True}
+        shutter = {'frequency':5, 'offset':int(qswitch_delay*1e3)+int(30e-3/1e-9)+1, 'high': int(100e-3/1e-9), 'channels':[3,4],
+                   'active_high':True}
+
+        t, c, sequence = generate_repeating_pulses([flashlamp, qswitch, shutter], [])
+        self.sequence = sequence
+
     def ProgramDevice(self, board_number = None):
         if type(board_number) == None:
             board_number = self.board_number
-
+        if not self.sequence:
+            logging.warning("PulseBlaster warning in ProgramDevice: no sequence supplied")
         addresses = self.addresses
         sequence = self.sequence
         pb_reset()
@@ -260,9 +280,10 @@ class PulseBlaster:
             print(seq)
             raise e
         pb_stop_programming()
+        logging.warning("PulseBlaster warning in ProgramDevice: finished programming")
 
 if __name__ == "__main__":
-    qswitch_delay = 125 # microseconds
+    qswitch_delay = 170 # microseconds
     # trigger = {'frequency':10, 'offset':0, 'high': int(round(1e-4/1e-9,2)), 'channels':[0],
     #            'active_high':True}
     flashlamp = {'frequency':50, 'offset':0, 'high': int(1e6), 'channels':[1],

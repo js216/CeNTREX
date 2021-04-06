@@ -385,6 +385,7 @@ def SocketDeviceClient(*args):
             try:
                 while True:
                     events = sel.select(timeout=1)
+                    logging.debug(f"{self.device_name} : {action} {value}")
                     for key, mask in events:
                         message = key.data
                         try:
@@ -393,6 +394,7 @@ def SocketDeviceClient(*args):
                             logging.warning("{0} socket warning in request: ".format(self.device_name)
                                            +str(err))
                             message.close()
+                    time.sleep(1e-6)
                     # Check for a socket being monitored to continue.
                     if not sel.get_map():
                         break
@@ -401,6 +403,7 @@ def SocketDeviceClient(*args):
                 return np.nan
             finally:
                 sel.close()
+                logging.debug(f"{self.device_name} : {action} {value} {message.result}")
                 return message.result
 
     return SocketDeviceClientClass(*args)

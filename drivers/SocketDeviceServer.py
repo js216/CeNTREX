@@ -115,7 +115,7 @@ class ServerMessage:
 
     def _create_response_json_content(self):
         action = self.request.get("action")
-        logging.info(f'{self.device_name}: {self.request.get("value")}')
+        logging.info(f"{self.device_name} execute {action} {self.request.get('value')}")
         if action == "query":
             query = self.request.get("value")
             if self.data.get(query):
@@ -281,17 +281,19 @@ class socketServer(threading.Thread):
 
     def accept_wrapper(self, sock):
         conn, addr = sock.accept()  # Should be ready to read
-        logging.info("{0} accepted connection from".format(self.device.device_name), addr)
+        logging.debug(f"{self.device.device_name} accepted connection from {str(addr)}")
         conn.setblocking(False)
         message = ServerMessage(self.device.device_name, self.sel, conn, addr, self.device.data_server,
                                 self.device.commands_server, self.timeout)
         self.sel.register(conn, selectors.EVENT_READ, data=message)
 
     def run(self):
+        logging.warning(f'starting socketServer thread for {self.device.device_name}')
         self.active.set()
         while self.active.is_set():
             events = self.sel.select(timeout = self.timeout)
             for key, mask in events:
+                logging.info(f"{self.device.device_name} events : {str(events)}")
                 if key.data is None:
                     self.accept_wrapper(key.fileobj)
                 else:
@@ -303,6 +305,7 @@ class socketServer(threading.Thread):
                                        +"{0}:{1} : ".format(self.host, self.port, self.device.device_name)
                                        +str(err))
                         message.close()
+            time.sleep(1e-5)
 
 #############################################
 # Execute Commands Class
@@ -322,6 +325,7 @@ class executeCommands(threading.Thread):
         self.active.clear()
 
     def run(self):
+        logging.warning(f'starting executeCommands thead for {self.socket_server.device_name}')
         self.active.set()
         while self.active.is_set():
             # check if any new commands
@@ -460,12 +464,13 @@ def SocketDeviceServer(*args):
             # add verification string to the server device database
             self.data_server['verification'] = self.verification_string
 
+
             # starting the thread responsible for handling communication with
             # external clients
             self.thread_communication = socketServer(self, '', int(port), float(timeout))
             self.thread_communication.start()
 
-            # Grabbing values from device needed for nomal operation
+            # Grabbing values from device needed for normal operation
             self.time_offset = self.device.time_offset
             self.new_attributes = self.device.new_attributes
             self.dtype = self.device.dtype

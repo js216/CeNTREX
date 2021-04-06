@@ -1,0 +1,1 @@
+[["PS350", "SetVoltage", "np.arange(-1000,-800,50)", "5", "", "", [["PXIe5171", "DummyFunc", "None", "0.1", "", "100", [["PXIe5171", "UpdateSequenceAttrs", "parent_info", "", "", "", []], ["YagIsolator", "SetNrQswitchesGUI", "5", "", "", "", []], ["PXIe5171", "ReadValue", "", "", "True", "5", []], ["ZaberTMM", "RandomPosition", "", "", "", "", []]]]]]]

@@ -283,14 +283,15 @@ class PulseBlaster:
         logging.warning("PulseBlaster warning in ProgramDevice: finished programming")
 
 if __name__ == "__main__":
-    qswitch_delay = 170 # microseconds
+    qswitch_delay = 120 # microseconds
     # trigger = {'frequency':10, 'offset':0, 'high': int(round(1e-4/1e-9,2)), 'channels':[0],
     #            'active_high':True}
     flashlamp = {'frequency':50, 'offset':0, 'high': int(1e6), 'channels':[1],
                  'active_high':True}
     qswitch = {'frequency':10, 'offset':int(qswitch_delay*1e3), 'high': int(1e6), 'channels':[2],
                'active_high':True}
-    shutter = {'frequency':5, 'offset':int(qswitch_delay*1e3)+int(30e-3/1e-9)+1, 'high': int(100e-3/1e-9), 'channels':[3,4],
+    # trigger = {'frequency':20, 'offset':int(qswitch_delay*1e3), 'high': int(1e6), 'channels':[5]}
+    shutter = {'frequency':5, 'offset':int(qswitch_delay*1e3)+int(70e-3/1e-9)+1, 'high': int(100e-3/1e-9), 'channels':[3,4],
                'active_high':True}
 
     fpol = 1.5e6

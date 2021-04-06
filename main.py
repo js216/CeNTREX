@@ -702,7 +702,7 @@ class NetworkingDeviceWorker(threading.Thread):
             # receive the request from a client
             device, command = self.socket.recv_json()
             logging.info(f"{self.uid} : {device} {command}")
-            
+
             # strip both to prevent whitespace errors during eval on device
             device.strip()
             command.strip()
@@ -772,7 +772,7 @@ class NetworkingBroker(threading.Thread):
 
         # external connections (clients) connect to frontend
         self.frontend.bind(f"tcp://*:{outward_port}")
-        
+
         # workers connect to the backend (ipc doesn't work on windows, use tcp)
         # self.backend.bind("ipc://backend.ipc")
         self.backend_port = self.backend.bind_to_random_port("tcp://127.0.0.1")
@@ -830,7 +830,7 @@ class Networking(threading.Thread):
         return topic + " " + json.dumps(message)
 
     def run(self):
-        logging.info("Networking: started main thread")
+        logging.warning("Networking: started main thread")
         # start the message broker
         self.control_broker.start()
         # start the workers
@@ -1009,7 +1009,7 @@ class HDF_writer(threading.Thread):
                             data = np.array([tuple(data[0])], dtype = dset.dtype)
                             dset[-len(data):] = data
                         except (ValueError, TypeError) as err:
-                            logging.error("Error in write_all_queues_to_HDF(): " + str(err))
+                            logging.error(f"{dev_name} Error in write_all_queues_to_HDF(): " + str(err))
                             logging.error(traceback.format_exc())
 
                 # if writing each acquisition record to a separate dataset
@@ -3067,10 +3067,12 @@ class ControlGUI(qt.QWidget):
         self.monitoring.start()
 
         # start the networking thread
-        if self.parent.config["networking"]["enabled"]:
+        if self.parent.config["networking"]["enabled"] in ["1", "True"]:
             self.networking = Networking(self.parent)
             self.networking.active.set()
             self.networking.start()
+        else:
+            self.networking = False
 
         # update program status
         self.parent.config['control_active'] = True
@@ -3098,8 +3100,9 @@ class ControlGUI(qt.QWidget):
             self.monitoring.active.clear()
 
         # stop networking
-        if self.networking.active.is_set():
-            self.networking.active.clear()
+        if self.networking:
+            if self.networking.active.is_set():
+                self.networking.active.clear()
 
         # stop HDF writer
         if self.HDF_writer.active.is_set():

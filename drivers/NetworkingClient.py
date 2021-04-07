@@ -95,12 +95,6 @@ def NetworkingClient(time_offset, driver, connection, *args):
     with open(f'drivers/{driver}.py') as f:
         text = f.readlines()
 
-    for line in text:
-        if 'self.dtype' in line:
-            dtype = line.split('=')[1].strip()
-        if 'self.shape' in line:
-            shape = line.split('=')[1].strip()
-
     driver_spec = importlib.util.spec_from_file_location(
         driver,
         "drivers/" + driver + ".py",
@@ -113,7 +107,7 @@ def NetworkingClient(time_offset, driver, connection, *args):
 
     @NetworkingClassDecorator
     class NetworkingClientClass(driver):
-        def __init__(self, time_offset, connection, dtype, shape, *args):
+        def __init__(self, time_offset, connection, *args):
             self.time_offset = time_offset
 
             self.server = connection['server']
@@ -134,13 +128,10 @@ def NetworkingClient(time_offset, driver, connection, *args):
             self.readvalue_thread.active.set()
             self.readvalue_thread.start()
 
-            self.verification_string = 'network'
+            self.verification_string = self.ExecuteNetworkCommand('verification_string')
 
-            # temporary for wavemeter fiberswitch; need to figure out something better
-            self.ports = [1,2,3,16]
-
-            self.dtype = eval(dtype)
-            self.shape = eval(shape)
+            self.dtype = self.ExecuteNetworkCommand('dtype')
+            self.shape = self.ExecuteNetworkCommand('shape')
 
             self.new_attributes = []
 
@@ -246,4 +237,4 @@ def NetworkingClient(time_offset, driver, connection, *args):
             else:
                 return np.nan
 
-    return NetworkingClientClass(time_offset, connection, dtype, shape, *args)
+    return NetworkingClientClass(time_offset, connection, *args)

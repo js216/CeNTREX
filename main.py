@@ -742,7 +742,7 @@ class NetworkingDeviceWorker(threading.Thread):
         self.context.term()
 
 class NetworkingBroker(threading.Thread):
-    def __init__(self, outward_port):
+    def __init__(self, outward_port, allowed):
         super(NetworkingBroker, self).__init__()
         self.daemon = True
 
@@ -751,7 +751,7 @@ class NetworkingBroker(threading.Thread):
         # setup authentication
         self.auth = ThreadAuthenticator()
         self.auth.start()
-        self.auth.allow('127.0.0.1')
+        self.auth.allow(*allowed)
 
         # load authentication keys
         file_path = Path(__file__).resolve()
@@ -771,6 +771,7 @@ class NetworkingBroker(threading.Thread):
         self.frontend.curve_server = True
 
         # external connections (clients) connect to frontend
+        logging.warning(f"bind to tcp://*:{outward_port}")
         self.frontend.bind(f"tcp://*:{outward_port}")
 
         # workers connect to the backend (ipc doesn't work on windows, use tcp)
@@ -816,7 +817,8 @@ class Networking(threading.Thread):
                                                     self.parent.devices.keys()}
 
         # initialize the broker for network control of devices
-        self.control_broker = NetworkingBroker(self.conf['port_control'])
+        allowed = self.conf["allowed"].split(',')
+        self.control_broker = NetworkingBroker(self.conf['port_control'], allowed)
 
         # initialize the workers used for network control of devices
         backend_port = self.control_broker.backend_port
@@ -837,6 +839,20 @@ class Networking(threading.Thread):
         for worker in self.workers:
             worker.active.set()
             worker.start()
+
+        for dev_name, dev in self.parent.devices.items():
+            # check device running
+            if not dev.control_started:
+                continue
+            # check device enabled
+            if not dev.config["control_params"]["enabled"]["value"] == 2:
+                continue
+
+            # check if device is a network client, don't retransmit data
+            # from a network client device
+            if getattr(dev, 'is_networking_client', None):
+                continue
+            logging.warning(f"{dev_name} networking")
 
         while self.active.is_set():
             for dev_name, dev in self.parent.devices.items():

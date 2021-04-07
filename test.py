@@ -35,7 +35,7 @@ if __name__ == "__main__":
     client.curve_publickey = client_public
     client.curve_serverkey = server_public
 
-    client.connect("tcp://172.28.173.180:12347")
+    client.connect("tcp://127.0.0.1:12347")
 
     client.send_json(["SDG1032X", "ReadValue()"])
 

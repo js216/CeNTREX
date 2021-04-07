@@ -20,6 +20,7 @@ def generate_certificates(base_dir):
     for d in [keys_dir, public_keys_dir, secret_keys_dir]:
         if os.path.exists(d):
             shutil.rmtree(d)
+        print(d)
         os.mkdir(d)
 
     # create new keys in certificates dir
@@ -52,4 +53,4 @@ if __name__ == '__main__':
             )
         )
 
-    generate_certificates(os.path.join(os.path.dirname(__file__), 'keys'))
+    generate_certificates(os.path.join(os.path.dirname(__file__)))

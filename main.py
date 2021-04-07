@@ -1068,7 +1068,7 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
         dev, fn, wait = item.text(0), item.text(1), item.text(4)
 
         # extract the parameters
-        eval_matches = ["linspace", "range", "arange", "logspace", "parent_info"]
+        eval_matches = ["linspace", "range", "arange", "logspace", "parent_info", "array"]
         if any(x in item.text(2) for x in eval_matches):
             try:
                 params = eval(item.text(2))

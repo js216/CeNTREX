@@ -36,8 +36,7 @@ class SiglentSDG1032X:
         self.new_attributes = []
 
         # shape and type of the array of returned data
-        self.dtype = ('f', 'bool', 'S5', 'float', 'float', 'float',
-                           'bool', 'S5', 'float', 'float', 'float')
+        self.dtype = ('f', 'bool', 'S5', 'float', 'float', 'float', 'bool', 'S5', 'float', 'float', 'float')
         self.shape = (11, )
 
         self.waveforms = {1: {}, 2: {}}

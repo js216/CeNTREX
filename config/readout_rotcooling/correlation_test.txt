@@ -1,0 +1,1 @@
+[["Wavelength", "SetPort", "1,2,3,16", "5", "", "", []], ["PXIe5171", "DummyFunc", "None", "0.1", "", "200", [["YagIsolator", "SetNrQswitchesGUI", "5", "", "", "", []], ["PXIe5171", "ReadValue", "", "", "True", "5", []], ["ZaberTMM", "RandomPosition", "", "", "", "", []]]]]

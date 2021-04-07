@@ -14,7 +14,7 @@ from zmq.auth.thread import ThreadAuthenticator
 
 def wrapperNetworkClientMethods(func):
     """
-    Function wrapper for all methods not rewritten in NetworkingClientClass and 
+    Function wrapper for all methods not rewritten in NetworkingClientClass and
     excluding static methods
     """
     @functools.wraps(func)
@@ -31,7 +31,7 @@ def NetworkingClassDecorator(cls):
     with the socket client.
     """
     # don't wrap methods with this name
-    ignore = ['__init__', '__enter__', '__exit__', 'OpenConnection', 
+    ignore = ['__init__', '__enter__', '__exit__', 'OpenConnection',
             'CloseConnection', 'ExecuteNetworkCommand', 'ReadValue', 'Decode',
             'GetWarnings']
     for attr_name in dir(cls):
@@ -55,6 +55,7 @@ class ReadValueThread(threading.Thread):
         self.value = None
         self.daemon = True
         self.active = threading.Event()
+        self.finished = False
 
     def run(self):
         """
@@ -63,8 +64,8 @@ class ReadValueThread(threading.Thread):
         control commands while waiting for a message.
         """
         while self.active.is_set():
-            # wrap in try-except because the context is sometimes terminated 
-            # upon stopping the program before the while loop reaches the 
+            # wrap in try-except because the context is sometimes terminated
+            # upon stopping the program before the while loop reaches the
             # cleared thread event active
             try:
                 data = self.parent.socket_readout.recv_string()
@@ -79,7 +80,7 @@ class ReadValueThread(threading.Thread):
                 logging.info(f"{self.parent.device_name} networking info in " +
                                     f"ReadValueThread : stopped subscription")
                 pass
-
+            self.finished = True
 
 
 def NetworkingClient(time_offset, driver, connection, *args):
@@ -88,12 +89,12 @@ def NetworkingClient(time_offset, driver, connection, *args):
         connection = json.loads(connection)
 
     # very hacky way to get shape and dtype from the original driver
-    # this is defined in __init__ of the driver and as such you need to 
-    # initialize the class to access it, which throws exceptions for some 
+    # this is defined in __init__ of the driver and as such you need to
+    # initialize the class to access it, which throws exceptions for some
     # drivers if a usb/serial/whatever device is not attached
     with open(f'drivers/{driver}.py') as f:
         text = f.readlines()
-    
+
     for line in text:
         if 'self.dtype' in line:
             dtype = line.split('=')[1].strip()
@@ -120,7 +121,7 @@ def NetworkingClient(time_offset, driver, connection, *args):
             self.port_control = connection['port_control']
             self.publisher = connection['publisher_name']
             self.device_name = connection['device_name']
-            
+
             # set the control connection timeout
             self.timeout = 10e3
             # open connections to the server
@@ -135,13 +136,20 @@ def NetworkingClient(time_offset, driver, connection, *args):
 
             self.verification_string = 'network'
 
+            # temporary for wavemeter fiberswitch; need to figure out something better
+            self.ports = [1,2,3,16]
+
             self.dtype = eval(dtype)
             self.shape = eval(shape)
-            
+
+            self.new_attributes = []
+
             self.is_networking_client = True
 
         def __exit__(self, *args):
             self.readvalue_thread.active.clear()
+            while not self.readvalue_thread.finished:
+                time.sleep(1e-3)
             self.socket_readout.setsockopt(zmq.LINGER, 0)
             self.socket_control.setsockopt(zmq.LINGER, 0)
             self.socket_readout.close()
@@ -172,39 +180,42 @@ def NetworkingClient(time_offset, driver, connection, *args):
             client_public, client_secret = zmq.auth.load_certificate(str(client_secret_file))
 
             self.socket_control.curve_secretkey = client_secret
-            self.socket_control.curve_public = client_public
-            self.socket_control.curve_server = server_public
+            self.socket_control.curve_publickey = client_public
+            self.socket_control.curve_serverkey = server_public
 
             # starting readout
-            self.socket_readout.setsockopt_string(zmq.SUBSCRIBE, 
+            self.socket_readout.setsockopt_string(zmq.SUBSCRIBE,
                                                     self.topicfilter)
             self.socket_readout.connect(f"tcp://{self.server}:{self.port_readout}")
 
             # starting control
             self.socket_control.connect(f"tcp://{self.server}:{self.port_control}")
-        
+
         def CloseConnection(self):
             # close all connections
+            self.readvalue_thread.active.clear()
+            while not self.readvalue_thread.finished:
+                time.sleep(1e-3)
             self.socket_readout.setsockopt(zmq.LINGER, 0)
             self.socket_control.setsockopt(zmq.LINGER, 0)
-            self.socket_control.close()
             self.socket_readout.close()
+            self.socket_control.close()
             self.context.term()
-        
+
         def Decode(self, message):
             """
-            Function decodes the message received from the publisher into a 
+            Function decodes the message received from the publisher into a
             topic and python object via json serialization
             """
             dat = message[len(self.topicfilter):]
             retval = json.loads(dat)
             return retval
 
-        def ExecuteNetworkCommand(self, command): 
+        def ExecuteNetworkCommand(self, command):
             # send command to the server hosting the device
             self.socket_control.send_json([self.device_name, command])
 
-            # need the timeout because REP-REQ will wait indefinitely for a 
+            # need the timeout because REP-REQ will wait indefinitely for a
             # reply, need to handle when a server stops or a message isn't
             # received for some other reason
             if (self.socket_control.poll(self.timeout) & zmq.POLLIN) != 0:
@@ -234,5 +245,5 @@ def NetworkingClient(time_offset, driver, connection, *args):
                 return value
             else:
                 return np.nan
-    
+
     return NetworkingClientClass(time_offset, connection, dtype, shape, *args)

@@ -1,0 +1,1 @@
+[["Laser Lock 1", "SetLockPointSeed1", "231 + np.append(np.arange(-8,8,1), np.arange(8,-8,-1))", "1.5", "", "4", [["PXIe5171", "UpdateSequenceAttrs", "parent_info", "", "", "", []], ["YagIsolator", "SetNrQswitchesGUI", "5", "", "", "", []], ["PXIe5171", "ReadValue", "", "", "True", "5", []], ["ZaberTMM", "RandomPosition", "", "", "", "", []]]]]

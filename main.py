@@ -2013,16 +2013,17 @@ class SequencerGUI(qt.QWidget):
         # before stopping sequencer
         self.pause_pb.setText("Pause")
         self.pause_pb.disconnect()
-        self.pause_Pb.clicked[bool].connect(self.pause_sequencer)
+        self.pause_pb.clicked[bool].connect(self.pause_sequencer)
 
         # hide the progress bar
         self.progress.hide()
 
     def pause_sequencer(self):
-        self.sequencer.paused.set()
-        self.pause_pb.setText("Resume")
-        self.pause_pb.disconnect()
-        self.pause_pb.clicked[bool].connect(self.resume_sequencer)
+        if self.sequencer:
+            self.sequencer.paused.set()
+            self.pause_pb.setText("Resume")
+            self.pause_pb.disconnect()
+            self.pause_pb.clicked[bool].connect(self.resume_sequencer)
 
     def resume_sequencer(self):
         self.sequencer.paused.clear()

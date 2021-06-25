@@ -61,6 +61,9 @@ class StepRectangle:
         if self.index == len(self.coordinates):
             self.index = 0
 
+    def randomNext(self):
+        self.move(*secrets.choice(self.coordinates))
+
 class MirrorSweepRectangle(StoppableThread):
     """
     Mirror sweep in a separate thread to ensure continous data acquisition
@@ -654,5 +657,11 @@ class ZaberTMM:
     def nextStep(self):
         if not self.step_rectangle is None:
             self.step_rectangle.next()
+        else:
+            logging.warning("ZaberTMM warning in nextStep: No rectangle defined")
+
+    def randomStep(self):
+        if not self.step_rectangle is None:
+            self.step_rectangle.randomNext()
         else:
             logging.warning("ZaberTMM warning in nextStep: No rectangle defined")

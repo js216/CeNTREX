@@ -10,6 +10,13 @@ custom_device = Select device ...
 
 [run_attributes]
 
+[networking]
+enabled = False
+name = test
+port_readout = 123456
+port_control = 123457
+workers = 10
+
 [files]
 config_dir = //vmware-host/Shared Folders/temp/CENTREX Jakob/0 common/DAQ_software/config/test
 hdf_fname = C:/Users/Jakob Kastelic/Documents/DAQtest/test.hdf

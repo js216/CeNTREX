@@ -1,0 +1,1 @@
+[["ZaberTMM", "SetPointAGUI", "args: [-3500,-4000]", "1", "", "", []], ["ZaberTMM", "SetPointBGUI", "args: [-3000,-4000]", "1", "", "", []], ["ZaberTMM", "SetStepGUI", "50", "1", "", "", []], ["ZaberTMM", "setupStepRectangle", "", "1", "", "", []], ["ZaberTMM", "nextStep", "", "1", "", "", []], ["ZaberTMM", "nextStep", "", "1", "", "", []]]

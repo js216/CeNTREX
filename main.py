@@ -514,7 +514,14 @@ class Monitoring(threading.Thread,PyQt5.QtCore.QObject):
                         if dev.config["slow_data"]:
                             formatted_data = [np.format_float_scientific(x, precision=3) if not isinstance(x,str) else x for x in data]
                         else:
-                            formatted_data = [np.format_float_scientific(x, precision=3) for x in data[0][0,:,0]]
+                            if data[0].ndim > 2:
+                                ind = data[0].shape
+                                ind = tuple([0 for _ in ind])
+                                formatted_data = \
+                                    [np.format_float_scientific(data[0][ind], precision=3)]
+                            else:
+                                formatted_data = \
+                                    [np.format_float_scientific(x, precision=3) for x in data[0][0,:,0]]
                     except TypeError as err:
                         logging.warning("Warning in Monitoring: " + str(err))
                         logging.warning(traceback.format_exc())

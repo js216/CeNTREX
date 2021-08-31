@@ -1333,6 +1333,7 @@ class DeviceConfig(Config):
         self["double_connect_dev"] = True
         self["compound_dataset"] = False
         self["plots_fn"] = "2*y"
+        self['constr_params'] = []
 
     def change_param(self, key, val, sect=None, sub_ctrl=None, row=None,
             nonTriState=False, GUI_element=None):

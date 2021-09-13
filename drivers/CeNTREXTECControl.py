@@ -19,6 +19,11 @@ def getSetBits(value):
     return [i for i in range(value.bit_length()) if (value >> i & 1)]
 
 class CeNTREXTecDeviceInterface:
+    """Python interface for the CeNTREX TEC Device, consisting of multiple 
+    Thorlabs MTD415T connected to a Teensy 4 serving as the main controller.
+    See https://www.thorlabs.com/thorproduct.cfm?partnumber=MTD415T for more 
+    information on the MTD415T.
+    """
     def __init__(self, resource_name, number_devices):
         self.rm = visa.ResourceManager()
         self.instr = self.rm.open_resource(resource_name)
@@ -26,6 +31,10 @@ class CeNTREXTecDeviceInterface:
         self.instr.read_termination = '\n'
         self.instr.write_termination = '\n'
         self.number_devices = number_devices
+
+    def write_convert(self, values, factor = 1):
+        values = np.asarray(values, dtype = int)
+        return (values * factor).astype(int)
 
     def return_convert(self, ret, conv = float, split = ',', factor = 1):
         if conv == bool:
@@ -36,15 +45,30 @@ class CeNTREXTecDeviceInterface:
         self.instr.write(f"{cmd}{','.join(str(val) for val in values)}!")
 
     def getTemperature(self):
+        """Get the current temperature of each device
+
+        Returns:
+            list: temperature per device in C
+        """
         ret = self.instr.query('Te?')
         return self.return_convert(ret, factor = 1e-3)
 
     def getTemperatureSetpoint(self):
+        """Get the temperature setpoint of each device in C
+
+        Returns:
+            list: temperature setpoint per device in C
+        """
         ret = self.instr.query('T?')
         return self.return_convert(ret, factor = 1e-3)
 
     def setTemperatureSetpoint(self, temperature):
-        self.write('T', temperature)
+        """Write the temperature setpoint of each device in C
+
+        Args:
+            temperature (list): temperature setpoint per device in C
+        """
+        self.write('T', self.write_convert(temperature, 1e3))
     
     def getProportional(self):
         ret = self.instr.query('P?')
@@ -170,6 +194,13 @@ class CeNTREXTecDevice(CeNTREXTecDeviceInterface):
         return '_'.join(self.getUUID())
 
     def ReadValue(self):
+        """Read some general values from the CeNTREX TEC device. Returns values
+        per device in a list
+
+        Returns:
+            list: [time, setpoint, temperature, current, voltage, state 
+                      {, setpoint, temperature, current, voltage, state}, ...]
+        """
         Tset = self.getTemperatureSetpoint()
         T = self.getTemperature()
         I = self.getTecCurrent()
@@ -182,12 +213,22 @@ class CeNTREXTecDevice(CeNTREXTecDeviceInterface):
         return ret
 
     def EnableDevice(self, device):
+        """Enable the TEC device
+
+        Args:
+            device (int): device number, starting at 1
+        """
         device -= 1
         s = self.getState()
         s[device] = 1
         self.enableTEC(s)
 
     def DisableDevice(self, device):
+        """Disable the TEC device
+
+        Args:
+            device (int): device number, starting at 1
+        """
         device -= 1
         vals = self.getState()
         vals[device] = 0
@@ -213,21 +254,58 @@ class CeNTREXTecDevice(CeNTREXTecDeviceInterface):
         return
 
     def SetTemperatureSetpoint(self, temperature, device):
+        """Set the temperature setpoint of a TEC device in the CeTREX Teensy 
+        TEC controller
+
+        Args:
+            temperature (float): temperature in C
+            device (int): device number, starting at 1
+        """
         self._setValConvenienceFunction('setTemperatureSetpoint', temperature, device)
 
     def SetProportional(self, proportional, device):
+        """Set the proportional gain of the TEC controller
+
+        Args:
+            proportional (int): proportional gain
+            device (int): device number, starting at 1
+        """
         self._setValConvenienceFunction('setProportional', proportional, device)
     
     def SetIntegral(self, integral, device):
+        """Set the integral gain of the TEC controller
+
+        Args:
+            integral (int): integral gain
+            device (int): device number, starting at 1
+        """
         self._setValConvenienceFunction('setIntegral', integral, device)
 
     def SetDerivative(self, derivative, device):
+        """Set the derivative gain of the TEC controller
+
+        Args:
+            derivative (int): derivative gain
+            device (int): device number, starting at 1
+        """
         self._setValConvenienceFunction('setDerivative', derivative, device)
 
     def SetTecCurrentLimit(self, limit, device):
+        """Set the TEC current limit in mA
+
+        Args:
+            limit (int): current limit in mA
+            device (int): device number, starting at 1
+        """
         self._setValConvenienceFunction('setTecCurrentLimit', limit, device)
 
     def SetTemperatureWindow(self, window, device):
+        """Set the TEC temperature window in mK
+
+        Args:
+            window (int): temperature window in mK
+            device (int): device number, starting at 1
+        """
         self._setValConvenienceFunction('setTemperatureWindow', window, device)
 
 if __name__ == "__main__":

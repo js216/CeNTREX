@@ -180,8 +180,10 @@ class PulseBlaster:
         self.sequence_parts = None
         self.warnings = []
         self.new_attributes = []
-        self.dtype = ('f4', 'int')
-        self.shape = (2,)
+        self.dtype = ('f4', 'int', 'int')
+        self.shape = (3,)
+
+        self.qswitch = -1
 
         try:
             if sequence:
@@ -212,7 +214,7 @@ class PulseBlaster:
 
     def ReadValue(self):
         status = pb_read_status()
-        return time.time() - self.time_offset, status['running']
+        return time.time() - self.time_offset, status['running'], self.qswitch
 
     #######################################################
     # PulseBlaster Commands
@@ -228,11 +230,17 @@ class PulseBlaster:
                      'active_high':True}
         qswitch = {'frequency':10, 'offset':int(qswitch_delay*1e3), 'high': int(1e6), 'channels':[2],
                    'active_high':True}
-        shutter = {'frequency':5, 'offset':int(qswitch_delay*1e3)+int(30e-3/1e-9)+1, 'high': int(100e-3/1e-9), 'channels':[3,4],
+        shutter = {'frequency':5, 'offset':int(qswitch_delay*1e3)+int(70e-3/1e-9)+1, 'high': int(100e-3/1e-9), 'channels':[3,4],
                    'active_high':True}
+
+        self.qswitch = qswitch_delay
 
         t, c, sequence = generate_repeating_pulses([flashlamp, qswitch, shutter], [])
         self.sequence = sequence
+
+    def ProgramAndStart(self):
+        self.ProgramDevice()
+        pb_start()
 
     def ProgramDevice(self, board_number = None):
         if type(board_number) == None:
@@ -283,7 +291,7 @@ class PulseBlaster:
         logging.warning("PulseBlaster warning in ProgramDevice: finished programming")
 
 if __name__ == "__main__":
-    qswitch_delay = 120 # microseconds
+    qswitch_delay = 130 # microseconds
     # trigger = {'frequency':10, 'offset':0, 'high': int(round(1e-4/1e-9,2)), 'channels':[0],
     #            'active_high':True}
     flashlamp = {'frequency':50, 'offset':0, 'high': int(1e6), 'channels':[1],

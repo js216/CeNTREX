@@ -1081,6 +1081,9 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
         self.active = threading.Event()
         self.active.set()
 
+        # to enable pausing the thread
+        self.paused = threading.Event()
+
         # defaults
         # TODO: use a Config class to do this
         self.default_dt = 1e-4
@@ -1099,6 +1102,8 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
             except Exception as e:
                 logging.warning(f"Cannot eval {item.text(2)}: {str(e)}")
                 return
+        elif 'args' in item.text(2):
+            params = [eval(item.text(2).split(':')[-1])]
         else:
             params = item.text(2).split(",")
 
@@ -1147,6 +1152,10 @@ class Sequencer(threading.Thread,PyQt5.QtCore.QObject):
         # main sequencer loop
         for i,(dev,fn,p,dt,wait,parent_info) in enumerate(self.flat_seq):
             # check for user stop request
+            while self.paused.is_set():
+                if (dev == 'PXIe5171') & (fn == 'ReadValue'):
+                    break
+                time.sleep(1e-3)
             if not self.active.is_set():
                 return
 
@@ -1884,6 +1893,10 @@ class SequencerGUI(qt.QWidget):
         self.start_pb.clicked[bool].connect(self.start_sequencer)
         self.bbox.addWidget(self.start_pb)
 
+        self.pause_pb = qt.QPushButton("Pause")
+        self.pause_pb.clicked[bool].connect(self.pause_sequencer)
+        self.bbox.addWidget(self.pause_pb)
+
         # progress bar
         self.progress = qt.QProgressBar()
         self.progress.setFixedWidth(200)
@@ -1998,8 +2011,27 @@ class SequencerGUI(qt.QWidget):
         self.start_pb.disconnect()
         self.start_pb.clicked[bool].connect(self.start_sequencer)
 
+        # change the "Resume" button into a "Pause" button; might have paused
+        # before stopping sequencer
+        self.pause_pb.setText("Pause")
+        self.pause_pb.disconnect()
+        self.pause_pb.clicked[bool].connect(self.pause_sequencer)
+
         # hide the progress bar
         self.progress.hide()
+
+    def pause_sequencer(self):
+        if self.sequencer:
+            self.sequencer.paused.set()
+            self.pause_pb.setText("Resume")
+            self.pause_pb.disconnect()
+            self.pause_pb.clicked[bool].connect(self.resume_sequencer)
+
+    def resume_sequencer(self):
+        self.sequencer.paused.clear()
+        self.pause_pb.setText("Pause")
+        self.pause_pb.disconnect()
+        self.pause_pb.clicked[bool].connect(self.pause_sequencer)
 
 class ControlGUI(qt.QWidget):
     def __init__(self, parent):

@@ -95,6 +95,8 @@ class nXDS:
 
     def CheckWarningsFaults(self):
         registers = self.SystemStatus()
+        if not registers:
+            return
         if isinstance(registers, str):
             return
         else:
@@ -166,7 +168,8 @@ class nXDS:
         try:
             val = self.instr.query("?V808")[6:].split(";")[-1]
         except pyvisa.errors.VisaIOError as err:
-            return str(err)
+            logging.error(f"nXDS error in PumpCtrlrTemperature(): {str(err)}")
+            return np.nan
 
         try:
             return float(val)
@@ -178,7 +181,8 @@ class nXDS:
         try:
             val = self.instr.query("?V808")[6:].split(";")[-2]
         except pyvisa.errors.VisaIOError as err:
-            return str(err)
+            logging.error(f"nXDS error in PumpTemperature(): {str(err)}")
+            return np.nan
 
         try:
             return float(val)
@@ -190,7 +194,8 @@ class nXDS:
         try:
             val = self.instr.query("?V809")[6:]
         except pyvisa.errors.VisaIOError as err:
-            return str(err)
+            logging.error(f"nXDS error in LinkVoltage(): {str(err)}")
+            return np.nan
 
         try:
             return float(val.split(';')[-3])/10
@@ -202,7 +207,8 @@ class nXDS:
         try:
             val = self.instr.query("?V809")
         except pyvisa.errors.VisaIOError as err:
-            return str(err)
+            logging.error(f"nXDS error in MotorPower(): {str(err)}")
+            return np.nan
 
         try:
             return float(val.split(';')[-1])/10
@@ -226,7 +232,8 @@ class nXDS:
         try:
             val = self.instr.query("?V809")
         except pyvisa.errors.VisaIOError as err:
-            return str(err)
+            logging.error(f"nXDS error in MotorCurrent(): {str(err)}")
+            return np.nan
 
         try:
             return float(val.split(';')[-2])/10
@@ -238,7 +245,8 @@ class nXDS:
         try:
             val = self.instr.query("?V810")[6:]
         except pyvisa.errors.VisaIOError as err:
-            return str(err)
+            logging.error(f"nXDS error in RunHours(): {str(err)}")
+            return np.nan
 
         try:
             return float(val)
@@ -250,7 +258,8 @@ class nXDS:
         try:
             val = self.instr.query("?V811")[6:]
         except pyvisa.errors.VisaIOError as err:
-            return str(err)
+            logging.error(f"nXDS error in PumpCycles(): {str(err)}")
+            return np.nan
 
         try:
             return float(val)
@@ -266,7 +275,8 @@ class nXDS:
         try:
             return self.instr.query("?V814")[6:]
         except pyvisa.errors.VisaIOError as err:
-            return str(err)
+            logging.error(f"nXDS error in TipSealService(): {str(err)}")
+            return None
 
     def BearingService(self):
         """
@@ -276,7 +286,8 @@ class nXDS:
         try:
             return self.instr.query("?V815")[6:]
         except pyvisa.errors.VisaIOError as err:
-            return str(err)
+            logging.error(f"nXDS error in BearingService(): {str(err)}")
+            return None
 
     def SystemStatus(self):
         """
@@ -300,11 +311,13 @@ class nXDS:
                     registers.append(tmp)
                 return registers
             except pyvisa.errors.VisaIOError as err:
-                return str(err)
+                logging.error(f"nXDS error in SystemStatus(): {str(err)}")
+                return None
             except ValueError as e:
                 attemp += 1
                 if attempt == ntries:
-                    raise e
+                    logging.warning(f"nXDS warning in SystemStatus: {str(e)}")
+                    return None
 
     def FaultHistory1(self):
         """
@@ -318,7 +331,8 @@ class nXDS:
         try:
             return self.instr.query("?V816")[6:]
         except pyvisa.errors.VisaIOError as err:
-            return str(err)
+            logging.error(f"nXDS error in FaultHistory1(): {str(err)}")
+            return np.nan
 
     def FaultHistory2(self):
         """
@@ -332,7 +346,8 @@ class nXDS:
         try:
             return self.instr.query("?V817")[6:]
         except pyvisa.errors.VisaIOError as err:
-            return str(err)
+            logging.error(f"nXDS error in FaultHistory2(): {str(err)}")
+            return np.nan
 
     def FaultHistory3(self):
         """
@@ -346,7 +361,8 @@ class nXDS:
         try:
             return self.instr.query("?V818")[6:]
         except pyvisa.errors.VisaIOError as err:
-            return str(err)
+            logging.error(f"nXDS error in FaultHistory3(): {str(err)}")
+            return np.nan
 
     def FaultHistory4(self):
         """
@@ -360,4 +376,5 @@ class nXDS:
         try:
             return self.instr.query("?V819")[6:]
         except pyvisa.errors.VisaIOError as err:
-            return str(err)
+            logging.error(f"nXDS error in FaultHistory4(): {str(err)}")
+            return np.nan

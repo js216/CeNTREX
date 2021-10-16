@@ -119,7 +119,7 @@ class Hornet:
 
         # convert the response to a number
         try:
-            pressure = float(resp[4:])
+            pressure = float(resp[4:].strip("\r").strip("\x00"))
         except ValueError as err:
             logging.warning("Hornet warning in ReadCGnPressure(): " + str(err))
             return np.nan

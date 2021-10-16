@@ -557,12 +557,14 @@ class Monitoring(threading.Thread,PyQt5.QtCore.QObject):
             if not fields:
                 return
         except Exception as e:
-            try:
-                for key,val in zip(dev.col_names_list[1:], data[1:]):
-                    logging.warning(f"Error in write_to_influxdb: {key}, {val}")
+            for key,val in zip(dev.col_names_list[1:], data[1:]):
+                try:
                     np.isnan(val)
-            except Exception:
-                return
+                except Exception as e:
+                    logging.warning(f"Error in write_to_influxdb: {key}, {val}, {type(val)}")
+                    logging.warning(f"Error in write_to_influxdb: {str(e)}")
+            return
+            
         # format the message for InfluxDB
         json_body = [
                 {

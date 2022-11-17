@@ -29,7 +29,7 @@ import scipy.signal as signal
 import wmi
 import zmq
 import zmq.auth
-from influxdb_client import InfluxDBClient
+from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 from influxdb_client.domain.write_precision import WritePrecision
 from rich.logging import RichHandler
@@ -488,9 +488,10 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
         # connect to InfluxDB
         conf = self.parent.config["influxdb"]
         self.influxdb_client = InfluxDBClient(
-            url=f"{conf['host']:conf['port']}", token=conf["token"], org=conf["org"]
+            url=f"{conf['host']}:{conf['port']}", token=conf["token"], org=conf["org"]
         )
         self.influxdb_org = conf["org"]
+        self.influxdb_bucket = conf["bucket"]
         self.write_api = self.influxdb_client.write_api(write_options=SYNCHRONOUS)
 
     def run(self):
@@ -649,17 +650,20 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
             {
                 "measurement": dev.config["driver"],
                 "tags": {"run_name": self.parent.run_name, "name": dev.config["name"]},
-                "time": int(1000 * (data[0] + self.parent.config["time_offset"])),
+                "time": dt.datetime.utcfromtimestamp(data[0] + self.parent.config["time_offset"]).isoformat(),
                 "fields": fields,
             }
         ]
-
+        p = Point(dev.config["driver"]).tag("run_name", self.parent.run_name).tag("name", dev.config["name"])
+        p = p.time(time=dt.datetime.utcfromtimestamp(data[0] + self.parent.config["time_offset"]).isoformat())
+        for k,v in fields.items():
+            p = p.field(k, v)
         # push to InfluxDB
         try:
             self.write_api.write(
-                dev.config["influxdb_bucket"],
-                json_body,
-                write_precision=WritePrecision.MS,
+                bucket = self.influxdb_bucket,
+                record = p,
+                org = self.influxdb_org
             )
         except Exception as err:
             logging.warning("InfluxDB error: " + str(err))

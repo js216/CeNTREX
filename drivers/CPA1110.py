@@ -62,8 +62,11 @@ import time
 import struct
 import pyvisa
 import numpy as np
-from pymodbus.client.sync import ModbusSerialClient
+from pymodbus.client import ModbusTcpClient, ModbusSerialClient
+from pymodbus.framer import rtu_framer, socket_framer
+from pymodbus.constants import Defaults
 from pymodbus.exceptions import ConnectionException, ModbusIOException
+from pymodbus.register_read_message import ReadInputRegistersResponse
 
 # utility functions (see manual pp 21-22)
 def to_float(b12, b34):
@@ -74,18 +77,39 @@ def to_int(b12, b34):
 
 
 class CPA1110:
-    def __init__(self, time_offset, resource_name):
+    def __init__(self, time_offset, resource_name, connection_type: str = "TCP"):
         self.time_offset = time_offset
         rm = pyvisa.ResourceManager()
-        COM_port = rm.resource_info(resource_name).alias
-        try:
-            self.client = ModbusSerialClient(method='rtu', port=COM_port,
-                    stopbits = 1, bytesize = 8, parity = 'E', baudrate = 9600)
-        except:
+        if connection_type == "SERIAL":
+            
+            COM_port = rm.resource_info(resource_name).alias
+            try:
+                self.client = ModbusSerialClient(
+                    port=COM_port,
+                    framer=rtu_framer.sock,
+                    stopbits=1,
+                    bytesize=8,
+                    parity="E",
+                    baudrate=9600,
+                )
+            except:
+                self.verification_string = "False"
+                self.client = False
+                return
+        elif connection_type == "TCP":
+            try:
+                self.client = ModbusTcpClient(
+                    host=resource_name, 
+                    framer = socket_framer.ModbusSocketFramer,
+                    port = Defaults.TcpPort)
+            except:
+                self.verification_string = "False"
+                self.client = False
+                return
+        else:
             self.verification_string = "False"
             self.client = False
             return
-
         # make the verification string
         if self.ReadRegisters():
             self.verification_string = str(self.PanelSerialNumber()[0])
@@ -141,7 +165,7 @@ class CPA1110:
 
     def ReadRegisters(self):
         try:
-            self.rr = self.client.read_input_registers(1, count=33, unit=16)
+            self.rr = self.client.read_input_registers(1, count=33, slave=16)
         except ConnectionException:
             return None
         else:

@@ -44,12 +44,19 @@ class nXDS:
         15  : 'acceleration time out'
     }
 
-    def __init__(self, time_offset, resource_name):
+    def __init__(self, time_offset, resource_name, connection_type = "TCP"):
         self.time_offset = time_offset
         self.rm = pyvisa.ResourceManager()
         try:
-            self.instr = self.rm.open_resource(resource_name)
-        except pyvisa.errors.VisaIOError:
+            if connection_type == "SERIAL":
+                self.instr = self.rm.open_resource(resource_name)
+            elif connection_type == "TCP":
+                self.instr = self.rm.open_resource(f"TCPIP::{resource_name}::SOCKET")
+            else:
+                self.verification_string = "False"
+                self.instr = False
+                return
+        except pyvisa.errors.VisaIOError as err:
             self.verification_string = "False"
             self.instr = False
             return

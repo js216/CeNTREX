@@ -12,7 +12,7 @@ class WavemeterFiberswitch:
             self.verification_string = self.wavemeter.verification_string + ', '
             self.verification_string += self.switch.verification_string
         else:
-            self.verification_string = 'BRISTOL WAVELENGTH METER, 671A-VIS, 6894, 1.2.0, True'
+            self.verification_string = 'BRISTOL WAVELENGTH METER, 671A-VIS, 6894, 1.2.1, True'
 
         if not isinstance(ports, (tuple, list)):
             self.ports = [int(p) for p in ports.split(',')]

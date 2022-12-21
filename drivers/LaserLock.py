@@ -242,7 +242,7 @@ class LaserLock:
         self.port = int(socket_connection['port'])
         self.device_name = 'Laser Lock'
 
-        self.dtype = ('f', 'bool', 'f8', 'bool', 'bool', 'f', 'f', 'f8', 'f8', 'f8', 'f8')
+        self.dtype = ('f', 'bool', 'f8', 'f8', 'bool', 'bool', 'f', 'f', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
         self.shape = (11,)
 
         self.new_attributes = []

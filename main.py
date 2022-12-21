@@ -1712,7 +1712,7 @@ class PlotConfig(Config):
 ##########################################################################
 ##########################################################################
 
-class AttrEditor(QtGui.QDialog):
+class AttrEditor(qt.QDialog):
     def __init__(self, parent, dev=None):
         super().__init__()
         self.dev = dev
@@ -1851,11 +1851,11 @@ class SequencerGUI(qt.QWidget):
         self.qtw.setColumnCount(6)
         self.qtw.setHeaderLabels(['Device','Function','Parameters','Δt [s]','Wait?','Repeat'])
         self.qtw.setAlternatingRowColors(True)
-        self.qtw.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+        self.qtw.setSelectionMode(qt.QAbstractItemView.ExtendedSelection)
         self.qtw.setDragEnabled(True)
         self.qtw.setAcceptDrops(True)
         self.qtw.setDropIndicatorShown(True)
-        self.qtw.setDragDropMode(QtGui.QAbstractItemView.InternalMove)
+        self.qtw.setDragDropMode(qt.QAbstractItemView.InternalMove)
 
         # populate the tree
         self.load_from_file()
@@ -1877,7 +1877,7 @@ class SequencerGUI(qt.QWidget):
         # text box to enter the number of repetitions of the entire sequence
         self.repeat_le = qt.QLineEdit("# of repeats")
         sp = qt.QSizePolicy(qt.QSizePolicy.Preferred, qt.QSizePolicy.Preferred)
-        sp.setHorizontalStretch(.1)
+        sp.setHorizontalStretch(1)
         self.repeat_le.setSizePolicy(sp)
         self.bbox.addWidget(self.repeat_le)
 

@@ -1,0 +1,1 @@
+[["PXIe5171", "DummyFunc", "1", "0.15", "", "10", [["YagIsolator", "SetNrQswitchesGUI", "10", "", "", "", []], ["PXIe5171", "ReadValue", "", "", "True", "10", []], ["ZaberTMM", "nextStep", "", "", "", "", []]]]]

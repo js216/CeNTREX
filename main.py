@@ -1180,7 +1180,6 @@ class HDF_writer(threading.Thread):
                             + str(err)
                         )
                         logging.error(traceback.format_exc())
-                print(dev.config["name"], dset)
 
             # if writing each acquisition record to a separate dataset
             else:

@@ -16,6 +16,7 @@ import traceback
 import uuid
 from collections import deque
 from pathlib import Path
+import datetime
 
 import h5py
 import numpy as np
@@ -650,20 +651,28 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
             {
                 "measurement": dev.config["driver"],
                 "tags": {"run_name": self.parent.run_name, "name": dev.config["name"]},
-                "time": dt.datetime.utcfromtimestamp(data[0] + self.parent.config["time_offset"]).isoformat(),
+                "time": dt.datetime.utcfromtimestamp(
+                    data[0] + self.parent.config["time_offset"]
+                ).isoformat(),
                 "fields": fields,
             }
         ]
-        p = Point(dev.config["driver"]).tag("run_name", self.parent.run_name).tag("name", dev.config["name"])
-        p = p.time(time=dt.datetime.utcfromtimestamp(data[0] + self.parent.config["time_offset"]).isoformat())
-        for k,v in fields.items():
+        p = (
+            Point(dev.config["driver"])
+            .tag("run_name", self.parent.run_name)
+            .tag("name", dev.config["name"])
+        )
+        p = p.time(
+            time=dt.datetime.utcfromtimestamp(
+                data[0] + self.parent.config["time_offset"]
+            ).isoformat()
+        )
+        for k, v in fields.items():
             p = p.field(k, v)
         # push to InfluxDB
         try:
             self.write_api.write(
-                bucket = self.influxdb_bucket,
-                record = p,
-                org = self.influxdb_org
+                bucket=self.influxdb_bucket, record=p, org=self.influxdb_org
             )
         except Exception as err:
             logging.warning("InfluxDB error: " + str(err))
@@ -1015,8 +1024,9 @@ class HDF_writer(threading.Thread):
 
         # configuration parameters
         self.filename = self.parent.config["files"]["hdf_fname"]
+        current_time = datetime.datetime.utcnow().astimezone().replace(microsecond=0)
         self.parent.run_name = (
-            str(int(time.time())) + " " + self.parent.config["general"]["run_name"]
+            current_time.isoformat() + " " + self.parent.config["general"]["run_name"]
         )
 
         # create/open HDF file, groups, and datasets
@@ -2070,7 +2080,7 @@ class SequencerGUI(qt.QWidget):
         # text box to enter the number of repetitions of the entire sequence
         self.repeat_le = qt.QLineEdit("# of repeats")
         sp = qt.QSizePolicy(qt.QSizePolicy.Preferred, qt.QSizePolicy.Preferred)
-        sp.setHorizontalStretch(0.1)
+        sp.setHorizontalStretch(1)
         self.repeat_le.setSizePolicy(sp)
         self.bbox.addWidget(self.repeat_le)
 
@@ -2582,24 +2592,6 @@ class ControlGUI(qt.QWidget):
         )
         gen_f.addWidget(qle, 5, 2)
 
-        qle = qt.QLineEdit()
-        qle.setMaximumWidth(50)
-        qle.setToolTip("Username")
-        qle.setText(self.parent.config["influxdb"]["username"])
-        qle.textChanged[str].connect(
-            lambda val: self.parent.config.change("influxdb", "username", val)
-        )
-        gen_f.addWidget(qle, 6, 1)
-
-        qle = qt.QLineEdit()
-        qle.setToolTip("Password")
-        qle.setMaximumWidth(50)
-        qle.setText(self.parent.config["influxdb"]["password"])
-        qle.textChanged[str].connect(
-            lambda val: self.parent.config.change("influxdb", "password", val)
-        )
-        gen_f.addWidget(qle, 6, 2)
-
         # Networking controls
         qch = qt.QCheckBox("Networking")
         qch.setToolTip("Networking enabled")
@@ -2612,7 +2604,7 @@ class ControlGUI(qt.QWidget):
         qch.stateChanged[int].connect(
             lambda val: self.parent.config.change("networking", "enabled", val)
         )
-        gen_f.addWidget(qch, 7, 0)
+        gen_f.addWidget(qch, 6, 0)
 
         qle = qt.QLineEdit()
         qle.setToolTip("Read port")
@@ -2621,7 +2613,7 @@ class ControlGUI(qt.QWidget):
         qle.textChanged[str].connect(
             lambda val: self.parent.config.change("networking", "port_readout", val)
         )
-        gen_f.addWidget(qle, 7, 1)
+        gen_f.addWidget(qle, 6, 1)
 
         qle = qt.QLineEdit()
         qle.setToolTip("Control port")
@@ -2630,7 +2622,7 @@ class ControlGUI(qt.QWidget):
         qle.textChanged[str].connect(
             lambda val: self.parent.config.change("networking", "port_control", val)
         )
-        gen_f.addWidget(qle, 7, 2)
+        gen_f.addWidget(qle, 6, 2)
 
         qle = qt.QLineEdit()
         qle.setToolTip("Name")
@@ -2639,7 +2631,7 @@ class ControlGUI(qt.QWidget):
         qle.textChanged[str].connect(
             lambda val: self.parent.config.change("networking", "name", val)
         )
-        gen_f.addWidget(qle, 8, 1)
+        gen_f.addWidget(qle, 7, 1)
 
         qle = qt.QLineEdit()
         qle.setToolTip("# Workers")
@@ -2648,17 +2640,17 @@ class ControlGUI(qt.QWidget):
         qle.textChanged[str].connect(
             lambda val: self.parent.config.change("networking", "workers", val)
         )
-        gen_f.addWidget(qle, 8, 2)
+        gen_f.addWidget(qle, 7, 2)
 
         qla = qt.QLabel()
         qla.setToolTip("IP address")
         qla.setText(socket.gethostbyname(socket.gethostname()))
-        gen_f.addWidget(qla, 9, 1, 1, 2)
+        gen_f.addWidget(qla, 8, 1, 1, 2)
 
         # for displaying warnings
         self.warnings_label = qt.QLabel("(no warnings)")
         self.warnings_label.setWordWrap(True)
-        gen_f.addWidget(self.warnings_label, 10, 0, 1, 3)
+        gen_f.addWidget(self.warnings_label, 9, 0, 1, 3)
 
     def enable_all_devices(self):
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
@@ -4149,7 +4141,7 @@ class Plotter(qt.QWidget):
                 y = dset[self.config["y"]]
 
                 # divide y by z (if applicable)
-                if self.config["z"] in self.param_list:
+                if self.config["z"] in self.param_list and self.config["z"] != "(none)":
                     y /= dset[self.config["z"]]
 
             if not self.dev.config["slow_data"]:
@@ -4177,7 +4169,7 @@ class Plotter(qt.QWidget):
                 y = dset[:, self.param_list.index(self.config["y"])].astype(np.float)
 
                 # divide y by z (if applicable)
-                if self.config["z"] in self.param_list:
+                if self.config["z"] in self.param_list and self.config["z"] != "(none)":
                     y = y / dset[:, self.param_list.index(self.config["z"])]
 
                 # average sanity check
@@ -4195,7 +4187,10 @@ class Plotter(qt.QWidget):
                         logging.warning("Plot averaging error: " + str(err))
                         logging.warning(traceback.format_exc())
                         break
-                    if self.config["z"] in self.param_list:
+                    if (
+                        self.config["z"] in self.param_list
+                        and self.config["z"] != "(none)"
+                    ):
                         y += (
                             dset[:, self.param_list.index(self.config["y"])]
                             / dset[:, self.param_list.index(self.config["z"])]
@@ -4217,7 +4212,7 @@ class Plotter(qt.QWidget):
             y = dset[:, self.param_list.index(self.config["y"])]
 
             # divide y by z (if applicable)
-            if self.config["z"] in self.param_list:
+            if self.config["z"] in self.param_list and self.config["z"] != "(none)":
                 y = y / dset[0][0, self.param_list.index(self.config["z"])]
 
         # for fast data: return only the latest value
@@ -4241,7 +4236,7 @@ class Plotter(qt.QWidget):
             self.dset_attrs = dset[1]
 
             # divide y by z (if applicable)
-            if self.config["z"] in self.param_list:
+            if self.config["z"] in self.param_list and self.config["z"] != "(none)":
                 y = y / dset[0][0, self.param_list.index(self.config["z"])]
 
             # if not averaging, return the data
@@ -4256,7 +4251,6 @@ class Plotter(qt.QWidget):
                 return x, y
 
             # average last n curves (if applicable)
-            y_avg = np.array(y).astype(float)
             for i in range(self.config["n_average"] - 1):
                 try:
                     dset = self.dev.config["plots_queue"][-(i + 1)]
@@ -4264,9 +4258,17 @@ class Plotter(qt.QWidget):
                     logging.warning("Plot averaging error: " + str(err))
                     logging.warning(traceback.format_exc())
                     break
-                y_avg += dset[0][0, self.param_list.index(self.config["y"])]
+
+                if self.config["z"] in self.param_list and self.config["z"] != "(none)":
+                    y += (
+                        dset[0][0, self.param_list.index(self.config["y"])]
+                        / dset[0][0, self.param_list.index(self.config["z"])]
+                    )
+                else:
+                    y += dset[0][0, self.param_list.index(self.config["y"])]
+
             if self.config["n_average"] > 0:
-                y = y_avg / self.config["n_average"]
+                y = y / self.config["n_average"]
 
         return x, y
 

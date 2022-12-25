@@ -749,7 +749,7 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
 
         # if HDF writing enabled for this device, get events from the HDF file
         if dev.config["control_params"]["HDF_enabled"]["value"]:
-            with h5py.File(self.hdf_fname, "r") as f:
+            with h5py.File(self.hdf_fname, "r", libver="latest", swmr=True) as f:
                 grp = f[self.parent.run_name + "/" + dev.config["path"]]
                 events_dset = grp[dev.config["name"] + "_events"]
                 if events_dset.shape[0] == 0:
@@ -1030,7 +1030,8 @@ class HDF_writer(threading.Thread):
         )
 
         # create/open HDF file, groups, and datasets
-        with h5py.File(self.filename, "a") as f:
+        with h5py.File(self.filename, "a", libver="latest") as f:
+            f.swmr_mode = True
             root = f.create_group(self.parent.run_name)
 
             # write run attributes
@@ -1093,8 +1094,9 @@ class HDF_writer(threading.Thread):
 
             # empty queues to HDF
             try:
-                with h5py.File(self.filename, "a") as fname:
-                    self.write_all_queues_to_HDF(fname)
+                with h5py.File(self.filename, "a", libver="latest") as file:
+                    file.swmr_mode = True
+                    self.write_all_queues_to_HDF(file)
             except OSError as err:
                 logging.warning("HDF_writer error: {0}".format(err))
                 logging.info(traceback.format_exc())
@@ -1112,21 +1114,22 @@ class HDF_writer(threading.Thread):
 
         # make sure everything is written to HDF when the thread terminates
         try:
-            with h5py.File(self.filename, "a") as fname:
-                self.write_all_queues_to_HDF(fname)
+            with h5py.File(self.filename, "a", libver="latest") as file:
+                file.swmr_mode = True
+                self.write_all_queues_to_HDF(file)
         except OSError as err:
             logging.warning("HDF_writer error: ", err)
             logging.warning(traceback.format_exc())
 
-    def write_all_queues_to_HDF(self, fname):
-        root = fname.require_group(self.parent.run_name)
+    def write_all_queues_to_HDF(self, file):
+        root = file.require_group(self.parent.run_name)
         for dev_name, dev in self.parent.devices.items():
             # check device has had control started
             if not dev.control_started:
                 continue
 
             # check writing to HDF is enabled for this device
-            if not dev.config["control_params"]["HDF_enabled"]["value"]:
+            if not int(dev.config["control_params"]["HDF_enabled"]["value"]):
                 continue
 
             # get events, if any, and write them to HDF
@@ -1177,6 +1180,7 @@ class HDF_writer(threading.Thread):
                             + str(err)
                         )
                         logging.error(traceback.format_exc())
+                print(dev.config["name"], dset)
 
             # if writing each acquisition record to a separate dataset
             else:
@@ -3736,7 +3740,12 @@ class PlotsGUI(qt.QSplitter):
 
     def refresh_all_run_lists(self, select_defaults=True):
         # get list of runs
-        with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], "r") as f:
+        with h5py.File(
+            self.parent.config["files"]["plotting_hdf_fname"],
+            "r",
+            libver="latest",
+            swmr=True,
+        ) as f:
             runs = list(f.keys())
 
         # update all run QComboBoxes
@@ -3852,7 +3861,12 @@ class Plotter(qt.QWidget):
 
         # get list of runs
         try:
-            with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], "r") as f:
+            with h5py.File(
+                self.parent.config["files"]["plotting_hdf_fname"],
+                "r",
+                libver="latest",
+                swmr=True,
+            ) as f:
                 runs = list(f.keys())
         except OSError as err:
             runs = ["(no runs found)"]
@@ -4013,7 +4027,12 @@ class Plotter(qt.QWidget):
 
         # select latest run
         try:
-            with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], "r") as f:
+            with h5py.File(
+                self.parent.config["files"]["plotting_hdf_fname"],
+                "r",
+                libver="latest",
+                swmr=True,
+            ) as f:
                 self.config["run"] = list(f.keys())[-1]
                 self.run_cbx.setCurrentText(self.config["run"])
         except OSError as err:
@@ -4087,7 +4106,10 @@ class Plotter(qt.QWidget):
             # check run is valid
             try:
                 with h5py.File(
-                    self.parent.config["files"]["plotting_hdf_fname"], "r"
+                    self.parent.config["files"]["plotting_hdf_fname"],
+                    "r",
+                    libver="latest",
+                    swmr=True,
                 ) as f:
                     if not self.config["run"] in f.keys():
                         self.stop_animation()
@@ -4132,7 +4154,12 @@ class Plotter(qt.QWidget):
             self.toggle_HDF_or_queue()
             return
 
-        with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], "r") as f:
+        with h5py.File(
+            self.parent.config["files"]["plotting_hdf_fname"],
+            "r",
+            libver="latest",
+            swmr=True,
+        ) as f:
             grp = f[self.config["run"] + "/" + self.dev.config["path"]]
 
             if self.dev.config["slow_data"]:

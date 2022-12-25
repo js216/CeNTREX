@@ -1098,8 +1098,17 @@ class HDF_writer(threading.Thread):
                     file.swmr_mode = True
                     self.write_all_queues_to_HDF(file)
             except OSError as err:
-                logging.warning("HDF_writer error: {0}".format(err))
-                logging.info(traceback.format_exc())
+                # if a HDF file is opened in read mode, it cannot be opened in write
+                # mode as well, even in SWMR mode. This only works if the file is opened
+                # in write mode first, and then it can be opened by multiple readers.
+                if (
+                    str(err)
+                    == "Unable to open file (file is already open for read-only)"
+                ):
+                    continue
+                else:
+                    logging.warning("HDF_writer error: {0}".format(err))
+                    logging.info(traceback.format_exc())
 
             # loop delay
             try:

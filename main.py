@@ -749,20 +749,31 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
 
         # if HDF writing enabled for this device, get events from the HDF file
         if dev.config["control_params"]["HDF_enabled"]["value"]:
-            with h5py.File(self.hdf_fname, "r", libver="latest", swmr=True) as f:
-                grp = f[self.parent.run_name + "/" + dev.config["path"]]
-                events_dset = grp[dev.config["name"] + "_events"]
-                if events_dset.shape[0] == 0:
-                    dev.config["monitoring_GUI_elements"]["events"].setText(
-                        "(no event)"
-                    )
-                    return
-                else:
-                    last_event = events_dset[-1]
-                    dev.config["monitoring_GUI_elements"]["events"].setText(
-                        str(last_event)
-                    )
-                    return last_event
+            try:
+                with h5py.File(self.hdf_fname, "r", libver="latest", swmr=True) as f:
+                    grp = f[self.parent.run_name + "/" + dev.config["path"]]
+                    events_dset = grp[dev.config["name"] + "_events"]
+                    if events_dset.shape[0] == 0:
+                        dev.config["monitoring_GUI_elements"]["events"].setText(
+                            "(no event)"
+                        )
+                        return
+                    else:
+                        last_event = events_dset[-1]
+                        dev.config["monitoring_GUI_elements"]["events"].setText(
+                            str(last_event)
+                        )
+                        return last_event
+            except OSError as err:
+                # if a HDF file is opened in read mode, it cannot be opened in write
+                # mode as well, even in SWMR mode. This only works if the file is opened
+                # in write mode first, and then it can be opened by multiple readers.
+                if (
+                    str(err)
+                    != "Unable to open file (file is already open for read-only)"
+                ):
+                    logging.warning("HDF_writer error: {0}".format(err))
+                    logging.info(traceback.format_exc())
 
         # if HDF writing not enabled for this device, get events from the events_queue
         else:

@@ -10,25 +10,25 @@ custom_device = Select device ...
 
 [run_attributes]
 
+[files]
+config_dir = C:/Users/ogras/Documents/GitHub/CeNTREX-js216/config/histogram_test
+hdf_fname = C:/Users/ogras/Downloads/test.hdf
+plotting_hdf_fname = C:/Users/ogras/Downloads/test.hdf
+plotting_config_fname = C:/Users/ogras/Documents/CeNTREX/plot_config
+sequence_fname = C:/Users/ogras/Documents/GitHub/CeNTREX-js216/config/test/sequence.txt
+
 [networking]
 enabled = False
-name = test
-port_readout = 123456
-port_control = 123457
+name = network
 workers = 10
-
-[files]
-config_dir = //vmware-host/Shared Folders/temp/CENTREX Jakob/0 common/DAQ_software/config/test
-hdf_fname = C:/Users/Jakob Kastelic/Documents/DAQtest/test.hdf
-plotting_hdf_fname = C:/Users/Jakob Kastelic/Documents/DAQtest/test.hdf
-plotting_config_fname = C:/Users/Jakob Kastelic/Documents/DAQtest/test.hdf
-sequence_fname = //vmware-host/Shared Folders/temp/CENTREX Jakob/0 common/DAQ_software/config/test/sequence.txt
+port_readout = 12345
+port_control = 12346
+allowed = 127.0.0.1, 0.0.0.0
 
 [influxdb]
 enabled = False
 host = 172.28.82.114
 port = 8086
-username = bsmonitor
-password = molecules
-database = beamsource
-
+token = blabla
+bucket = bla
+org = CeNTREX

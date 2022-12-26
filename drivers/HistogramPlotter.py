@@ -3,6 +3,7 @@ import time
 import warnings
 
 import numpy as np
+from scipy.stats import binned_statistic
 
 
 def split(string, separator=","):
@@ -57,6 +58,8 @@ class HistogramPlotter:
         # creating the bin edges
         self.bins = np.arange(self.lower, self.higher + self.width, self.width)
 
+        self.bin_centers = self.bins[:-1] + self.width / 2
+
         self.warnings = []
         self.new_attributes = []
 
@@ -104,7 +107,7 @@ class HistogramPlotter:
 
         if len(y_data) == 0:
             data = np.concatenate(
-                (bins[:-1] + self.width / 2, np.zeros(self.shape[-1]))
+                (self.bin_centers, np.zeros(self.shape[-1]))
             ).reshape(self.shape)
             return [data, [{"timestamp": time.time() - self.time_offset}]]
 
@@ -115,15 +118,16 @@ class HistogramPlotter:
                 ).reshape(self.shape)
                 return [data, [{"timestamp": time.time() - self.time_offset}]]
 
-            bin_indices = np.digitize(x_data, bins)
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", category=RuntimeWarning)
-                bin_means = np.array(
-                    [y_data[bin_indices == i].mean() for i in range(1, len(bins))]
+                bin_means, bin_edges, bin_number = binned_statistic(
+                    x_data, y_data, statistic="mean", bins=bins
                 )
-            data = np.concatenate((bins[:-1] + self.width / 2, bin_means)).reshape(
+
+            data = np.concatenate((self.bin_centers, bin_means)).reshape(
                 self.shape
             )
+
             return [data, [{"timestamp": time.time() - self.time_offset}]]
         except Exception as e:
             data = np.concatenate(
@@ -176,6 +180,7 @@ class HistogramPlotter:
             )
             return
         self.bins = np.arange(self.lower, self.higher + self.width, self.width)
+        self.bin_centers = self.bins[:-1] + (self.bins[1] - self.bins[0]) / 2
         self.shape = (1, 2, len(self.bins) - 1)
 
     #################################################

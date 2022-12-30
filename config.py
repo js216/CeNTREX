@@ -109,7 +109,6 @@ class DeviceConfig(Config):
             "plots_queue_maxlen": int,
             "max_NaN_count": int,
             "meta_device": bool,
-            "compound_dataset": bool,
             "double_connect_dev": bool,
             "dtype": str,
             "shape": list,
@@ -135,7 +134,6 @@ class DeviceConfig(Config):
     def set_defaults(self):
         self["control_params"] = {"InfluxDB_enabled": {"type": "dummy", "value": True}}
         self["double_connect_dev"] = True
-        self["compound_dataset"] = False
         self["plots_fn"] = "2*y"
 
     def change_param(
@@ -201,8 +199,6 @@ class DeviceConfig(Config):
                 )
             else:
                 self["shape"] = [float(val) for val in self["shape"]]
-                if self["compound_dataset"]:
-                    self["dtype"] = [val.strip() for val in self["dtype"].split(",")]
 
         # read device attributes
         self["attributes"] = params["attributes"]

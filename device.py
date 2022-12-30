@@ -94,15 +94,6 @@ class Device(threading.Thread):
             for attr_name, attr_val in dev.new_attributes:
                 self.config["attributes"][attr_name] = attr_val
 
-        # Check dtype for compound dataset
-        if self.config["compound_dataset"]:
-            if not isinstance(self.config["dtype"], (list, tuple)):
-                logging.warning(
-                    "Compound dataset device {0} requires list of dtypes".format(
-                        self.config["name"]
-                    )
-                )
-
     def change_plots_queue_maxlen(self, maxlen):
         # sanity check
         try:

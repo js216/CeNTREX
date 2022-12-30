@@ -1,4 +1,4 @@
-import datetime as dt
+import datetime
 import logging
 import threading
 import time
@@ -44,7 +44,10 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
 
             # check that we have written to HDF recently enough
             HDF_status = self.parent.ControlGUI.HDF_status
-            if time.time() - float(HDF_status.text()) > 5.0:
+            hdf_time = time.mktime(
+                datetime.datetime.fromisoformat(HDF_status.text()).timetuple()
+            )
+            if time.time() - hdf_time > 5.0:
                 HDF_status.setProperty("state", "error")
             else:
                 HDF_status.setProperty("state", "enabled")
@@ -193,7 +196,7 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
             {
                 "measurement": dev.config["driver"],
                 "tags": {"run_name": self.parent.run_name, "name": dev.config["name"]},
-                "time": dt.datetime.utcfromtimestamp(
+                "time": datetime.datetime.utcfromtimestamp(
                     data[0] + self.parent.config["time_offset"]
                 ).isoformat(),
                 "fields": fields,
@@ -205,7 +208,7 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
             .tag("name", dev.config["name"])
         )
         p = p.time(
-            time=dt.datetime.utcfromtimestamp(
+            time=datetime.datetime.utcfromtimestamp(
                 data[0] + self.parent.config["time_offset"]
             ).isoformat()
         )

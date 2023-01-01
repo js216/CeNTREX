@@ -82,6 +82,8 @@ class HDF_writer(threading.Thread):
         while self.active.is_set():
             # update the label that shows the time this loop last ran
             self.parent.ControlGUI.HDF_status.setText(str(time.time()))
+            status = datetime.datetime.now().replace(microsecond=0).isoformat()
+            self.parent.ControlGUI.HDF_status.setText(status)
 
             # empty queues to HDF
             try:
@@ -106,6 +108,7 @@ class HDF_writer(threading.Thread):
                 dt = float(self.parent.config["general"]["hdf_loop_delay"])
                 if dt < 0.002:
                     logging.warning("Plot dt too small.")
+                    logging.warning("hdf_loop_delay too small.")
                     raise ValueError
                 time.sleep(dt)
             except ValueError:
@@ -122,6 +125,7 @@ class HDF_writer(threading.Thread):
             logging.warning(traceback.format_exc())
 
     def write_all_queues_to_HDF(self, file):
+    def write_all_queues_to_HDF(self, file: h5py.File):
         root = file.require_group(self.parent.run_name)
         for dev_name, dev in self.parent.devices.items():
             # check device has had control started

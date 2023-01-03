@@ -13,6 +13,8 @@ class DummyDataTrace:
         self.period = float(period)  # seconds
         self.verification_string = "test"
 
+        self.new_attributes = []
+
         # shape and type of the array of returned data
         self.shape = (1, 2, 2000)
         self.dtype = np.float

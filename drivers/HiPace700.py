@@ -9,22 +9,37 @@ import numpy as np
 import logging
 
 class HiPace700:
-    def __init__(self, time_offset, resource_name, RS485_address="001"):
+    def __init__(self, time_offset, resource_name, connection_type = "SERIAL", RS485_address="001"):
         self.time_offset = time_offset
         self.RS485_address = RS485_address
         self.rm = pyvisa.ResourceManager()
-        try:
-            self.instr = self.rm.open_resource(resource_name)
-        except pyvisa.errors.VisaIOError:
+        if connection_type == "SERIAL":
+            try:
+                self.instr = self.rm.open_resource(resource_name)
+            except pyvisa.errors.VisaIOError:
+                self.verification_string = "False"
+                self.instr = False
+                return
+            self.instr.parity = pyvisa.constants.Parity.none
+            self.instr.data_bits = 8
+            self.instr.baud_rate = 9600
+            self.instr.read_termination = '\r'
+            self.instr.write_termination = '\r'
+        elif connection_type == "TCP":
+            try:
+                self.instr = self.rm.open_resource(f"TCPIP::{resource_name}::SOCKET")
+            except pyvisa.errors.VisaIOError:
+                self.verification_string = "False"
+                self.instr = False
+                return
+            self.instr.read_termination = "\r"
+            self.instr.write_termination = "\r"
+        else:
+            logging.error(f"Hornet error: connection_type = {connection_type}")
             self.verification_string = "False"
             self.instr = False
             return
-        self.instr.parity = pyvisa.constants.Parity.none
-        self.instr.data_bits = 8
-        self.instr.baud_rate = 9600
-        self.instr.read_termination = '\r'
-        self.instr.write_termination = '\r'
-
+            
         # make the verification string
         self.verification_string = self.ElecName()
 
@@ -178,7 +193,6 @@ class HiPace700:
         elif speed and ( abs(speed-820) > 1 ):
             return "accelerating"
         else:
-            print("invalid")
             return "invalid"
 
     def DrvCurrent(self):

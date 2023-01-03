@@ -321,7 +321,7 @@ class nXDS:
                 logging.error(f"nXDS error in SystemStatus(): {str(err)}")
                 return None
             except ValueError as e:
-                attemp += 1
+                attempt += 1
                 if attempt == ntries:
                     logging.warning(f"nXDS warning in SystemStatus: {str(e)}")
                     return None

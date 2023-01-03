@@ -5,21 +5,36 @@ import traceback
 import logging
 
 class Hornet:
-    def __init__(self, time_offset, resource_name, address='01'):
+    def __init__(self, time_offset, resource_name, connection_type = "SERIAL", address='01'):
         self.time_offset = time_offset
         self.address = address # Factory default address=1
         self.rm = pyvisa.ResourceManager()
-        try:
-            self.instr = self.rm.open_resource(resource_name)
-        except pyvisa.errors.VisaIOError:
+        if connection_type == "SERIAL":
+            try:
+                self.instr = self.rm.open_resource(resource_name)
+            except pyvisa.errors.VisaIOError:
+                self.verification_string = "False"
+                self.instr = False
+                return
+            self.instr.baud_rate = 19200
+            self.instr.data_bits = 8
+            self.instr.timeout = 5*1000
+            self.instr.parity = pyvisa.constants.Parity.none
+            self.instr.stop_bits = pyvisa.constants.StopBits.one
+        elif connection_type == "TCP":
+            try:
+                self.instr = self.rm.open_resource(f"TCPIP::{resource_name}::SOCKET")
+            except pyvisa.errors.VisaIOError:
+                self.verification_string = "False"
+                self.instr = False
+                return
+            self.instr.read_termination = "\r"
+            self.instr.write_termination = "\r\n"
+        else:
+            logging.error(f"Hornet error: connection_type = {connection_type}")
             self.verification_string = "False"
             self.instr = False
             return
-        self.instr.baud_rate = 19200
-        self.instr.data_bits = 8
-        self.instr.timeout = 5*1000
-        self.instr.parity = pyvisa.constants.Parity.none
-        self.instr.stop_bits = pyvisa.constants.StopBits.one
 
         # make the verification string
         try:

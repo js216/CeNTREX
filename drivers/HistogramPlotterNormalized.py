@@ -10,7 +10,7 @@ def split(string, separator=","):
     return [x.strip() for x in string.split(separator)]
 
 
-class HistogramPlotter:
+class HistogramPlotterNormalized:
     """
     Driver takes data from a fast device and a slow device, processes a trace
     from a fast device and subsequently bins the processed data and slow device
@@ -24,6 +24,8 @@ class HistogramPlotter:
             self.dev1,
             self.param1,
             self.processing,
+            self.paramnorm,
+            self.processingnorm,
             self.dev2,
             self.param2,
             self.lower,
@@ -38,7 +40,9 @@ class HistogramPlotter:
         self.dev2 = self.Strip(self.dev2, '"')
         self.param1 = self.Strip(self.param1, '"')
         self.param2 = self.Strip(self.param2, '"')
+        self.paramnorm = self.Strip(self.paramnorm, '"')
         self.processing = self.Strip(self.processing, '"')
+        self.processingnorm = self.Strip(self.processingnorm, '"')
 
         # lower and higher bounds for the bin range
         self.lower = float(self.lower)
@@ -57,7 +61,6 @@ class HistogramPlotter:
 
         # creating the bin edges
         self.bins = np.arange(self.lower, self.higher + self.width, self.width)
-
         self.bin_centers = self.bins[:-1] + self.width / 2
 
         self.warnings = []
@@ -107,7 +110,7 @@ class HistogramPlotter:
 
         if len(y_data) == 0:
             data = np.concatenate(
-                (self.bin_centers, np.zeros(self.shape[-1]))
+                (bins[:-1] + self.width / 2, np.zeros(self.shape[-1]))
             ).reshape(self.shape)
             return [data, [{"timestamp": time.time() - self.time_offset}]]
 
@@ -124,10 +127,7 @@ class HistogramPlotter:
                     x_data, y_data, statistic="mean", bins=bins
                 )
 
-            data = np.concatenate((self.bin_centers, bin_means)).reshape(
-                self.shape
-            )
-
+            data = np.concatenate((self.bin_centers, bin_means)).reshape(self.shape)
             return [data, [{"timestamp": time.time() - self.time_offset}]]
         except Exception as e:
             data = np.concatenate(
@@ -139,12 +139,20 @@ class HistogramPlotter:
         self.processing = processing
         self.ClearData()
 
+    def SetProcessingNorm(self, processingnorm):
+        self.processingnorm = processingnorm
+        self.ClearData()
+
     def SetDevice1(self, dev1):
         self.dev1 = dev1
         self.ClearData()
 
     def SetParam1(self, param1):
         self.param1 = param1
+        self.ClearData()
+
+    def SetParamNorm(self, paramnorm):
+        self.paramnorm = paramnorm
         self.ClearData()
 
     def SetDevice2(self, dev2):
@@ -180,7 +188,7 @@ class HistogramPlotter:
             )
             return
         self.bins = np.arange(self.lower, self.higher + self.width, self.width)
-        self.bin_centers = self.bins[:-1] + (self.bins[1] - self.bins[0]) / 2
+        self.bin_centers = self.bins[:-1] + self.width / 2
         self.shape = (1, 2, len(self.bins) - 1)
 
     #################################################
@@ -206,6 +214,9 @@ class HistogramPlotter:
         )
         try:
             param1_dset = data1[0][0, col_names1.index(self.param1)].astype(float)
+            param1_norm_dset = data1[0][0, col_names1.index(self.paramnorm)].astype(
+                float
+            )
         except IndexError:
             logging.error("Error in HistogramPlotter: param not found: " + self.param1)
             return
@@ -214,7 +225,7 @@ class HistogramPlotter:
         except IndexError:
             logging.error("Error in HistogramPlotter: param not found: " + self.param2)
             return
-        return param1_dset, param2_val
+        return param1_dset, param1_norm_dset, param2_val
 
     def ProcessData(self):
         """
@@ -230,7 +241,7 @@ class HistogramPlotter:
             return
         self.no_data_err = False
 
-        y, param2_val = data
+        y, y_norm, param2_val = data
 
         # checking if fast device data has already been acquired before
         dev1_hash = hash(y[:10].tostring())
@@ -239,7 +250,10 @@ class HistogramPlotter:
         self.dev1_hash = dev1_hash
 
         # evaluating the processing string supplied to __init__
+        # processing has to contain y
+        # processingnorm has to contain y_norm
         processed = eval(self.processing)
+        processed_norm = eval(self.processingnorm)
 
         self.x_data.append(param2_val)
-        self.y_data.append(processed)
+        self.y_data.append(processed / processed_norm)

@@ -139,6 +139,8 @@ class HDF_writer(threading.Thread):
             # get events, if any, and write them to HDF
             events = self.get_data(dev.events_queue)
             if len(events) != 0:
+                # make sure all are strings
+                events = [[str(v) for v in e] for e in events]
                 grp = root.require_group(dev.config["path"])
                 events_dset = grp[dev.config["name"] + "_events"]
                 events_dset.resize(events_dset.shape[0] + len(events), axis=0)

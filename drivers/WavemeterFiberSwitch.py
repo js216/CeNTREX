@@ -12,15 +12,18 @@ class WavemeterFiberswitch:
             self.verification_string = self.wavemeter.verification_string + ', '
             self.verification_string += self.switch.verification_string
         else:
-            self.verification_string = 'BRISTOL WAVELENGTH METER, 671A-VIS, 6894, 1.2.1, True'
+            self.verification_string = 'BRISTOL WAVELENGTH METER, 671A-VIS, 6894, 1.2.0, True'
+
+        # set wavemeter to mW
+        self.wavemeter.SetUnitPower(unit = 'MW')
 
         if not isinstance(ports, (tuple, list)):
             self.ports = [int(p) for p in ports.split(',')]
         else:
             self.ports = ports
 
-        self.dtype = tuple(['f8'] * (len(self.ports)+1))
-        self.shape = (1+len(self.ports),)
+        self.dtype = tuple(['f8'] * (len(self.ports)+1+3))
+        self.shape = (1+len(self.ports)+3,)
 
         self.new_attributes = []
         self.warnings = []
@@ -41,14 +44,18 @@ class WavemeterFiberswitch:
 
     def ReadValue(self):
         port = self.switch.ReadValue()
-        t, frequency = self.wavemeter.ReadValue()
+        frequency = self.wavemeter.ReadFrequency()
+        t = time.time()
         frequencies = [np.nan]*len(self.ports)
 
         if isinstance(port, (list, tuple)):
             port = port[1]
             frequencies[self.ports.index(port)] = frequency
 
-        return [t]+frequencies
+        power = self.wavemeter.ReadPower()
+        temperature, pressure = self.wavemeter.ReadEnvironment()
+
+        return [t]+frequencies+[power, temperature, pressure]
 
     def SetPort(self,port):
         try:

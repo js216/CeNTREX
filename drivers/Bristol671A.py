@@ -437,7 +437,7 @@ class Bristol671A:
         For clarification on reading values see Read().
         """
         resp = self.Read(Q="ENV").split(",")
-        return float(resp[0], resp[1])
+        return float(resp[0].strip("C")), float(resp[1].strip("MMHG"))
 
     def ReadFrequency(self):
         """
@@ -863,6 +863,6 @@ class Bristol671A:
             logging.warning("Bristol671A warning in SetUnitPower() unit not \
                              valid")
         try:
-            self.write(":UNIT:POW:{0}".format(unit))
+            self.write(":UNIT:POW {0}".format(unit))
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in SetUnitPower()" + str(err))

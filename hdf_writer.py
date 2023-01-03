@@ -3,6 +3,7 @@ import logging
 import threading
 import time
 import traceback
+from typing import Sequence
 
 import h5py
 import numpy as np
@@ -40,7 +41,7 @@ class HDF_writer(threading.Thread):
                 # create dataset for data if only one is needed
                 # (fast devices create a new dataset for each acquisition)
                 if dev.config["slow_data"]:
-                    if dev.config["compound_dataset"]:
+                    if isinstance(dev.config["dtype"], Sequence):
                         dtype = np.dtype(
                             [
                                 (name.strip(), dtype)

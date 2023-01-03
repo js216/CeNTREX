@@ -41,7 +41,7 @@ class HDF_writer(threading.Thread):
                 # create dataset for data if only one is needed
                 # (fast devices create a new dataset for each acquisition)
                 if dev.config["slow_data"]:
-                    if isinstance(dev.config["dtype"], Sequence):
+                    if isinstance(dev.config["dtype"], (list, tuple, np.ndarray)):
                         dtype = np.dtype(
                             [
                                 (name.strip(), dtype)
@@ -125,7 +125,6 @@ class HDF_writer(threading.Thread):
             logging.warning("HDF_writer error: ", err)
             logging.warning(traceback.format_exc())
 
-    def write_all_queues_to_HDF(self, file):
     def write_all_queues_to_HDF(self, file: h5py.File):
         root = file.require_group(self.parent.run_name)
         for dev_name, dev in self.parent.devices.items():

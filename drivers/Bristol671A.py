@@ -387,7 +387,7 @@ class Bristol671A:
         For clarification on fetching values see Fetch().
         """
         resp = self.Fetch(Q="ENV").split(",")
-        return float(resp[0], resp[1])
+        return float(resp[0].strip("C")), float(resp[1].strip("MMHG"))
 
     def FetchFrequency(self):
         """

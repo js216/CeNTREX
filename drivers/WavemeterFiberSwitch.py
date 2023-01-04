@@ -45,15 +45,15 @@ class WavemeterFiberswitch:
     def ReadValue(self):
         port = self.switch.ReadValue()
         frequency = self.wavemeter.ReadFrequency()
-        t = time.time()
+        t = time.time() - self.time_offset
         frequencies = [np.nan]*len(self.ports)
 
         if isinstance(port, (list, tuple)):
             port = port[1]
             frequencies[self.ports.index(port)] = frequency
 
-        power = self.wavemeter.ReadPower()
-        temperature, pressure = self.wavemeter.ReadEnvironment()
+        power = self.wavemeter.FetchPower()
+        temperature, pressure = self.wavemeter.FetchEnvironment()
 
         return [t]+frequencies+[power, temperature, pressure]
 

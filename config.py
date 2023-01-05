@@ -3,8 +3,11 @@ import importlib
 import logging
 import traceback
 from collections import deque
+from pathlib import Path
 
 from utils import split
+
+__filepath__ = Path(__file__).parent
 
 
 class Config(dict):
@@ -63,7 +66,7 @@ class ProgramConfig(Config):
 
     def read_from_file(self):
         settings = configparser.ConfigParser()
-        settings.read("config/settings.ini")
+        settings.read(self.fname)
         for section, section_type in self.section_keys.items():
             self[section] = settings[section]
 
@@ -74,7 +77,7 @@ class ProgramConfig(Config):
             config[sect] = self[sect]
 
         # write them to file
-        with open("config/settings.ini", "w") as f:
+        with open(self.fname, "w") as f:
             config.write(f)
 
     def change(self, sect, key, val, typ=str):
@@ -205,7 +208,8 @@ class DeviceConfig(Config):
 
         # import the device driver
         driver_spec = importlib.util.spec_from_file_location(
-            params["device"]["driver"], "drivers/" + params["device"]["driver"] + ".py"
+            params["device"]["driver"],
+            __filepath__ / "drivers" / (params["device"]["driver"] + ".py"),
         )
         driver_module = importlib.util.module_from_spec(driver_spec)
         driver_spec.loader.exec_module(driver_module)

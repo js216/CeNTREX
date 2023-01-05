@@ -7,6 +7,7 @@ import re
 import socket
 import time
 import traceback
+from pathlib import Path
 
 import PyQt5
 import PyQt5.QtWidgets as qt
@@ -91,7 +92,7 @@ class AttrEditor(qt.QDialog):
             params.read(self.dev.config.fname)
             new_attrs = params["attributes"]
         else:
-            params.read("config/settings.ini")
+            params.read(self.parent.config.fname)
             new_attrs = params["run_attributes"]
 
         # rewrite the table contents
@@ -1424,7 +1425,7 @@ class ControlGUI(qt.QWidget):
 
 
 class CentrexGUI(qt.QMainWindow):
-    def __init__(self, app):
+    def __init__(self, app, settings_path: Path):
         super().__init__()
         self.app = app
         self.setWindowTitle("CENTREX DAQ")
@@ -1432,7 +1433,7 @@ class CentrexGUI(qt.QMainWindow):
         self.load_stylesheet()
 
         # read program configuration
-        self.config = ProgramConfig("config/settings.ini")
+        self.config = ProgramConfig(settings_path)
 
         # set debug level
         logging.getLogger().setLevel(self.config["general"]["debug_level"])
@@ -1489,7 +1490,7 @@ class CentrexGUI(qt.QMainWindow):
         if reset:
             self.app.setStyleSheet("")
         else:
-            with open("darkstyle.qss", "r") as f:
+            with open(Path(__file__).parent / "darkstyle.qss", "r") as f:
                 self.app.setStyleSheet(f.read())
 
     def toggle_orientation(self):

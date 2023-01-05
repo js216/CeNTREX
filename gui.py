@@ -16,16 +16,15 @@ import pyvisa
 import wmi
 from PyQt5 import QtGui
 
-from config import DeviceConfig
+from config import DeviceConfig, ProgramConfig
 from device import Device
 from hdf_writer import HDF_writer
 from monitoring import Monitoring
 from networking import Networking
-from config import ProgramConfig
+from plots import PlotsGUI
 from sequencer import SequencerGUI
 from utils import split
-from utils_gui import LabelFrame, error_box, update_QComboBox, ScrollableLabelFrame
-from plots import PlotsGUI
+from utils_gui import LabelFrame, ScrollableLabelFrame, error_box, update_QComboBox
 
 
 class AttrEditor(qt.QDialog):

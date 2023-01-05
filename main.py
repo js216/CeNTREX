@@ -1,7 +1,7 @@
-﻿import logging
+﻿import argparse
+import logging
 import sys
 from pathlib import Path
-import argparse
 
 import PyQt5.QtWidgets as qt
 from rich.logging import RichHandler

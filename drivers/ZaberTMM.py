@@ -652,6 +652,9 @@ class ZaberTMM:
     def setupStepRectangle(self, sweep_params = None):
         if isinstance(sweep_params, type(None)):
             sweep_params = self.sweep_square_params
+        if sweep_params['point_a'] == sweep_params['point_b']:
+            logging.warning("ZaberTMM warning in setupStepRectangle: point_a == point_b")
+            return
         self.step_rectangle = StepRectangle(self, **sweep_params)
 
     def nextStep(self):

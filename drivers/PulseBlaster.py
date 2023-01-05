@@ -82,7 +82,7 @@ def generate_repeating_pulses(pulses, masking_pulses, duration = None):
     min_instruction_len *= gcd_cycles
     nr_cycles = int(duration/min_instruction_len)-1
 
-    print('minimum instruction cycles : {0}'.format(min_instruction_len))
+    # print('minimum instruction cycles : {0}'.format(min_instruction_len))
 
     # generating the pulseblaster instructions
     idx_reset_pulse = [0]*len(pulses)
@@ -288,34 +288,35 @@ class PulseBlaster:
             print(seq)
             raise e
         pb_stop_programming()
-        logging.warning("PulseBlaster warning in ProgramDevice: finished programming")
+        logging.info("PulseBlaster warning in ProgramDevice: finished programming")
 
 if __name__ == "__main__":
-    qswitch_delay = 130 # microseconds
+    qswitch_delay = 90 # microseconds
+    frequency = np.sqrt(2)*6 # Hz
     # trigger = {'frequency':10, 'offset':0, 'high': int(round(1e-4/1e-9,2)), 'channels':[0],
     #            'active_high':True}
-    flashlamp = {'frequency':50, 'offset':0, 'high': int(1e6), 'channels':[1],
+    flashlamp = {'frequency':frequency, 'offset':0, 'high': int(1e6), 'channels':[1,3],
                  'active_high':True}
-    qswitch = {'frequency':10, 'offset':int(qswitch_delay*1e3), 'high': int(1e6), 'channels':[2],
+    qswitch = {'frequency':frequency, 'offset':int(qswitch_delay*1e3), 'high': int(1e6), 'channels':[2,4],
                'active_high':True}
     # trigger = {'frequency':20, 'offset':int(qswitch_delay*1e3), 'high': int(1e6), 'channels':[5]}
-    shutter = {'frequency':5, 'offset':int(qswitch_delay*1e3)+int(70e-3/1e-9)+1, 'high': int(100e-3/1e-9), 'channels':[3,4],
-               'active_high':True}
+    # shutter = {'frequency':5, 'offset':int(qswitch_delay*1e3)+int(70e-3/1e-9)+1, 'high': int(100e-3/1e-9), 'channels':[3,4],
+    #            'active_high':True}
 
-    fpol = 1.5e6
-    ppol = 1/fpol
-    high = round((ppol/2)/1e-9 // 4* 4)
-    rcpol = {'frequency':fpol, 'offset':int(0), 'high':high, 'channels': [5],
-            'active_high':True}
-    J1J2pol = {'frequency':fpol, 'offset':round((ppol/1e-9/360)*45), 'high':high, 'channels': [6],
-            'active_high':True}
-    J2J3pol = {'frequency':fpol, 'offset':round((ppol/1e-9/360)*90), 'high':high, 'channels': [7],
-            'active_high':True}
+    # fpol = 1.5e6
+    # ppol = 1/fpol
+    # high = round((ppol/2)/1e-9 // 4* 4)
+    # rcpol = {'frequency':fpol, 'offset':int(0), 'high':high, 'channels': [5],
+    #         'active_high':True}
+    # J1J2pol = {'frequency':fpol, 'offset':round((ppol/1e-9/360)*45), 'high':high, 'channels': [6],
+    #         'active_high':True}
+    # J2J3pol = {'frequency':fpol, 'offset':round((ppol/1e-9/360)*90), 'high':high, 'channels': [7],
+    #         'active_high':True}
 
     # shutter = {'frequency': 5/10,'offset':int(round(20e-3/1e-9,2)), 'high':int(round(1/1e-9,2)), 'channels':[3],
     #            'active_high':True}
     # shutter_daq = {'frequency': 5/20,'offset':int(round(20e-3/1e-9,2)), 'high':int(round(2/1e-9,2)), 'channels':[4],
     #            'active_high':True}
 
-    t, c, sequence = generate_repeating_pulses([flashlamp, qswitch, shutter], [])
+    t, c, sequence = generate_repeating_pulses([flashlamp, qswitch], [])
     pb = PulseBlaster(time.time(), 0, {}, sequence)

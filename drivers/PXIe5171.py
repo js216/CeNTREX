@@ -60,6 +60,9 @@ class PXIe5171:
                 enforce_realtime = True
             )
 
+        # set clock configuration to use the PXI clock
+        self.session.input_clock_source = "VAL_PXI_CLK"
+
         # set trigger configuration
         if trigger["trigger_type"] == "Edge":
             self.session.trigger_type = niscope.TriggerType.EDGE
@@ -155,8 +158,6 @@ class PXIe5171:
             logging.warning(str(err))
             return np.nan
 
-        # increment record count
-        self.rec_num += self.num_records
 
         # organize metadata in a list of dictionaries
         all_attrs = []
@@ -164,12 +165,12 @@ class PXIe5171:
             attrs = {}
             attrs.update(self.trace_attrs)
             for info in infos:
-                if info.record == i:
+                if info.record == i + self.rec_num:
                     attrs_upd = {
-                            'ch'+str(info.channel)+' : timestamp'          : timestamp,
-                            'ch'+str(info.channel)+' : relative_initial_x' : info.relative_initial_x,
-                            'ch'+str(info.channel)+' : absolute_initial_x' : info.absolute_initial_x,
-                            'ch'+str(info.channel)+' : x_increment'        : info.x_increment,
+                            'timestamp'          : timestamp,
+                            'relative_initial_x' : info.relative_initial_x, # time from trigger to first sample
+                            'absolute_initial_x' : info.absolute_initial_x, # timestamp of the first sample
+                            'x_increment'        : info.x_increment, # time in seconds between points
                             'ch'+str(info.channel)+' : channel'            : info.channel,
                             'ch'+str(info.channel)+' : record'             : info.record,
                             'ch'+str(info.channel)+' : gain'               : info.gain,
@@ -177,6 +178,9 @@ class PXIe5171:
                         }
                     attrs.update(attrs_upd)
             all_attrs.append(attrs)
+
+        # increment record count
+        self.rec_num += self.num_records
 
         return [waveforms_flat.reshape(self.shape), all_attrs]
 

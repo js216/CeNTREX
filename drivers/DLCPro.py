@@ -21,6 +21,7 @@ class DLCPro:
         self.resource_name = resource_name
         self.connection_type = connection_type
 
+        # need to generate an event loop; only the main thread has an event loop
         self.loop = asyncio.set_event_loop(asyncio.new_event_loop())
 
         if connection_type == "SERIAL":

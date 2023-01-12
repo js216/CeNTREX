@@ -58,7 +58,8 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
             # monitoring dt
             try:
                 dt = float(self.parent.config["general"]["monitoring_dt"])
-            except ValueError:
+            except ValueError as e:
+                logging.warning(e)
                 logging.warning(traceback.format_exc())
                 dt = 1
 
@@ -249,7 +250,8 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                             idx = params["return_values"].index(event[2])
                         else:
                             idx = -2
-                    except ValueError:
+                    except ValueError as e:
+                        logging.warning(e)
                         logging.warning(traceback.format_exc())
                         idx = -2
 
@@ -285,20 +287,23 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
         # if HDF writing enabled for this device, get events from the HDF file
         if dev.config["control_params"]["HDF_enabled"]["value"]:
             try:
-                with h5py.File(self.hdf_fname, "r", libver="latest", swmr=True) as f:
-                    grp = f[self.parent.run_name + "/" + dev.config["path"]]
-                    events_dset = grp[dev.config["name"] + "_events"]
-                    if events_dset.shape[0] == 0:
-                        dev.config["monitoring_GUI_elements"]["events"].setText(
-                            "(no event)"
-                        )
-                        return
-                    else:
-                        last_event = events_dset[-1]
-                        dev.config["monitoring_GUI_elements"]["events"].setText(
-                            str(last_event)
-                        )
-                        return last_event
+                with self.parent.ControlGUI.HDF_writer.lock:
+                    with h5py.File(
+                        self.hdf_fname, "r", libver="latest", swmr=True
+                    ) as f:
+                        grp = f[self.parent.run_name + "/" + dev.config["path"]]
+                        events_dset = grp[dev.config["name"] + "_events"]
+                        if events_dset.shape[0] == 0:
+                            dev.config["monitoring_GUI_elements"]["events"].setText(
+                                "(no event)"
+                            )
+                            return
+                        else:
+                            last_event = events_dset[-1]
+                            dev.config["monitoring_GUI_elements"]["events"].setText(
+                                str(last_event)
+                            )
+                            return last_event
             except OSError as err:
                 # if a HDF file is opened in read mode, it cannot be opened in write
                 # mode as well, even in SWMR mode. This only works if the file is opened
@@ -307,7 +312,10 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                     str(err)
                     != "Unable to open file (file is already open for read-only)"
                 ):
-                    logging.warning("HDF_writer error: {0}".format(err))
+                    logging.warning(f"HDF_writer error: {err}")
+                    logging.warning(traceback.format_exc())
+                else:
+                    logging.warning(f"HDF_writer erro: {err}")
                     logging.warning(traceback.format_exc())
 
         # if HDF writing not enabled for this device, get events from the events_queue
@@ -316,7 +324,8 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                 last_event = dev.events_queue.pop()
                 dev.config["monitoring_GUI_elements"]["events"].setText(str(last_event))
                 return last_event
-            except IndexError:
+            except IndexError as e:
+                logging.warning(e)
                 logging.warning(traceback.format_exc())
                 return
 

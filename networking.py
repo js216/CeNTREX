@@ -132,7 +132,8 @@ class NetworkingBroker(threading.Thread):
         logging.info("NetworkingBroker: started broker")
         try:
             zmq.device(zmq.QUEUE, self.frontend, self.backend)
-        except zmq.error.ZMQError:
+        except zmq.error.ZMQError as e:
+            logging.warning(e)
             pass
 
 

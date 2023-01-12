@@ -153,7 +153,8 @@ class SequencerGUI(qt.QWidget):
         # determine how many times to repeat the entire sequence
         try:
             n_repeats = int(self.repeat_le.text())
-        except ValueError:
+        except ValueError as e:
+            logging.warning(e)
             n_repeats = 1
 
         # instantiate and start the thread

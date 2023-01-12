@@ -98,8 +98,9 @@ class Device(threading.Thread):
         # sanity check
         try:
             self.config["plots_queue_maxlen"] = int(maxlen)
-        except ValueError:
-            logging.info(traceback.format_exc())
+        except ValueError as e:
+            logging.warning(e)
+            logging.warning(traceback.format_exc())
             return
 
         # create a new deque with a different maxlen
@@ -128,7 +129,8 @@ class Device(threading.Thread):
                         if dt < 0.002:
                             logging.warning("Device dt too small.")
                             raise ValueError
-                    except ValueError:
+                    except ValueError as e:
+                        logging.warning(e)
                         logging.info(traceback.format_exc())
                         dt = 0.1
 
@@ -150,6 +152,7 @@ class Device(threading.Thread):
                         try:
                             ret_val = eval("device." + c.strip())
                         except Exception as err:
+                            logging.warning(err)
                             logging.warning(traceback.format_exc())
                             ret_val = str(err)
                         if (c == "ReadValue()") and ret_val:
@@ -165,7 +168,8 @@ class Device(threading.Thread):
                     for id0, c in self.sequencer_commands:
                         try:
                             ret_val = eval("device." + c.strip())
-                        except Exception:
+                        except Exception as e:
+                            logging.warning(e)
                             logging.warning(traceback.format_exc())
                             ret_val = None
                         if (c == "ReadValue()") and ret_val:
@@ -186,6 +190,7 @@ class Device(threading.Thread):
                         try:
                             ret_val = eval("device." + c.strip())
                         except Exception as err:
+                            logging.warning(err)
                             logging.warning(traceback.format_exc())
                             ret_val = str(err)
                         ret_val = "None" if not ret_val else ret_val
@@ -199,6 +204,7 @@ class Device(threading.Thread):
                         try:
                             ret_val = eval("device." + cmd.strip())
                         except Exception as err:
+                            logging.warning(err)
                             logging.warning(traceback.format_exc())
                             ret_val = str(err)
                         self.networking_events_queue[uid] = ret_val
@@ -247,7 +253,8 @@ class Device(threading.Thread):
                             self.warnings.append([time.time(), warning_dict])
 
         # report any exception that has occurred in the run() function
-        except Exception:
+        except Exception as e:
+            logging.warning(e)
             logging.warning(traceback.format_exc())
             err_msg = traceback.format_exc()
             warning_dict = {

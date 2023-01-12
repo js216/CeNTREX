@@ -574,8 +574,9 @@ class ControlGUI(qt.QWidget):
                 dev.config["control_GUI_elements"]["enabled"]["QCheckBox"].setChecked(
                     True
                 )
-            except KeyError:
-                logging.info(traceback.format_exc())
+            except KeyError as e:
+                logging.warning(e)
+                logging.warning(traceback.format_exc())
 
     def disable_all_devices(self):
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
@@ -583,8 +584,9 @@ class ControlGUI(qt.QWidget):
                 dev.config["control_GUI_elements"]["enabled"]["QCheckBox"].setChecked(
                     False
                 )
-            except KeyError:
-                logging.info(traceback.format_exc())
+            except KeyError as e:
+                logging.warning(e)
+                logging.warning(traceback.format_exc())
 
     def update_col_names_and_units(self):
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):

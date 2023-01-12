@@ -753,8 +753,9 @@ class Plotter(qt.QWidget):
         if not self.dev.config["slow_data"]:
             try:
                 dset = self.dev.config["plots_queue"][-1]
-            except IndexError:
-                logging.info(traceback.format_exc())
+            except IndexError as e:
+                logging.warning(e)
+                logging.warning(traceback.format_exc())
                 return None
             if dset == [np.nan] or dset == np.nan:
                 return None
@@ -822,7 +823,8 @@ class Plotter(qt.QWidget):
             x, y = data[0], data[1]
             if len(x) < 5:  # require at least five datapoints
                 raise ValueError("Require at least five datapoints")
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
+            logging.warning(e)
             logging.warning(traceback.format_exc())
             return None
 
@@ -835,7 +837,8 @@ class Plotter(qt.QWidget):
             else:
                 x0 = int(float(_x0))
                 x1 = int(float(_x1))
-        except ValueError:
+        except ValueError as e:
+            logging.warning(e)
             logging.warning(traceback.format_exc())
             x0, x1 = 0, len(x)
         if x0 >= x1:
@@ -893,7 +896,8 @@ class Plotter(qt.QWidget):
                     except Exception as err:
                         raise TypeError(str(err))
 
-            except Exception:
+            except Exception as e:
+                logging.warning(e)
                 logging.warning(traceback.format_exc())
                 return x[x0:x1], y[x0:x1]
 
@@ -933,7 +937,8 @@ class Plotter(qt.QWidget):
                     y_unit = ""
                 else:
                     y_unit = " [" + units[col_names.index(self.config["y"])] + "]"
-            except ValueError:
+            except ValueError as e:
+                logging.warning(e)
                 logging.warning(traceback.format_exc())
                 x_unit, y_unit = "", ""
 
@@ -954,8 +959,9 @@ class Plotter(qt.QWidget):
             try:
                 y0 = float(self.config["y0"])
                 y1 = float(self.config["y1"])
-            except ValueError:
-                logging.info(traceback.format_exc())
+            except ValueError as e:
+                logging.warning(e)
+                logging.warning(traceback.format_exc())
                 self.plot.enableAutoRange()
             else:
                 self.plot.setYRange(y0, y1)
@@ -978,8 +984,9 @@ class Plotter(qt.QWidget):
                     if dt < 0.002:
                         logging.warning("Plot dt too small.")
                         raise ValueError
-                except ValueError:
-                    logging.info(traceback.format_exc())
+                except ValueError as e:
+                    logging.warning(e)
+                    logging.warning(traceback.format_exc())
                     dt = float(self.parent.config["general"]["default_plot_dt"])
                 time.sleep(dt)
 

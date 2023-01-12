@@ -65,7 +65,7 @@ class HistogramPlotter:
 
         # shape and type of the array of returned data
         self.shape = (1, 2, len(self.bins) - 1)
-        self.dtype = np.float
+        self.dtype = float
 
         self.no_data_err = False
 

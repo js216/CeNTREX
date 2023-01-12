@@ -2,12 +2,14 @@
 # Monitor how long the data acquisition, and writing to HDF take.
 # Would using deque be any faster?
 
-import niscope
-import numpy as np
-import time
-import sys
 import datetime
 import logging
+import sys
+import time
+
+import niscope
+import numpy as np
+
 
 class PXIe5171:
     def __init__(self, time_offset, COM_port, record, sample, trigger, edge, channels):
@@ -113,7 +115,7 @@ class PXIe5171:
                     ("column_names", ", ".join(["ch"+str(x) for x in self.active_channels])),
                     ("units", ", ".join(["binary" for x in self.active_channels])),
                     ("sampling", str(1000*samplingRate_kSs)+" [S/s]")
-               ]
+        ]
 
         # shape and type of the array of returned data
         self.shape = (self.num_records, len(self.active_channels), self.num_samples)
@@ -139,8 +141,8 @@ class PXIe5171:
     def ReadValue(self):
         # the structures for reading waveform data into
         attrs = {}
-        waveforms_flat = np.ndarray(len(self.active_channels) * 
-                                    self.num_records * self.num_samples, 
+        waveforms_flat = np.ndarray(len(self.active_channels) *
+                                    self.num_records * self.num_samples,
                                     dtype = np.int16)
 
         # fetch data & metadata
@@ -207,7 +209,7 @@ class PXIe5171:
 
     def ClearBuffer(self, timeout = 0.1):
         """
-        Convenience function for sequencer to assert that no missed triggers are in 
+        Convenience function for sequencer to assert that no missed triggers are in
         the device buffer before changing a parameter of a different device
         """
         waveforms_flat = np.ndarray(len(self.active_channels) * self.num_records * self.num_samples, dtype = np.int16)

@@ -1,4 +1,5 @@
 import time
+
 import numpy as np
 from scipy import signal
 
@@ -17,7 +18,7 @@ class DummyDataTrace:
 
         # shape and type of the array of returned data
         self.shape = (1, 2, 2000)
-        self.dtype = np.float
+        self.dtype = float
 
     def __exit__(self, *exc):
         pass

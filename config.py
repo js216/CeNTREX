@@ -16,7 +16,7 @@ class Config(dict):
 
     def __setitem__(self, key, val):
         # check the key is permitted
-        if not key in dict(self.static_keys, **self.runtime_keys, **self.section_keys):
+        if key not in dict(self.static_keys, **self.runtime_keys, **self.section_keys):
             logging.error("Error in Config: key " + key + " not permitted.")
 
         # set the value in the dict
@@ -149,7 +149,7 @@ class DeviceConfig(Config):
         nonTriState=False,
         GUI_element=None,
     ):
-        if row != None:
+        if row is not None:
             self[sect][key]["value"][sub_ctrl][row] = val
         elif GUI_element:
             self["control_GUI_elements"][GUI_element][key] = val
@@ -166,7 +166,7 @@ class DeviceConfig(Config):
             return
         params = configparser.ConfigParser()
         params.read(self.fname)
-        if not "device" in params:
+        if "device" not in params:
             if self.fname[-11:] != "desktop.ini":
                 logging.warning(
                     "The device config file "
@@ -180,7 +180,8 @@ class DeviceConfig(Config):
             # read a parameter from the .ini file
             val = params["device"].get(key)
 
-            # check the parameter is defined in the file; leave it at its default value if not
+            # check the parameter is defined in the file; leave it at its default value
+            # if not
             if not val:
                 continue
 
@@ -196,9 +197,8 @@ class DeviceConfig(Config):
         if not self["double_connect_dev"]:
             if not (self["shape"] and self["dtype"]):
                 logging.warning(
-                    "Single-connect device {0} didn't specify data shape or type.".format(
-                        self.fname
-                    )
+                    "Single-connect device {0} didn't specify data shape or type."
+                    .format(self.fname)
                 )
             else:
                 self["shape"] = [float(val) for val in self["shape"]]

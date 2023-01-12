@@ -59,7 +59,7 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
             try:
                 dt = float(self.parent.config["general"]["monitoring_dt"])
             except ValueError:
-                logging.info(traceback.format_exc())
+                logging.warning(traceback.format_exc())
                 dt = 1
 
             # monitor operation of individual devices
@@ -180,7 +180,7 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
             )
             if not fields:
                 return
-        except Exception as e:
+        except Exception:
             for key, val in zip(dev.col_names_list[1:], data[1:]):
                 try:
                     np.isnan(val)
@@ -192,16 +192,6 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
             return
 
         # format the message for InfluxDB
-        json_body = [
-            {
-                "measurement": dev.config["driver"],
-                "tags": {"run_name": self.parent.run_name, "name": dev.config["name"]},
-                "time": datetime.datetime.utcfromtimestamp(
-                    data[0] + self.parent.config["time_offset"]
-                ).isoformat(),
-                "fields": fields,
-            }
-        ]
         p = (
             Point(dev.config["driver"])
             .tag("run_name", self.parent.run_name)
@@ -260,7 +250,7 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                         else:
                             idx = -2
                     except ValueError:
-                        logging.info(traceback.format_exc())
+                        logging.warning(traceback.format_exc())
                         idx = -2
 
                 # update indicator text and style if necessary
@@ -318,7 +308,7 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                     != "Unable to open file (file is already open for read-only)"
                 ):
                     logging.warning("HDF_writer error: {0}".format(err))
-                    logging.info(traceback.format_exc())
+                    logging.warning(traceback.format_exc())
 
         # if HDF writing not enabled for this device, get events from the events_queue
         else:
@@ -327,7 +317,7 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                 dev.config["monitoring_GUI_elements"]["events"].setText(str(last_event))
                 return last_event
             except IndexError:
-                logging.info(traceback.format_exc())
+                logging.warning(traceback.format_exc())
                 return
 
     def push_warnings_to_influxdb(self, dev_config, warning):

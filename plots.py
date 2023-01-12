@@ -49,7 +49,8 @@ class PlotsGUI(qt.QSplitter):
         self.dt_qle = qt.QLineEdit()
         self.dt_qle.setText("plot refresh rate")
         self.dt_qle.setToolTip(
-            "Delay between updating all plots, i.e. smaller dt means faster plot refresh rate."
+            "Delay between updating all plots, i.e. smaller dt means faster plot"
+            " refresh rate."
         )
         self.dt_qle.textChanged[str].connect(self.set_all_dt)
         ctrls_f.addWidget(self.dt_qle, 0, 3)
@@ -132,7 +133,10 @@ class PlotsGUI(qt.QSplitter):
     def add_plot(self, row=None, col=None):
         # find column for the plot if not given to the function
         try:
-            col = int(col) if col else 0
+            if col == "col for new plots":
+                col = 0
+            else:
+                col = int(col) if col else 0
         except (ValueError, TypeError):
             logging.info(traceback.format_exc())
             col = 0
@@ -438,7 +442,8 @@ class Plotter(qt.QWidget):
         self.dt_qle.setMaximumWidth(50)
         self.dt_qle.setText("dt")
         self.dt_qle.setToolTip(
-            "Delay between updating the plot, i.e. smaller dt means faster plot refresh rate."
+            "Delay between updating the plot, i.e. smaller dt means faster plot refresh"
+            " rate."
         )
         self.dt_qle.textChanged[str].connect(lambda val: self.config.change("dt", val))
         ctrls_f.addWidget(self.dt_qle, 1, 7)
@@ -480,7 +485,8 @@ class Plotter(qt.QWidget):
 
         self.fn_pb = qt.QPushButton("f(y)")
         self.fn_pb.setToolTip(
-            "Apply the specified function before plotting the data. Double click to clear the old calculations for fast data."
+            "Apply the specified function before plotting the data. Double click to"
+            " clear the old calculations for fast data."
         )
         self.fn_pb.setMaximumWidth(50)
         self.fn_pb.clicked[bool].connect(self.toggle_fn)
@@ -628,7 +634,7 @@ class Plotter(qt.QWidget):
             # check dataset exists in the run
             with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], "r") as f:
                 try:
-                    grp = f[self.config["run"] + "/" + self.dev.config["path"]]
+                    f[self.config["run"] + "/" + self.dev.config["path"]]
                 except KeyError:
                     logging.info(traceback.format_exc())
                     if time.time() - self.parent.config["time_offset"] > 5:
@@ -774,7 +780,8 @@ class Plotter(qt.QWidget):
             # average sanity check
             if self.config["n_average"] > self.dev.config["plots_queue_maxlen"]:
                 logging.warning(
-                    "Plot error: Cannot average more traces than are stored in plots_queue when plotting from the queue."
+                    "Plot error: Cannot average more traces than are stored in"
+                    " plots_queue when plotting from the queue."
                 )
                 return x, y
 
@@ -814,17 +821,22 @@ class Plotter(qt.QWidget):
         try:
             x, y = data[0], data[1]
             if len(x) < 5:  # require at least five datapoints
-                raise ValueError
+                raise ValueError("Require at least five datapoints")
         except (ValueError, TypeError):
-            logging.info(traceback.format_exc())
+            logging.warning(traceback.format_exc())
             return None
 
         # select indices for subsetting
         try:
-            x0 = int(float(self.config["x0"]))
-            x1 = int(float(self.config["x1"]))
-        except ValueError as err:
-            logging.debug(traceback.format_exc())
+            _x0: str = self.config["x0"]
+            _x1: str = self.config["x1"]
+            if _x0 == "x0" or _x1 == "x1":
+                x0, x1 = 0, len(x)
+            else:
+                x0 = int(float(_x0))
+                x1 = int(float(_x1))
+        except ValueError:
+            logging.warning(traceback.format_exc())
             x0, x1 = 0, len(x)
         if x0 >= x1:
             if x1 >= 0:
@@ -881,7 +893,7 @@ class Plotter(qt.QWidget):
                     except Exception as err:
                         raise TypeError(str(err))
 
-            except Exception as err:
+            except Exception:
                 logging.warning(traceback.format_exc())
                 return x[x0:x1], y[x0:x1]
 
@@ -913,10 +925,16 @@ class Plotter(qt.QWidget):
             col_names = split(self.dev.config["attributes"]["column_names"])
             units = split(self.dev.config["attributes"]["units"])
             try:
-                x_unit = " [" + units[col_names.index(self.config["x"])] + "]"
-                y_unit = " [" + units[col_names.index(self.config["y"])] + "]"
+                if self.config["x"] == "(none)":
+                    x_unit = ""
+                else:
+                    x_unit = " [" + units[col_names.index(self.config["x"])] + "]"
+                if self.config["y"] == "(none)":
+                    y_unit = ""
+                else:
+                    y_unit = " [" + units[col_names.index(self.config["y"])] + "]"
             except ValueError:
-                logging.info(traceback.format_exc())
+                logging.warning(traceback.format_exc())
                 x_unit, y_unit = "", ""
 
             # set axis labels
@@ -1061,7 +1079,8 @@ class Plotter(qt.QWidget):
             self.fast_y = []
             self.fn_pb.setText("f(y)")
             self.fn_pb.setToolTip(
-                "Apply the specified function before plotting the data. Double click to clear the old calculations for fast data."
+                "Apply the specified function before plotting the data. Double click to"
+                " clear the old calculations for fast data."
             )
 
         # display the function in the plot title (or not)

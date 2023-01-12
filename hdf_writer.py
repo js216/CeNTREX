@@ -3,10 +3,10 @@ import logging
 import threading
 import time
 import traceback
-from typing import Sequence
 
 import h5py
 import numpy as np
+
 
 class HDF_writer(threading.Thread):
     def __init__(self, parent):
@@ -70,7 +70,7 @@ class HDF_writer(threading.Thread):
                         grp.attrs[attr_name] = attr
 
                 # create dataset for events
-                events_dset = grp.create_dataset(
+                grp.create_dataset(
                     dev.config["name"] + "_events",
                     (0, 3),
                     maxshape=(None, 3),
@@ -102,7 +102,7 @@ class HDF_writer(threading.Thread):
                     continue
                 else:
                     logging.warning("HDF_writer error: {0}".format(err))
-                    logging.info(traceback.format_exc())
+                    logging.warning(traceback.format_exc())
 
             # loop delay
             try:
@@ -113,7 +113,7 @@ class HDF_writer(threading.Thread):
                     raise ValueError
                 time.sleep(dt)
             except ValueError:
-                logging.info(traceback.format_exc())
+                logging.warning(traceback.format_exc())
                 time.sleep(float(self.parent.config["general"]["default_hdf_dt"]))
 
         # make sure everything is written to HDF when the thread terminates
@@ -172,7 +172,8 @@ class HDF_writer(threading.Thread):
                                 dset[idx_start:idx_stop] = d
                         except Exception as err:
                             logging.error(
-                                f"Error in write_all_queues_to_HDF: {dev_name}; {str(err)}"
+                                f"Error in write_all_queues_to_HDF: {dev_name};"
+                                f" {str(err)}"
                             )
                 else:
                     dset.resize(dset.shape[0] + len(data), axis=0)

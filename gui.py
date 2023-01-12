@@ -314,7 +314,8 @@ class ControlGUI(qt.QWidget):
 
         qle = qt.QLineEdit()
         qle.setToolTip(
-            "The loop delay determines how frequently acquired data is written to the HDF file."
+            "The loop delay determines how frequently acquired data is written to the"
+            " HDF file."
         )
         qle.setText(self.parent.config["general"]["hdf_loop_delay"])
         qle.textChanged[str].connect(
@@ -344,7 +345,8 @@ class ControlGUI(qt.QWidget):
         # button to edit run attributes
         pb = qt.QPushButton("Attrs...")
         pb.setToolTip(
-            "Display or edit device attributes that are written with the data to the HDF file."
+            "Display or edit device attributes that are written with the data to the"
+            " HDF file."
         )
         pb.clicked[bool].connect(self.edit_run_attrs)
         files_frame.addWidget(pb, 4, 2)
@@ -682,7 +684,8 @@ class ControlGUI(qt.QWidget):
             # the button to reload attributes
             pb = qt.QPushButton("Attrs...")
             pb.setToolTip(
-                "Display or edit device attributes that are written with the data to the HDF file."
+                "Display or edit device attributes that are written with the data to"
+                " the HDF file."
             )
             pb.clicked[bool].connect(lambda val, dev=dev: self.edit_attrs(dev))
             df.addWidget(pb, 0, 1)
@@ -837,27 +840,35 @@ class ControlGUI(qt.QWidget):
                             qle = qt.QLineEdit()
                             qle.setText(param["value"][ctrl])
                             qle.setToolTip(param["ctrl_labels"][ctrl])
+                            # stop black formatter from changing the block below
+                            # fmt: off
                             qle.textChanged[str].connect(
-                                lambda val, dev=dev, config=c_name, sub_ctrl=ctrl: dev.config.change_param(
-                                    config,
-                                    val,
-                                    sect="control_params",
-                                    sub_ctrl=sub_ctrl,
-                                )
+                                lambda val, dev=dev, config=c_name, sub_ctrl=ctrl:
+                                    dev.config.change_param(
+                                        config,
+                                        val,
+                                        sect="control_params",
+                                        sub_ctrl=sub_ctrl,
+                                    )
                             )
+                            # fmt: on
                             ctrl_frame.addWidget(qle)
 
                         elif param["ctrl_types"][ctrl] == "QComboBox":
                             cbx = qt.QComboBox()
                             cbx.setToolTip(param["ctrl_labels"][ctrl])
+                            # stop black formatter from changing the block below
+                            # fmt: off
                             cbx.activated[str].connect(
-                                lambda val, dev=dev, config=c_name, sub_ctrl=ctrl: dev.config.change_param(
-                                    config,
-                                    val,
-                                    sect="control_params",
-                                    sub_ctrl=sub_ctrl,
-                                )
+                                lambda val, dev=dev, config=c_name, sub_ctrl=ctrl:
+                                    dev.config.change_param(
+                                        config,
+                                        val,
+                                        sect="control_params",
+                                        sub_ctrl=sub_ctrl,
+                                    )
                             )
+                            # fmt: on
                             update_QComboBox(
                                 cbx=cbx,
                                 options=param["ctrl_options"][ctrl],
@@ -898,15 +909,20 @@ class ControlGUI(qt.QWidget):
                                 qle = qt.QLineEdit()
                                 qle.setToolTip(param["col_labels"][col])
                                 qle.setText(param["value"][col][i])
+                                # stop black formatter from changing the block below
+                                # fmt: off
                                 qle.textChanged[str].connect(
-                                    lambda val, dev=dev, config=c_name, sub_ctrl=col, row=row: dev.config.change_param(
-                                        config,
-                                        val,
-                                        sect="control_params",
-                                        sub_ctrl=sub_ctrl,
-                                        row=row,
-                                    )
+                                    lambda val, dev=dev, config=c_name, sub_ctrl=col,
+                                    row=row:
+                                        dev.config.change_param(
+                                            config,
+                                            val,
+                                            sect="control_params",
+                                            sub_ctrl=sub_ctrl,
+                                            row=row,
+                                        )
                                 )
+                                # fmt: on
                                 ctrl_frame.addWidget(qle, i, j)
 
                             elif param["col_types"][col] == "QCheckBox":
@@ -914,29 +930,39 @@ class ControlGUI(qt.QWidget):
                                 qch.setToolTip(param["col_labels"][col])
                                 qch.setCheckState(int(param["value"][col][i]))
                                 qch.setTristate(False)
+                                # stop black formatter from changing the block below
+                                # fmt: off
                                 qch.stateChanged[int].connect(
-                                    lambda val, dev=dev, config=c_name, sub_ctrl=col, row=row: dev.config.change_param(
-                                        config,
-                                        "1" if val != 0 else "0",
-                                        sect="control_params",
-                                        sub_ctrl=sub_ctrl,
-                                        row=row,
-                                    )
+                                    lambda val, dev=dev, config=c_name, sub_ctrl=col,
+                                    row=row:
+                                        dev.config.change_param(
+                                            config,
+                                            "1" if val != 0 else "0",
+                                            sect="control_params",
+                                            sub_ctrl=sub_ctrl,
+                                            row=row,
+                                        )
                                 )
+                                # fmt: on
                                 ctrl_frame.addWidget(qch, i, j)
 
                             elif param["col_types"][col] == "QComboBox":
                                 cbx = qt.QComboBox()
                                 cbx.setToolTip(param["col_labels"][col])
+                                # stop black formatter from changing the block below
+                                # fmt: off
                                 cbx.activated[str].connect(
-                                    lambda val, dev=dev, config=c_name, sub_ctrl=col, row=row: dev.config.change_param(
-                                        config,
-                                        val,
-                                        sect="control_params",
-                                        sub_ctrl=sub_ctrl,
-                                        row=row,
-                                    )
+                                    lambda val, dev=dev, config=c_name, sub_ctrl=col,
+                                    row=row:
+                                        dev.config.change_param(
+                                            config,
+                                            val,
+                                            sect="control_params",
+                                            sub_ctrl=sub_ctrl,
+                                            row=row,
+                                        )
                                 )
+                                # fmt: on
                                 update_QComboBox(
                                     cbx=cbx,
                                     options=param["col_options"][col],
@@ -946,7 +972,8 @@ class ControlGUI(qt.QWidget):
 
                             else:
                                 logging.warning(
-                                    "ControlsRow error: sub-control type not supported: "
+                                    "ControlsRow error: sub-control type not"
+                                    " supported: "
                                     + c["col_types"][col]
                                 )
 
@@ -1151,13 +1178,14 @@ class ControlGUI(qt.QWidget):
         # check we're not running already
         if self.parent.config["control_active"]:
             logging.warning(
-                "Warning: Rename HDF while control is running takes\
-                    effect only after restarting control."
+                "Warning: Rename HDF while control is running takes                   "
+                " effect only after restarting control."
             )
             qt.QMessageBox.information(
                 self,
                 "Rename while running",
-                "Control running. Renaming HDF file will only take effect after restarting control.",
+                "Control running. Renaming HDF file will only take effect after"
+                " restarting control.",
             )
 
         # get old file path
@@ -1280,6 +1308,7 @@ class ControlGUI(qt.QWidget):
         w.exec_()
 
     def start_control(self):
+        logging.info("Start control")
         # check we're not running already
         if self.parent.config["control_active"]:
             return
@@ -1303,8 +1332,9 @@ class ControlGUI(qt.QWidget):
                 self.status_label.setText("Starting " + dev_name + " ...")
                 self.parent.app.processEvents()
 
-                ## reinstantiate the thread (since Python only allows threads to
-                ## be started once, this is necessary to allow repeatedly stopping and starting control)
+                # reinstantiate the thread (since Python only allows threads to be
+                # started once, this is necessary to allow repeatedly stopping and
+                # starting control)
                 self.parent.devices[dev_name] = Device(dev.config)
                 dev = self.parent.devices[dev_name]
 
@@ -1340,7 +1370,7 @@ class ControlGUI(qt.QWidget):
         self.monitoring.start()
 
         # start the networking thread
-        if self.parent.config["networking"]["enabled"] in ["1", "True"]:
+        if self.parent.config["networking"]["enabled"] in ["1", "2", "True"]:
             self.networking = Networking(self.parent)
             self.networking.active.set()
             self.networking.start()
@@ -1426,9 +1456,10 @@ class ControlGUI(qt.QWidget):
 class CentrexGUI(qt.QMainWindow):
     def __init__(self, app, settings_path: Path):
         super().__init__()
+        logging.info("Starting CeNTREX DAQ")
         self.app = app
         self.setWindowTitle("CENTREX DAQ")
-        # self.setWindowFlags(PyQt5.QtCore.Qt.Window | PyQt5.QtCore.Qt.FramelessWindowHint)
+
         self.load_stylesheet()
 
         # read program configuration

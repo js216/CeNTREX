@@ -89,7 +89,7 @@ class NetworkingBroker(threading.Thread):
 
         # load authentication keys
         file_path = Path(__file__).resolve()
-        public_keys_dir = file_path.parent / "authentication" / "public_keys"
+        # public_keys_dir = file_path.parent / "authentication" / "public_keys"
         # self.auth.configure_curve(domain = '*', location = str(public_keys_dir))
         self.auth.configure_curve(domain="*", location=zmq.auth.base.CURVE_ALLOW_ANY)
         server_secret_file = (
@@ -109,7 +109,7 @@ class NetworkingBroker(threading.Thread):
         self.frontend.curve_server = True
 
         # external connections (clients) connect to frontend
-        logging.warning(f"bind to tcp://*:{outward_port}")
+        logging.info(f"bind to tcp://*:{outward_port}")
         self.frontend.bind(f"tcp://*:{outward_port}")
 
         # workers connect to the backend (ipc doesn't work on windows, use tcp)
@@ -174,7 +174,7 @@ class Networking(threading.Thread):
         return topic + " " + json.dumps(message)
 
     def run(self):
-        logging.warning("Networking: started main thread")
+        logging.info("Networking: started main thread")
         # start the message broker
         self.control_broker.start()
         # start the workers
@@ -194,7 +194,7 @@ class Networking(threading.Thread):
             # from a network client device
             if getattr(dev, "is_networking_client", None):
                 continue
-            logging.warning(f"{dev_name} networking")
+            logging.info(f"{dev_name} networking")
 
         while self.active.is_set():
             for dev_name, dev in self.parent.devices.items():

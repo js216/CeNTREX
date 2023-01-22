@@ -983,7 +983,7 @@ class Plotter(qt.QWidget):
                     dt = float(self.config["dt"])
                     if dt < 0.002:
                         logging.warning("Plot dt too small.")
-                        raise ValueError
+                        raise ValueError(f"{dt} < 0.002")
                 except ValueError as e:
                     logging.warning(e)
                     logging.warning(traceback.format_exc())

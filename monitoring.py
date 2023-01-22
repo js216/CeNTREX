@@ -143,7 +143,7 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                         self.write_to_influxdb(dev, data)
 
                 # if writing to HDF is disabled, empty the queues
-                if not dev.config["control_params"]["HDF_enabled"]["value"]:
+                if not bool(int(dev.config["control_params"]["HDF_enabled"]["value"])):
                     dev.events_queue.clear()
                     dev.data_queue.clear()
 

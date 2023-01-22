@@ -571,11 +571,9 @@ class Plotter(qt.QWidget):
         if select_defaults:
             if self.dev.config["slow_data"]:
                 self.config["x"] = self.param_list[0]
+                self.config["y"] = self.param_list[1]
             else:
                 self.config["x"] = "(none)"
-            if len(self.param_list) > 1:
-                self.config["y"] = self.param_list[0]
-            else:
                 self.config["y"] = self.param_list[0]
 
         # update the default plot f(y) for the given device

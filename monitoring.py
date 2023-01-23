@@ -44,9 +44,19 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
 
             # check that we have written to HDF recently enough
             HDF_status = self.parent.ControlGUI.HDF_status
-            hdf_time = time.mktime(
-                datetime.datetime.fromisoformat(HDF_status.text()).timetuple()
-            )
+
+            # check that we have written to HDF recently enough
+            if self.parent.ControlGUI.HDF_writer.active.is_set():
+                time_last_write = self.parent.ControlGUI.HDF_writer.time_last_write
+                hdf_time = time.mktime(time_last_write.timetuple())
+                status = time_last_write.isoformat()
+            else:
+                hdf_time = 0
+                status = "disabled"
+                HDF_status.setProperty("state", "disabled")
+
+            HDF_status.setText(status)
+
             if time.time() - hdf_time > 5.0:
                 HDF_status.setProperty("state", "error")
             else:

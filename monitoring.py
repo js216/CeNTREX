@@ -297,23 +297,22 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
         # if HDF writing enabled for this device, get events from the HDF file
         if dev.config["control_params"]["HDF_enabled"]["value"]:
             try:
-                with self.parent.ControlGUI.HDF_writer.lock:
-                    with h5py.File(
-                        self.hdf_fname, "r", libver="latest", swmr=True
-                    ) as f:
-                        grp = f[self.parent.run_name + "/" + dev.config["path"]]
-                        events_dset = grp[dev.config["name"] + "_events"]
-                        if events_dset.shape[0] == 0:
-                            dev.config["monitoring_GUI_elements"]["events"].setText(
-                                "(no event)"
-                            )
-                            return
-                        else:
-                            last_event = events_dset[-1]
-                            dev.config["monitoring_GUI_elements"]["events"].setText(
-                                str(last_event)
-                            )
-                            return last_event
+                with h5py.File(
+                    self.hdf_fname, "r", libver="latest", swmr=True
+                ) as f:
+                    grp = f[self.parent.run_name + "/" + dev.config["path"]]
+                    events_dset = grp[dev.config["name"] + "_events"]
+                    if events_dset.shape[0] == 0:
+                        dev.config["monitoring_GUI_elements"]["events"].setText(
+                            "(no event)"
+                        )
+                        return
+                    else:
+                        last_event = events_dset[-1]
+                        dev.config["monitoring_GUI_elements"]["events"].setText(
+                            str(last_event)
+                        )
+                        return last_event
             except OSError as err:
                 # if a HDF file is opened in read mode, it cannot be opened in write
                 # mode as well, even in SWMR mode. This only works if the file is opened

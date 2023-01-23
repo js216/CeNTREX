@@ -331,9 +331,12 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
         # if HDF writing not enabled for this device, get events from the events_queue
         else:
             try:
-                last_event = dev.events_queue.pop()
-                dev.config["monitoring_GUI_elements"]["events"].setText(str(last_event))
-                return last_event
+                if len(dev.events_queue) > 0:
+                    last_event = dev.events_queue.pop()
+                    dev.config["monitoring_GUI_elements"]["events"].setText(
+                        str(last_event)
+                    )
+                    return last_event
             except IndexError as e:
                 logging.warning(e)
                 logging.warning(traceback.format_exc())

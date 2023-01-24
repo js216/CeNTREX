@@ -1,105 +1,133 @@
-import time
 import logging
 import telnetlib
+import time
+
 import numpy as np
+
 
 class Bristol671Error(Exception):
     pass
 
-def decompose_powers_two(number):
+
+def decompose_powers_two(number: int):
     powers = []
     i = 1
     p = 0
-    while i <= x:
-        if i & x:
+    while i <= number:
+        if i & number:
             powers.append(p)
         i <<= 1
         p += 1
     return powers
 
+
 class Bristol671A:
     def __init__(self, time_offset, connection):
         self.time_offset = time_offset
-        self.telnet_address = connection['telnet_address']
-        self.telnet_port = connection['telnet_port']
+        self.telnet_address = connection["telnet_address"]
+        self.telnet_port = connection["telnet_port"]
         self.timeout = 2
 
         # HDF attributes generated when constructor is run
         self.new_attributes = []
 
         # shape and type of the array of returned data from ReadValue
-        self.dtype = ('f', 'f8')
-        self.shape = (2, )
+        self.dtype = ("f", "f8")
+        self.shape = (2,)
 
-        self.ESE_register = {0: "Operation Complete (OPC)",
-                             1: "Not Used",
-                             2: "Query Error (QYE)",
-                             3: "Device Dependent Error (DDE)",
-                             4: "Execution Error (EXE)",
-                             5: "Command Error (CME)",
-                             6: "Not Used",
-                             7: "Power On (PON)"}
+        self.ESE_register = {
+            0: "Operation Complete (OPC)",
+            1: "Not Used",
+            2: "Query Error (QYE)",
+            3: "Device Dependent Error (DDE)",
+            4: "Execution Error (EXE)",
+            5: "Command Error (CME)",
+            6: "Not Used",
+            7: "Power On (PON)",
+        }
 
-        self.ESR_register = {0: "Operation Complete (OPC)",
-                             1: "Not Used",
-                             2: "Query Error (QYE)",
-                             3: "Device Dependent Error (DDE)",
-                             4: "Execution Error (EXE)",
-                             5: "Command Error (CME)",
-                             6: "Not Used",
-                             7: "Power On (PON)"}
+        self.ESR_register = {
+            0: "Operation Complete (OPC)",
+            1: "Not Used",
+            2: "Query Error (QYE)",
+            3: "Device Dependent Error (DDE)",
+            4: "Execution Error (EXE)",
+            5: "Command Error (CME)",
+            6: "Not Used",
+            7: "Power On (PON)",
+        }
 
-        self.STB_register = {2: "A bit is set in the event status register.",
-                             3: "Errors are in the error queue.",
-                             5: "A bit is set in the questionable register."}
+        self.STB_register = {
+            2: "A bit is set in the event status register.",
+            3: "Errors are in the error queue.",
+            5: "A bit is set in the questionable register.",
+        }
 
-        self.QSR_register = {0: "The wavelenght has already ben read for the current scan.",
-                             1: "NA",
-                             2: "The previously requested calibration has failed.",
-                             3: "The power value is outside the valid range of the instrument.",
-                             4: "The temprature value is outside the valid range of the instrument.",
-                             5: "The wavelength value is outside the valid range of the instrument.",
-                             6: "NA",
-                             7: "NA",
-                             8: "NA",
-                             9: "The pressure value is outside the valid range of the instrument.",
-                             10: "Indicates that at least one bit is set in the Questionable Hardware Condition register."}
+        self.QSR_register = {
+            0: "The wavelenght has already ben read for the current scan.",
+            1: "NA",
+            2: "The previously requested calibration has failed.",
+            3: "The power value is outside the valid range of the instrument.",
+            4: "The temprature value is outside the valid range of the instrument.",
+            5: "The wavelength value is outside the valid range of the instrument.",
+            6: "NA",
+            7: "NA",
+            8: "NA",
+            9: "The pressure value is outside the valid range of the instrument.",
+            10: (
+                "Indicates that at least one bit is set in the Questionable Hardware"
+                " Condition register."
+            ),
+        }
 
-        self.QHC_register = {0: "Reference laser has not stabilized.",
-                             1: "NA",
-                             2: "NA",
-                             3: "NA",
-                             4: "NA",
-                             5: "NA",
-                             6: "NA",
-                             7: "NA",
-                             8: "NA",
-                             9: "NA",
-                             10: "NA",
-                             11: "NA",
-                             12: "NA",
-                             13: "NA",}
+        self.QHC_register = {
+            0: "Reference laser has not stabilized.",
+            1: "NA",
+            2: "NA",
+            3: "NA",
+            4: "NA",
+            5: "NA",
+            6: "NA",
+            7: "NA",
+            8: "NA",
+            9: "NA",
+            10: "NA",
+            11: "NA",
+            12: "NA",
+            13: "NA",
+        }
 
-        self.SCPI_errors = {0: "No Error",
-                            -101: "Invalid character",
-                            -102: "Syntax error",
-                            -103: "Invalid separator",
-                            -104: "Data type error",
-                            -220: "Parameter error",
-                            -221: "Settings conflict",
-                            -222: "Data out of range",
-                            -230: "Data corrupt or stale"}
+        self.SCPI_errors = {
+            0: "No Error",
+            -101: "Invalid character",
+            -102: "Syntax error",
+            -103: "Invalid separator",
+            -104: "Data type error",
+            -220: "Parameter error",
+            -221: "Settings conflict",
+            -222: "Data out of range",
+            -230: "Data corrupt or stale",
+        }
 
-        if self.telnet_port != '':
+        if self.telnet_port != "":
             try:
-                self.instr = telnetlib.Telnet(self.telnet_address, int(self.telnet_port))
+                self.instr = telnetlib.Telnet(
+                    self.telnet_address, int(self.telnet_port)
+                )
                 # need to flush the first replies about the telnet connection
                 for _ in range(3):
-                    resp = self.instr.read_until(b'\n\n',1).decode('ASCII').strip('\r\n\n').replace('\r\n','')
-                    if resp == 'Sorry, no connections available, already in use?':
-                        raise Bristol671Error(""+str(resp))
+                    resp = (
+                        self.instr.read_until(b"\n\n", 1)
+                        .decode("ASCII")
+                        .strip("\r\n\n")
+                        .replace("\r\n", "")
+                    )
+                    if resp == "Sorry, no connections available, already in use?":
+                        raise Bristol671Error("" + str(resp))
             except Exception as err:
-                logging.warning("Error in initial connection to Bristal 671A : "+str(err))
+                logging.warning(
+                    "Error in initial connection to Bristal 671A : " + str(err)
+                )
                 self.verification_string = "False"
                 self.instr = False
                 self.__exit__()
@@ -107,10 +135,10 @@ class Bristol671A:
 
         # make the verification string
         try:
-           self.verification_string = self.QueryIDN()
+            self.verification_string = self.QueryIDN()
         except Bristol671Error as err:
-           logging.warning("Verification error : "+str(err))
-           self.verification_string = "False"
+            logging.warning("Verification error : " + str(err))
+            self.verification_string = "False"
 
         self.warnings = []
 
@@ -127,9 +155,10 @@ class Bristol671A:
         return warnings
 
     def ReadValue(self):
-        return [ time.time() - self.time_offset,
-                 self.MeasureFrequency(),
-               ]
+        return [
+            time.time() - self.time_offset,
+            self.MeasureFrequency(),
+        ]
 
     #######################################################
     # Write/Query Commands
@@ -140,11 +169,13 @@ class Bristol671A:
         Write an SCPI query over a telnet connection to the Bristol 617A.
         """
         if msg[-2:] != "\r\n":
-            msg+="\r\n"
+            msg += "\r\n"
         self.instr.write(msg.encode())
-        if self.instr.read_until(b'\r\n', self.timeout).decode("ASCII").strip('\r\n') ==\
-           'invalid command':
-           raise Bristol671Error('{0}'.format(msg.encode()))
+        if (
+            self.instr.read_until(b"\r\n", self.timeout).decode("ASCII").strip("\r\n")
+            == "invalid command"
+        ):
+            raise Bristol671Error("{0}".format(msg.encode()))
 
     def query(self, msg):
         """
@@ -155,13 +186,15 @@ class Bristol671A:
                 msg += "?"
             msg += "\r\n"
         self.instr.write(msg.encode())
-        reply = self.instr.read_until(b'\r\n', self.timeout).decode("ASCII").strip('\r\n')
-        if reply == 'invalid command':
-           raise Bristol671Error('Invalid command : {0}'.format(msg.encode()))
-        elif reply == '':
-            raise Bristol671Error('No value returned : {0}'.format(msg.encode()))
+        reply = (
+            self.instr.read_until(b"\r\n", self.timeout).decode("ASCII").strip("\r\n")
+        )
+        if reply == "invalid command":
+            raise Bristol671Error("Invalid command : {0}".format(msg.encode()))
+        elif reply == "":
+            raise Bristol671Error("No value returned : {0}".format(msg.encode()))
         else:
-           return reply
+            return reply
 
     #######################################################
     #   Common Commands
@@ -178,7 +211,7 @@ class Bristol671A:
 
     def QueryESE(self):
         """
-        Queries the bits int he standard event status enable registerself.
+        Queries the bits int he standard event status enable register.
         Returns an integer which is the sum of all the bit values for those bits
         that are set. See the Event Status Register Enable table below.
         """
@@ -207,7 +240,7 @@ class Bristol671A:
             logging.warning("Bristol671A warning in MaskESE() mask not int")
         try:
             self.write("*ESE {0}".format(mask))
-        except Exception as e:
+        except Exception as err:
             logging.warning("Bristol671A warning in MaskESE()" + str(err))
 
     def QueryESR(self):
@@ -316,8 +349,10 @@ class Bristol671A:
         readings are indicated by a bit in the questionable status register.
         """
         if Q not in ["POW", "ENV", "FREQ", "WAV", "WNUM", "ALL"]:
-            logging.warning("Bristol671A warning in Fetch() {0} not a valid \
-                             query".format(Q))
+            logging.warning(
+                "Bristol671A warning in Fetch() {0} not a valid                        "
+                "      query".format(Q)
+            )
             return np.nan
         # obtain value
         try:
@@ -338,8 +373,10 @@ class Bristol671A:
         queries does not guarantee that they will be from the same measurement.
         """
         if Q not in ["POW", "ENV", "FREQ", "WAV", "WNUM", "ALL"]:
-            logging.warning("Bristol671A warning in Read() {0} not a valid \
-                             query".format(Q))
+            logging.warning(
+                "Bristol671A warning in Read() {0} not a valid                         "
+                "     query".format(Q)
+            )
             return np.nan
         # obtain value
         try:
@@ -350,7 +387,7 @@ class Bristol671A:
 
         return resp
 
-    def Measure(self, Q = "ALL"):
+    def Measure(self, Q="ALL"):
         """
         The :MEASure command can be considered a macro that executes multiple
         SCPI commands and is equivalent to:
@@ -361,8 +398,10 @@ class Bristol671A:
 
         """
         if Q not in ["POW", "ENV", "FREQ", "WAV", "WNUM", "ALL"]:
-            logging.warning("Bristol671A warning in Measure() {0} not a valid \
-                             query".format(Q))
+            logging.warning(
+                "Bristol671A warning in Measure() {0} not a valid                      "
+                "        query".format(Q)
+            )
             return np.nan
         # obtain value
         try:
@@ -537,8 +576,10 @@ class Bristol671A:
         readings, and the model 671B returns 8.
         """
         if Q not in ["POW", "FREQ", "WAV", "WNUM"]:
-            logging.warning("Bristol671A warning in CalculateData() {0} not a\
-                             valid query".format(Q))
+            logging.warning(
+                "Bristol671A warning in CalculateData() {0} not a                      "
+                "       valid query".format(Q)
+            )
             return np.nan
         try:
             resp = self.query(":CALC:DATA? {0}".format(Q))
@@ -555,24 +596,28 @@ class Bristol671A:
         try:
             resp = self.query(":CALC:DELT:METH?")
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in QueryCalculateDeltaMethod()"\
-                            + str(err))
+            logging.warning(
+                "Bristol671A warning in QueryCalculateDeltaMethod()" + str(err)
+            )
             return np.nan
         return resp
 
-    def SetCalculateDeltaMethod(self, method = "START"):
+    def SetCalculateDeltaMethod(self, method="START"):
         """
         Set the state of the :DELTa:METHod function employed in CalculateData.
         Methods are START for current-start or MAXMIN for max-min.
         """
         if method not in ["START", "MAXMIN"]:
-            logging.warning("Bristol671A warning in SetCalculateDeltaMethod() \
-                             {0} not a valid method".format(method))
+            logging.warning(
+                "Bristol671A warning in SetCalculateDeltaMethod()                      "
+                "        {0} not a valid method".format(method)
+            )
         try:
             self.write(":CALC:DELT:METH {0}".format(method))
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in SetCalculateDeltaMethod()" \
-                            + str(err))
+            logging.warning(
+                "Bristol671A warning in SetCalculateDeltaMethod()" + str(err)
+            )
 
     def CalculateReset(self):
         """
@@ -583,8 +628,7 @@ class Bristol671A:
         try:
             self.write(":CALC:RES")
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in CalculateReset()" \
-                            + str(err))
+            logging.warning("Bristol671A warning in CalculateReset()" + str(err))
 
     def CalculateTimeElapsed(self):
         """
@@ -594,8 +638,9 @@ class Bristol671A:
         try:
             resp = self.query(":CALC:TIME:ELAP?")
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in QueryCalculateTimeElapsed()"\
-                            + str(err))
+            logging.warning(
+                "Bristol671A warning in QueryCalculateTimeElapsed()" + str(err)
+            )
             return np.nan
         return resp
 
@@ -615,14 +660,16 @@ class Bristol671A:
             return np.nan
         return resp
 
-    def SetAverageState(self, state = "ON"):
+    def SetAverageState(self, state="ON"):
         """
         Sets the state of the averaging status.
         Valid states are OFF or ON.
         """
         if state not in ["ON", "OFF"]:
-            logging.warning("Bristol671A warning in SetAverageState() {0} not\
-                             a valdi state".format(state))
+            logging.warning(
+                "Bristol671A warning in SetAverageState() {0} not                      "
+                "       a valdi state".format(state)
+            )
             return
         try:
             self.write(":SENS:AVER:STAT {0}".format(state))
@@ -642,14 +689,16 @@ class Bristol671A:
             return np.nan
         return int(resp)
 
-    def SetAverageCount(self, count = 1):
+    def SetAverageCount(self, count=1):
         """
         Set the number of readings being averaged for the wavelength and power
         values.
         Valid counts are OFF, 2, 3, 4, ..., 128.
         """
         if not isinstance(count, int):
-            logging.warning("Bristol671A warning in SetAverageCount() count requires int")
+            logging.warning(
+                "Bristol671A warning in SetAverageCount() count requires int"
+            )
             return
         if (count < 1) & (count > 128):
             logging.warning("Bristol671A warning in SetAverageCount() 0 < count < 129")
@@ -669,8 +718,10 @@ class Bristol671A:
         If averaging is not turned on then the most recent data is returned.
         """
         if Q not in ["POW", "FREQ", "WAV", "WNUM"]:
-            logging.warning("Bristol671A warning in QueryAverageData() {0} not a\
-                             valid query".format(Q))
+            logging.warning(
+                "Bristol671A warning in QueryAverageData() {0} not a                   "
+                "          valid query".format(Q)
+            )
             return np.nan
         # obtain value
         try:
@@ -693,16 +744,18 @@ class Bristol671A:
             return np.nan
         return resp
 
-    def SetPowerOffset(self, offset = 0):
+    def SetPowerOffset(self, offset: int = 0):
         """
         Queries the power offset being added to power values. The power
         offset is in units of dB.
         Valid offsets are 0, 1, 2, 3, 4, ..., 20.
         """
         if not isinstance(offset, int):
-            logging.warning("Bristol671A warning in SetPowerOffset() count requires int")
+            logging.warning(
+                "Bristol671A warning in SetPowerOffset() count requires int"
+            )
             return
-        if (count < 0) & (count > 20):
+        if (offset < 0) & (offset > 20):
             logging.warning("Bristol671A warning in SetPowerOffset() -1 < count < 21")
             return
         try:
@@ -728,7 +781,9 @@ class Bristol671A:
         try:
             resp = self.query(":STAT:QUES:COND?")
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in QueryQuestionableCondition()" + str(err))
+            logging.warning(
+                "Bristol671A warning in QueryQuestionableCondition()" + str(err)
+            )
             return np.nan
         try:
             powers_two = decompose_powers_two(int(resp))
@@ -747,11 +802,13 @@ class Bristol671A:
         try:
             resp = self.query(":STAT:QUES:ENAB?")
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in QueryQuestionableEnable()" + str(err))
+            logging.warning(
+                "Bristol671A warning in QueryQuestionableEnable()" + str(err)
+            )
             return np.nan
         return int(resp)
 
-    def SetQuestionableEnable(self, value):
+    def SetQuestionableEnable(self, value: int):
         """
         Used to set and clear bits in the SCPI Questionable Enable Register.
         This register contains bits that are used to mask one or more
@@ -762,12 +819,16 @@ class Bristol671A:
         the Questionable Status Register.
         """
         if not isinstance(value, int):
-            logging.warning("Bristol671A warning in SetQuestionableEnable() \
-                             count requires int")
+            logging.warning(
+                "Bristol671A warning in SetQuestionableEnable()                        "
+                "      count requires int"
+            )
             return
         if (value < 1) & (value > 2048):
-            logging.warning("Bristol671A warning in SetQuestionableEnable() 0 \
-                             < value < 2049")
+            logging.warning(
+                "Bristol671A warning in SetQuestionableEnable() 0                      "
+                "        < value < 2049"
+            )
             return
         try:
             self.write(":STAT:QUES:ENAB {0}".format(value))
@@ -785,8 +846,11 @@ class Bristol671A:
         try:
             resp = self.query(":STAT:QUES:HARD:COND?")
         except Bristol671Error as err:
-            logging.warning("Bristol671A warning in \
-                             QueryQuestionableHardwareCondition()" + str(err))
+            logging.warning(
+                "Bristol671A warning in                             "
+                " QueryQuestionableHardwareCondition()"
+                + str(err)
+            )
             return np.nan
         try:
             powers_two = decompose_powers_two(int(resp))
@@ -818,7 +882,7 @@ class Bristol671A:
         try:
             resp = resp.split(",")
             return int(resp[0]), resp[1]
-        except Exception as e:
+        except Exception as err:
             logging.warning("Bristol671A warning in QueryError()" + str(err))
             return np.nan
 
@@ -853,15 +917,17 @@ class Bristol671A:
             logging.warning("Bristol671A warning in SetUnitPower()" + str(err))
         return resp
 
-    def SetUnitPower(self, unit = "MW"):
+    def SetUnitPower(self, unit: str = "MW"):
         """
         Sets the state of the power units that will be used when the SCPI
         interface returns power values. This setting does not affect the display.
         Valid units are DBM or MW.
         """
-        if not unit in ["MW", "DBM"]:
-            logging.warning("Bristol671A warning in SetUnitPower() unit not \
-                             valid")
+        if unit not in ["MW", "DBM"]:
+            logging.warning(
+                "Bristol671A warning in SetUnitPower() unit not                        "
+                "      valid"
+            )
         try:
             self.write(":UNIT:POW {0}".format(unit))
         except Bristol671Error as err:

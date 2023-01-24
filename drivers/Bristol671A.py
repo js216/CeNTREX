@@ -1,6 +1,7 @@
 import logging
 import telnetlib
 import time
+from typing import List, Tuple, Union
 
 import numpy as np
 
@@ -154,7 +155,7 @@ class Bristol671A:
         self.warnings = []
         return warnings
 
-    def ReadValue(self):
+    def ReadValue(self) -> List[float]:
         return [
             time.time() - self.time_offset,
             self.MeasureFrequency(),
@@ -164,7 +165,7 @@ class Bristol671A:
     # Write/Query Commands
     #######################################################
 
-    def write(self, msg):
+    def write(self, msg: str):
         """
         Write an SCPI query over a telnet connection to the Bristol 617A.
         """
@@ -177,7 +178,7 @@ class Bristol671A:
         ):
             raise Bristol671Error("{0}".format(msg.encode()))
 
-    def query(self, msg):
+    def query(self, msg: str) -> str:
         """
         SCPI query over a telnet connection to the Bristol 617A.
         """
@@ -209,7 +210,7 @@ class Bristol671A:
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in CLS()" + str(err))
 
-    def QueryESE(self):
+    def QueryESE(self) -> List[int]:
         """
         Queries the bits int he standard event status enable register.
         Returns an integer which is the sum of all the bit values for those bits
@@ -227,7 +228,7 @@ class Bristol671A:
             logging.warning("Bristol671A warning in QueryESR()" + str(err))
             return np.nan
 
-    def MaskESE(self, mask):
+    def MaskESE(self, mask: int):
         """
         The *ESE (event status enable) command sets the bits in the event
         status enable register and enables the corresponding events in the
@@ -243,7 +244,7 @@ class Bristol671A:
         except Exception as err:
             logging.warning("Bristol671A warning in MaskESE()" + str(err))
 
-    def QueryESR(self):
+    def QueryESR(self) -> List[int]:
         """
         The *ESR (event status register) query returns a value which encodes
         the bits in the event status register. If any bits are set in the ESR,
@@ -263,7 +264,7 @@ class Bristol671A:
             logging.warning("Bristol671A warning in QueryESR()" + str(err))
             return np.nan
 
-    def QueryIDN(self):
+    def QueryIDN(self) -> str:
         """
         The *IDN (identification number) query returns a string value which
         contains the instrument type, serial number, and firmware version. The
@@ -272,11 +273,11 @@ class Bristol671A:
         """
         try:
             resp = self.query("*IDN?")
+            return resp
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in QueryIDN()" + str(err))
-        return resp
 
-    def QueryOPC(self):
+    def QueryOPC(self) -> str:
         """
         The *OPC (operation complete) query returns OFF when all pending
         device operations are complete, ON if an operation is pending.
@@ -317,7 +318,7 @@ class Bristol671A:
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in SAV()" + str(err))
 
-    def QuerySTB(self):
+    def QuerySTB(self) -> Union[int, np.nan]:
         """
         The *STB (status byte) query returns the current value of the
         instrument’s status byte.
@@ -341,7 +342,7 @@ class Bristol671A:
     # Measurement Commands
     #######################################################
 
-    def Fetch(self, Q="ALL"):
+    def Fetch(self, Q="ALL") -> Union[str, np.nan]:
         """
         The :FETCh command will return a reading of the instrument’s current
         measurement. If :FETCh queries are made faster than the instrument’s
@@ -363,7 +364,7 @@ class Bristol671A:
 
         return resp
 
-    def Read(self, Q="ALL"):
+    def Read(self, Q="ALL") -> Union[str, np.nan]:
         """
         The :READ command will return the instrument’s next measurement. The
         :MEASure command will return the following measurement. The :MEASure and
@@ -387,7 +388,7 @@ class Bristol671A:
 
         return resp
 
-    def Measure(self, Q="ALL"):
+    def Measure(self, Q="ALL") -> Union[str, np.nan]:
         """
         The :MEASure command can be considered a macro that executes multiple
         SCPI commands and is equivalent to:
@@ -411,7 +412,7 @@ class Bristol671A:
             return np.nan
         return resp
 
-    def FetchPower(self):
+    def FetchPower(self) -> float:
         """
         Fetch a power reading in mW or dB, depending on the setting of :UNIT:POW.
         For clarification on fetching values see Fetch().
@@ -419,7 +420,7 @@ class Bristol671A:
         resp = self.Fetch(Q="POW")
         return float(resp)
 
-    def FetchEnvironment(self):
+    def FetchEnvironment(self) -> Tuple[float, float]:
         """
         Fetch an environment reading, returns temperature (C) and pressure
         (mm Hg) separated by a comma.
@@ -428,7 +429,7 @@ class Bristol671A:
         resp = self.Fetch(Q="ENV").split(",")
         return float(resp[0].strip("C")), float(resp[1].strip("MMHG"))
 
-    def FetchFrequency(self):
+    def FetchFrequency(self) -> float:
         """
         Fetch a frequency reading in THz.
         For clarification on fetching values see Fetch().
@@ -436,7 +437,7 @@ class Bristol671A:
         resp = self.Fetch(Q="FREQ")
         return float(resp)
 
-    def FetchWavelenght(self):
+    def FetchWavelenght(self) -> float:
         """
         Fetch a wavelength reading in nm.
         For clarification on fetching values see Fetch().
@@ -444,7 +445,7 @@ class Bristol671A:
         resp = self.Fetch(Q="WAV")
         return float(resp)
 
-    def FetchWavenumber(self):
+    def FetchWavenumber(self) -> float:
         """
         Fetch a wavenumber reading in 1/cm.
         For clarification on fetching values see Fetch().
@@ -452,7 +453,7 @@ class Bristol671A:
         resp = self.Fetch(Q="WNUM")
         return float(resp)
 
-    def FetchAll(self):
+    def FetchAll(self) -> Tuple[int, int, float, float]:
         """
         Fetch scan index, instrument status, laser reading in display units  and
         power reading in display units.
@@ -461,7 +462,7 @@ class Bristol671A:
         resp = self.Fetch(Q="ALL").split(",")
         return int(resp[0]), int(resp[1]), float(resp[2]), float(resp[3])
 
-    def ReadPower(self):
+    def ReadPower(self) -> float:
         """
         Read a power reading in mW or dB, depending on the setting of :UNIT:POW.
         For clarification on reading values see Read().
@@ -469,7 +470,7 @@ class Bristol671A:
         resp = self.Read(Q="POW")
         return float(resp)
 
-    def ReadEnvironment(self):
+    def ReadEnvironment(self) -> Tuple[float, float]:
         """
         Read an environment reading, returns temperature (C) and pressure
         (mm Hg) separated by a comma.
@@ -478,7 +479,7 @@ class Bristol671A:
         resp = self.Read(Q="ENV").split(",")
         return float(resp[0].strip("C")), float(resp[1].strip("MMHG"))
 
-    def ReadFrequency(self):
+    def ReadFrequency(self) -> float:
         """
         Read a frequency reading in THz.
         For clarification on reading values see Read().
@@ -486,7 +487,7 @@ class Bristol671A:
         resp = self.Read(Q="FREQ")
         return float(resp)
 
-    def ReadWavelenght(self):
+    def ReadWavelenght(self) -> float:
         """
         Read a wavelength reading in nm.
         For clarification on reading values see Read().
@@ -494,7 +495,7 @@ class Bristol671A:
         resp = self.Read(Q="WAV")
         return float(resp)
 
-    def ReadWavenumber(self):
+    def ReadWavenumber(self) -> float:
         """
         Read a wavenumber reading in 1/cm.
         For clarification on reading values see Read().
@@ -502,7 +503,7 @@ class Bristol671A:
         resp = self.Read(Q="WNUM")
         return float(resp)
 
-    def ReadAll(self):
+    def ReadAll(self) -> Tuple[int, int, float, float]:
         """
         Read scan index, instrument status, laser reading in display units and
         power reading in display units.
@@ -511,7 +512,7 @@ class Bristol671A:
         resp = self.Read(Q="ALL").split(",")
         return int(resp[0]), int(resp[1]), float(resp[2]), float(resp[3])
 
-    def MeasurePower(self):
+    def MeasurePower(self) -> float:
         """
         Measure a power reading in mW or dB, depending on the setting of
         :UNIT:POW.
@@ -520,7 +521,7 @@ class Bristol671A:
         resp = self.Measure(Q="POW")
         return float(resp)
 
-    def MeasureEnvironment(self):
+    def MeasureEnvironment(self) -> Tuple[float, float]:
         """
         Measure an environment reading, returns temperature (C) and pressure
         (mm Hg) separated by a comma.
@@ -529,7 +530,7 @@ class Bristol671A:
         resp = self.Measure(Q="ENV").split(",")
         return float(resp[0], resp[1])
 
-    def MeasureFrequency(self):
+    def MeasureFrequency(self) -> float:
         """
         Measure a frequency reading in THz.
         For clarification on measuring values see Measure().
@@ -537,7 +538,7 @@ class Bristol671A:
         resp = self.Measure(Q="FREQ")
         return float(resp)
 
-    def MeasureWavelenght(self):
+    def MeasureWavelenght(self) -> float:
         """
         Measure a wavelength reading in nm.
         For clarification on measuring values see Measure().
@@ -545,7 +546,7 @@ class Bristol671A:
         resp = self.Measure(Q="WAV")
         return float(resp)
 
-    def MeasureWavenumber(self):
+    def MeasureWavenumber(self) -> float:
         """
         Measure a wavenumber reading in 1/cm.
         For clarification on measuring values see Measure().
@@ -553,7 +554,7 @@ class Bristol671A:
         resp = self.Measure(Q="WNUM")
         return float(resp)
 
-    def MeasureAll(self):
+    def MeasureAll(self) -> Tuple[int, int, float, float]:
         """
         Measure scan index, instrument status, laser reading in display units
         and power reading in display units.
@@ -566,7 +567,7 @@ class Bristol671A:
     # Calculate Commands
     #######################################################
 
-    def CalculateData(self, Q="FREQ"):
+    def CalculateData(self, Q="FREQ") -> float:
         """
         Returns a calculated value based on the based on the
         :DELTa:METHod setting.
@@ -588,7 +589,7 @@ class Bristol671A:
             return np.nan
         return float(resp)
 
-    def QueryCalculateDeltaMethod(self):
+    def QueryCalculateDeltaMethod(self) -> Union[str, np.nan]:
         """
         Query the state of the :DELTa:METHod function employed in CalculateData.
         Returns START for current-start or MAXMIN for max-min.
@@ -630,7 +631,7 @@ class Bristol671A:
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in CalculateReset()" + str(err))
 
-    def CalculateTimeElapsed(self):
+    def CalculateTimeElapsed(self) -> Union[str, np.nan]:
         """
         Queries the elapsed time since the instrument was turned on or was
         reset.
@@ -648,7 +649,7 @@ class Bristol671A:
     # Sense Commands
     #######################################################
 
-    def QueryAverageState(self):
+    def QueryAverageState(self) -> Union[str, np.nan]:
         """
         Queries the state of the averaging status.
         Return OFF or ON.
@@ -676,7 +677,7 @@ class Bristol671A:
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in SetAverageState()" + str(err))
 
-    def QueryAverageCount(self):
+    def QueryAverageCount(self) -> Union[int, np.nan]:
         """
         Queries the number of readings being averaged for wavelength and
         power values.
@@ -711,7 +712,7 @@ class Bristol671A:
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in SetAverageCount()" + str(err))
 
-    def QueryAverageData(self, Q="FREQ"):
+    def QueryAverageData(self, Q="FREQ") -> Union[float, np.nan]:
         """
         Returns averaged wavelength or power data for the last N number of
         measurements. The value of N is set by :AVERage: COUNt command.
@@ -729,9 +730,9 @@ class Bristol671A:
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in QueryAverageData()" + str(err))
             return np.nan
-        return resp
+        return float(resp)
 
-    def QueryPowerOffset(self):
+    def QueryPowerOffset(self) -> Union[str, np.nan]:
         """
         Queries the power offset being added to power values. The power
         offset is in units of dB.
@@ -770,7 +771,7 @@ class Bristol671A:
     # Status Subsystem
     #######################################################
 
-    def QueryQuestionableCondition(self):
+    def QueryQuestionableCondition(self) -> Union[List[int], np.nan]:
         """
         Queries the SCPI Questionable Status Register which contains bits
         that indicate that one or more measurement types are of questionable
@@ -793,7 +794,7 @@ class Bristol671A:
             logging.warning("Bristol671A warning in QueryESR()" + str(err))
             return np.nan
 
-    def QueryQuestionableEnable(self):
+    def QueryQuestionableEnable(self) -> Union[int, np.nan]:
         """
         Queries the SCPI Questionable Enable Register.
         Returns an integer which is the sum of the bit values for all bits in
@@ -835,7 +836,7 @@ class Bristol671A:
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in SetQuestionableEnable()" + str(err))
 
-    def QueryQuestionableHardwareCondition(self):
+    def QueryQuestionableHardwareCondition(self) -> Union[List[int], np.nan]:
         """
         Queries the SCPI Questionable Hardware Condition Register which
         contains bits that indicate that one or more hardware problems exist.
@@ -864,7 +865,7 @@ class Bristol671A:
     # System Subsystem
     #######################################################
 
-    def QueryError(self):
+    def QueryError(self) -> Union[Tuple[int, str], np.nan]:
         """
         Reads error strings from the SCPI Error Queue. If the Error Queue has
         any entries, the Error Queue bit is set in the Status Byte. The
@@ -886,7 +887,7 @@ class Bristol671A:
             logging.warning("Bristol671A warning in QueryError()" + str(err))
             return np.nan
 
-    def Help(self):
+    def Help(self) -> Union[str, np.nan]:
         """
         Reads a list of all commands and queries supported by the instrument.
         Each line of the response is terminated by a linefeed. The first line
@@ -905,7 +906,7 @@ class Bristol671A:
     # Unit Subsystem
     #######################################################
 
-    def QueryUnitPower(self):
+    def QueryUnitPower(self) -> str:
         """
         Queries the state of the power units that will be used when the SCPI
         interface returns power values.

@@ -8,9 +8,11 @@ import time
 import PyQt5
 import PyQt5.QtWidgets as qt
 
+from protocols import CentrexGUIProtocol
+
 
 class SequencerGUI(qt.QWidget):
-    def __init__(self, parent):
+    def __init__(self, parent: CentrexGUIProtocol):
         super().__init__()
         self.parent = parent
         self.sequencer = None
@@ -122,7 +124,7 @@ class SequencerGUI(qt.QWidget):
         )
 
         # write to file
-        fname = self.parent.config["files"]["sequence_fname"]
+        fname: str = self.parent.config["files"]["sequence_fname"]
         with open(fname, "w") as f:
             json.dump(tree_list, f)
 
@@ -218,7 +220,7 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
     # signal emitted when sequence terminates
     finished = PyQt5.QtCore.pyqtSignal()
 
-    def __init__(self, parent, circular, n_repeats):
+    def __init__(self, parent: CentrexGUIProtocol, circular, n_repeats):
         threading.Thread.__init__(self)
         PyQt5.QtCore.QObject.__init__(self)
 

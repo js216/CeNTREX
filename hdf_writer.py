@@ -8,9 +8,11 @@ from typing import Deque
 import h5py
 import numpy as np
 
+from protocols import CentrexGUIProtocol
+
 
 class HDF_writer(threading.Thread):
-    def __init__(self, parent):
+    def __init__(self, parent: CentrexGUIProtocol):
         threading.Thread.__init__(self)
         self.parent = parent
         self.active = threading.Event()
@@ -18,8 +20,10 @@ class HDF_writer(threading.Thread):
         # configuration parameters
         self.filename: str = self.parent.config["files"]["hdf_fname"]
         current_time = datetime.datetime.utcnow().astimezone().replace(microsecond=0)
-        self.parent.run_name: str = (
-            current_time.isoformat() + " " + self.parent.config["general"]["run_name"]
+        self.parent.run_name = (
+            current_time.isoformat()
+            + " "
+            + str(self.parent.config["general"]["run_name"])
         )
 
         # time since last write
@@ -31,7 +35,7 @@ class HDF_writer(threading.Thread):
             root = f.create_group(self.parent.run_name)
 
             # write run attributes
-            root.attrs["time_offset"]: float = self.parent.config["time_offset"]
+            root.attrs["time_offset"] = self.parent.config["time_offset"]
             for key, val in self.parent.config["run_attributes"].items():
                 root.attrs[key] = val
 

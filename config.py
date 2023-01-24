@@ -4,6 +4,7 @@ import logging
 import traceback
 from collections import deque
 from pathlib import Path
+from typing import Union
 
 from utils import split
 
@@ -24,7 +25,7 @@ class Config(dict):
 
 
 class ProgramConfig(Config):
-    def __init__(self, config_fname=None):
+    def __init__(self, config_fname: Union[str, Path]):
         super().__init__()
         self.fname = config_fname
         self.define_permitted_keys()
@@ -89,7 +90,7 @@ class ProgramConfig(Config):
 
 
 class DeviceConfig(Config):
-    def __init__(self, config_fname=None):
+    def __init__(self, config_fname: Union[str, Path]):
         super().__init__()
         self.fname = config_fname
         self.define_permitted_keys()

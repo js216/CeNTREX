@@ -607,7 +607,7 @@ class Plotter(qt.QWidget):
             logging.warning("Plot error: Invalid device: " + self.config["device"])
             return False
 
-        if self.dev.config["control_params"]["HDF_enabled"]["value"]:
+        if bool(int(self.dev.config["control_params"]["HDF_enabled"]["value"])):
             # check run is valid
             try:
                 with h5py.File(

@@ -4,14 +4,17 @@ import threading
 import time
 import uuid
 from pathlib import Path
+from typing import List
 
 import zmq
 import zmq.auth
 from zmq.auth.thread import ThreadAuthenticator
 
+from protocols import CentrexGUIProtocol
+
 
 class NetworkingDeviceWorker(threading.Thread):
-    def __init__(self, parent, backend_port):
+    def __init__(self, parent: CentrexGUIProtocol, backend_port: int):
         super(NetworkingDeviceWorker, self).__init__()
         self.active = threading.Event()
         self.daemon = True
@@ -76,7 +79,7 @@ class NetworkingDeviceWorker(threading.Thread):
 
 
 class NetworkingBroker(threading.Thread):
-    def __init__(self, outward_port, allowed):
+    def __init__(self, outward_port: int, allowed: List[str]):
         super(NetworkingBroker, self).__init__()
         self.daemon = True
 
@@ -138,7 +141,7 @@ class NetworkingBroker(threading.Thread):
 
 
 class Networking(threading.Thread):
-    def __init__(self, parent):
+    def __init__(self, parent: CentrexGUIProtocol):
         super(Networking, self).__init__()
         self.parent = parent
         self.active = threading.Event()

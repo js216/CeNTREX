@@ -600,7 +600,7 @@ class ControlGUI(qt.QWidget):
             dev.units = "\n".join(units)
             dev.config["monitoring_GUI_elements"]["units"].setText(dev.units)
 
-    def update_warnings(self, warnings):
+    def update_warnings(self, warnings: str):
         self.warnings_label.setText(warnings)
 
     def check_free_disk_space(self):

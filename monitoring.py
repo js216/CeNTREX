@@ -3,6 +3,7 @@ import logging
 import threading
 import time
 import traceback
+from typing import Any, Dict, List, Tuple
 
 import h5py
 import numpy as np
@@ -12,29 +13,33 @@ from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 from influxdb_client.domain.write_precision import WritePrecision
 
+from config import DeviceConfig
+from device import Device as DeviceProtocol
+from protocols import CentrexGUIProtocol
+
 
 class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
     # signal to update the style of a QWidget
     update_style = PyQt5.QtCore.pyqtSignal(qt.QWidget)
 
-    def __init__(self, parent):
+    def __init__(self, parent: CentrexGUIProtocol):
         threading.Thread.__init__(self)
         PyQt5.QtCore.QObject.__init__(self)
         self.parent = parent
         self.active = threading.Event()
 
         # HDF filename at the time run started (in case it's renamed while running)
-        self.hdf_fname = self.parent.config["files"]["hdf_fname"]
+        self.hdf_fname: str = self.parent.config["files"]["hdf_fname"]
 
-        self.time_last_monitored = 0
+        self.time_last_monitored = 0.0
 
         # connect to InfluxDB
         conf = self.parent.config["influxdb"]
         self.influxdb_client = InfluxDBClient(
             url=f"{conf['host']}:{conf['port']}", token=conf["token"], org=conf["org"]
         )
-        self.influxdb_org = conf["org"]
-        self.influxdb_bucket = conf["bucket"]
+        self.influxdb_org: str = conf["org"]
+        self.influxdb_bucket: str = conf["bucket"]
         self.write_api = self.influxdb_client.write_api(write_options=SYNCHRONOUS)
 
     def run(self):
@@ -42,7 +47,6 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
             # check amount of remaining free disk space
             self.parent.ControlGUI.check_free_disk_space()
 
-            # check that we have written to HDF recently enough
             HDF_status = self.parent.ControlGUI.HDF_status
 
             # check that we have written to HDF recently enough
@@ -164,7 +168,7 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
             # fixed monitoring fast loop delay
             time.sleep(0.5)
 
-    def write_to_influxdb(self, dev, data):
+    def write_to_influxdb(self, dev: DeviceProtocol, data):
         # check writing to InfluxDB is enabled
         if not self.parent.config["influxdb"]["enabled"] in [1, 2, "1", "2", "True"]:
             return
@@ -224,13 +228,13 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
             logging.warning("InfluxDB error: " + str(err))
             logging.warning(traceback.format_exc())
 
-    def display_monitoring_events(self, dev):
+    def display_monitoring_events(self, dev: DeviceProtocol):
         # check device enabled
         if not dev.config["control_params"]["enabled"]["value"] == 2:
             return
 
         # empty the monitoring events queue
-        monitoring_events = []
+        monitoring_events: List[Tuple[float, str, Any]] = []
         while len(dev.monitoring_events_queue) > 0:
             monitoring_events.append(dev.monitoring_events_queue.pop())
 
@@ -289,7 +293,7 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                         ind = dev.config["control_GUI_elements"][c_name]["QLineEdit"]
                         ind.setText(str(event[2]))
 
-    def display_last_event(self, dev):
+    def display_last_event(self, dev: DeviceProtocol):
         # check device enabled
         if not dev.config["control_params"]["enabled"]["value"] == 2:
             return
@@ -297,23 +301,20 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
         # if HDF writing enabled for this device, get events from the HDF file
         if dev.config["control_params"]["HDF_enabled"]["value"]:
             try:
-                with self.parent.ControlGUI.HDF_writer.lock:
-                    with h5py.File(
-                        self.hdf_fname, "r", libver="latest", swmr=True
-                    ) as f:
-                        grp = f[self.parent.run_name + "/" + dev.config["path"]]
-                        events_dset = grp[dev.config["name"] + "_events"]
-                        if events_dset.shape[0] == 0:
-                            dev.config["monitoring_GUI_elements"]["events"].setText(
-                                "(no event)"
-                            )
-                            return
-                        else:
-                            last_event = events_dset[-1]
-                            dev.config["monitoring_GUI_elements"]["events"].setText(
-                                str(last_event)
-                            )
-                            return last_event
+                with h5py.File(self.hdf_fname, "r", libver="latest", swmr=True) as f:
+                    grp = f[self.parent.run_name + "/" + dev.config["path"]]
+                    events_dset = grp[dev.config["name"] + "_events"]
+                    if events_dset.shape[0] == 0:
+                        dev.config["monitoring_GUI_elements"]["events"].setText(
+                            "(no event)"
+                        )
+                        return
+                    else:
+                        last_event = events_dset[-1]
+                        dev.config["monitoring_GUI_elements"]["events"].setText(
+                            str(last_event)
+                        )
+                        return last_event
             except OSError as err:
                 # if a HDF file is opened in read mode, it cannot be opened in write
                 # mode as well, even in SWMR mode. This only works if the file is opened
@@ -339,7 +340,9 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                 logging.warning(traceback.format_exc())
                 return
 
-    def push_warnings_to_influxdb(self, dev_config, warning):
+    def push_warnings_to_influxdb(
+        self, dev_config: DeviceConfig, warning: Tuple[float, Dict[str, str]]
+    ):
         json_body = [
             {
                 "measurement": "warnings",

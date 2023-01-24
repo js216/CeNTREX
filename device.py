@@ -3,12 +3,16 @@ import threading
 import time
 import traceback
 from collections import deque
+from typing import Any, Deque, Dict, List, Set, Tuple, Union
 
 import numpy as np
+import numpy.typing as npt
+
+from config import DeviceConfig
 
 
 class Device(threading.Thread):
-    def __init__(self, config):
+    def __init__(self, config: DeviceConfig):
         threading.Thread.__init__(self)
         self.config = config
 
@@ -22,25 +26,27 @@ class Device(threading.Thread):
         self.error_message = ""
 
         # for commands sent to the device
-        self.commands = []
-        self.last_event = []
-        self.monitoring_commands = set()
-        self.sequencer_commands = []
-        self.networking_commands = []
+        self.commands: List[str] = []
+        self.last_event: List[Tuple[float, str, Any]] = []
+        self.monitoring_commands: Set[str] = set()
+        self.sequencer_commands: List[Tuple[int, str]] = []
+        self.networking_commands: List[Tuple[int, str]] = []
 
         # for warnings about device abnormal condition
-        self.warnings = []
+        self.warnings: List[Tuple[float, Dict[str, str]]] = []
 
         # the data and events queues
-        self.time_last_read = 0
-        self.data_queue = deque()
+        self.time_last_read = 0.0
+        self.data_queue: Deque[
+            Union[List[float], List[Tuple[npt.NDArray, List[str]]]]
+        ] = deque()
         self.config["plots_queue"] = deque(maxlen=self.config["plots_queue_maxlen"])
-        self.events_queue = deque()
-        self.monitoring_events_queue = deque()
-        self.sequencer_events_queue = deque()
+        self.events_queue: Deque[Tuple[float, str, Any]] = deque()
+        self.monitoring_events_queue: Deque[Tuple[float, str, Any]] = deque()
+        self.sequencer_events_queue: Deque[Tuple[int, int, str, Any]] = deque()
         # use a dictionary for the networking queue to allow use of .get() to
         # allow for unique ids if multiple network clients are connected
-        self.networking_events_queue = {}
+        self.networking_events_queue: Dict[int, Any] = {}
 
         # the variable for counting the number of NaN returns
         self.nan_count = 0
@@ -49,7 +55,9 @@ class Device(threading.Thread):
         self.sequential_nan_count = 0
         self.previous_data = True
 
-    def setup_connection(self, time_offset):
+        self.col_names_list: List[str] = []
+
+    def setup_connection(self, time_offset: float):
         self.time_offset = time_offset
 
         # get the parameters that are to be passed to the driver constructor
@@ -94,7 +102,7 @@ class Device(threading.Thread):
             for attr_name, attr_val in dev.new_attributes:
                 self.config["attributes"][attr_name] = attr_val
 
-    def change_plots_queue_maxlen(self, maxlen):
+    def change_plots_queue_maxlen(self, maxlen: int):
         # sanity check
         try:
             self.config["plots_queue_maxlen"] = int(maxlen)
@@ -134,8 +142,8 @@ class Device(threading.Thread):
                         logging.info(traceback.format_exc())
                         dt = 0.1
 
-                    # 50 Hz loop delay
-                    time.sleep(0.02)
+                    # 1 kHz loop delay
+                    time.sleep(1e-3)
 
                     # level 1: check device is enabled for sending commands
                     if self.config["control_params"]["enabled"]["value"] < 1:

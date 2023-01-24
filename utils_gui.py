@@ -1,10 +1,16 @@
 import logging
+from typing import Optional
 
 import PyQt5
 import PyQt5.QtWidgets as qt
 
 
-def LabelFrame(label, type="grid", maxWidth=None, fixed=False):
+def LabelFrame(
+    label: str,
+    type: str = "grid",
+    maxWidth: Optional[float] = None,
+    fixed: bool = False,
+):
     # make a framed box
     box = qt.QGroupBox(label)
 
@@ -82,7 +88,7 @@ def ScrollableLabelFrame(
     return outer_box, inner_layout
 
 
-def message_box(title, text, message=""):
+def message_box(title: str, text: str, message: str = ""):
     msg = qt.QMessageBox()
     msg.setIcon(qt.QMessageBox.Information)
     msg.setWindowTitle(title)
@@ -133,7 +139,7 @@ class FlexibleGridLayout(qt.QHBoxLayout):
             for row in range(10):
                 vbox.addLayout(qt.QHBoxLayout())
 
-    def addWidget(self, widget, row, col):
+    def addWidget(self, widget, row: int, col: int):
         vbox = self.cols[col]
         rev_row = vbox.count() - 1 - row
         placeholder = vbox.itemAt(rev_row).layout()

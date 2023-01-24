@@ -4,15 +4,53 @@
 
 import datetime
 import logging
-import sys
 import time
+from typing import List, TypedDict
 
 import niscope
 import numpy as np
 
 
+class Record(TypedDict):
+    record_length: int
+    bandwidth_MHz: float
+    nr_records: int
+
+
+class Sample(TypedDict):
+    sample_rate: float
+    sample_width: int
+
+
+class Trigger(TypedDict):
+    trigger_type: str
+    trigger_delay: float
+
+
+class Edge(TypedDict):
+    trigger_src: str
+    trigger_slope: str
+    trigger_level: float
+
+
+class Channels(TypedDict):
+    enable: List[bool]
+    channel: List[int]
+    range: str
+    coupling: str
+
+
 class PXIe5171:
-    def __init__(self, time_offset, COM_port, record, sample, trigger, edge, channels):
+    def __init__(
+        self,
+        time_offset: float,
+        COM_port: str,
+        record: Record,
+        sample: Sample,
+        trigger: Trigger,
+        edge: Edge,
+        channels,
+    ):
         try:
             self.session = niscope.Session(COM_port)
         except niscope.errors.DriverError as err:
@@ -28,39 +66,49 @@ class PXIe5171:
         # set record parameters
         try:
             self.session.max_input_frequency = 1e6 * float(record["bandwidth_MHz"])
-        except (niscope.errors.DriverError, ValueError):
-            logging.warning("Warning in PXIe5171: invalid max_input_frequency selected: " + str(err))
+        except (niscope.errors.DriverError, ValueError) as err:
+            logging.warning(
+                "Warning in PXIe5171: invalid max_input_frequency selected: " + str(err)
+            )
             self.session.max_input_frequency = 100e6
         try:
             samplingRate_kSs = float(sample["sample_rate"])
-        except ValueError:
-            logging.warning("Warning in PXIe5171: invalid sample rate selected: " + str(err))
+        except ValueError as err:
+            logging.warning(
+                "Warning in PXIe5171: invalid sample rate selected: " + str(err)
+            )
             samplingRate_kSs = 20.0
         if samplingRate_kSs > 250e3:
             samplingRate_kSs = 20.0
         try:
-            self.num_samples        = int(float(record["record_length"]))
-        except ValueError:
-            logging.warning("Warning in PXIe5171: invalid record_length selected: " + str(err))
-            self.num_samples        = 2000
+            self.num_samples = int(float(record["record_length"]))
+        except ValueError as err:
+            logging.warning(
+                "Warning in PXIe5171: invalid record_length selected: " + str(err)
+            )
+            self.num_samples = 2000
         try:
             self.session.binary_sample_width = int(sample["sample_width"])
-        except (niscope.errors.DriverError, ValueError):
-            logging.warning("Warning in PXIe5171: invalid binary_sample_width selected: " + str(err))
+        except (niscope.errors.DriverError, ValueError) as err:
+            logging.warning(
+                "Warning in PXIe5171: invalid binary_sample_width selected: " + str(err)
+            )
             self.session.binary_sample_width = 16
         try:
             self.num_records = int(float(record["nr_records"]))
-        except ValueError:
-            logging.warning("Warning in PXIe5171: invalid nr_records selected: " + str(err))
+        except ValueError as err:
+            logging.warning(
+                "Warning in PXIe5171: invalid nr_records selected: " + str(err)
+            )
             self.num_records = 1
         self.session.allow_more_records_than_memory = True
         self.session.configure_horizontal_timing(
-                min_sample_rate  = 1000 * int(samplingRate_kSs),
-                min_num_pts      = self.num_samples,
-                ref_position     = 0.0,
-                num_records      = 2147483647,
-                enforce_realtime = True
-            )
+            min_sample_rate=1000 * int(samplingRate_kSs),
+            min_num_pts=self.num_samples,
+            ref_position=0.0,
+            num_records=2147483647,
+            enforce_realtime=True,
+        )
 
         # set clock configuration to use the PXI clock
         self.session.input_clock_source = "VAL_PXI_CLK"
@@ -70,7 +118,7 @@ class PXIe5171:
             self.session.trigger_type = niscope.TriggerType.EDGE
         if trigger["trigger_type"] == "Immediate":
             self.session.trigger_type = niscope.TriggerType.IMMEDIATE
-        if trigger['trigger_type'] == "Digital":
+        if trigger["trigger_type"] == "Digital":
             self.session.trigger_type = niscope.TriggerType.DIGITAL
         self.session.trigger_source = edge["trigger_src"]
         if edge["trigger_slope"] == "Falling":
@@ -80,13 +128,17 @@ class PXIe5171:
         try:
             self.session.trigger_level = float(edge["trigger_level"])
         except (niscope.errors.DriverError, ValueError) as err:
-            logging.warning("Warning in PXIe5171: invalid trigger level selected: " + str(err))
+            logging.warning(
+                "Warning in PXIe5171: invalid trigger level selected: " + str(err)
+            )
             self.session.trigger_level = 0.0
         try:
-            self.session.trigger_delay_time    = float(trigger["trigger_delay"])
-        except (niscope.errors.DriverError, ValueError):
-            logging.warning("Warning in PXIe5171: invalid trigger delay selected: " + str(err))
-            self.session.trigger_delay_time    = 0.0
+            self.session.trigger_delay_time = float(trigger["trigger_delay"])
+        except (niscope.errors.DriverError, ValueError) as err:
+            logging.warning(
+                "Warning in PXIe5171: invalid trigger delay selected: " + str(err)
+            )
+            self.session.trigger_delay_time = 0.0
 
         # set channel configuration
         self.active_channels = []
@@ -96,7 +148,9 @@ class PXIe5171:
                 try:
                     range_V = float(channels["range"][ch][0:-2])
                 except ValueError as err:
-                    logging.warning("Warning in PXIe5171: invalid range selected: " + str(err))
+                    logging.warning(
+                        "Warning in PXIe5171: invalid range selected: " + str(err)
+                    )
                     range_V = 5.0
                 if channels["coupling"][ch] == "AC":
                     coupling_setting = niscope.VerticalCoupling.AC
@@ -105,16 +159,14 @@ class PXIe5171:
                 else:
                     coupling_setting = niscope.VerticalCoupling.GND
                 self.session.channels[ch].configure_vertical(
-                        range    = range_V,
-                        coupling = coupling_setting
-                    )
-
+                    range=range_V, coupling=coupling_setting
+                )
 
         # specify active channels as attributes for HDF, etc.
         self.new_attributes = [
-                    ("column_names", ", ".join(["ch"+str(x) for x in self.active_channels])),
-                    ("units", ", ".join(["binary" for x in self.active_channels])),
-                    ("sampling", str(1000*samplingRate_kSs)+" [S/s]")
+            ("column_names", ", ".join(["ch" + str(x) for x in self.active_channels])),
+            ("units", ", ".join(["binary" for x in self.active_channels])),
+            ("sampling", str(1000 * samplingRate_kSs) + " [S/s]"),
         ]
 
         # shape and type of the array of returned data
@@ -141,25 +193,25 @@ class PXIe5171:
     def ReadValue(self):
         # the structures for reading waveform data into
         attrs = {}
-        waveforms_flat = np.ndarray(len(self.active_channels) *
-                                    self.num_records * self.num_samples,
-                                    dtype = np.int16)
+        waveforms_flat = np.ndarray(
+            len(self.active_channels) * self.num_records * self.num_samples,
+            dtype=np.int16,
+        )
 
         # fetch data & metadata
         try:
             infos = self.session.channels[self.active_channels].fetch_into(
-                    waveform      = waveforms_flat,
-                    relative_to   = niscope.FetchRelativeTo.PRETRIGGER,
-                    offset        = 0,
-                    record_number = self.rec_num,
-                    num_records   = self.num_records,
-                    timeout       = datetime.timedelta(seconds=10)
-                )
-            timestamp = time.time()-self.time_offset
+                waveform=waveforms_flat,
+                relative_to=niscope.FetchRelativeTo.PRETRIGGER,
+                offset=0,
+                record_number=self.rec_num,
+                num_records=self.num_records,
+                timeout=datetime.timedelta(seconds=10),
+            )
+            timestamp = time.time() - self.time_offset
         except niscope.errors.DriverError as err:
             logging.warning(str(err))
             return np.nan
-
 
         # organize metadata in a list of dictionaries
         all_attrs = []
@@ -169,15 +221,18 @@ class PXIe5171:
             for info in infos:
                 if info.record == i + self.rec_num:
                     attrs_upd = {
-                            'timestamp'          : timestamp,
-                            'relative_initial_x' : info.relative_initial_x, # time from trigger to first sample
-                            'absolute_initial_x' : info.absolute_initial_x, # timestamp of the first sample
-                            'x_increment'        : info.x_increment, # time in seconds between points
-                            'ch'+str(info.channel)+' : channel'            : info.channel,
-                            'ch'+str(info.channel)+' : record'             : info.record,
-                            'ch'+str(info.channel)+' : gain'               : info.gain,
-                            'ch'+str(info.channel)+' : offset'             : info.offset,
-                        }
+                        "timestamp": timestamp,
+                        # time from trigger to first sample
+                        "relative_initial_x": info.relative_initial_x,
+                        # timestamp of the first sample
+                        "absolute_initial_x": info.absolute_initial_x,
+                        # time in seconds between points
+                        "x_increment": info.x_increment,
+                        "ch" + str(info.channel) + " : channel": info.channel,
+                        "ch" + str(info.channel) + " : record": info.record,
+                        "ch" + str(info.channel) + " : gain": info.gain,
+                        "ch" + str(info.channel) + " : offset": info.offset,
+                    }
                     attrs.update(attrs_upd)
             all_attrs.append(attrs)
 
@@ -193,38 +248,40 @@ class PXIe5171:
         if len(np.shape(parent_info)) == 2:
             for info in parent_info:
                 device, function, param = info
-                self.UpdateTraceAttrs({f'{device} {function}':param})
+                self.UpdateTraceAttrs({f"{device} {function}": param})
         else:
             device, function, param = parent_info
             if device == "":
                 return
-            self.UpdateTraceAttrs({f'{device} {function}':param})
+            self.UpdateTraceAttrs({f"{device} {function}": param})
 
     def UpdateTraceAttrs(self, attrs):
         self.trace_attrs.update(attrs)
 
     def DummyFunc(self, val):
         return None
-        print('DummyFunc', val)
 
-    def ClearBuffer(self, timeout = 0.1):
+    def ClearBuffer(self, timeout: float = 0.1):
         """
         Convenience function for sequencer to assert that no missed triggers are in
         the device buffer before changing a parameter of a different device
         """
-        waveforms_flat = np.ndarray(len(self.active_channels) * self.num_records * self.num_samples, dtype = np.int16)
+        waveforms_flat = np.ndarray(
+            len(self.active_channels) * self.num_records * self.num_samples,
+            dtype=np.int16,
+        )
 
         # fetch until no more present in memory
         while True:
             try:
-                infos = self.session.channels[self.active_channels].fetch_into(
-                        waveform      = waveforms_flat,
-                        relative_to   = niscope.FetchRelativeTo.PRETRIGGER,
-                        offset        = 0,
-                        record_number = self.rec_num,
-                        num_records   = self.num_records,
-                        timeout       = datetime.timedelta(seconds=timeout)
-                    )
-            except niscope.errors.DriverError as err:
+                self.session.channels[self.active_channels].fetch_into(
+                    waveform=waveforms_flat,
+                    relative_to=niscope.FetchRelativeTo.PRETRIGGER,
+                    offset=0,
+                    record_number=self.rec_num,
+                    num_records=self.num_records,
+                    timeout=datetime.timedelta(seconds=timeout),
+                )
+            except niscope.errors.DriverError:
                 break
         return

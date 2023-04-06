@@ -36,7 +36,6 @@ class SelfAlignFiberSwitch:
     def __init__(self, time_offset, COM_port):
         self.time_offset = time_offset
         self.rm = pyvisa.ResourceManager()
-        self.Home()
         self.port = 1
         self.warnings = []
 
@@ -53,6 +52,9 @@ class SelfAlignFiberSwitch:
                 self.verification_string = "False"
                 self.instr = False
                 return
+        
+        
+        self.Home()
 
         # HDF attributes generated when constructor is run
         self.new_attributes = []

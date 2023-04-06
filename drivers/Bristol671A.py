@@ -318,7 +318,7 @@ class Bristol671A:
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in SAV()" + str(err))
 
-    def QuerySTB(self) -> Union[int, np.nan]:
+    def QuerySTB(self) -> Union[int, float]:
         """
         The *STB (status byte) query returns the current value of the
         instrument’s status byte.
@@ -342,7 +342,7 @@ class Bristol671A:
     # Measurement Commands
     #######################################################
 
-    def Fetch(self, Q="ALL") -> Union[str, np.nan]:
+    def Fetch(self, Q="ALL") -> Union[str, float]:
         """
         The :FETCh command will return a reading of the instrument’s current
         measurement. If :FETCh queries are made faster than the instrument’s
@@ -364,7 +364,7 @@ class Bristol671A:
 
         return resp
 
-    def Read(self, Q="ALL") -> Union[str, np.nan]:
+    def Read(self, Q="ALL") -> Union[str, float]:
         """
         The :READ command will return the instrument’s next measurement. The
         :MEASure command will return the following measurement. The :MEASure and
@@ -388,7 +388,7 @@ class Bristol671A:
 
         return resp
 
-    def Measure(self, Q="ALL") -> Union[str, np.nan]:
+    def Measure(self, Q="ALL") -> Union[str, float]:
         """
         The :MEASure command can be considered a macro that executes multiple
         SCPI commands and is equivalent to:
@@ -589,7 +589,7 @@ class Bristol671A:
             return np.nan
         return float(resp)
 
-    def QueryCalculateDeltaMethod(self) -> Union[str, np.nan]:
+    def QueryCalculateDeltaMethod(self) -> Union[str, float]:
         """
         Query the state of the :DELTa:METHod function employed in CalculateData.
         Returns START for current-start or MAXMIN for max-min.
@@ -631,7 +631,7 @@ class Bristol671A:
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in CalculateReset()" + str(err))
 
-    def CalculateTimeElapsed(self) -> Union[str, np.nan]:
+    def CalculateTimeElapsed(self) -> Union[str, float]:
         """
         Queries the elapsed time since the instrument was turned on or was
         reset.
@@ -649,7 +649,7 @@ class Bristol671A:
     # Sense Commands
     #######################################################
 
-    def QueryAverageState(self) -> Union[str, np.nan]:
+    def QueryAverageState(self) -> Union[str, float]:
         """
         Queries the state of the averaging status.
         Return OFF or ON.
@@ -677,7 +677,7 @@ class Bristol671A:
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in SetAverageState()" + str(err))
 
-    def QueryAverageCount(self) -> Union[int, np.nan]:
+    def QueryAverageCount(self) -> Union[int, float]:
         """
         Queries the number of readings being averaged for wavelength and
         power values.
@@ -712,7 +712,7 @@ class Bristol671A:
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in SetAverageCount()" + str(err))
 
-    def QueryAverageData(self, Q="FREQ") -> Union[float, np.nan]:
+    def QueryAverageData(self, Q="FREQ") -> Union[float, float]:
         """
         Returns averaged wavelength or power data for the last N number of
         measurements. The value of N is set by :AVERage: COUNt command.
@@ -732,7 +732,7 @@ class Bristol671A:
             return np.nan
         return float(resp)
 
-    def QueryPowerOffset(self) -> Union[str, np.nan]:
+    def QueryPowerOffset(self) -> Union[str, float]:
         """
         Queries the power offset being added to power values. The power
         offset is in units of dB.
@@ -771,7 +771,7 @@ class Bristol671A:
     # Status Subsystem
     #######################################################
 
-    def QueryQuestionableCondition(self) -> Union[List[int], np.nan]:
+    def QueryQuestionableCondition(self) -> Union[List[int], float]:
         """
         Queries the SCPI Questionable Status Register which contains bits
         that indicate that one or more measurement types are of questionable
@@ -794,7 +794,7 @@ class Bristol671A:
             logging.warning("Bristol671A warning in QueryESR()" + str(err))
             return np.nan
 
-    def QueryQuestionableEnable(self) -> Union[int, np.nan]:
+    def QueryQuestionableEnable(self) -> Union[int, float]:
         """
         Queries the SCPI Questionable Enable Register.
         Returns an integer which is the sum of the bit values for all bits in
@@ -836,7 +836,7 @@ class Bristol671A:
         except Bristol671Error as err:
             logging.warning("Bristol671A warning in SetQuestionableEnable()" + str(err))
 
-    def QueryQuestionableHardwareCondition(self) -> Union[List[int], np.nan]:
+    def QueryQuestionableHardwareCondition(self) -> Union[List[int], float]:
         """
         Queries the SCPI Questionable Hardware Condition Register which
         contains bits that indicate that one or more hardware problems exist.
@@ -865,7 +865,7 @@ class Bristol671A:
     # System Subsystem
     #######################################################
 
-    def QueryError(self) -> Union[Tuple[int, str], np.nan]:
+    def QueryError(self) -> Union[Tuple[int, str], float]:
         """
         Reads error strings from the SCPI Error Queue. If the Error Queue has
         any entries, the Error Queue bit is set in the Status Byte. The
@@ -887,7 +887,7 @@ class Bristol671A:
             logging.warning("Bristol671A warning in QueryError()" + str(err))
             return np.nan
 
-    def Help(self) -> Union[str, np.nan]:
+    def Help(self) -> Union[str, float]:
         """
         Reads a list of all commands and queries supported by the instrument.
         Each line of the response is terminated by a linefeed. The first line

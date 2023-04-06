@@ -53,7 +53,6 @@ class SelfAlignFiberSwitch:
                 self.instr = False
                 return
         
-        
         self.Home()
 
         # HDF attributes generated when constructor is run

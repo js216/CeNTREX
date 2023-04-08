@@ -8,6 +8,7 @@ import socket
 import time
 import traceback
 from pathlib import Path
+import asyncio
 
 import PyQt5
 import PyQt5.QtWidgets as qt
@@ -1404,15 +1405,18 @@ class ControlGUI(qt.QWidget):
 
         # stop monitoring
         if self.monitoring.active.is_set():
+            logging.warning("stopping monitoring")
             self.monitoring.active.clear()
 
         # stop networking
         if self.networking:
+            logging.warning("stopping networking")
             if self.networking.active.is_set():
                 self.networking.active.clear()
 
         # stop HDF writer
         if self.HDF_writer.active.is_set():
+            logging.warning("stopping hdf_writer")
             self.HDF_writer.active.clear()
 
         # remove background color of the HDF status label
@@ -1461,6 +1465,8 @@ class CentrexGUI(qt.QMainWindow):
         logging.info("Starting CeNTREX DAQ")
         self.app = app
         self.setWindowTitle("CENTREX DAQ")
+
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
         self.load_stylesheet()
 

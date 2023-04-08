@@ -109,6 +109,10 @@ class HDF_writer(threading.Thread):
                 else:
                     logging.warning(f"HDF_writer error: {err}")
                     logging.warning(traceback.format_exc())
+            except RuntimeError as err:
+                logging.warning(f"HDF_writer error: {err}")
+                logging.warning(traceback.format_exc())
+                continue
 
             # loop delay
             try:

@@ -233,6 +233,14 @@ class Networking(threading.Thread):
         # close the message broker and workers when stopping network control
         for worker in self.workers:
             worker.active.clear()
+        logging.warning("stopped workers")
+        time.sleep(1)
         self.control_broker.__exit__()
+        logging.warning("stopped control_broker")
+        time.sleep(1)
+        self.socket_readout.setsockopt(zmq.LINGER, 0)
         self.socket_readout.close()
+        logging.warning("stopped socket_readout")
+        time.sleep(1)
         self.context_readout.term()
+        logging.warning("stopped contex_readout")

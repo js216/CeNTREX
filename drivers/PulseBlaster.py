@@ -291,8 +291,8 @@ class PulseBlaster:
         logging.info("PulseBlaster warning in ProgramDevice: finished programming")
 
 if __name__ == "__main__":
-    qswitch_delay = 90 # microseconds
-    frequency = np.sqrt(2)*6 # Hz
+    qswitch_delay = 85 # microseconds
+    frequency = np.sqrt(2)*10 # Hz
     # trigger = {'frequency':10, 'offset':0, 'high': int(round(1e-4/1e-9,2)), 'channels':[0],
     #            'active_high':True}
     flashlamp = {'frequency':frequency, 'offset':0, 'high': int(1e6), 'channels':[1,3],

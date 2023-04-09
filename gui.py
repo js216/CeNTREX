@@ -1,3 +1,4 @@
+import asyncio
 import configparser
 import datetime as dt
 import glob
@@ -8,7 +9,6 @@ import socket
 import time
 import traceback
 from pathlib import Path
-import asyncio
 
 import PyQt5
 import PyQt5.QtWidgets as qt
@@ -1405,18 +1405,18 @@ class ControlGUI(qt.QWidget):
 
         # stop monitoring
         if self.monitoring.active.is_set():
-            logging.warning("stopping monitoring")
+            logging.info("stopping monitoring")
             self.monitoring.active.clear()
 
         # stop networking
         if self.networking:
-            logging.warning("stopping networking")
+            logging.info("stopping networking")
             if self.networking.active.is_set():
                 self.networking.active.clear()
 
         # stop HDF writer
         if self.HDF_writer.active.is_set():
-            logging.warning("stopping hdf_writer")
+            logging.info("stopping hdf_writer")
             self.HDF_writer.active.clear()
 
         # remove background color of the HDF status label

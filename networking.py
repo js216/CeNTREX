@@ -8,6 +8,7 @@ from typing import List
 
 import zmq
 import zmq.auth
+import zmq.devices
 from zmq.auth.thread import ThreadAuthenticator
 
 from protocols import CentrexGUIProtocol
@@ -81,9 +82,8 @@ class NetworkingDeviceWorker(threading.Thread):
 class NetworkingBroker(threading.Thread):
     def __init__(self, outward_port: int, allowed: List[str]):
         super(NetworkingBroker, self).__init__()
-        self.daemon = True
 
-        self.context = zmq.Context()
+        self.daemon = True
 
         # setup authentication
         self.auth = ThreadAuthenticator()
@@ -103,30 +103,34 @@ class NetworkingBroker(threading.Thread):
         )
 
         # message broker for control
-        self.frontend = self.context.socket(zmq.XREP)
-        self.backend = self.context.socket(zmq.XREQ)
 
-        # add keys to frontend
-        self.frontend.curve_secretkey = server_secret
-        self.frontend.curve_publickey = server_public
-        self.frontend.curve_server = True
+        device = zmq.devices.Device(zmq.QUEUE, zmq.XREP, zmq.XREQ)
+        device.bind_in(f"tcp://*:{outward_port}")
+        self.backend_port = device.bind_out_to_random_port("tcp://127.0.0.1")
 
-        # external connections (clients) connect to frontend
-        logging.info(f"bind to tcp://*:{outward_port}")
-        self.frontend.bind(f"tcp://*:{outward_port}")
+        device.setsockopt_in(zmq.SocketOption.CURVE_SECRETKEY, server_secret)
+        device.setsockopt_in(zmq.SocketOption.CURVE_PUBLICKEY, server_public)
+        device.setsockopt_in(zmq.SocketOption.CURVE_SERVER, True)
+        device.daemon = True
 
-        # workers connect to the backend (ipc doesn't work on windows, use tcp)
-        # self.backend.bind("ipc://backend.ipc")
-        self.backend_port = self.backend.bind_to_random_port("tcp://127.0.0.1")
+        self.device = device
+
         logging.info("NetworkingBroker: initialized broker")
 
     def __exit__(self, *args):
-        self.frontend.setsockopt(zmq.LINGER, 0)
-        self.backend.setsockopt(zmq.LINGER, 0)
-        self.frontend.close()
-        self.backend.close()
-        self.auth.stop()
-        self.context.term()
+        for socket in self.device._sockets:
+            socket.setsockopt(zmq.LINGER, 0)
+            socket.close()
+        try:
+            self.device.context_factory().destroy()
+        except OSError as e:
+            if (
+                "An operation was attepted on something that is not a socket"
+                in e.args[0]
+            ):
+                logging.error(f"{e.args[0]}")
+                logging.warning(e)
+        return
 
     def run(self):
         # try-except because zmq.device throws an error when the sockets and
@@ -134,8 +138,8 @@ class NetworkingBroker(threading.Thread):
         # TODO: better method of closing the message broker
         logging.info("NetworkingBroker: started broker")
         try:
-            zmq.device(zmq.QUEUE, self.frontend, self.backend)
-        except zmq.error.ZMQError as e:
+            self.device.start()
+        except Exception as e:
             logging.warning(e)
             pass
 
@@ -166,6 +170,7 @@ class Networking(threading.Thread):
 
         # initialize the workers used for network control of devices
         backend_port = self.control_broker.backend_port
+        backend_port = 81512
         self.workers = [
             NetworkingDeviceWorker(parent, backend_port)
             for _ in range(int(self.conf["workers"]))
@@ -231,16 +236,13 @@ class Networking(threading.Thread):
                 time.sleep(1e-5)
 
         # close the message broker and workers when stopping network control
+        self.control_broker.__exit__()
+        # logging.info("stopped control_broker")
         for worker in self.workers:
             worker.active.clear()
-        logging.warning("stopped workers")
-        time.sleep(1)
-        self.control_broker.__exit__()
-        logging.warning("stopped control_broker")
-        time.sleep(1)
+        logging.info("stopped workers")
         self.socket_readout.setsockopt(zmq.LINGER, 0)
         self.socket_readout.close()
-        logging.warning("stopped socket_readout")
-        time.sleep(1)
+        logging.info("stopped socket_readout")
         self.context_readout.term()
-        logging.warning("stopped contex_readout")
+        logging.info("stopped contex_readout")

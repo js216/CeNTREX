@@ -88,53 +88,45 @@ class HDF_writer(threading.Thread):
         self.active.set()
 
     def run(self):
-        while self.active.is_set():
-            # update the last write time
-            self.time_last_write = datetime.datetime.now().replace(microsecond=0)
 
-            # empty queues to HDF
-            try:
-                with h5py.File(self.filename, "a", libver="latest") as file:
-                    file.swmr_mode = True
+        with h5py.File(self.filename, "a", libver="latest") as file:
+            file.swmr_mode = True
+            while self.active.is_set():
+                # update the last write time
+                self.time_last_write = datetime.datetime.now().replace(microsecond=0)
+
+                # empty queues to HDF
+                try:
                     self.write_all_queues_to_HDF(file)
-            except OSError as err:
-                # if a HDF file is opened in read mode, it cannot be opened in write
-                # mode as well, even in SWMR mode. This only works if the file is opened
-                # in write mode first, and then it can be opened by multiple readers.
-                if (
-                    str(err)
-                    == "Unable to open file (file is already open for read-only)"
-                ):
-                    continue
-                else:
-                    logging.warning(f"HDF_writer error: {err}")
+                except OSError as err:
+                    if (
+                        str(err)
+                        == "Unable to open file (file is already open for read-only)"
+                    ):
+                        continue
+                    else:
+                        logging.warning(f"HDF_writer error: {err}")
+                        logging.warning(traceback.format_exc())
+
+                # loop delay
+                try:
+                    dt = float(self.parent.config["general"]["hdf_loop_delay"])
+                    if dt < 0.002:
+                        logging.warning("Plot dt too small.")
+                        logging.warning("hdf_loop_delay too small.")
+                        raise ValueError
+                    time.sleep(dt)
+                except ValueError as e:
+                    logging.warning(e)
                     logging.warning(traceback.format_exc())
-            except RuntimeError as err:
-                logging.warning(f"HDF_writer error: {err}")
-                logging.warning(traceback.format_exc())
-                continue
+                    time.sleep(float(self.parent.config["general"]["default_hdf_dt"]))
 
-            # loop delay
+            # make sure everything is written to HDF when the thread terminates
             try:
-                dt = float(self.parent.config["general"]["hdf_loop_delay"])
-                if dt < 0.002:
-                    logging.warning("Plot dt too small.")
-                    logging.warning("hdf_loop_delay too small.")
-                    raise ValueError
-                time.sleep(dt)
-            except ValueError as e:
-                logging.warning(e)
-                logging.warning(traceback.format_exc())
-                time.sleep(float(self.parent.config["general"]["default_hdf_dt"]))
-
-        # make sure everything is written to HDF when the thread terminates
-        try:
-            with h5py.File(self.filename, "a", libver="latest") as file:
-                file.swmr_mode = True
                 self.write_all_queues_to_HDF(file)
-        except OSError as err:
-            logging.warning("HDF_writer error: ", err)
-            logging.warning(traceback.format_exc())
+            except OSError as err:
+                logging.warning("HDF_writer error: ", err)
+                logging.warning(traceback.format_exc())
 
     def write_all_queues_to_HDF(self, file: h5py.File):
         root = file[self.parent.run_name]

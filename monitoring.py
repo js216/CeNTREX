@@ -188,22 +188,28 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
         # check there is any non-np.nan data to write
         # try-except because something crashes here
         try:
-            fields = dict(
-                (key, val)
-                for key, val in zip(dev.col_names_list[1:], data[1:])
-                if not np.isnan(val)
-            )
-            if not fields:
+            _fields = []
+            for key, val in zip(dev.col_names_list[1:], data[1:]):
+                if isinstance(val, str):
+                    _fields.append((key, val))
+                elif not np.isnan(val):
+                    _fields.append((key, val))
+            if len(_fields) == 0:
                 return
-        except Exception:
+            fields = dict(_fields)
+        except Exception as e1:
+            logging.warning(f"Error in write_to_influxdb: {e1}")
             for key, val in zip(dev.col_names_list[1:], data[1:]):
                 try:
-                    np.isnan(val)
-                except Exception as e:
+                    if isinstance(val, str):
+                        continue
+                    elif not np.isnan(val):
+                        continue
+                except Exception as e2:
                     logging.warning(
                         f"Error in write_to_influxdb: {key}, {val}, {type(val)}"
                     )
-                    logging.warning(f"Error in write_to_influxdb: {str(e)}")
+                    logging.warning(f"Error in write_to_influxdb: {str(e2)}")
             return
 
         # format the message for InfluxDB
@@ -225,7 +231,7 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                 bucket=self.influxdb_bucket, record=p, org=self.influxdb_org
             )
         except Exception as err:
-            logging.warning("InfluxDB error: " + str(err))
+            logging.warning(f"Error in write_to_influxdb: {err}")
             logging.warning(traceback.format_exc())
 
     def display_monitoring_events(self, dev: DeviceProtocol):

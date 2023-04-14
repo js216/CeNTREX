@@ -1,7 +1,9 @@
-import pyvisa
-import time
-import numpy as np
 import logging
+import time
+
+import numpy as np
+import pyvisa
+
 
 class SPS30:
     def __init__(self, time_offset, resource_name):
@@ -16,8 +18,8 @@ class SPS30:
         self.instr.parity = pyvisa.constants.Parity.none
         self.instr.data_bits = 8
         self.instr.baud_rate = 9600
-        self.instr.term_char = '\n'
-        self.instr.read_termination = '\r\n'
+        self.instr.term_char = "\n"
+        self.instr.read_termination = "\r\n"
         self.instr.timeout = 1000
 
         # make the verification string
@@ -30,23 +32,20 @@ class SPS30:
         self.new_attributes = []
 
         # shape and type of the array of returned data
-        self.dtype = 'f'
-        self.shape = (10, )
+        self.dtype = "f"
+        self.shape = (10,)
 
         self.warnings = []
 
     def __enter__(self):
         return self
-    
+
     def __exit__(self, *exc):
         if self.instr:
             self.instr.close()
 
     def ReadValue(self):
-        return [
-                time.time() - self.time_offset,
-                *self.ReadParticulates()
-               ]
+        return [time.time() - self.time_offset, *self.ReadParticulates()]
 
     def GetWarnings(self):
         warnings = self.warnings
@@ -72,13 +71,13 @@ class SPS30:
             resp = self.instr.query("r")
         except pyvisa.errors.VisaIOError as err:
             logging.warning("SPS30 warning in ReadParticulates(): " + str(err))
-            return 9*[np.nan]
+            return 9 * [np.nan]
 
         # convert the response to a number
         try:
             particulates = [float(x) for x in resp.split(",")]
         except ValueError as err:
             logging.warning("SPS30 warning in ReadParticulates(): " + str(err))
-            return 9*[np.nan]
+            return 9 * [np.nan]
 
         return particulates

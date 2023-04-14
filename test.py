@@ -1,17 +1,20 @@
+import json
+from pathlib import Path
+
 import zmq
 import zmq.auth
 from zmq.auth.thread import ThreadAuthenticator
 
-from pathlib import Path
 
 def Decode(topicfilter, message):
     """
     Function decodes the message received from the publisher into a
     topic and python object via json serialization
     """
-    dat = message[len(topicfilter):]
+    dat = message[len(topicfilter) :]
     retval = json.loads(dat)
     return retval
+
 
 if __name__ == "__main__":
     ctx = zmq.Context.instance()
@@ -35,12 +38,12 @@ if __name__ == "__main__":
     client.curve_publickey = client_public
     client.curve_serverkey = server_public
 
-    client.connect("tcp://172.28.171.248:12347")
+    client.connect("tcp://127.0.0.1:12346")
 
-    client.send_json(["USB6008", "ReadValue()"])
+    client.send_json(["DummyDataFreq", "ReadValue()"])
 
     if client.poll(1000):
         msg = client.recv_json()
         print(msg)
     else:
-        print('Error')
+        print("Error")

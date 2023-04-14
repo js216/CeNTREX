@@ -1187,8 +1187,10 @@ class ControlGUI(qt.QWidget):
             qt.QMessageBox.information(
                 self,
                 "Rename while running",
-                "Control running. Renaming HDF file will only take effect after"
-                " restarting control.",
+                (
+                    "Control running. Renaming HDF file will only take effect after"
+                    " restarting control."
+                ),
             )
 
         # get old file path
@@ -1375,7 +1377,6 @@ class ControlGUI(qt.QWidget):
         # start the networking thread
         if self.parent.config["networking"]["enabled"] in ["1", "2", "True"]:
             self.networking = Networking(self.parent)
-            self.networking.active.set()
             self.networking.start()
         else:
             self.networking = False
@@ -1407,17 +1408,18 @@ class ControlGUI(qt.QWidget):
         if self.monitoring.active.is_set():
             logging.info("stopping monitoring")
             self.monitoring.active.clear()
+            self.monitoring.join()
 
         # stop networking
         if self.networking:
-            logging.info("stopping networking")
             if self.networking.active.is_set():
                 self.networking.active.clear()
+                self.networking.join()
 
         # stop HDF writer
         if self.HDF_writer.active.is_set():
-            logging.info("stopping hdf_writer")
             self.HDF_writer.active.clear()
+            self.HDF_writer.join()
 
         # remove background color of the HDF status label
         HDF_status = self.parent.ControlGUI.HDF_status

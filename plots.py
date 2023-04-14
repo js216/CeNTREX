@@ -628,6 +628,9 @@ class Plotter(qt.QWidget):
                 logging.warning(traceback.format_exc())
                 self.stop_animation()
                 return False
+            except RuntimeError as error:
+                logging.warning("Plot error : {error}")
+                logging.warning(traceback.format_exc())
 
             # check dataset exists in the run
             with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], "r") as f:
@@ -758,6 +761,8 @@ class Plotter(qt.QWidget):
             if dset == [np.nan] or dset == np.nan:
                 return None
             if self.config["x"] == "(none)":
+                if isinstance(dset, float):
+                    logging.warning(f"get_raw_data_from_queue from {self.dev.config['name']} dataset is empty")
                 x = np.arange(dset[0].shape[2])
             else:
                 x = dset[0][0, self.param_list.index(self.config["x"])].astype(float)

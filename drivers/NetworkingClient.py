@@ -205,6 +205,7 @@ def NetworkingClient(time_offset, driver, connection, *args):
         def ExecuteNetworkCommand(self, command):
             # send command to the server hosting the device
             self.socket_control.send_json([self.device_name, command])
+            logging.info(f"ExecuteNetworkCommand : {command} to {self.device_name} at {self.server}:{self.port_control}")
 
             # need the timeout because REP-REQ will wait indefinitely for a
             # reply, need to handle when a server stops or a message isn't
@@ -219,8 +220,7 @@ def NetworkingClient(time_offset, driver, connection, *args):
                     return np.nan
 
             # error handling if no reply received withing timeout
-            logging.warning(f"{self.device_name} networking warning in " +
-                        +"ExecuteNetworkCommand : no response from server")
+            logging.warning(f"{self.device_name} networking warning in ExecuteNetworkCommand : no response from server")
             warning_dict = {f"message" : "ExecuteNetworkCommand for {device_name}: no response from server"}
             self.warnings.append([time.time(), warning_dict])
             self.socket_control.setsockopt(zmq.LINGER, 0)

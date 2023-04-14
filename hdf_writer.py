@@ -127,6 +127,7 @@ class HDF_writer(threading.Thread):
             except OSError as err:
                 logging.warning("HDF_writer error: ", err)
                 logging.warning(traceback.format_exc())
+        logging.info("HDF_writer: stopped")
 
     def write_all_queues_to_HDF(self, file: h5py.File):
         root = file[self.parent.run_name]

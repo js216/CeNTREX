@@ -323,11 +323,14 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                     str(err)
                     != "Unable to open file (file is already open for read-only)"
                 ):
-                    logging.warning(f"HDF_writer error: {err}")
+                    logging.warning(f"Monitoring error: {err}")
                     logging.warning(traceback.format_exc())
                 else:
-                    logging.warning(f"HDF_writer erro: {err}")
+                    logging.warning(f"Monitoring error: {err}")
                     logging.warning(traceback.format_exc())
+            except RuntimeError as err:
+                logging.warning(f"Monitoring error: {err}")
+                logging.warning(traceback.format_exc())
 
         # if HDF writing not enabled for this device, get events from the events_queue
         else:

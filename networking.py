@@ -22,10 +22,6 @@ class NetworkingDeviceWorker(threading.Thread):
         self.parent = parent
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REP)
-        # connect to the ipc backend
-        # ipc doesn't work on windows, switch to tcp, port is centrex typed into
-        # a keypad
-        # self.socket.connect("ipc://backend.ipc")
         self.socket.connect(f"tcp://localhost:{backend_port}")
 
         # each worker has an unique id for the return value queue
@@ -37,7 +33,8 @@ class NetworkingDeviceWorker(threading.Thread):
         logging.info(f"NetworkingDeviceWorker: started worker {self.uid}")
         self.active.set()
         while self.active.is_set():
-            # receive the request from a client
+            # receive the request from a client, have a timeout so the thread can be
+            # closed
             if self.socket.poll(200, zmq.POLLIN):
                 device, command = self.socket.recv_json()
             else:
@@ -136,68 +133,6 @@ class NetworkingBroker(threading.Thread):
                 logging.error(f"NetworkingBroker: {e.args[0]}")
                 logging.warning(e)
         return
-
-
-# class NetworkingBroker(threading.Thread):
-#     def __init__(self, outward_port: int, allowed: List[str]):
-#         super(NetworkingBroker, self).__init__()
-#         self.daemon = True
-
-#         self.context = zmq.Context()
-
-#         # setup authentication
-#         self.auth = ThreadAuthenticator()
-#         self.auth.start()
-#         self.auth.allow(*allowed)
-
-#         # load authentication keys
-#         file_path = Path(__file__).resolve()
-#         # public_keys_dir = file_path.parent / "authentication" / "public_keys"
-#         # self.auth.configure_curve(domain = '*', location = str(public_keys_dir))
-#         self.auth.configure_curve(domain="*", location=zmq.auth.base.CURVE_ALLOW_ANY)
-#         server_secret_file = (
-#             file_path.parent / "authentication" / "private_keys" / "server.key_secret"
-#         )
-#         server_public, server_secret = zmq.auth.load_certificate(
-#             str(server_secret_file)
-#         )
-
-#         # message broker for control
-#         self.frontend = self.context.socket(zmq.XREP)
-#         self.backend = self.context.socket(zmq.XREQ)
-
-#         # add keys to frontend
-#         self.frontend.curve_secretkey = server_secret
-#         self.frontend.curve_publickey = server_public
-#         self.frontend.curve_server = True
-
-#         # external connections (clients) connect to frontend
-#         logging.info(f"bind to tcp://*:{outward_port}")
-#         self.frontend.bind(f"tcp://*:{outward_port}")
-
-#         # workers connect to the backend (ipc doesn't work on windows, use tcp)
-#         # self.backend.bind("ipc://backend.ipc")
-#         self.backend_port = self.backend.bind_to_random_port("tcp://127.0.0.1")
-#         logging.info("NetworkingBroker: initialized broker")
-
-#     def __exit__(self, *args):
-#         self.frontend.setsockopt(zmq.LINGER, 0)
-#         self.backend.setsockopt(zmq.LINGER, 0)
-#         self.frontend.close()
-#         self.backend.close()
-#         self.auth.stop()
-#         self.context.term()
-
-#     def run(self):
-#         # try-except because zmq.device throws an error when the sockets and
-#         # context are closed when running
-#         # TODO: better method of closing the message broker
-#         logging.info("NetworkingBroker: started broker")
-#         try:
-#             zmq.device(zmq.QUEUE, self.frontend, self.backend)
-#         except zmq.error.ZMQError as e:
-#             logging.warning(e)
-#             pass
 
 
 class Networking(threading.Thread):

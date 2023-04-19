@@ -274,6 +274,13 @@ class HiPace700:
         except ValueError as err:
             logging.warning("HiPace700 warning in BearingWear(): " + str(err))
             return np.nan
+    
+    def VentMode(self):
+        try:
+            return int(self.query("030"))
+        except ValueError as err:
+            logging.warning(f"HiPace700 warning in VentMOde(): {err}")
+            return np.nan
 
     def ElecName(self):
         """Name of electronic drive unit."""
@@ -337,3 +344,9 @@ class HiPace700:
 
     def StopPump(self):
         return self.query(param="010", control=True, data_len="06", data="000000")
+
+    def StartVent(self):
+        return self.query(param="012", control=True, data_len="06", data="111111")
+    
+    def StopVent(self):
+        return self.query(param="012", control=False, data_len="06", data="000000")

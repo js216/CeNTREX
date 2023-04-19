@@ -629,19 +629,24 @@ class Plotter(qt.QWidget):
                 self.stop_animation()
                 return False
             except RuntimeError as error:
-                logging.warning("Plot error : {error}")
+                logging.warning(f"Plot error : {error}")
                 logging.warning(traceback.format_exc())
 
             # check dataset exists in the run
-            with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], "r") as f:
-                try:
-                    f[self.config["run"] + "/" + self.dev.config["path"]]
-                except KeyError:
-                    logging.info(traceback.format_exc())
-                    if time.time() - self.parent.config["time_offset"] > 5:
-                        logging.warning("Plot error: Dataset not found in this run.")
-                    self.stop_animation()
-                    return False
+            try:
+                with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], "r", libver="latest", swmr=True) as f:
+                    try:
+                        f[self.config["run"] + "/" + self.dev.config["path"]]
+                    except KeyError:
+                        logging.info(traceback.format_exc())
+                        if time.time() - self.parent.config["time_offset"] > 5:
+                            logging.warning("Plot error: Dataset not found in this run.")
+                        self.stop_animation()
+                        return False
+            except RuntimeError as error:
+                logging.warning(f"Plot error : {error}")
+                logging.warning(traceback.format_exc())
+
 
         # check parameters are valid
         if not self.config["x"] in self.param_list:

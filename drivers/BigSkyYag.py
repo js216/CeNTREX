@@ -25,6 +25,9 @@ class BigSkyYag(BigSkyYagDriver):
         self.shape = (1,)
         self.warnings = []
 
+        self.flashlamp.trigger = "external"
+        self.qswitch_mode = "external"
+
     def __enter__(self):
         return self
 

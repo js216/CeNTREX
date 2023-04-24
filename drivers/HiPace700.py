@@ -349,4 +349,4 @@ class HiPace700:
         return self.query(param="012", control=True, data_len="06", data="111111")
     
     def StopVent(self):
-        return self.query(param="012", control=False, data_len="06", data="000000")
+        return self.query(param="012", control=True, data_len="06", data="000000")

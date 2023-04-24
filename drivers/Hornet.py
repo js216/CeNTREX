@@ -1,13 +1,17 @@
-import pyvisa
-import numpy as np
+import logging
 import time
 import traceback
-import logging
+
+import numpy as np
+import pyvisa
+
 
 class Hornet:
-    def __init__(self, time_offset, resource_name, connection_type = "SERIAL", address='01'):
+    def __init__(
+        self, time_offset, resource_name, connection_type="SERIAL", address="01"
+    ):
         self.time_offset = time_offset
-        self.address = address # Factory default address=1
+        self.address = address  # Factory default address=1
         self.rm = pyvisa.ResourceManager()
         if connection_type == "SERIAL":
             try:
@@ -18,7 +22,7 @@ class Hornet:
                 return
             self.instr.baud_rate = 19200
             self.instr.data_bits = 8
-            self.instr.timeout = 5*1000
+            self.instr.timeout = 5 * 1000
             self.instr.parity = pyvisa.constants.Parity.none
             self.instr.stop_bits = pyvisa.constants.StopBits.one
         elif connection_type == "TCP":
@@ -47,8 +51,8 @@ class Hornet:
         self.new_attributes = []
 
         # shape and type of the array of returned data
-        self.dtype = 'f'
-        self.shape = (4, )
+        self.dtype = "f"
+        self.shape = (4,)
 
         # when overpressure turns IG off
         self.warnings = []
@@ -65,17 +69,17 @@ class Hornet:
         # all responses are 13 characters long
         # (see manual, page 68)
         try:
-            return self.instr.read_bytes(13).decode('ASCII')
+            return self.instr.read_bytes(13).decode("ASCII")
         except UnicodeDecodeError:
             return np.nan
 
     def ReadValue(self):
         return [
-                time.time()-self.time_offset,
-                self.ReadSystemPressure(),
-                self.ReadCGnPressure(1),
-                self.ReadCGnPressure(2),
-               ]
+            time.time() - self.time_offset,
+            self.ReadSystemPressure(),
+            self.ReadCGnPressure(1),
+            self.ReadCGnPressure(2),
+        ]
 
     def GetWarnings(self):
         warnings = self.warnings
@@ -108,7 +112,7 @@ class Hornet:
             return np.nan
 
         ## check for overpressure
-        #if (self.IG_status == "*"+self.address+" 1 IG ON") and (pressure > 1e-3):
+        # if (self.IG_status == "*"+self.address+" 1 IG ON") and (pressure > 1e-3):
         #    # turn IG off
         #    self.TurnIGOff()
 
@@ -171,7 +175,7 @@ class Hornet:
         if ret_val == "*" + str(self.address) + " PROGM OK":
             for i in range(10):
                 self.IG_status = self.ReadIGStatus()
-                if self.IG_status != "*"+self.address+" 1 IG ON":
+                if self.IG_status != "*" + self.address + " 1 IG ON":
                     time.sleep(1)
                 else:
                     break
@@ -195,7 +199,7 @@ class Hornet:
         if ret_val == "*" + str(self.address) + " PROGM OK":
             for i in range(10):
                 self.IG_status = self.ReadIGStatus()
-                if self.IG_status != "*"+self.address+" 0 IG OFF":
+                if self.IG_status != "*" + self.address + " 0 IG OFF":
                     time.sleep(1)
                 else:
                     break
@@ -388,7 +392,6 @@ class Hornet:
             logging.info(traceback.format_exc())
             return np.nan
 
-
     def ReadTripPointRelayA(self, z):
         """Read the 'turns on below' (+) pressure point for relay A and read the
         'turns off above' (-) pressure point for relay A.
@@ -406,7 +409,6 @@ class Hornet:
         except pyvisa.errors.VisaIOError:
             logging.info(traceback.format_exc())
             return np.nan
-
 
     def ReadTripPointRelayB(self, z):
         """Read the 'turns on below' (+) pressure point for relay B and read the

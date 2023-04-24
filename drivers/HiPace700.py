@@ -3,13 +3,17 @@
 # peculiar format. See Operating Instructions for details.
 # Jakob Kastelic, 2019-02-11 Mon 12:24 PM
 
-import pyvisa
-import time
-import numpy as np
 import logging
+import time
+
+import numpy as np
+import pyvisa
+
 
 class HiPace700:
-    def __init__(self, time_offset, resource_name, connection_type = "SERIAL", RS485_address="001"):
+    def __init__(
+        self, time_offset, resource_name, connection_type="SERIAL", RS485_address="001"
+    ):
         self.time_offset = time_offset
         self.RS485_address = RS485_address
         self.rm = pyvisa.ResourceManager()
@@ -23,8 +27,8 @@ class HiPace700:
             self.instr.parity = pyvisa.constants.Parity.none
             self.instr.data_bits = 8
             self.instr.baud_rate = 9600
-            self.instr.read_termination = '\r'
-            self.instr.write_termination = '\r'
+            self.instr.read_termination = "\r"
+            self.instr.write_termination = "\r"
         elif connection_type == "TCP":
             try:
                 self.instr = self.rm.open_resource(f"TCPIP::{resource_name}::SOCKET")
@@ -35,11 +39,11 @@ class HiPace700:
             self.instr.read_termination = "\r"
             self.instr.write_termination = "\r"
         else:
-            logging.error(f"Hornet error: connection_type = {connection_type}")
+            logging.error(f"HiPace700 error: connection_type = {connection_type}")
             self.verification_string = "False"
             self.instr = False
             return
-            
+
         # make the verification string
         self.verification_string = self.ElecName()
 
@@ -47,33 +51,34 @@ class HiPace700:
         self.new_attributes = []
 
         # shape and type of the array of returned data
-        self.dtype = 'f'
-        self.shape = (12, )
+        self.dtype = "f"
+        self.shape = (12,)
 
         # for overheating checking
         self.warnings = []
 
     def __enter__(self):
         return self
-    
+
     def __exit__(self, *exc):
         if self.instr:
             self.instr.close()
 
     def ReadValue(self):
-        return [time.time()-self.time_offset,
-                self.ActualSpd(),
-                self.DrvCurrent(),
-                self.DrvVoltage(),
-                self.DrvPower(),
-                self.TempPwrStg(),
-                self.TempElec(),
-                self.TempPmpBot(),
-                self.TempBearng(),
-                self.TempMotor(),
-                self.RotorImbalance(),
-                self.BearingWear(),
-               ]
+        return [
+            time.time() - self.time_offset,
+            self.ActualSpd(),
+            self.DrvCurrent(),
+            self.DrvVoltage(),
+            self.DrvPower(),
+            self.TempPwrStg(),
+            self.TempElec(),
+            self.TempPmpBot(),
+            self.TempBearng(),
+            self.TempMotor(),
+            self.RotorImbalance(),
+            self.BearingWear(),
+        ]
 
     def GetWarnings(self):
         self.AutoCheckOverheating()
@@ -83,10 +88,10 @@ class HiPace700:
 
     def AutoCheckOverheating(self):
         if self.OvTempElec():
-            warning_dict = { "message" : "excess temp turbo drive unit" }
+            warning_dict = {"message": "excess temp turbo drive unit"}
             self.warnings.append([time.time(), warning_dict])
         elif self.OvTempPump():
-            warning_dict = { "message" : "excess temp turbo pump" }
+            warning_dict = {"message": "excess temp turbo pump"}
             self.warnings.append([time.time(), warning_dict])
 
     def checksum(self, string):
@@ -186,11 +191,11 @@ class HiPace700:
         speed = self.ActualSpd()
         if speed == 0.0:
             return "stopped"
-        elif speed and ( abs(speed-820) < 1 ):
+        elif speed and (abs(speed - 820) < 1):
             return "running"
-        elif speed and ( abs(speed-820) > 819 ):
+        elif speed and (abs(speed - 820) > 819):
             return "stopped"
-        elif speed and ( abs(speed-820) > 1 ):
+        elif speed and (abs(speed - 820) > 1):
             return "accelerating"
         else:
             return "invalid"
@@ -198,7 +203,7 @@ class HiPace700:
     def DrvCurrent(self):
         """Drive current."""
         try:
-            return float(self.query(310))/100
+            return float(self.query(310)) / 100
         except ValueError as err:
             logging.warning("HiPace700 warning in DrvCurrent(): " + str(err))
             return np.nan
@@ -206,7 +211,7 @@ class HiPace700:
     def DrvVoltage(self):
         """Drive voltage."""
         try:
-            return float(self.query(313))/100
+            return float(self.query(313)) / 100
         except ValueError as err:
             logging.warning("HiPace700 warning in DrvVoltage(): " + str(err))
             return np.nan
@@ -274,7 +279,7 @@ class HiPace700:
         except ValueError as err:
             logging.warning("HiPace700 warning in BearingWear(): " + str(err))
             return np.nan
-    
+
     def VentMode(self):
         try:
             return int(self.query("030"))
@@ -329,7 +334,7 @@ class HiPace700:
         """Error code history, pos. 10."""
         return self.query(369)
 
-   #######################################################
+    #######################################################
     # Control commands
     #######################################################
 
@@ -347,6 +352,6 @@ class HiPace700:
 
     def StartVent(self):
         return self.query(param="012", control=True, data_len="06", data="111111")
-    
+
     def StopVent(self):
         return self.query(param="012", control=True, data_len="06", data="000000")

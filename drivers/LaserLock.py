@@ -1,22 +1,18 @@
-import sys
-import importlib
-import socket
-import selectors
-import traceback
-import random
-import logging
-import json
 import io
+import json
+import logging
+import selectors
+import socket
 import struct
-import numpy as np
-import inspect
-import functools
+import sys
 import time
-from types import FunctionType
+
+import numpy as np
 
 #############################################
 # Class for client side messages
 #############################################
+
 
 class ClientMessage:
     """
@@ -27,8 +23,9 @@ class ClientMessage:
     - json header
     - content
     See https://realpython.com/python-sockets/#application-client-and-server
-    for a more thorough explanation, most of the code is adapted fromt this.
+    for a more thorough explanation, most of the code is adapted from this.
     """
+
     def __init__(self, selector, sock, addr, request):
         self.selector = selector
         self.sock = sock
@@ -82,16 +79,12 @@ class ClientMessage:
         return json.dumps(obj, ensure_ascii=False).encode(encoding)
 
     def _json_decode(self, json_bytes, encoding):
-        tiow = io.TextIOWrapper(
-            io.BytesIO(json_bytes), encoding=encoding, newline=""
-        )
+        tiow = io.TextIOWrapper(io.BytesIO(json_bytes), encoding=encoding, newline="")
         obj = json.load(tiow)
         tiow.close()
         return obj
 
-    def _create_message(
-        self, *, content_bytes, content_type, content_encoding
-    ):
+    def _create_message(self, *, content_bytes, content_type, content_encoding):
         jsonheader = {
             "byteorder": sys.byteorder,
             "content-type": content_type,
@@ -109,7 +102,7 @@ class ClientMessage:
             self.result = content.get("result")
         else:
             self.result = np.nan
-            raise ValueError(content.get('error'))
+            raise ValueError(content.get("error"))
 
     def _process_response_binary_content(self):
         content = self.response
@@ -151,7 +144,7 @@ class ClientMessage:
             self.selector.unregister(self.sock)
         except Exception as e:
             logging.warning(
-                f"error: selector.unregister() exception for",
+                "error: selector.unregister() exception for",
                 f"{self.addr}: {repr(e)}",
             )
 
@@ -159,7 +152,7 @@ class ClientMessage:
             self.sock.close()
         except OSError as e:
             logging.warning(
-                f"error: socket.close() exception for",
+                "error: socket.close() exception for",
                 f"{self.addr}: {repr(e)}",
             )
         finally:
@@ -189,17 +182,13 @@ class ClientMessage:
     def process_protoheader(self):
         hdrlen = 2
         if len(self._recv_buffer) >= hdrlen:
-            self._jsonheader_len = struct.unpack(
-                ">H", self._recv_buffer[:hdrlen]
-            )[0]
+            self._jsonheader_len = struct.unpack(">H", self._recv_buffer[:hdrlen])[0]
             self._recv_buffer = self._recv_buffer[hdrlen:]
 
     def process_jsonheader(self):
         hdrlen = self._jsonheader_len
         if len(self._recv_buffer) >= hdrlen:
-            self.jsonheader = self._json_decode(
-                self._recv_buffer[:hdrlen], "utf-8"
-            )
+            self.jsonheader = self._json_decode(self._recv_buffer[:hdrlen], "utf-8")
             self._recv_buffer = self._recv_buffer[hdrlen:]
             for reqhdr in (
                 "byteorder",
@@ -227,22 +216,40 @@ class ClientMessage:
         # Close when response has been processed
         self.close()
 
+
 #############################################
 # Socket Device Client Class
 #############################################
+
 
 class LaserLock:
     """
     Driver to connect to laser locking on different computer via socket
     communication
     """
+
     def __init__(self, time_offset, socket_connection):
         self.time_offset = time_offset
-        self.host = socket_connection['host']
-        self.port = int(socket_connection['port'])
-        self.device_name = 'Laser Lock'
+        self.host = socket_connection["host"]
+        self.port = int(socket_connection["port"])
+        self.device_name = "Laser Lock"
 
-        self.dtype = ('f', 'bool', 'f8', 'f8', 'bool', 'bool', 'f', 'f', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
+        self.dtype = (
+            "f",
+            "bool",
+            "f8",
+            "f8",
+            "bool",
+            "bool",
+            "f",
+            "f",
+            "f8",
+            "f8",
+            "f8",
+            "f8",
+            "f8",
+            "f8",
+        )
         self.shape = (11,)
 
         self.new_attributes = []
@@ -250,9 +257,9 @@ class LaserLock:
         self.warnings = []
 
         try:
-            self.verification_string = self.request('query', 'verification')
-        except:
-            self.verification_string = 'False'
+            self.verification_string = self.request("query", "verification")
+        except Exception:
+            self.verification_string = "False"
 
     def __exit__(self, *exc):
         return
@@ -261,37 +268,39 @@ class LaserLock:
         return self
 
     def ReadValue(self):
-        values = self.request('query', 'ReadValue')
+        values = self.request("query", "ReadValue")
         t = time.time() - self.time_offset
         try:
             if np.isnan(values):
                 return np.nan
-        except:
+        except Exception:
             values = [v if not isinstance(v, type(None)) else np.nan for v in values]
-            return [t]+values
+            return [t] + values
 
     def GetWarnings(self):
         warnings = self.warnings.copy()
         self.warnings = []
         return warnings
 
-    def SetLockPointSeed1(self, lockpoint):
-        self.SetLockPoint('seed1', lockpoint)
+    def set_lockpoint_laser_1(self, lockpoint: float):
+        self.set_lockpoint(0, lockpoint)
 
-    def SetLockPointSeed2(self, lockpoint):
-        self.SetLockPoint('seed2', lockpoint)
+    def set_lockpoint_laser_2(self, lockpoint: float):
+        self.set_lockpoint(1, lockpoint)
 
-    def SetLockPointSeed3(self, lockpoint):
-        self.SetLockPoint('seed3', lockpoint)
+    def move_frequency_laser_1(self, frequency_deviation: float):
+        self.move_frequency(0, frequency_deviation)
 
-    def SetLockPoint(self, seed, lockpoint):
-        if seed == 'seed1':
-            values = self.request('command', f'set_laser_lockpoint({lockpoint},0)')
-        elif seed == 'seed2':
-            values = self.request('command', f'set_laser_lockpoint({lockpoint},1)')
-        elif seed == 'seed3':
-            values = self.request('command', f'set_laser_lockpoint({lockpoint},0)')
-        return
+    def move_frequency_laser_2(self, frequency_deviation: float):
+        self.move_frequency(1, frequency_deviation)
+
+    def move_frequency(self, laser: int, frequency_deviation: float):
+        cmd = f"lasers[{laser}].move_frequency({frequency_deviation})"
+        _ = self.request("command", cmd)
+
+    def set_lockpoint(self, laser: int, lockpoint: float):
+        cmd = f"set_laser_lockpoint({lockpoint},{laser})"
+        _ = self.request("command", cmd)
 
     def _createRequest(self, action, value):
         return dict(
@@ -306,7 +315,7 @@ class LaserLock:
         """
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setblocking(False)
-        con = sock.connect_ex((self.host, self.port))
+        _ = sock.connect_ex((self.host, self.port))
         sel = selectors.DefaultSelector()
         request = self._createRequest(action, value)
         message = ClientMessage(sel, sock, (self.host, sock), request)
@@ -321,15 +330,19 @@ class LaserLock:
                     try:
                         message.process_events(mask)
                     except Exception as err:
-                        logging.warning("{0} socket warning in request: ".format(self.device_name)
-                                       +str(err))
+                        logging.warning(
+                            "{0} socket warning in request: ".format(self.device_name)
+                            + str(err)
+                        )
                         message.close()
                 # Check for a socket being monitored to continue.
                 if not sel.get_map():
                     break
         except Exception as e:
-            logging.warning('{0} socket warning in request: '.format(self.device_name)+str(e))
-            warning_dict = { "message" : str(e) }
+            logging.warning(
+                "{0} socket warning in request: ".format(self.device_name) + str(e)
+            )
+            warning_dict = {"message": str(e)}
             self.warnings.append([time.time(), warning_dict])
             return np.nan
         finally:

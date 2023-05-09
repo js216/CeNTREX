@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import socket
+import threading
 import time
 import traceback
 from pathlib import Path
@@ -1187,10 +1188,8 @@ class ControlGUI(qt.QWidget):
             qt.QMessageBox.information(
                 self,
                 "Rename while running",
-                (
-                    "Control running. Renaming HDF file will only take effect after"
-                    " restarting control."
-                ),
+                "Control running. Renaming HDF file will only take effect after"
+                " restarting control.",
             )
 
         # get old file path
@@ -1406,7 +1405,6 @@ class ControlGUI(qt.QWidget):
 
         # stop monitoring
         if self.monitoring.active.is_set():
-            logging.info("stopping monitoring")
             self.monitoring.active.clear()
             self.monitoring.join()
 
@@ -1455,6 +1453,7 @@ class ControlGUI(qt.QWidget):
                 # stop the device, and wait for it to finish
                 dev.active.clear()
                 dev.join()
+                logging.info(f"{dev_name}: stopped")
 
         # update status
         self.parent.config["control_active"] = False

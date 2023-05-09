@@ -598,15 +598,7 @@ class Plotter(qt.QWidget):
         """Clear the arrays of past evaluations of the custom function on the data."""
         self.x, self.y = [], []
 
-    def parameters_good(self):
-        # check device is valid
-        if self.config["device"] in self.parent.devices:
-            self.dev = self.parent.devices[self.config["device"]]
-        else:
-            self.stop_animation()
-            logging.warning("Plot error: Invalid device: " + self.config["device"])
-            return False
-
+    def hdf_good(self) -> bool:
         if bool(int(self.dev.config["control_params"]["HDF_enabled"]["value"])):
             # check run is valid
             try:
@@ -634,19 +626,36 @@ class Plotter(qt.QWidget):
 
             # check dataset exists in the run
             try:
-                with h5py.File(self.parent.config["files"]["plotting_hdf_fname"], "r", libver="latest", swmr=True) as f:
+                with h5py.File(
+                    self.parent.config["files"]["plotting_hdf_fname"],
+                    "r",
+                    libver="latest",
+                    swmr=True,
+                ) as f:
                     try:
                         f[self.config["run"] + "/" + self.dev.config["path"]]
                     except KeyError:
                         logging.info(traceback.format_exc())
                         if time.time() - self.parent.config["time_offset"] > 5:
-                            logging.warning("Plot error: Dataset not found in this run.")
+                            logging.warning(
+                                "Plot error: Dataset not found in this run."
+                            )
                         self.stop_animation()
                         return False
             except RuntimeError as error:
                 logging.warning(f"Plot error : {error}")
                 logging.warning(traceback.format_exc())
 
+        return True
+
+    def parameters_good(self) -> bool:
+        # check device is valid
+        if self.config["device"] in self.parent.devices:
+            self.dev = self.parent.devices[self.config["device"]]
+        else:
+            self.stop_animation()
+            logging.warning("Plot error: Invalid device: " + self.config["device"])
+            return False
 
         # check parameters are valid
         if not self.config["x"] in self.param_list:
@@ -767,7 +776,10 @@ class Plotter(qt.QWidget):
                 return None
             if self.config["x"] == "(none)":
                 if isinstance(dset, float):
-                    logging.warning(f"get_raw_data_from_queue from {self.dev.config['name']} dataset is empty")
+                    logging.warning(
+                        "get_raw_data_from_queue from"
+                        f" {self.dev.config['name']} dataset is empty"
+                    )
                 x = np.arange(dset[0].shape[2])
             else:
                 x = dset[0][0, self.param_list.index(self.config["x"])].astype(float)
@@ -999,6 +1011,10 @@ class Plotter(qt.QWidget):
                 time.sleep(dt)
 
     def start_animation(self):
+        # check if current hdf file and dataset exist
+        if not self.hdf_good():
+            return
+
         # start animation
         self.thread = self.PlotUpdater(self.parent, self.config)
         self.thread.start()

@@ -1009,6 +1009,7 @@ class Plotter(qt.QWidget):
                     logging.warning(traceback.format_exc())
                     dt = float(self.parent.config["general"]["default_plot_dt"])
                 time.sleep(dt)
+            logging.info(f"PlotUpdater: {self.config['device']} stopped")
 
     def start_animation(self):
         # check if current hdf file and dataset exist
@@ -1017,6 +1018,7 @@ class Plotter(qt.QWidget):
 
         # start animation
         self.thread = self.PlotUpdater(self.parent, self.config)
+        self.thread.finished.connect(self.thread.deleteLater)
         self.thread.start()
         self.thread.signal.connect(self.replot)
 
@@ -1029,6 +1031,9 @@ class Plotter(qt.QWidget):
         self.start_pb.clicked[bool].connect(self.stop_animation)
 
     def stop_animation(self):
+        if not self.config["active"]:
+            return
+
         # stop animation
         self.config["active"] = False
 
@@ -1036,6 +1041,8 @@ class Plotter(qt.QWidget):
         self.start_pb.setText("Start")
         self.start_pb.disconnect()
         self.start_pb.clicked[bool].connect(self.start_animation)
+        self.thread.exit()
+        self.thread.wait()
 
     def destroy(self):
         self.stop_animation()

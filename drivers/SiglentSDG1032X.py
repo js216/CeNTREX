@@ -113,11 +113,36 @@ class SiglentSDG1032X:
         else:
             return "Off"
 
+    def GetOutputState2(self):
+        if self.outputs[2]["STATE"]:
+            return "On"
+        else:
+            return "Off"
+
     def SetOutputState1(self, state):
         if state:
             self.Output(1, "ON")
         else:
             self.Output(1, "OFF")
+        self.ParseOutput(1)
+
+    def EnableCH1(self):
+        self.SetOutputState1(True)
+
+    def DisableCH1(self):
+        self.SetOutputState1(False)
+
+    def EnableCH2(self):
+        self.SetOutputState2(True)
+
+    def DisableCH2(self):
+        self.SetOutputState2(False)
+
+    def SetOutputState2(self, state):
+        if state:
+            self.Output(2, "ON")
+        else:
+            self.Output(2, "OFF")
         self.ParseOutput(1)
 
     def SetChannel1Frequency(self, freq):

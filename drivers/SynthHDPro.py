@@ -150,7 +150,7 @@ class SynthHDPro:
         chn = self.channels[ch]
         try:
             self.synth[chn].frequency = frequency
-            self.frequency_setting[ch] = frequency
+            self.GetFrequency(ch = ch)
         except ValueError as warning:
             self.CreateWarning(warning)
             self.logging(

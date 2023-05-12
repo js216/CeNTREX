@@ -31,7 +31,6 @@ class HDF_writer(threading.Thread):
 
         # create/open HDF file, groups, and datasets
         with h5py.File(self.filename, "a", libver="latest") as f:
-            f.swmr_mode = True
             root = f.create_group(self.parent.run_name)
 
             # write run attributes
@@ -85,9 +84,8 @@ class HDF_writer(threading.Thread):
                     dtype=h5py.special_dtype(vlen=str),
                 )
 
-        self.active.set()
-
     def run(self):
+        self.active.set()
 
         with h5py.File(self.filename, "a", libver="latest") as file:
             file.swmr_mode = True

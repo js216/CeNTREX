@@ -167,6 +167,7 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
 
             # fixed monitoring fast loop delay
             time.sleep(0.5)
+        logging.info("Monitoring: stopped")
 
     def write_to_influxdb(self, dev: DeviceProtocol, data):
         # check writing to InfluxDB is enabled

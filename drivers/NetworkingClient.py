@@ -238,3 +238,34 @@ def NetworkingClient(time_offset, driver, connection, *args):
                 return np.nan
 
     return NetworkingClientClass(time_offset, connection, *args)
+
+# navigate to /authentication folder
+# ip = "10.10.222.9"
+# port = 12346
+# name = "SynthHD Pro"
+# import zmq
+# import zmq.auth 
+# context = zmq.Context()
+# socket = context.socket(zmq.REQ)
+# server_public = zmq.auth.load_certificate("public_keys/server.key")[0]
+# client_public, client_secret = zmq.auth.load_certificate("private_keys/client.key_secret")
+# socket.curve_secretkey = client_secret
+# socket.curve_publickey = client_public
+# socket.curve_serverkey = server_public
+# socket.connect(f"tcp://{ip}:{port}")
+# socket.send_json([name, "ReadValue()"]); socket.recv_json()
+
+# ip = "10.10.222.17"
+# port = 12349
+# name = "WavemeterControl"
+# import zmq
+# import zmq.auth 
+# context = zmq.Context()
+# socket = context.socket(zmq.REQ)
+# server_public = zmq.auth.load_certificate("public_keys/server.key")[0]
+# client_public, client_secret = zmq.auth.load_certificate("private_keys/client.key_secret")
+# socket.curve_secretkey = client_secret
+# socket.curve_publickey = client_public
+# socket.curve_serverkey = server_public
+# socket.connect(f"tcp://{ip}:{port}")
+# socket.send_json([name, "ReadValue()"]); socket.recv_json()

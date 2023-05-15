@@ -13,7 +13,8 @@ class Zaber:
         try:
             self.connection = Connection.open_serial_port(resource_name)
             self.device = self.connection.detect_devices()[0]
-        except (ex.NoDeviceFoundException, ex.serial_port_busy_exception.SerialPortBusyException) as err:
+        except (ex.NoDeviceFoundException,
+                ex.serial_port_busy_exception.SerialPortBusyException, ex.connection_failed_exception.ConnectionFailedException) as err:
             self.verification_string = str(err)
             self.device = False
             return

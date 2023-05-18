@@ -86,8 +86,10 @@ class NetworkingBroker(threading.Thread):
         super(NetworkingBroker, self).__init__()
         self.daemon = True
         device = Device(zmq.QUEUE, zmq.XREP, zmq.XREQ)
-        device.bind_in(f"tcp://127.0.0.1:{outward_port}")
+        device.bind_in(f"tcp://*:{outward_port}")
         device.daemon = True
+
+        logging.info(f"NetworkingBroker: allowed addresses {allowed}")
 
         self.backend_port = device.bind_out_to_random_port("tcp://127.0.0.1")
         self.device = device
@@ -95,7 +97,8 @@ class NetworkingBroker(threading.Thread):
         # setup authentication
         self.auth = ThreadAuthenticator()
         self.auth.start()
-        self.auth.allow(*allowed)
+        self.auth.allow_any = True
+        # self.auth.allow(*allowed)
 
         # load authentication keys
         file_path = Path(__file__).resolve()

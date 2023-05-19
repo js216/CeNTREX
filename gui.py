@@ -1188,8 +1188,10 @@ class ControlGUI(qt.QWidget):
             qt.QMessageBox.information(
                 self,
                 "Rename while running",
-                "Control running. Renaming HDF file will only take effect after"
-                " restarting control.",
+                (
+                    "Control running. Renaming HDF file will only take effect after"
+                    " restarting control."
+                ),
             )
 
         # get old file path
@@ -1358,7 +1360,7 @@ class ControlGUI(qt.QWidget):
         self.place_device_controls()
 
         # start the thread that writes to HDF
-        self.HDF_writer = HDF_writer(self.parent)
+        self.HDF_writer = HDF_writer(self.parent, self.parent.hdf_clear)
         self.HDF_writer.start()
 
         # start control for all devices
@@ -1461,8 +1463,13 @@ class ControlGUI(qt.QWidget):
 
 
 class CentrexGUI(qt.QMainWindow):
-    def __init__(self, app, settings_path: Path):
+    def __init__(
+        self, app, settings_path: Path, auto_start: bool = False, clear: bool = False
+    ):
         super().__init__()
+
+        self.hdf_clear = clear
+
         logging.info("Starting CeNTREX DAQ")
         self.app = app
         self.setWindowTitle("CENTREX DAQ")
@@ -1524,6 +1531,9 @@ class CentrexGUI(qt.QMainWindow):
         )
 
         self.show()
+
+        if auto_start:
+            self.ControlGUI.start_control()
 
     def load_stylesheet(self, reset=False):
         if reset:

@@ -1,6 +1,7 @@
 import datetime
 import threading
-from typing import Dict, Protocol
+from typing import Dict
+from typing_extensions import Protocol
 
 import PyQt5.QtWidgets as qt
 

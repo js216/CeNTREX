@@ -3,6 +3,7 @@ import logging
 import threading
 import time
 import traceback
+from collections.abc import Sequence
 from typing import Any, Dict, List, Tuple
 
 import h5py
@@ -186,11 +187,38 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
         if not dev.config["slow_data"]:
             return
 
+        # get dtypes from device
+        dtype = dev.config["dtype"]
+        if isinstance(dtype, str):
+            if "f" in dtype:
+                dtype = float
+        elif isinstance(dtype, Sequence):
+            _dtype = []
+            for d in dtype:
+                if isinstance(d, str):
+                    if "f" in d:
+                        _dtype.append(float)
+                    elif "S" in d:
+                        _dtype.append(str)
+                    elif "U" in d:
+                        _dtype.append(int)
+                    elif "b" in d:
+                        _dtype.append(bool)
+                    else:
+                        _dtype.append(eval(d))
+                else:
+                    _dtype.append(d)
+            dtype = _dtype
+
         # check there is any non-np.nan data to write
         # try-except because something crashes here
         try:
             _fields = []
-            for key, val in zip(dev.col_names_list[1:], data[1:]):
+            for idk, (key, val) in enumerate(zip(dev.col_names_list[1:], data[1:])):
+                if isinstance(dtype, Sequence):
+                    val = dtype[idk](val)
+                else:
+                    val = dtype(val)
                 if isinstance(val, str):
                     _fields.append((key, val))
                 elif not np.isnan(val):
@@ -200,8 +228,12 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
             fields = dict(_fields)
         except Exception as e1:
             logging.warning(f"Error in write_to_influxdb: {e1}")
-            for key, val in zip(dev.col_names_list[1:], data[1:]):
+            for idk, (key, val) in enumerate(zip(dev.col_names_list[1:], data[1:])):
                 try:
+                    if isinstance(dtype, Sequence):
+                        val = dtype[idk](val)
+                    else:
+                        val = dtype(val)
                     if isinstance(val, str):
                         continue
                     elif not np.isnan(val):

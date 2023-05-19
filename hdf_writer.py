@@ -4,6 +4,7 @@ import subprocess
 import threading
 import time
 import traceback
+from pathlib import Path
 from typing import Deque
 
 import h5py
@@ -28,9 +29,11 @@ class HDF_writer(threading.Thread):
         )
 
         if clear:
-            ret = subprocess.call(f"h5clear -s {self.filename}", shell=True)
-            if ret != 0:
-                logging.error("HDF_writer: h5clear error")
+            file = Path(self.filename)
+            if file.is_file():
+                ret = subprocess.call(f"h5clear -s {self.filename}", shell=True)
+                if ret != 0:
+                    logging.error("HDF_writer: h5clear error")
 
         # time since last write
         self.time_last_write = datetime.datetime.now().replace(microsecond=0)

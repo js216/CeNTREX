@@ -15,6 +15,7 @@ class SynthHDPro:
         try:
             self.synth = SynthHD(COM_port)
         except Exception as err:
+            self.synth = None
             logging.warning("SynthHDPro error in initial connection : " + str(err))
             self.verification_string = "False"
             self.__exit__()
@@ -49,7 +50,8 @@ class SynthHDPro:
         return self
 
     def __exit__(self, *exc):
-        self.synth.close()
+        if self.synth is not None:
+            self.synth.close()
         return
 
     #######################################################
@@ -150,7 +152,7 @@ class SynthHDPro:
         chn = self.channels[ch]
         try:
             self.synth[chn].frequency = frequency
-            self.GetFrequency(ch = ch)
+            self.GetFrequency(ch=ch)
         except ValueError as warning:
             self.CreateWarning(warning)
             self.logging(

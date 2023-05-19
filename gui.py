@@ -1360,7 +1360,7 @@ class ControlGUI(qt.QWidget):
         self.place_device_controls()
 
         # start the thread that writes to HDF
-        self.HDF_writer = HDF_writer(self.parent)
+        self.HDF_writer = HDF_writer(self.parent, self.parent.hdf_clear)
         self.HDF_writer.start()
 
         # start control for all devices
@@ -1463,8 +1463,13 @@ class ControlGUI(qt.QWidget):
 
 
 class CentrexGUI(qt.QMainWindow):
-    def __init__(self, app, settings_path: Path, auto_start: bool):
+    def __init__(
+        self, app, settings_path: Path, auto_start: bool = False, clear: bool = False
+    ):
         super().__init__()
+
+        self.hdf_clear = clear
+
         logging.info("Starting CeNTREX DAQ")
         self.app = app
         self.setWindowTitle("CENTREX DAQ")

@@ -194,7 +194,7 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                 dtype = float
         elif isinstance(dtype, Sequence):
             _dtype = []
-            for d in dtype:
+            for d in dtype[1:]:
                 if isinstance(d, str):
                     if "f" in d:
                         _dtype.append(float)

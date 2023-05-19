@@ -1188,8 +1188,10 @@ class ControlGUI(qt.QWidget):
             qt.QMessageBox.information(
                 self,
                 "Rename while running",
-                "Control running. Renaming HDF file will only take effect after"
-                " restarting control.",
+                (
+                    "Control running. Renaming HDF file will only take effect after"
+                    " restarting control."
+                ),
             )
 
         # get old file path
@@ -1461,7 +1463,7 @@ class ControlGUI(qt.QWidget):
 
 
 class CentrexGUI(qt.QMainWindow):
-    def __init__(self, app, settings_path: Path):
+    def __init__(self, app, settings_path: Path, auto_start: bool):
         super().__init__()
         logging.info("Starting CeNTREX DAQ")
         self.app = app
@@ -1524,6 +1526,9 @@ class CentrexGUI(qt.QMainWindow):
         )
 
         self.show()
+
+        if auto_start:
+            self.ControlGUI.start_control()
 
     def load_stylesheet(self, reset=False):
         if reset:

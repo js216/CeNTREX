@@ -291,13 +291,16 @@ class PulseBlaster:
         logging.info("PulseBlaster warning in ProgramDevice: finished programming")
 
 if __name__ == "__main__":
+    trace_length = 30 # ms
     qswitch_delay = 85 # microseconds
-    frequency = np.sqrt(2)*10 # Hz
+    frequency = 26 # Hz
     # trigger = {'frequency':10, 'offset':0, 'high': int(round(1e-4/1e-9,2)), 'channels':[0],
     #            'active_high':True}
-    flashlamp = {'frequency':frequency, 'offset':0, 'high': int(1e6), 'channels':[1,3],
+    flashlamp = {'frequency':frequency, 'offset':0, 'high': int(1e6), 'channels':[1,4],
                  'active_high':True}
-    qswitch = {'frequency':frequency, 'offset':int(qswitch_delay*1e3), 'high': int(1e6), 'channels':[2,4],
+    qswitch = {'frequency':frequency, 'offset':int(qswitch_delay*1e3), 'high': int(1e6), 'channels':[2,5],
+               'active_high':True}
+    shutter = {'frequency':frequency/2, 'offset':int(trace_length * 1e6 + 1e6), 'high': int(1/frequency * 1e9), 'channels':[3,6],
                'active_high':True}
     # trigger = {'frequency':20, 'offset':int(qswitch_delay*1e3), 'high': int(1e6), 'channels':[5]}
     # shutter = {'frequency':5, 'offset':int(qswitch_delay*1e3)+int(70e-3/1e-9)+1, 'high': int(100e-3/1e-9), 'channels':[3,4],
@@ -318,5 +321,5 @@ if __name__ == "__main__":
     # shutter_daq = {'frequency': 5/20,'offset':int(round(20e-3/1e-9,2)), 'high':int(round(2/1e-9,2)), 'channels':[4],
     #            'active_high':True}
 
-    t, c, sequence = generate_repeating_pulses([flashlamp, qswitch], [])
+    t, c, sequence = generate_repeating_pulses([flashlamp, qswitch, shutter], [])
     pb = PulseBlaster(time.time(), 0, {}, sequence)

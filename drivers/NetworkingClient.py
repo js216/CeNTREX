@@ -108,6 +108,7 @@ def NetworkingClient(time_offset, driver, connection, *args):
     @NetworkingClassDecorator
     class NetworkingClientClass(driver):
         def __init__(self, time_offset, connection, *args):
+            logging.info(f"Initializing NetworkingClientClass({str(driver)})")
             self.time_offset = time_offset
 
             self.server = connection['server']
@@ -128,14 +129,20 @@ def NetworkingClient(time_offset, driver, connection, *args):
             self.readvalue_thread.active.set()
             self.readvalue_thread.start()
 
+            
             self.verification_string = self.ExecuteNetworkCommand('verification_string')
+            logging.info(f"NetworkingClientClass: retrieved verification_string {self.verification_string}")
 
             self.dtype = self.ExecuteNetworkCommand('dtype')
+            logging.info(f"NetworkingClientClass: retrieved dtype {self.dtype}")
+            
             self.shape = self.ExecuteNetworkCommand('shape')
+            logging.info(f"NetworkingClientClass: retrieved shape {self.shape}")
 
             self.new_attributes = []
 
             self.is_networking_client = True
+            logging.info(f"NetworkingClientClass: finished __init__")
 
         def __exit__(self, *args):
             self.readvalue_thread.active.clear()
@@ -178,9 +185,13 @@ def NetworkingClient(time_offset, driver, connection, *args):
             self.socket_readout.setsockopt_string(zmq.SUBSCRIBE,
                                                     self.topicfilter)
             self.socket_readout.connect(f"tcp://{self.server}:{self.port_readout}")
+            logging.error("NetworkingClientClass: connected to readout socket")
 
             # starting control
             self.socket_control.connect(f"tcp://{self.server}:{self.port_control}")
+            logging.error("NetworkingClientClass: connected to control socket")
+            
+            logging.error("NetworkingClientClass: connection opened")
 
         def CloseConnection(self):
             # close all connections
@@ -238,3 +249,34 @@ def NetworkingClient(time_offset, driver, connection, *args):
                 return np.nan
 
     return NetworkingClientClass(time_offset, connection, *args)
+
+# navigate to /authentication folder
+# ip = "10.10.222.9"
+# port = 12346
+# name = "SynthHD Pro"
+# import zmq
+# import zmq.auth 
+# context = zmq.Context()
+# socket = context.socket(zmq.REQ)
+# server_public = zmq.auth.load_certificate("public_keys/server.key")[0]
+# client_public, client_secret = zmq.auth.load_certificate("private_keys/client.key_secret")
+# socket.curve_secretkey = client_secret
+# socket.curve_publickey = client_public
+# socket.curve_serverkey = server_public
+# socket.connect(f"tcp://{ip}:{port}")
+# socket.send_json([name, "ReadValue()"]); socket.recv_json()
+
+# ip = "10.10.222.13"
+# port = 12346
+# name = "SynthHD Pro"
+# import zmq
+# import zmq.auth 
+# context = zmq.Context()
+# socket = context.socket(zmq.REQ)
+# server_public = zmq.auth.load_certificate("public_keys/server.key")[0]
+# client_public, client_secret = zmq.auth.load_certificate("private_keys/client.key_secret")
+# socket.curve_secretkey = client_secret
+# socket.curve_publickey = client_public
+# socket.curve_serverkey = server_public
+# socket.connect(f"tcp://{ip}:{port}")
+# socket.send_json([name, "ReadValue()"]); socket.recv_json()

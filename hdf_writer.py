@@ -1,8 +1,10 @@
 import datetime
 import logging
+import subprocess
 import threading
 import time
 import traceback
+from pathlib import Path
 from typing import Deque
 
 import h5py
@@ -12,7 +14,7 @@ from protocols import CentrexGUIProtocol
 
 
 class HDF_writer(threading.Thread):
-    def __init__(self, parent: CentrexGUIProtocol):
+    def __init__(self, parent: CentrexGUIProtocol, clear: bool = False):
         threading.Thread.__init__(self)
         self.parent = parent
         self.active = threading.Event()
@@ -26,12 +28,18 @@ class HDF_writer(threading.Thread):
             + str(self.parent.config["general"]["run_name"])
         )
 
+        if clear:
+            file = Path(self.filename)
+            if file.is_file():
+                ret = subprocess.call(f"h5clear -s {self.filename}", shell=True)
+                if ret != 0:
+                    logging.error("HDF_writer: h5clear error")
+
         # time since last write
         self.time_last_write = datetime.datetime.now().replace(microsecond=0)
 
         # create/open HDF file, groups, and datasets
         with h5py.File(self.filename, "a", libver="latest") as f:
-            f.swmr_mode = True
             root = f.create_group(self.parent.run_name)
 
             # write run attributes
@@ -85,9 +93,8 @@ class HDF_writer(threading.Thread):
                     dtype=h5py.special_dtype(vlen=str),
                 )
 
-        self.active.set()
-
     def run(self):
+        self.active.set()
 
         with h5py.File(self.filename, "a", libver="latest") as file:
             file.swmr_mode = True

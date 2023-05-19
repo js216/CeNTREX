@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import socket
+import threading
 import time
 import traceback
 from pathlib import Path
@@ -1359,7 +1360,7 @@ class ControlGUI(qt.QWidget):
         self.place_device_controls()
 
         # start the thread that writes to HDF
-        self.HDF_writer = HDF_writer(self.parent)
+        self.HDF_writer = HDF_writer(self.parent, self.parent.hdf_clear)
         self.HDF_writer.start()
 
         # start control for all devices
@@ -1406,7 +1407,6 @@ class ControlGUI(qt.QWidget):
 
         # stop monitoring
         if self.monitoring.active.is_set():
-            logging.info("stopping monitoring")
             self.monitoring.active.clear()
             self.monitoring.join()
 
@@ -1455,6 +1455,7 @@ class ControlGUI(qt.QWidget):
                 # stop the device, and wait for it to finish
                 dev.active.clear()
                 dev.join()
+                logging.info(f"{dev_name}: stopped")
 
         # update status
         self.parent.config["control_active"] = False
@@ -1462,8 +1463,13 @@ class ControlGUI(qt.QWidget):
 
 
 class CentrexGUI(qt.QMainWindow):
-    def __init__(self, app, settings_path: Path):
+    def __init__(
+        self, app, settings_path: Path, auto_start: bool = False, clear: bool = False
+    ):
         super().__init__()
+
+        self.hdf_clear = clear
+
         logging.info("Starting CeNTREX DAQ")
         self.app = app
         self.setWindowTitle("CENTREX DAQ")
@@ -1525,6 +1531,9 @@ class CentrexGUI(qt.QMainWindow):
         )
 
         self.show()
+
+        if auto_start:
+            self.ControlGUI.start_control()
 
     def load_stylesheet(self, reset=False):
         if reset:

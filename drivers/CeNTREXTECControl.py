@@ -322,6 +322,33 @@ class CeNTREXTECControl(CeNTREXTecDeviceInterface):
         """
         self._setValConvenienceFunction("setTemperatureWindow", window, device)
 
+    # CeNTREX GUI convenience commands
+
+    def EnableCH1(self):
+        self.EnableDevice(1)
+
+    def DisableCH1(self):
+        self.DisableDevice(1)
+
+    def EnableCH2(self):
+        self.EnableDevice(2)
+
+    def DisableCH2(self):
+        self.DisableDevice(2)
+
+    def GetCH1State(self):
+        s = self.getState()[0]
+        if s:
+            return "on"
+        else:
+            return 'off'
+
+    def GetCH2State(self):
+        s = self.getState()[1]
+        if s:
+            return "on"
+        else:
+            return 'off'
 
 if __name__ == "__main__":
     dev = CeNTREXTecDevice(time.time(), "COM5", 2)

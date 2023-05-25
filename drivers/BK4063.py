@@ -89,6 +89,18 @@ class BK4063:
     ##########         CeNTREX DAQ GUI COMMANDS            ##########
     #################################################################
 
+    def EnableCH1(self):
+        self.Output(1, "ON")
+
+    def EnableCH2(self):
+        self.Output(2, "ON")
+
+    def DisableCH1(self):
+        self.Output(1, "OFF")
+
+    def DisableCH2(self):
+        self.Output(2, "OFF")
+
     def GetOutputState1(self):
         if self.outputs[1]['STATE']:
             return 'On'

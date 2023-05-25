@@ -40,7 +40,7 @@ class DLCPro:
             return
 
         measured_values = 6
-        self.dtype = tuple(["f8"] * (1 + measured_values))
+        self.dtype = tuple(["f8"] + ["bool"] + ["f8"] * (measured_values - 1))
         self.shape = ((1 + measured_values),)
         self.new_attributes = []
         self.warnings = []

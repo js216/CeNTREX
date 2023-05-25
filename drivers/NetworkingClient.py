@@ -185,13 +185,13 @@ def NetworkingClient(time_offset, driver, connection, *args):
             self.socket_readout.setsockopt_string(zmq.SUBSCRIBE,
                                                     self.topicfilter)
             self.socket_readout.connect(f"tcp://{self.server}:{self.port_readout}")
-            logging.error("NetworkingClientClass: connected to readout socket")
+            logging.info("NetworkingClientClass: connected to readout socket")
 
             # starting control
             self.socket_control.connect(f"tcp://{self.server}:{self.port_control}")
-            logging.error("NetworkingClientClass: connected to control socket")
+            logging.info("NetworkingClientClass: connected to control socket")
             
-            logging.error("NetworkingClientClass: connection opened")
+            logging.info("NetworkingClientClass: connection opened")
 
         def CloseConnection(self):
             # close all connections

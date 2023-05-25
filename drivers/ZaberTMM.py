@@ -320,14 +320,18 @@ class ZaberTMM:
             self.devx = 2
             self.devy = 1
 
-        if not self.ReadDeviceModeX()[7]:
-            warning = 'Home Status bit not set in Dev{0}, home device'.format(self.devx)
-            logging.warning('ZaberTMM warning: '+warning)
-            self.CreateWarning(warning)
-        if not self.ReadDeviceModeY()[7]:
-            warning = 'Home Status bit not set in Dev{0}, home device'.format(self.devx)
-            logging.warning('ZaberTMM warning: '+warning)
-            self.CreateWarning(warning)
+        # TODO: if device is not homed there are only 4 values in ReadDeviceModeX()
+        try:
+            if not self.ReadDeviceModeX()[7]:
+                warning = 'Home Status bit not set in Dev{0}, home device'.format(self.devx)
+                logging.warning('ZaberTMM warning: '+warning)
+                self.CreateWarning(warning)
+            if not self.ReadDeviceModeY()[7]:
+                warning = 'Home Status bit not set in Dev{0}, home device'.format(self.devx)
+                logging.warning('ZaberTMM warning: '+warning)
+                self.CreateWarning(warning)
+        except IndexError as e:
+            logging.error(f"ZaberTMM error: {self.ReadDeviceModeX()}")
 
         self.sweep_thread = None
         self.running_sweep = False

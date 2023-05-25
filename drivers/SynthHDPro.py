@@ -131,6 +131,14 @@ class SynthHDPro:
     def DisableCHB(self):
         self.Disable(ch="B")
 
+    def SetCHAState(self, state: bool):
+        chn = self.channels["A"]
+        self.synth[chn].enable = state
+
+    def SetCHBState(self, state: bool):
+        chn = self.channels["B"]
+        self.synth[chn].enable = state
+
     #######################################################
     # Device Commands
     #######################################################

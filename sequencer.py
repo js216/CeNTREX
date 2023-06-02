@@ -1,3 +1,4 @@
+import datetime
 import itertools
 import json
 import logging
@@ -152,6 +153,9 @@ class SequencerGUI(qt.QWidget):
     def update_progress(self, i):
         self.progress.setValue(i)
 
+    def update_progress_time(self, text: str):
+        self.progress.setFormat(text)
+
     def start_sequencer(self):
         # determine how many times to repeat the entire sequence
         try:
@@ -169,6 +173,7 @@ class SequencerGUI(qt.QWidget):
         # race-condition segfaults. Instead, the other thread has to emit a
         # Signal, which we here connect to update_progress().
         self.sequencer.progress.connect(self.update_progress)
+        self.sequencer.progress_time.connect(self.update_progress_time)
         self.sequencer.finished.connect(self.stop_sequencer)
 
         # change the "Start" button into a "Stop" button
@@ -217,6 +222,7 @@ class SequencerGUI(qt.QWidget):
 class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
     # signal to update the progress bar
     progress = PyQt5.QtCore.pyqtSignal(int)
+    progress_time = PyQt5.QtCore.pyqtSignal(str)
 
     # signal emitted when sequence terminates
     finished = PyQt5.QtCore.pyqtSignal()
@@ -308,6 +314,9 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
         if self.circular:
             self.flat_seq = itertools.cycle(self.flat_seq)
 
+        start_time = time.time()
+        total_commands = len(self.flat_seq)
+
         # main sequencer loop
         for i, (dev, fn, p, dt, wait, parent_info) in enumerate(self.flat_seq):
             # check for user stop request
@@ -338,9 +347,13 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
                             finished = True
                     except IndexError:
                         time.sleep(self.default_dt)
-
+            time_elapsed = time.time() - start_time
+            time_estimate = total_commands * (time_elapsed) / (i + 1)
+            time_remaining = round(time_estimate - time_elapsed,0)
+            timedelta_remaining = datetime.timedelta(seconds=time_remaining)
             # update progress bar
             self.progress.emit(i)
+            self.progress_time.emit(f"%p%, {timedelta_remaining} remaining")
 
         # when finished
         self.progress.emit(len(self.flat_seq))

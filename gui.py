@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import configparser
 import datetime as dt
@@ -6,7 +8,6 @@ import logging
 import os
 import re
 import socket
-import threading
 import time
 import traceback
 from pathlib import Path
@@ -30,7 +31,7 @@ from utils_gui import LabelFrame, ScrollableLabelFrame, error_box, update_QCombo
 
 
 class AttrEditor(qt.QDialog):
-    def __init__(self, parent, dev=None):
+    def __init__(self, parent: CentrexGUI, dev=None):
         super().__init__()
         self.dev = dev
         self.parent = parent
@@ -153,13 +154,95 @@ class AttrEditor(qt.QDialog):
                 self.parent.config["run_attributes"][key] = val
 
 
+class MandatoryParametersPopup(qt.QDialog):
+    def __init__(self, parent: CentrexGUI):
+        super().__init__()
+        self.parent = parent
+
+        self.setWindowTitle("Measurement Parameters")
+
+        self.mandatory_parameters = [
+            "measurement type",
+            "rc transition",
+            "det transition",
+            "rc power",
+            "det power",
+        ]
+
+        self.measurement_type = qt.QComboBox()
+        self.measurement_type.addItems(["transition finding", "general"])
+
+        self.rc_transition = qt.QLineEdit()
+        self.det_transition = qt.QLineEdit()
+
+        self.rc_power = qt.QLineEdit()
+        self.rc_power.setValidator(
+            QtGui.QDoubleValidator(
+                bottom=0, notation=QtGui.QDoubleValidator.Notation.StandardNotation
+            )
+        )
+
+        self.det_power = qt.QLineEdit()
+        self.det_power.setValidator(
+            QtGui.QDoubleValidator(
+                bottom=0, notation=QtGui.QDoubleValidator.Notation.StandardNotation
+            )
+        )
+
+        btn = qt.QDialogButtonBox.Ok | qt.QDialogButtonBox.Cancel
+
+        self.button_box = qt.QDialogButtonBox(btn)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+
+        self.layout = qt.QFormLayout()
+        self.layout.addRow("measurement type", self.measurement_type)
+        self.layout.addRow("RC transition", self.rc_transition)
+        self.layout.addRow("DET transition", self.det_transition)
+        self.layout.addRow("RC power [mW]", self.rc_power)
+        self.layout.addRow("DET power [mW]", self.det_power)
+        self.layout.addRow(self.button_box)
+
+        self.setLayout(self.layout)
+
+    def empty_parameter_popup(self, attr):
+        err_msg = qt.QMessageBox()
+        err_msg.setIcon(qt.QMessageBox.Critical)
+        err_msg.setText(f"Mandatory parameter {attr} is empty")
+        err_msg.setStandardButtons(qt.QMessageBox.Ok | qt.QMessageBox.Cancel)
+        err_msg.exec()
+
+    def accept(self):
+        run_attributes = self.parent.config["run_attributes"]
+        for attr in self.mandatory_parameters:
+            atr = getattr(self, attr.replace(" ", "_"))
+            if isinstance(atr, qt.QComboBox):
+                if len(atr.currentText()) == 0:
+                    self.empty_parameter_popup(attr)
+                    raise ValueError(f"Mandatory parameter {attr} is empty")
+                run_attributes[attr] = atr.currentText()
+
+            elif isinstance(atr, qt.QLineEdit):
+                if len(atr.text()) == 0:
+                    self.empty_parameter_popup(attr)
+                    raise ValueError(f"Mandatory parameter {attr} is empty")
+
+                # if isinstance(atr.validator(), QtGui.QDoubleValidator):
+                #     run_attributes[attr] = float(atr.text())
+                run_attributes[attr] = atr.text()
+
+        self.close()
+
+
 class ControlGUI(qt.QWidget):
-    def __init__(self, parent):
+    def __init__(self, parent: CentrexGUI, mandatory_parameters: bool = False):
         super().__init__()
         self.parent = parent
         self.make_devices()
         self.place_GUI_elements()
         self.place_device_controls()
+
+        self.mandatory_parameters = mandatory_parameters
 
     def update_style(self, ind):
         ind.style().unpolish(ind)
@@ -1328,6 +1411,10 @@ class ControlGUI(qt.QWidget):
             logging.warning("Cannot start: no device enabled.")
             return
 
+        if self.mandatory_parameters:
+            parameter_popup = MandatoryParametersPopup(self.parent)
+            parameter_popup.exec()
+
         # select the time offset
         self.parent.config["time_offset"] = time.time()
 
@@ -1464,7 +1551,12 @@ class ControlGUI(qt.QWidget):
 
 class CentrexGUI(qt.QMainWindow):
     def __init__(
-        self, app, settings_path: Path, auto_start: bool = False, clear: bool = False
+        self,
+        app,
+        settings_path: Path,
+        auto_start: bool = False,
+        clear: bool = False,
+        mandatory_parameters: bool = False,
     ):
         super().__init__()
 
@@ -1485,7 +1577,7 @@ class CentrexGUI(qt.QMainWindow):
         logging.getLogger().setLevel(self.config["general"]["debug_level"])
 
         # GUI elements
-        self.ControlGUI = ControlGUI(self)
+        self.ControlGUI = ControlGUI(self, mandatory_parameters=mandatory_parameters)
         self.PlotsGUI = PlotsGUI(self)
 
         # put GUI elements in a QSplitter

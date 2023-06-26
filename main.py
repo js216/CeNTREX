@@ -37,6 +37,13 @@ if __name__ == "__main__":
         "-clear", required=False, help="clear hdf file write flag", action="store_true"
     )
 
+    parser.add_argument(
+        "-mandatory_parameters",
+        required=False,
+        help="popup mandatory parameters",
+        action="store_true",
+    )
+
     arguments = parser.parse_args()
 
     if arguments.settings is None:
@@ -55,5 +62,6 @@ if __name__ == "__main__":
             settings_path=settings_path,
             auto_start=arguments.start,
             clear=arguments.clear,
+            mandatory_parameters=arguments.mandatory_parameters,
         )
         sys.exit(app.exec_())

@@ -43,3 +43,7 @@ for pi in p:
             except Exception as e:
                 print(e)
                 continue
+
+for pi in p:
+    for fname in pi.glob("*.txt"):
+        fname.unlink()

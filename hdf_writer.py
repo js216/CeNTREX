@@ -18,6 +18,7 @@ class HDF_writer(threading.Thread):
         threading.Thread.__init__(self)
         self.parent = parent
         self.active = threading.Event()
+        self.hdf_error = threading.Event()
 
         # configuration parameters
         self.filename: str = self.parent.config["files"]["hdf_fname"]
@@ -39,63 +40,69 @@ class HDF_writer(threading.Thread):
         self.time_last_write = datetime.datetime.now().replace(microsecond=0)
 
         # create/open HDF file, groups, and datasets
-        with h5py.File(self.filename, "a", libver="latest") as f:
-            root = f.create_group(self.parent.run_name)
+        try:
+            with h5py.File(self.filename, "a", libver="latest") as f:
+                root = f.create_group(self.parent.run_name)
 
-            # write run attributes
-            root.attrs["time_offset"] = self.parent.config["time_offset"]
-            for key, val in self.parent.config["run_attributes"].items():
-                root.attrs[key] = val
+                # write run attributes
+                root.attrs["time_offset"] = self.parent.config["time_offset"]
+                for key, val in self.parent.config["run_attributes"].items():
+                    root.attrs[key] = val
 
-            for dev_name, dev in self.parent.devices.items():
-                # check device is enabled
-                if dev.config["control_params"]["enabled"]["value"] < 1:
-                    continue
+                for dev_name, dev in self.parent.devices.items():
+                    # check device is enabled
+                    if dev.config["control_params"]["enabled"]["value"] < 1:
+                        continue
 
-                grp = root.require_group(dev.config["path"])
+                    grp = root.require_group(dev.config["path"])
 
-                # create dataset for data if only one is needed
-                # (fast devices create a new dataset for each acquisition)
-                if dev.config["slow_data"]:
-                    if isinstance(dev.config["dtype"], (list, tuple, np.ndarray)):
-                        dtype = np.dtype(
-                            [
-                                (name.strip(), dtype)
-                                for name, dtype in zip(
-                                    dev.config["attributes"]["column_names"].split(","),
-                                    dev.config["dtype"],
-                                )
-                            ]
+                    # create dataset for data if only one is needed
+                    # (fast devices create a new dataset for each acquisition)
+                    if dev.config["slow_data"]:
+                        if isinstance(dev.config["dtype"], (list, tuple, np.ndarray)):
+                            dtype = np.dtype(
+                                [
+                                    (name.strip(), dtype)
+                                    for name, dtype in zip(
+                                        dev.config["attributes"]["column_names"].split(","),
+                                        dev.config["dtype"],
+                                    )
+                                ]
+                            )
+                        else:
+                            dtype = np.dtype(
+                                [
+                                    (name.strip(), dev.config["dtype"])
+                                    for name in dev.config["attributes"][
+                                        "column_names"
+                                    ].split(",")
+                                ]
+                            )
+                        dset = grp.create_dataset(
+                            dev.config["name"], (0,), maxshape=(None,), dtype=dtype
                         )
+                        for attr_name, attr in dev.config["attributes"].items():
+                            dset.attrs[attr_name] = attr
                     else:
-                        dtype = np.dtype(
-                            [
-                                (name.strip(), dev.config["dtype"])
-                                for name in dev.config["attributes"][
-                                    "column_names"
-                                ].split(",")
-                            ]
-                        )
-                    dset = grp.create_dataset(
-                        dev.config["name"], (0,), maxshape=(None,), dtype=dtype
-                    )
-                    for attr_name, attr in dev.config["attributes"].items():
-                        dset.attrs[attr_name] = attr
-                else:
-                    for attr_name, attr in dev.config["attributes"].items():
-                        grp.attrs[attr_name] = attr
+                        for attr_name, attr in dev.config["attributes"].items():
+                            grp.attrs[attr_name] = attr
 
-                # create dataset for events
-                grp.create_dataset(
-                    dev.config["name"] + "_events",
-                    (0, 3),
-                    maxshape=(None, 3),
-                    dtype=h5py.special_dtype(vlen=str),
-                )
+                    # create dataset for events
+                    grp.create_dataset(
+                        dev.config["name"] + "_events",
+                        (0, 3),
+                        maxshape=(None, 3),
+                        dtype=h5py.special_dtype(vlen=str),
+                    )
+        
+        except Exception as e:
+            self.hdf_error.set()
+            logging.error(f"HDF_witer error: {e}")
 
     def run(self):
         self.active.set()
-
+        if self.hdf_error.is_set():
+            return
         with h5py.File(self.filename, "a", libver="latest") as file:
             file.swmr_mode = True
             while self.active.is_set():

@@ -15,6 +15,10 @@ from protocols import CentrexGUIProtocol
 
 
 def parse_dummy_variables(parameter, parent_info: dict):
+    # parse_dummy_variables is meant for grabbing the variable of an upper
+    # loop, which is done by $x where x is the loop number of which you want
+    # the variable. The loop device name can be grabbed with $devx and the
+    # loop function with $fnx
     if len(parameter) < 2:
         return parameter
     if parameter[:4] == "$dev":
@@ -337,6 +341,10 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
         # iterate over the given parameter list
         for i in range(n_rep):
             for p in params:
+                # parse_dummy_variables is meant for grabbing the variable of an upper
+                # loop, which is done by $x where x is the loop number of which you want
+                # the variable. The loop device name can be grabbed with $devx and the
+                # loop function with $fnx
                 if isinstance(p, str):
                     p = parse_dummy_variables(p, parent_info)
                 elif isinstance(p, (list, tuple)):

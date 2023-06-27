@@ -1,0 +1,9 @@
+[[BK4063, SetChannel1Frequency, 'np.random.permutation(np.tile(np.arange(0.25,2+0.25,0.25)*1e6,5))',
+    null, true, null, true, [[BK4063, SetOutputState2, false, null, true, null, true,
+        []], [BK4063, GetFrequencyFromSequencerBasicWave2, parent_info, null, true,
+        null, true, []], [SDG1032X, GetFrequencyFromSequencerBurst, parent_info, null,
+        true, null, true, []], [BK4063, SetOutputState2, true, null, true, null, true,
+        []], [PXIe5171, DummyFunc, null, 1, false, 16, true, [[PXIe5171, UpdateSequenceAttrs,
+            parent_info, null, false, null, true, []], [YagIsolator, SetNrQswitchesGUI,
+            50, null, false, null, true, []], [PXIe5171, ReadValue, null, null, true,
+            50, true, []], [ZaberTMM, nextStep, null, null, false, null, true, []]]]]]]

@@ -1,1 +1,0 @@
-[["PXIe5171", "DummyFunc", "None", "1", "", "80", [["PXIe5171", "UpdateSequenceAttrs", "parent_info", "", "", "", []], ["YagIsolator", "SetNrQswitchesGUI", "50", "", "", "", []], ["PXIe5171", "ReadValue", "", "", "True", "50", []], ["ZaberTMM", "nextStep", "", "", "", "", []]]]]

@@ -1,0 +1,5 @@
+[[ZaberTMM, SetPointAGUI, 'args: [-3500,-4000]', 1, false, null, true, []], [ZaberTMM,
+    SetPointBGUI, 'args: [-3000,-4000]', 1, false, null, true, []], [ZaberTMM, SetStepGUI,
+    50, 1, false, null, true, []], [ZaberTMM, setupStepRectangle, null, 1, false,
+    null, true, []], [ZaberTMM, nextStep, null, 1, false, null, true, []], [ZaberTMM,
+    nextStep, null, 1, false, null, true, []]]

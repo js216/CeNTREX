@@ -1,0 +1,5 @@
+[[PS350, SetVoltage, 'np.arange(-1000,-800,50)', 5, false, null, true, [[PXIe5171,
+        DummyFunc, null, 0.1, false, 100, true, [[PXIe5171, UpdateSequenceAttrs, parent_info,
+            null, false, null, true, []], [YagIsolator, SetNrQswitchesGUI, 5, null,
+            false, null, true, []], [PXIe5171, ReadValue, null, null, true, 5, true,
+            []], [ZaberTMM, RandomPosition, null, null, false, null, true, []]]]]]]

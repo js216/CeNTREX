@@ -1,0 +1,11 @@
+[[ZaberTMM, SetPointAGUI, 'args: [-4000,-3000]', 0.1, false, null, true, []], [ZaberTMM,
+    SetPointBGUI, 'args: [-3500,-2500]', 0.1, false, null, true, []], [ZaberTMM, SetStepGUI,
+    25, 0.1, false, null, true, []], [ZaberTMM, setupStepRectangle, null, 0.1, false,
+    null, true, []], [FlowController, SetPointControl, 30, 2, true, null, true, []],
+  [Laser Lock 1, SetLockPointSeed2, '-200 + np.append(np.arange(-10,11,1), np.arange(10,-11,-1))*2',
+    1.5, false, 2, true, [[PXIe5171, UpdateSequenceAttrs, parent_info, null, false,
+        null, true, []], [PXIe5171, DummyFunc, 1, 0.15, false, 4, true, [[YagIsolator,
+            SetNrQswitchesGUI, 10, null, false, null, true, []], [PXIe5171, ReadValue,
+            null, null, true, 5, true, []], [ZaberTMM, randomStep, null, null, false,
+            null, true, []]]]]], [FlowController, SetPointControl, 0, null, false,
+    null, true, []]]

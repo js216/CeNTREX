@@ -1,0 +1,3 @@
+[[YagIsolator, SetNrQswitchesGUI, 10, null, false, null, true, []], [PXIe5171, ReadValue,
+    null, null, true, 10, true, []], [MonitorSignal, CheckSignal, 25, null, true,
+    null, true, []], [PXIe5171, ClearBuffer, null, null, true, null, true, []]]

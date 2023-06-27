@@ -1,0 +1,5 @@
+[[PXIe5171, ClearBuffer, 0.1, null, true, null, true, []], [Wavelength, SetPort, [
+      1, 2, 16], 5, false, null, true, []], [SDG1032X, SetChannel1Frequency, 'np.random.permutation(np.tile(np.linspace(0.25,2,5)*1e6,40))',
+    1, false, null, true, [[PXIe5171, UpdateSequenceAttrs, parent_info, null, false,
+        null, true, []], [YagIsolator, SetNrQswitchesGUI, 100, null, false, null,
+        true, []], [PXIe5171, ReadValue, null, null, true, 100, true, []]]]]

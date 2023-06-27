@@ -1,0 +1,6 @@
+[[Laser Lock 1, SetLockPointSeed2, '227.5 + np.append(np.arange(-4,4.5,0.5), np.arange(4,-4.5,-0.5))',
+    1.5, false, 4, true, [[PXIe5171, UpdateSequenceAttrs, parent_info, null, false,
+        null, true, []], [PXIe5171, DummyFunc, 0, null, 0.1, 10, true, [[YagIsolator,
+            SetNrQswitchesGUI, 10, null, false, null, true, []], [PXIe5171, ReadValue,
+            null, null, true, 10, true, []], [ZaberTMM, RandomPosition, null, null,
+            false, null, true, []]]]]]]

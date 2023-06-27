@@ -1,0 +1,7 @@
+[[FlowController, SetPointControl, 30, 2, true, null, true, []], [SynthHD Pro, SetPowerCHAGUI,
+    'np.arange(-20,-9,2)', 2, false, 10, true, [[PXIe5171, UpdateSequenceAttrs, parent_info,
+        null, false, null, true, []], [PXIe5171, DummyFunc, 1, 0.2, false, 5, true,
+        [[YagIsolator, SetNrQswitchesGUI, 10, null, false, null, true, []], [PXIe5171,
+            ReadValue, null, null, true, 10, true, []], [ZaberTMM, nextStep, null,
+            null, false, null, true, []]]]]], [FlowController, SetPointControl, 0,
+    null, false, null, true, []]]

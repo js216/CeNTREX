@@ -1,0 +1,10 @@
+[[BK4063, SetChannel1Frequency, 'np.arange(1.5,2,1)*1e6', null, true, null, true,
+    [[BK4063, SetOutputState2, false, null, true, null, true, []], [BK4063, GetFrequencyFromSequencerBasicWave2,
+        parent_info, null, true, null, true, []], [SDG1032X, GetFrequencyFromSequencerBurst,
+        parent_info, null, true, null, true, []], [BK4063, SetOutputState2, true,
+        null, true, null, true, []], [Laser Lock 1, SetLockPointSeed1, '-46 + np.append(np.arange(-4,4,0.5),
+          np.arange(4,-4,-0.5))', 1.5, false, 2, true, [[PXIe5171, UpdateSequenceAttrs,
+            parent_info, null, false, null, true, []], [YagIsolator, SetNrQswitchesGUI,
+            10, null, false, null, true, []], [PXIe5171, ReadValue, null, null, true,
+            10, true, []], [ZaberTMM, RandomPosition, null, null, false, null, true,
+            []]]]]]]

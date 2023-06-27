@@ -1,1 +1,0 @@
-[["PXIe5171", "DummyFunc", "np.linspace(0,2,3)", "5", "", "", [["PXIe5171", "UpdateSequenceAttrs", "parent_info", "0", "", "", []], ["PXIe5171", "ReadValue", "", "0", "", "5", []]]], ["PXIe5171", "DummyFunc", "np.linspace(0,2,3)", "5", "", "", [["PXIe5171", "UpdateSequenceAttrs", "parent_info", "0", "", "", []], ["PXIe5171", "ReadValue", "", "0", "", "5", []]]]]

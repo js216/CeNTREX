@@ -1,0 +1,6 @@
+[[ZaberTMM, SetPointAGUI, 'args: [-0,-5000]', 0.1, false, null, true, []], [ZaberTMM,
+    SetPointBGUI, 'args: [-0,-4500]', 0.1, false, null, true, []], [ZaberTMM, SetStepGUI,
+    50, 0.1, false, null, true, []], [ZaberTMM, setupStepRectangle, null, 0.1, false,
+    null, true, []], [PXIe5171, DummyFunc, 1, 1, false, 20, true, [[YagIsolator, SetNrQswitchesGUI,
+        5, null, false, null, true, []], [PXIe5171, ReadValue, null, null, true, 5,
+        true, []], [ZaberTMM, randomStep, null, null, false, null, true, []]]]]

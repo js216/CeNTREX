@@ -1,0 +1,6 @@
+[[PXIe5171, ClearBuffer, 0.1, null, true, null, true, []], [Wavelength, SetPort, [
+      1, 2, 16], 5, false, null, true, []], [Seed1Amplifier, SetCurrentGUI, 'np.arange(5.75,6.6,0.25)',
+    10, false, null, true, [[PXIe5171, UpdateSequenceAttrs, parent_info, null, false,
+        null, true, []], [YagIsolator, SetNrQswitchesGUI, 4000, null, false, null,
+        true, []], [PXIe5171, ReadValue, null, null, true, 4000, true, []], [PXIe5171,
+        ClearBuffer, 0.1, null, true, null, true, []]]]]

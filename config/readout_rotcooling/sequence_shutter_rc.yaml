@@ -1,0 +1,6 @@
+[[PXIe5171, ClearBuffer, 0.1, null, true, null, true, []], [Wavelength, SetPort, [
+      1, 2, 16], 5, false, null, true, []], [ShutterControl, SetVoltage, [0, 5], 1,
+    false, 100, true, [[PXIe5171, UpdateSequenceAttrs, parent_info, null, false, null,
+        true, []], [YagIsolator, SetNrQswitchesGUI, 10, null, false, null, true, []],
+      [PXIe5171, ReadValue, null, null, true, 10, true, []], [PXIe5171, ClearBuffer,
+        0.1, null, true, null, true, []]]]]

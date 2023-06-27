@@ -1,0 +1,7 @@
+[[FlowController, SetPointControl, 30, 5, true, null, true, []], [Laser Lock 1, SetLockPointSeed2,
+    '415 + np.append(np.arange(-20,20,2), np.arange(20,-20,-2))', 1.5, false, 1, true,
+    [[PXIe5171, UpdateSequenceAttrs, parent_info, null, false, null, true, []], [
+        YagIsolator, SetNrQswitchesGUI, 5, null, false, null, true, []], [PXIe5171,
+        ReadValue, null, null, true, 5, true, []], [ZaberTMM, RandomPosition, null,
+        null, false, null, true, []]]], [FlowController, SetPointControl, 0, null,
+    false, null, true, []]]

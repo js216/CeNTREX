@@ -32,4 +32,3 @@ urllib3==1.26.14
 wincertstore==0.2
 WMI==1.5.1
 zmq==0.0.0
-pyyaml

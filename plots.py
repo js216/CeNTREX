@@ -10,6 +10,7 @@ import PyQt5.QtWidgets as qt
 import pyqtgraph as pg
 
 from config import PlotConfig
+from utils import split
 from utils_gui import LabelFrame, ScrollableLabelFrame, update_QComboBox
 
 
@@ -550,9 +551,11 @@ class Plotter(qt.QWidget):
         # get parameters
         # self.param_list = split(self.dev.config["attributes"]["column_names"])
         if self.dev.config["slow_data"]:
-            self.param_list = self.dev.config["attributes"]["column_names"]
+            self.param_list = split(self.dev.config["attributes"]["column_names"])
         elif not self.dev.config["slow_data"]:
-            self.param_list = self.dev.config["attributes"]["column_names"] + ["(none)"]
+            self.param_list = split(self.dev.config["attributes"]["column_names"]) + [
+                "(none)"
+            ]
         if not self.param_list:
             logging.warning("Plot error: No parameters to plot.")
             return
@@ -943,8 +946,8 @@ class Plotter(qt.QWidget):
     def update_labels(self):
         if self.plot:
             # get units
-            col_names = self.dev.config["attributes"]["column_names"]
-            units = self.dev.config["attributes"]["units"]
+            col_names = split(self.dev.config["attributes"]["column_names"])
+            units = split(self.dev.config["attributes"]["units"])
             try:
                 if self.config["x"] == "(none)":
                     x_unit = ""

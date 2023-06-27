@@ -6,6 +6,10 @@ import numpy as np
 from scipy.stats import binned_statistic
 
 
+def split(string, separator=","):
+    return [x.strip() for x in string.split(separator)]
+
+
 class HistogramPlotter:
     """
     Driver takes data from a fast device and a slow device, processes a trace
@@ -102,9 +106,9 @@ class HistogramPlotter:
             return [data, [{"timestamp": time.time() - self.time_offset}]]
 
         if len(y_data) == 0:
-            data = np.concatenate((self.bin_centers, np.zeros(self.shape[-1]))).reshape(
-                self.shape
-            )
+            data = np.concatenate(
+                (self.bin_centers, np.zeros(self.shape[-1]))
+            ).reshape(self.shape)
             return [data, [{"timestamp": time.time() - self.time_offset}]]
 
         try:
@@ -120,7 +124,9 @@ class HistogramPlotter:
                     x_data, y_data, statistic="mean", bins=bins
                 )
 
-            data = np.concatenate((self.bin_centers, bin_means)).reshape(self.shape)
+            data = np.concatenate((self.bin_centers, bin_means)).reshape(
+                self.shape
+            )
 
             return [data, [{"timestamp": time.time() - self.time_offset}]]
         except Exception as e:
@@ -192,8 +198,12 @@ class HistogramPlotter:
             return
 
         # extract the desired parameter 1 and 2
-        col_names1 = self.parent.devices[self.dev1].config["attributes"]["column_names"]
-        col_names2 = self.parent.devices[self.dev2].config["attributes"]["column_names"]
+        col_names1 = split(
+            self.parent.devices[self.dev1].config["attributes"]["column_names"]
+        )
+        col_names2 = split(
+            self.parent.devices[self.dev2].config["attributes"]["column_names"]
+        )
         try:
             param1_dset = data1[0][0, col_names1.index(self.param1)].astype(float)
         except IndexError:

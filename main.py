@@ -47,7 +47,7 @@ if __name__ == "__main__":
     arguments = parser.parse_args()
 
     if arguments.settings is None:
-        settings_path = filepath.parent / "config" / "settings.yaml"
+        settings_path = filepath.parent / "config" / "settings.ini"
     else:
         settings_path = Path(arguments.settings)
         if arguments.r:

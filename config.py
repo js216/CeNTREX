@@ -6,7 +6,7 @@ from collections import deque
 from pathlib import Path
 from typing import Union
 
-import yaml
+from utils import split
 
 __filepath__ = Path(__file__).parent
 
@@ -17,9 +17,7 @@ class Config(dict):
 
     def __setitem__(self, key, val):
         # check the key is permitted
-        if (key not in self.static_keys) and (
-            key not in dict(self.runtime_keys, **self.section_keys)
-        ):
+        if key not in dict(self.static_keys, **self.runtime_keys, **self.section_keys):
             logging.error("Error in Config: key " + key + " not permitted.")
 
         # set the value in the dict
@@ -68,9 +66,8 @@ class ProgramConfig(Config):
         self["horizontal_split"] = True
 
     def read_from_file(self):
-        with open(self.fname, "r") as f:
-            settings = yaml.safe_load(f)
-
+        settings = configparser.ConfigParser()
+        settings.read(self.fname)
         for section, section_type in self.section_keys.items():
             self[section] = settings[section]
 
@@ -101,29 +98,28 @@ class DeviceConfig(Config):
         self.read_from_file()
 
     def define_permitted_keys(self):
-        # list of keys permitted for static options (those in the .yaml file)
-        self.static_keys = (
-            "name",
-            "label",
-            "path",
-            "driver",
-            "constr_params",
-            "correct_response",
-            "slow_data",
-            "COM_port",
-            "row",
-            "column",
-            "plots_queue_maxlen",
-            "max_nan_count",
-            "meta_device",
-            "double_connect_dev",
-            "dtype",
-            "shape",
-            "plots_fn",
-        )
+        # list of keys permitted for static options (those in the .ini file)
+        self.static_keys = {
+            "name": str,
+            "label": str,
+            "path": str,
+            "driver": str,
+            "constr_params": list,
+            "correct_response": str,
+            "slow_data": bool,
+            "COM_port": str,
+            "row": int,
+            "column": int,
+            "plots_queue_maxlen": int,
+            "max_NaN_count": int,
+            "meta_device": bool,
+            "double_connect_dev": bool,
+            "dtype": str,
+            "shape": list,
+            "plots_fn": str,
+        }
 
-        # list of keys permitted for runtime data (which cannot be written to .yaml
-        # file)
+        # list of keys permitted for runtime data (which cannot be written to .ini file)
         self.runtime_keys = {
             "parent": None,
             "driver_class": None,
@@ -136,7 +132,7 @@ class DeviceConfig(Config):
             "control_active": bool,
         }
 
-        # list of keys permitted as names of sections in the .yaml file
+        # list of keys permitted as names of sections in the .ini file
         self.section_keys = {"attributes": dict, "control_params": dict}
 
     def set_defaults(self):
@@ -169,30 +165,34 @@ class DeviceConfig(Config):
         # config file sanity check
         if not self.fname:
             return
-        # params = configparser.ConfigParser()
-        # params.read(self.fname)
-        with open(self.fname, "r") as f:
-            params = yaml.safe_load(f)
+        params = configparser.ConfigParser()
+        params.read(self.fname)
         if "device" not in params:
-            logging.warning(
-                "The device config file "
-                + self.fname
-                + " does not have a device section."
-            )
+            if self.fname[-11:] != "desktop.ini":
+                logging.warning(
+                    "The device config file "
+                    + self.fname
+                    + " does not have a [device] section."
+                )
             return
 
         # read general device options
-        for key in self.static_keys:
-            # read a parameter from the .yaml file
+        for key, typ in self.static_keys.items():
+            # read a parameter from the .ini file
             val = params["device"].get(key)
 
             # check the parameter is defined in the file; leave it at its default value
             # if not
-            if val is None:
+            if not val:
                 continue
 
             # if the parameter is defined in the .init file, parse it into correct type:
-            self[key] = val
+            if typ == list:
+                self[key] = [x.strip() for x in val.split(",")]
+            elif typ == bool:
+                self[key] = True if val.strip() in ["True", "1"] else False
+            else:
+                self[key] = typ(val)
 
         # for single-connect devices, make sure data type and shape are defined
         if not self["double_connect_dev"]:
@@ -219,7 +219,7 @@ class DeviceConfig(Config):
         # populate the list of device controls
         ctrls = self["control_params"]
 
-        for c in params.keys():
+        for c in params.sections():
             if params[c].get("type") == "QCheckBox":
                 ctrls[c] = {
                     "label": params[c]["label"],
@@ -228,19 +228,19 @@ class DeviceConfig(Config):
                     "col": int(params[c]["col"]),
                     "tooltip": params[c].get("tooltip"),
                     "tristate": True
-                    if params[c].get("tristate") in [1, True]
+                    if params[c].get("tristate") in ["1", "True"]
                     else False,
                 }
                 if ctrls[c]["tristate"]:
-                    if params[c]["value"] == 1:
+                    if params[c]["value"] == "1":
                         ctrls[c]["value"] = 1
-                    elif params[c]["value"] in [2, True]:
+                    elif params[c]["value"] in ["2", "True"]:
                         ctrls[c]["value"] = 2
                     else:
                         ctrls[c]["value"] = 0
                 else:
                     ctrls[c]["value"] = (
-                        True if params[c]["value"] in [1, True] else False
+                        True if params[c]["value"] in ["1", "True"] else False
                     )
 
             elif params[c].get("type") == "Hidden":
@@ -276,7 +276,7 @@ class DeviceConfig(Config):
                     "row": int(params[c]["row"]),
                     "col": int(params[c]["col"]),
                     "command": params[c]["command"],
-                    "options": params[c]["options"],
+                    "options": split(params[c]["options"]),
                     "value": params[c]["value"],
                 }
 
@@ -286,29 +286,29 @@ class DeviceConfig(Config):
                     "type": params[c]["type"],
                     "row": int(params[c]["row"]),
                     "col": int(params[c]["col"]),
-                    "ctrl_names": params[c]["ctrl_names"],
+                    "ctrl_names": split(params[c]["ctrl_names"]),
                     "ctrl_labels": dict(
                         zip(
-                            params[c]["ctrl_names"],
-                            params[c]["ctrl_labels"],
+                            split(params[c]["ctrl_names"]),
+                            split(params[c]["ctrl_labels"]),
                         )
                     ),
                     "ctrl_types": dict(
                         zip(
-                            params[c]["ctrl_names"],
-                            params[c]["ctrl_types"],
+                            split(params[c]["ctrl_names"]),
+                            split(params[c]["ctrl_types"]),
                         )
                     ),
                     "ctrl_options": dict(
                         zip(
-                            (params[c]["ctrl_names"]),
-                            [x for x in params[c]["ctrl_options"]],
+                            split(params[c]["ctrl_names"]),
+                            [split(x) for x in params[c]["ctrl_options"].split(";")],
                         )
                     ),
                     "value": dict(
                         zip(
-                            params[c]["ctrl_names"],
-                            params[c]["ctrl_values"],
+                            split(params[c]["ctrl_names"]),
+                            split(params[c]["ctrl_values"]),
                         )
                     ),
                 }
@@ -321,27 +321,29 @@ class DeviceConfig(Config):
                     "col": int(params[c]["col"]),
                     "rowspan": int(params[c].get("rowspan")),
                     "colspan": int(params[c].get("colspan")),
-                    "row_ids": [int(r) for r in (params[c]["row_ids"])],
-                    "col_names": (params[c]["col_names"]),
+                    "row_ids": [int(r) for r in split(params[c]["row_ids"])],
+                    "col_names": split(params[c]["col_names"]),
                     "col_labels": dict(
                         zip(
-                            (params[c]["col_names"]),
-                            (params[c]["col_labels"]),
+                            split(params[c]["col_names"]),
+                            split(params[c]["col_labels"]),
                         )
                     ),
                     "col_types": dict(
-                        zip((params[c]["col_names"]), (params[c]["col_types"]))
+                        zip(
+                            split(params[c]["col_names"]), split(params[c]["col_types"])
+                        )
                     ),
                     "col_options": dict(
                         zip(
-                            (params[c]["col_names"]),
-                            [x for x in params[c]["col_options"]],
+                            split(params[c]["col_names"]),
+                            [split(x) for x in params[c]["col_options"].split(";")],
                         )
                     ),
                     "value": dict(
                         zip(
-                            (params[c]["col_names"]),
-                            [x for x in params[c]["col_values"]],
+                            split(params[c]["col_names"]),
+                            [split(x) for x in params[c]["col_values"].split(";")],
                         )
                     ),
                 }
@@ -355,9 +357,9 @@ class DeviceConfig(Config):
                     "rowspan": int(params[c].get("rowspan")),
                     "colspan": int(params[c].get("colspan")),
                     "monitoring_command": params[c]["monitoring_command"],
-                    "return_values": params[c]["return_values"],
-                    "texts": params[c]["texts"],
-                    "states": params[c]["states"],
+                    "return_values": split(params[c]["return_values"]),
+                    "texts": split(params[c]["texts"]),
+                    "states": split(params[c]["states"]),
                 }
 
             elif params[c].get("type") == "indicator_button":
@@ -372,14 +374,14 @@ class DeviceConfig(Config):
                     "align": params[c].get("align"),
                     "tooltip": params[c].get("tooltip"),
                     "monitoring_command": params[c]["monitoring_command"],
-                    "action_commands": params[c]["action_commands"],
-                    "return_values": params[c]["return_values"],
+                    "action_commands": split(params[c]["action_commands"]),
+                    "return_values": split(params[c]["return_values"]),
                     "checked": [
                         True if x in ["1", "True"] else False
-                        for x in params[c]["checked"]
+                        for x in split(params[c]["checked"])
                     ],
-                    "states": params[c]["states"],
-                    "texts": params[c]["texts"],
+                    "states": split(params[c]["states"]),
+                    "texts": split(params[c]["texts"]),
                 }
 
             elif params[c].get("type") == "indicator_lineedit":

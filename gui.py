@@ -26,6 +26,7 @@ from monitoring import Monitoring
 from networking import Networking
 from plots import PlotsGUI
 from sequencer import SequencerGUI
+from utils import split
 from utils_gui import LabelFrame, ScrollableLabelFrame, error_box, update_QComboBox
 
 
@@ -256,7 +257,7 @@ class ControlGUI(qt.QWidget):
             return
 
         # iterate over all device config files
-        for fname in glob.glob(self.parent.config["files"]["config_dir"] + "/*.yaml"):
+        for fname in glob.glob(self.parent.config["files"]["config_dir"] + "/*.ini"):
             # read device configuration
             try:
                 dev_config = DeviceConfig(fname)
@@ -401,7 +402,7 @@ class ControlGUI(qt.QWidget):
             "The loop delay determines how frequently acquired data is written to the"
             " HDF file."
         )
-        qle.setText(str(self.parent.config["general"]["hdf_loop_delay"]))
+        qle.setText(self.parent.config["general"]["hdf_loop_delay"])
         qle.textChanged[str].connect(
             lambda val: self.parent.config.change("general", "hdf_loop_delay", val)
         )
@@ -553,7 +554,7 @@ class ControlGUI(qt.QWidget):
 
         gen_f.addWidget(qt.QLabel("Loop delay [s]:"), 0, 0)
         qle = qt.QLineEdit()
-        qle.setText(str(self.parent.config["general"]["monitoring_dt"]))
+        qle.setText(self.parent.config["general"]["monitoring_dt"])
         qle.textChanged[str].connect(
             lambda val: self.parent.config.change("general", "monitoring_dt", val)
         )
@@ -586,7 +587,7 @@ class ControlGUI(qt.QWidget):
         qle = qt.QLineEdit()
         qle.setToolTip("Port")
         qle.setMaximumWidth(50)
-        qle.setText(str(self.parent.config["influxdb"]["port"]))
+        qle.setText(self.parent.config["influxdb"]["port"])
         qle.textChanged[str].connect(
             lambda val: self.parent.config.change("influxdb", "port", val)
         )
@@ -609,7 +610,7 @@ class ControlGUI(qt.QWidget):
         qle = qt.QLineEdit()
         qle.setToolTip("Read port")
         qle.setMaximumWidth(50)
-        qle.setText(str(self.parent.config["networking"]["port_readout"]))
+        qle.setText(self.parent.config["networking"]["port_readout"])
         qle.textChanged[str].connect(
             lambda val: self.parent.config.change("networking", "port_readout", val)
         )
@@ -618,7 +619,7 @@ class ControlGUI(qt.QWidget):
         qle = qt.QLineEdit()
         qle.setToolTip("Control port")
         qle.setMaximumWidth(50)
-        qle.setText(str(self.parent.config["networking"]["port_control"]))
+        qle.setText(self.parent.config["networking"]["port_control"])
         qle.textChanged[str].connect(
             lambda val: self.parent.config.change("networking", "port_control", val)
         )
@@ -636,7 +637,7 @@ class ControlGUI(qt.QWidget):
         qle = qt.QLineEdit()
         qle.setToolTip("# Workers")
         qle.setMaximumWidth(50)
-        qle.setText(str(self.parent.config["networking"]["workers"]))
+        qle.setText(self.parent.config["networking"]["workers"])
         qle.textChanged[str].connect(
             lambda val: self.parent.config.change("networking", "workers", val)
         )
@@ -675,12 +676,12 @@ class ControlGUI(qt.QWidget):
     def update_col_names_and_units(self):
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
             # column names
-            dev.col_names_list = dev.config["attributes"]["column_names"]
+            dev.col_names_list = split(dev.config["attributes"]["column_names"])
             dev.column_names = "\n".join(dev.col_names_list)
             dev.config["monitoring_GUI_elements"]["col_names"].setText(dev.column_names)
 
             # units
-            units = dev.config["attributes"]["units"]
+            units = split(dev.config["attributes"]["units"])
             dev.units = "\n".join(units)
             dev.config["monitoring_GUI_elements"]["units"].setText(dev.units)
 
@@ -854,7 +855,7 @@ class ControlGUI(qt.QWidget):
 
                     # the QLineEdit
                     c["QLineEdit"] = qt.QLineEdit()
-                    c["QLineEdit"].setText(str(param["value"]))
+                    c["QLineEdit"].setText(param["value"])
                     c["QLineEdit"].textChanged[str].connect(
                         lambda text, dev=dev, ctrl=c_name: dev.config.change_param(
                             ctrl, text, sect="control_params"
@@ -1218,7 +1219,7 @@ class ControlGUI(qt.QWidget):
             )
 
             # column names
-            dev.col_names_list = dev.config["attributes"]["column_names"]
+            dev.col_names_list = split(dev.config["attributes"]["column_names"])
             dev.column_names = "\n".join(dev.col_names_list)
             dev.config["monitoring_GUI_elements"]["col_names"] = qt.QLabel(
                 dev.column_names, alignment=PyQt5.QtCore.Qt.AlignRight
@@ -1235,7 +1236,7 @@ class ControlGUI(qt.QWidget):
             )
 
             # units
-            units = dev.config["attributes"]["units"]
+            units = split(dev.config["attributes"]["units"])
             dev.units = "\n".join(units)
             dev.config["monitoring_GUI_elements"]["units"] = qt.QLabel(dev.units)
             df.addWidget(

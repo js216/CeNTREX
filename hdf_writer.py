@@ -44,9 +44,8 @@ class HDF_writer(threading.Thread):
 
             # write run attributes
             root.attrs["time_offset"] = self.parent.config["time_offset"]
-            if self.parent.config["run_attributes"] is not None:
-                for key, val in self.parent.config["run_attributes"].items():
-                    root.attrs[key] = val
+            for key, val in self.parent.config["run_attributes"].items():
+                root.attrs[key] = val
 
             for dev_name, dev in self.parent.devices.items():
                 # check device is enabled
@@ -63,7 +62,7 @@ class HDF_writer(threading.Thread):
                             [
                                 (name.strip(), dtype)
                                 for name, dtype in zip(
-                                    dev.config["attributes"]["column_names"],
+                                    dev.config["attributes"]["column_names"].split(","),
                                     dev.config["dtype"],
                                 )
                             ]

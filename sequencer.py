@@ -375,7 +375,10 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
             self.flat_seq = itertools.cycle(self.flat_seq)
 
         start_time = time.time()
-        total_commands = len(self.flat_seq)
+        if isinstance(self.flat_seq, itertools.cycle):
+            total_commands = np.nan
+        else:
+            total_commands = len(self.flat_seq)
 
         # main sequencer loop
         for i, (dev, fn, p, dt, wait, parent_info) in enumerate(self.flat_seq):
@@ -415,10 +418,14 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
             time_elapsed = time.time() - start_time
             time_estimate = total_commands * (time_elapsed) / (i + 1)
             time_remaining = round(time_estimate - time_elapsed, 0)
-            timedelta_remaining = datetime.timedelta(seconds=time_remaining)
-            # update progress bar
-            self.progress.emit(i)
-            self.progress_time.emit(f"%p%, {timedelta_remaining} remaining")
+
+            if isinstance(self.flat_seq, itertools.cycle):
+                self.progress_time.emit(f"{'.'*((i%4)+1):<6} looping forever")
+            else:
+                timedelta_remaining = datetime.timedelta(seconds=time_remaining)
+                # update progress bar
+                self.progress.emit(i)
+                self.progress_time.emit(f"%p%, {timedelta_remaining} remaining")
 
         # when finished
         self.progress.emit(len(self.flat_seq))

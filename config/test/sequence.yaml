@@ -2,12 +2,29 @@
   - null
   - np.linspace(0,10,11)
   - null
+  - false
   - null
-  - null
+  - true
   - - - DummyDataFreq
       - test
       - $1
       - 0.5
+      - false
       - null
-      - null
+      - true
       - []
+    - - null
+      - null
+      - np.linspace(0,10,11)
+      - 0.5
+      - false
+      - null
+      - true
+      - - - DummyDataFreq
+          - test
+          - args:$1,$2
+          - 0.5
+          - false
+          - null
+          - true
+          - []

@@ -1,6 +1,5 @@
 import datetime
 import itertools
-import json
 import logging
 import os
 import threading
@@ -59,9 +58,9 @@ class SequencerGUI(qt.QWidget):
         # make the tree
         self.qtw = qt.QTreeWidget()
         self.main_frame.addWidget(self.qtw)
-        self.qtw.setColumnCount(6)
+        self.qtw.setColumnCount(7)
         self.qtw.setHeaderLabels(
-            ["Device", "Function", "Parameters", "Δt [s]", "Wait?", "Repeat"]
+            ["Device", "Function", "Parameters", "Δt [s]", "Wait?", "Repeat", "Enabled"]
         )
         self.qtw.setAlternatingRowColors(True)
         self.qtw.setSelectionMode(qt.QAbstractItemView.ExtendedSelection)
@@ -147,7 +146,13 @@ class SequencerGUI(qt.QWidget):
             t = qt.QTreeWidgetItem(item)
             t.setFlags(t.flags() | PyQt5.QtCore.Qt.ItemIsEditable)
             for i in range(ncols):
-                if x[i] is not None:
+                if i in [4, 6]:
+                    t.setFlags(t.flags() | PyQt5.QtCore.Qt.ItemIsUserCheckable)
+                    if x[i] is not None and x[i]:
+                        t.setCheckState(i, PyQt5.QtCore.Qt.Checked)
+                    else:
+                        t.setCheckState(i, PyQt5.QtCore.Qt.Unchecked)
+                elif x[i] is not None:
                     t.setText(i, str(x[i]))
                 else:
                     t.setText(i, "")
@@ -169,21 +174,35 @@ class SequencerGUI(qt.QWidget):
     def tree_to_list(self, item, ncols):
         tree_list = []
         for i in range(item.childCount()):
-            row = [item.child(i).text(j) for j in range(ncols)]
-            for idr, r in enumerate(row):
-                if r == "":
-                    row[idr] = None
-                elif idr == 3:
-                    row[idr] = float(r)
-                elif idr == 5:
-                    row[idr] = float(r)
+            row = []
+            for idr in range(ncols):
+                if idr in [4, 6]:
+                    row.append(bool(item.child(i).checkState(idr)))
+                else:
+                    r = item.child(i).text(idr)
+                    if r == "":
+                        row.append(None)
+                    elif idr in [3]:
+                        row.append(float(r))
+                    elif idr in [5]:
+                        row.append(int(r))
+                    else:
+                        row.append(r)
             row.append(self.tree_to_list(item.child(i), ncols))
             tree_list.append(row)
         return tree_list
 
     def add_line(self):
         line = qt.QTreeWidgetItem(self.qtw)
-        line.setFlags(line.flags() | PyQt5.QtCore.Qt.ItemIsEditable)
+        line.setFlags(
+            line.flags()
+            | PyQt5.QtCore.Qt.ItemIsEditable
+            | PyQt5.QtCore.Qt.ItemIsUserCheckable
+        )
+        for idx in [4]:
+            line.setCheckState(idx, PyQt5.QtCore.Qt.Unchecked)
+        for idx in [6]:
+            line.setCheckState(idx, PyQt5.QtCore.Qt.Checked)
 
     def remove_line(self):
         for line in self.qtw.selectedItems():
@@ -295,8 +314,20 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
         self.n_repeats = n_repeats
 
     def flatten_tree(self, item, parent_info):
+        for p_info in parent_info[1:]:
+            if not p_info[3]:
+                return
+
         # extract basic information
-        dev, fn, wait = item.text(0), item.text(1), item.text(4)
+        dev, fn, wait, enabled = (
+            item.text(0),
+            item.text(1),
+            item.checkState(4),
+            item.checkState(6),
+        )
+
+        if not enabled and dev != "":
+            return
 
         # extract the parameters
         eval_matches = [
@@ -366,7 +397,9 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
                 # get information about the item's children
                 child_count = item.childCount()
                 for i in range(child_count):
-                    self.flatten_tree(item.child(i), parent_info + [[dev, fn, p]])
+                    self.flatten_tree(
+                        item.child(i), parent_info + [[dev, fn, p, enabled]]
+                    )
 
     def run(self):
         # flatten the tree into sequence of rows

@@ -1,11 +1,13 @@
-[
-  [
-    "",
-    "",
-    "np.linspace(0,10,11)",
-    "",
-    "",
-    "",
-    [["DummyDataFreq", "test", "$1", "0.5", "", "", []]],
-  ],
-]
+- - null
+  - null
+  - np.linspace(0,10,11)
+  - null
+  - null
+  - null
+  - - - DummyDataFreq
+      - test
+      - $1
+      - 0.5
+      - null
+      - null
+      - []

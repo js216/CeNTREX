@@ -160,12 +160,19 @@ class SequencerGUI(qt.QWidget):
         # write to file
         fname: str = self.parent.config["files"]["sequence_fname"]
         with open(fname, "w") as f:
-            json.dump(tree_list, f)
+            yaml.safe_dump(tree_list, f)
 
     def tree_to_list(self, item, ncols):
         tree_list = []
         for i in range(item.childCount()):
             row = [item.child(i).text(j) for j in range(ncols)]
+            for idr, r in enumerate(row):
+                if r == "":
+                    row[idr] = None
+                elif idr == 3:
+                    row[idr] = float(r)
+                elif idr == 5:
+                    row[idr] = float(r)
             row.append(self.tree_to_list(item.child(i), ncols))
             tree_list.append(row)
         return tree_list

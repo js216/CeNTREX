@@ -159,7 +159,7 @@ class Networking(threading.Thread):
         }
 
         # initialize the broker for network control of devices
-        allowed = self.conf["allowed"].split(",")
+        allowed = self.conf["allowed"]
         self.control_broker = NetworkingBroker(self.conf["port_control"], allowed)
 
         # initialize the workers used for network control of devices

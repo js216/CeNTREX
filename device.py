@@ -248,11 +248,11 @@ class Device(threading.Thread):
                         # issue a warning if there's been too many sequential NaN
                         # returns
                         try:
-                            max_NaN_count = int(self.config["max_NaN_count"])
+                            max_nan_count = int(self.config["max_nan_count"])
                         except TypeError:
                             logging.info(traceback.format_exc())
-                            max_NaN_count = 10
-                        if self.sequential_nan_count > max_NaN_count:
+                            max_nan_count = 10
+                        if self.sequential_nan_count > max_nan_count:
                             warning_dict = {
                                 "message": "excess sequential NaN returns: "
                                 + str(self.sequential_nan_count),

@@ -60,8 +60,7 @@ class HistogramPlotterNormalized:
         self.dev1_hash = None
 
         # creating the bin edges
-        self.bins = np.arange(self.lower, self.higher + self.width, self.width)
-        self.bin_centers = self.bins[:-1] + self.width / 2
+        self.SetBins()
 
         self.warnings = []
         self.new_attributes = []
@@ -70,6 +69,7 @@ class HistogramPlotterNormalized:
         self.shape = (1, 2, len(self.bins) - 1)
         self.dtype = float
 
+        self.std_cutoff = 2
         self.no_data_err = False
 
     def __enter__(self):
@@ -123,13 +123,33 @@ class HistogramPlotterNormalized:
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", category=RuntimeWarning)
-                bin_means, bin_edges, bin_number = binned_statistic(
-                    x_data, y_data, statistic="mean", bins=bins
-                )
+                try:
+                    bin_stds, bin_edges, bin_number = binned_statistic(
+                        x_data, y_data, statistic="std", bins=bins
+                    )
+                    dat = np.ones(len(bin_stds))*np.nan
+                    for idx, bin_std in zip(np.unique(bin_number), bin_stds):
+                        m = bin_number == idx
+                        bin_data = y_data[m]
+                        m = (
+                                (bin_data >= (bin_data.mean() - self.std_cutoff*bin_std)) & 
+                                (bin_data <= (bin_data.mean() + self.std_cutoff*bin_std))
+                        )
+                        try:
+                            dat[idx-1] = np.nanmean(bin_data[m])
+                        except IndexError:
+                            continue
+                    data = np.concatenate((self.bin_centers, dat)).reshape(self.shape)
+                except Exception as e:
+                    logging.error(f"Error in HistogramPlotterNormalized: {e}")
+                    dat, bin_edges, bin_number = binned_statistic(
+                        x_data, y_data, statistic="mean", bins=bins
+                    )
+                    data = np.concatenate((self.bin_centers, dat)).reshape(self.shape)
 
-            data = np.concatenate((self.bin_centers, bin_means)).reshape(self.shape)
             return [data, [{"timestamp": time.time() - self.time_offset}]]
         except Exception as e:
+            logging.error(f"Error in HistogramPlotterNormalized: {e}")
             data = np.concatenate(
                 (np.linspace(-1, 1, self.shape[-1]), np.zeros(self.shape[-1]))
             ).reshape(self.shape)
@@ -184,10 +204,18 @@ class HistogramPlotterNormalized:
     def SetBins(self):
         if self.lower >= self.higher:
             logging.error(
-                "Error in HistogramPlotter: lower bin is larger than higher bin"
+                "Error in HistogramPlotterNormalized: lower bin is larger than higher bin"
             )
             return
-        self.bins = np.arange(self.lower, self.higher + self.width, self.width)
+        bins = np.arange(self.lower, self.higher + self.width, self.width)
+        if len(bins) > 1_000:
+            logging.error(
+                "Error in HistogramPlotterNormalized: number of bins exceeds 1000"
+            )
+            self.bins = np.arange(-10,11,1)
+            self.bin_centers = self.bins[:-1] + 1/2
+            return
+        self.bins = bins
         self.bin_centers = self.bins[:-1] + self.width / 2
         self.shape = (1, 2, len(self.bins) - 1)
 
@@ -206,24 +234,32 @@ class HistogramPlotterNormalized:
             return
 
         # extract the desired parameter 1 and 2
-        col_names1 = split(
-            self.parent.devices[self.dev1].config["attributes"]["column_names"]
-        )
-        col_names2 = split(
-            self.parent.devices[self.dev2].config["attributes"]["column_names"]
-        )
+        try:
+            col_names1 = split(
+                self.parent.devices[self.dev1].config["attributes"]["column_names"]
+            )
+        except Exception as e:
+            logging.warning(f"Error in HistogramPlotterNormalized: {e}")
+            return
+        try:
+            col_names2 = split(
+                self.parent.devices[self.dev2].config["attributes"]["column_names"]
+            )
+        except Exception as e:
+            logging.warning(f"Error in HistogramPlotterNormalized: {e}")
+            return
         try:
             param1_dset = data1[0][0, col_names1.index(self.param1)].astype(float)
             param1_norm_dset = data1[0][0, col_names1.index(self.paramnorm)].astype(
                 float
             )
         except IndexError:
-            logging.error("Error in HistogramPlotter: param not found: " + self.param1)
+            logging.error("Error in HistogramPlotterNormalized: param not found: " + self.param1)
             return
         try:
             param2_val = float(data2[col_names2.index(self.param2)])
         except IndexError:
-            logging.error("Error in HistogramPlotter: param not found: " + self.param2)
+            logging.error("Error in HistogramPlotterNormalized: param not found: " + self.param2)
             return
         return param1_dset, param1_norm_dset, param2_val
 

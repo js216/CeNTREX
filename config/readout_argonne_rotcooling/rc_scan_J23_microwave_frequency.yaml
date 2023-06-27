@@ -5,13 +5,15 @@
   [ZaberTMM, setupStepRectangle, null, 0.1, false, null, true, []],
   [Wavelength, SetPort, 1, 5, false, null, true, []],
   [Wavelength, SetPort, 2, 5, false, null, true, []],
-  [Wavelength, SetPort, 3, 0, false, null, true, []],
+  [Wavelength, SetPort, 3, 5, false, null, true, []],
+  [Wavelength, SetPort, 16, null, false, null, true, []],
+  [BigSkyYag, start, null, null, false, null, true, []],
   [FlowController, SetPointControl, 30, 5, true, null, true, []],
   [
-    Laser
-    Lock 1,
-    SetLockPointSeed2,
-    "-295 + np.append(np.arange(0,15,2), np.arange(15,0,-2))",
+    SynthHD RC,
+    SetFrequencyCHBGUI,
+    "(np.append(np.arange(-20,20,2),
+    np.arange(20,-20,-2))*1e6 + 40.004e9)/4",
     2,
     false,
     1,
@@ -35,5 +37,5 @@
     ],
   ],
   [FlowController, SetPointControl, 0, null, false, null, true, []],
-  [Wavelength, SetPort, 16, null, false, null, true, []],
+  [BigSkyYag, stop, null, null, false, null, true, []],
 ]

@@ -1,6 +1,8 @@
-import numpy as np
-import time
 import logging
+import time
+
+import numpy as np
+
 
 class Test:
     def __init__(self, time_offset, constr_param1):
@@ -13,8 +15,8 @@ class Test:
         self.new_attributes = []
 
         # shape and type of the array of returned data
-        self.dtype = 'f'
-        self.shape = (2, )
+        self.dtype = "f"
+        self.shape = (2,)
 
         self.warnings = []
 
@@ -29,10 +31,10 @@ class Test:
         pass
 
     def ReadValue(self):
-        return [ 
-                time.time()-self.time_offset,
-                np.random.randint(100),
-               ]
+        return [
+            time.time() - self.time_offset,
+            np.random.randint(100),
+        ]
 
     def GetWarnings(self):
         warnings = self.warnings
@@ -40,7 +42,7 @@ class Test:
         return warnings
 
     def beep(self):
-        print("Beeping ({self.constr_param1})!")
+        print(f"Beeping ({self.constr_param1})!")
 
     def takeinput(self, param):
         print(f"Received the parameter: {self.constr_param1}.{param}")

@@ -69,6 +69,10 @@ class SequencerGUI(qt.QWidget):
         self.qtw.setDropIndicatorShown(True)
         self.qtw.setDragDropMode(qt.QAbstractItemView.InternalMove)
 
+        self.qtw.header().setSectionResizeMode(
+            PyQt5.QtWidgets.QHeaderView.ResizeToContents
+        )
+
         # populate the tree
         self.load_from_file()
 
@@ -140,9 +144,6 @@ class SequencerGUI(qt.QWidget):
         # populate the tree
         self.list_to_tree(tree_list, self.qtw, self.qtw.columnCount())
         self.qtw.expandAll()
-        self.qtw.header().setSectionResizeMode(
-            PyQt5.QtWidgets.QHeaderView.ResizeToContents
-        )
 
     def list_to_tree(self, tree_list, item, ncols):
         for x in tree_list:

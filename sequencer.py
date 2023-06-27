@@ -9,8 +9,37 @@ import time
 import numpy as np
 import PyQt5
 import PyQt5.QtWidgets as qt
+import yaml
 
 from protocols import CentrexGUIProtocol
+
+
+def parse_dummy_variables(parameter, parent_info: dict):
+    if len(parameter) < 2:
+        return parameter
+    if parameter[:4] == "$dev":
+        try:
+            parameter = int(parameter.strip("$dev"))
+            parameter = parent_info[parameter][0]
+        except Exception as e:
+            logging.warning(e)
+        return parameter
+    if parameter[:3] == "$fn":
+        try:
+            parameter = int(parameter.strip("$fn"))
+            parameter = parent_info[parameter][1]
+        except Exception as e:
+            logging.warning(e)
+        return parameter
+    elif parameter[0] == "$":
+        try:
+            parameter = int(parameter.strip("$"))
+            parameter = parent_info[parameter][2]
+        except Exception as e:
+            logging.warning(e)
+        return parameter
+    else:
+        return parameter
 
 
 class SequencerGUI(qt.QWidget):
@@ -103,7 +132,7 @@ class SequencerGUI(qt.QWidget):
 
         # read from file
         with open(fname, "r") as f:
-            tree_list = json.load(f)
+            tree_list = yaml.safe_load(f)
 
         # populate the tree
         self.list_to_tree(tree_list, self.qtw, self.qtw.columnCount())
@@ -114,7 +143,10 @@ class SequencerGUI(qt.QWidget):
             t = qt.QTreeWidgetItem(item)
             t.setFlags(t.flags() | PyQt5.QtCore.Qt.ItemIsEditable)
             for i in range(ncols):
-                t.setText(i, x[i])
+                if x[i] is not None:
+                    t.setText(i, str(x[i]))
+                else:
+                    t.setText(i, "")
 
             # if there are children
             self.list_to_tree(x[ncols], t, ncols)
@@ -159,7 +191,10 @@ class SequencerGUI(qt.QWidget):
     def start_sequencer(self):
         # determine how many times to repeat the entire sequence
         try:
-            n_repeats = int(self.repeat_le.text())
+            if "# of repeats" not in self.repeat_le.text():
+                n_repeats = int(self.repeat_le.text())
+            else:
+                n_repeats = 1
         except ValueError as e:
             logging.warning(e)
             n_repeats = 1
@@ -268,7 +303,10 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
                 logging.warning(f"Cannot eval {item.text(2)}: {str(e)}")
                 return
         elif "args" in item.text(2):
-            params = [eval(item.text(2).split(":")[-1])]
+            try:
+                params = [eval(item.text(2).split(":")[-1])]
+            except SyntaxError:
+                params = [item.text(2).split(":")[-1].split(",")]
         else:
             params = item.text(2).split(",")
 
@@ -281,7 +319,10 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
 
         # extract number of repetitions of the line
         try:
-            n_rep = int(item.text(5))
+            if item.text(5) != "":
+                n_rep = int(item.text(5))
+            else:
+                n_rep = 1
         except ValueError:
             logging.info(f"Cannot convert to int: {item.text(5)}")
             n_rep = 1
@@ -289,11 +330,23 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
         # iterate over the given parameter list
         for i in range(n_rep):
             for p in params:
+                if isinstance(p, str):
+                    p = parse_dummy_variables(p, parent_info)
+                elif isinstance(p, (list, tuple)):
+                    p = [
+                        parse_dummy_variables(pi, parent_info)
+                        if isinstance(pi, str)
+                        else pi
+                        for pi in p
+                    ]
+
                 if dev and fn:
                     if dev in self.devices:
                         self.flat_seq.append([dev, fn, p, dt, wait, parent_info])
                     else:
                         logging.warning(f"Device does not exist: {dev}")
+                else:
+                    self.flat_seq.append((None, None, p, dt, wait, parent_info))
 
                 # get information about the item's children
                 child_count = item.childCount()
@@ -329,27 +382,32 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
 
             # enqueue the commands and wait
             id0 = time.time_ns()
-            self.devices[dev].sequencer_commands.append([id0, f"{fn}({p})"])
-            time.sleep(dt)
+            if dev is not None:
+                self.devices[dev].sequencer_commands.append([id0, f"{fn}({p})"])
+                time.sleep(dt)
 
-            # wait till completion, if requested
-            if wait:
-                finished = False
-                while not finished:
-                    # check for user stop request
-                    if not self.active.is_set():
-                        return
+                # wait till completion, if requested
+                if wait:
+                    finished = False
+                    while not finished:
+                        # check for user stop request
+                        if not self.active.is_set():
+                            return
 
-                    # look for return values
-                    try:
-                        id1, _, _, _ = self.devices[dev].sequencer_events_queue.pop()
-                        if id1 == id0:
-                            finished = True
-                    except IndexError:
-                        time.sleep(self.default_dt)
+                        # look for return values
+                        try:
+                            id1, _, _, _ = self.devices[
+                                dev
+                            ].sequencer_events_queue.pop()
+                            if id1 == id0:
+                                finished = True
+                        except IndexError:
+                            time.sleep(self.default_dt)
+
+            # progress bar
             time_elapsed = time.time() - start_time
             time_estimate = total_commands * (time_elapsed) / (i + 1)
-            time_remaining = round(time_estimate - time_elapsed,0)
+            time_remaining = round(time_estimate - time_elapsed, 0)
             timedelta_remaining = datetime.timedelta(seconds=time_remaining)
             # update progress bar
             self.progress.emit(i)

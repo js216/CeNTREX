@@ -15,7 +15,7 @@ files:
   hdf_fname : C:/Users/ogras/Downloads/test.hdf
   plotting_hdf_fname : C:/Users/ogras/Downloads/test.hdf
   plotting_config_fname : C:/Users/ogras/Documents/CeNTREX/plot_config
-  sequence_fname : C:/Users/ogras/Documents/GitHub/CeNTREX-js216/config/test/sequence.txt
+  sequence_fname : C:/Users/ogras/Documents/GitHub/CeNTREX-js216/config/test/sequence.yaml
 
 networking:
   enabled : False

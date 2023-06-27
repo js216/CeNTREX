@@ -1,4 +1,6 @@
+import logging
 import time
+
 import numpy as np
 from scipy import signal
 
@@ -36,3 +38,6 @@ class DummyDataFreq:
             t,
             self.frequency_span * signal.sawtooth(2 * np.pi / self.period * t, width=1),
         ]
+
+    def test(self, value):
+        logging.info(f"DummyDataFreq: test({value})")

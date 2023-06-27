@@ -1,29 +1,36 @@
-import zmq
-import json
-import time
-import logging
-import inspect
-import zmq.auth
-import threading
-import importlib
 import functools
-import numpy as np
+import importlib
+import inspect
+import json
+import logging
+import threading
+import time
 from pathlib import Path
 from types import FunctionType
+
+import numpy as np
+import zmq
+import zmq.auth
 from zmq.auth.thread import ThreadAuthenticator
+
 
 def wrapperNetworkClientMethods(func):
     """
     Function wrapper for all methods not rewritten in NetworkingClientClass and
     excluding static methods
     """
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         self = args[0]
-        func.__name__+'(*{0}, **{1})'.format(args[1:], kwargs)
-        retval = self.ExecuteNetworkCommand(func.__name__+'(*{0}, **{1})'.format(args[1:], kwargs))
+        func.__name__ + "(*{0}, **{1})".format(args[1:], kwargs)
+        retval = self.ExecuteNetworkCommand(
+            func.__name__ + "(*{0}, **{1})".format(args[1:], kwargs)
+        )
         return retval
+
     return wrapper
+
 
 def NetworkingClassDecorator(cls):
     """
@@ -31,15 +38,23 @@ def NetworkingClassDecorator(cls):
     with the socket client.
     """
     # don't wrap methods with this name
-    ignore = ['__init__', '__enter__', '__exit__', 'OpenConnection',
-            'CloseConnection', 'ExecuteNetworkCommand', 'ReadValue', 'Decode',
-            'GetWarnings']
+    ignore = [
+        "__init__",
+        "__enter__",
+        "__exit__",
+        "OpenConnection",
+        "CloseConnection",
+        "ExecuteNetworkCommand",
+        "ReadValue",
+        "Decode",
+        "GetWarnings",
+    ]
     for attr_name in dir(cls):
         attr_value = getattr(cls, attr_name)
         if isinstance(attr_value, FunctionType):
             if attr_name in ignore:
                 continue
-            elif not inspect.signature(attr_value).parameters.get('self'):
+            elif not inspect.signature(attr_value).parameters.get("self"):
                 # don't wrap static methods, very clunky method but couldn't
                 # figure out a better way
                 continue
@@ -47,6 +62,7 @@ def NetworkingClassDecorator(cls):
                 attribute = wrapperNetworkClientMethods(attr_value)
                 setattr(cls, attr_name, attribute)
     return cls
+
 
 class ReadValueThread(threading.Thread):
     def __init__(self, parent):
@@ -75,10 +91,14 @@ class ReadValueThread(threading.Thread):
                 # need a sleep to release to other threads
                 time.sleep(1e-4)
             except zmq.error.ContextTerminated:
-                warning_dict = {"message" : "stopped ReadValueThread because context was terminated"}
+                warning_dict = {
+                    "message": "stopped ReadValueThread because context was terminated"
+                }
                 self.parent.warnings.append([time.time(), warning_dict])
-                logging.info(f"{self.parent.device_name} networking info in " +
-                                    f"ReadValueThread : stopped subscription")
+                logging.info(
+                    f"{self.parent.device_name} networking info in "
+                    + f"ReadValueThread : stopped subscription"
+                )
                 pass
             self.finished = True
 
@@ -92,7 +112,7 @@ def NetworkingClient(time_offset, driver, connection, *args):
     # this is defined in __init__ of the driver and as such you need to
     # initialize the class to access it, which throws exceptions for some
     # drivers if a usb/serial/whatever device is not attached
-    with open(f'drivers/{driver}.py') as f:
+    with open(f"drivers/{driver}.py") as f:
         text = f.readlines()
 
     driver_spec = importlib.util.spec_from_file_location(
@@ -104,23 +124,22 @@ def NetworkingClient(time_offset, driver, connection, *args):
     driver_spec.loader.exec_module(driver_module)
     driver = getattr(driver_module, driver)
 
-
     @NetworkingClassDecorator
     class NetworkingClientClass(driver):
         def __init__(self, time_offset, connection, *args):
             logging.info(f"Initializing NetworkingClientClass({str(driver)})")
             self.time_offset = time_offset
 
-            self.server = connection['server']
-            self.port_readout = connection['port_readout']
-            self.port_control = connection['port_control']
-            self.publisher = connection['publisher_name']
-            self.device_name = connection['device_name']
+            self.server = connection["server"]
+            self.port_readout = connection["port_readout"]
+            self.port_control = connection["port_control"]
+            self.publisher = connection["publisher_name"]
+            self.device_name = connection["device_name"]
 
             # set the control connection timeout
             self.timeout = 10e3
             # open connections to the server
-            self.topicfilter = f'{self.publisher}-{self.device_name}'
+            self.topicfilter = f"{self.publisher}-{self.device_name}"
             self.OpenConnection()
 
             self.warnings = []
@@ -129,14 +148,15 @@ def NetworkingClient(time_offset, driver, connection, *args):
             self.readvalue_thread.active.set()
             self.readvalue_thread.start()
 
-            
-            self.verification_string = self.ExecuteNetworkCommand('verification_string')
-            logging.info(f"NetworkingClientClass: retrieved verification_string {self.verification_string}")
+            self.verification_string = self.ExecuteNetworkCommand("verification_string")
+            logging.info(
+                f"NetworkingClientClass: retrieved verification_string {self.verification_string}"
+            )
 
-            self.dtype = self.ExecuteNetworkCommand('dtype')
+            self.dtype = self.ExecuteNetworkCommand("dtype")
             logging.info(f"NetworkingClientClass: retrieved dtype {self.dtype}")
-            
-            self.shape = self.ExecuteNetworkCommand('shape')
+
+            self.shape = self.ExecuteNetworkCommand("shape")
             logging.info(f"NetworkingClientClass: retrieved shape {self.shape}")
 
             self.new_attributes = []
@@ -170,27 +190,30 @@ def NetworkingClient(time_offset, driver, connection, *args):
             # loading authentication keys
             file_path = Path(__file__).resolve()
             public_keys_dir = file_path.parent.parent / "authentication" / "public_keys"
-            secret_keys_dir = file_path.parent.parent / "authentication" / "private_keys"
+            secret_keys_dir = (
+                file_path.parent.parent / "authentication" / "private_keys"
+            )
             server_public_file = public_keys_dir / "server.key"
             client_secret_file = secret_keys_dir / "client.key_secret"
 
             server_public, _ = zmq.auth.load_certificate(str(server_public_file))
-            client_public, client_secret = zmq.auth.load_certificate(str(client_secret_file))
+            client_public, client_secret = zmq.auth.load_certificate(
+                str(client_secret_file)
+            )
 
             self.socket_control.curve_secretkey = client_secret
             self.socket_control.curve_publickey = client_public
             self.socket_control.curve_serverkey = server_public
 
             # starting readout
-            self.socket_readout.setsockopt_string(zmq.SUBSCRIBE,
-                                                    self.topicfilter)
+            self.socket_readout.setsockopt_string(zmq.SUBSCRIBE, self.topicfilter)
             self.socket_readout.connect(f"tcp://{self.server}:{self.port_readout}")
             logging.info("NetworkingClientClass: connected to readout socket")
 
             # starting control
             self.socket_control.connect(f"tcp://{self.server}:{self.port_control}")
             logging.info("NetworkingClientClass: connected to control socket")
-            
+
             logging.info("NetworkingClientClass: connection opened")
 
         def CloseConnection(self):
@@ -209,14 +232,16 @@ def NetworkingClient(time_offset, driver, connection, *args):
             Function decodes the message received from the publisher into a
             topic and python object via json serialization
             """
-            dat = message[len(self.topicfilter):]
+            dat = message[len(self.topicfilter) :]
             retval = json.loads(dat)
             return retval
 
         def ExecuteNetworkCommand(self, command):
             # send command to the server hosting the device
             self.socket_control.send_json([self.device_name, command])
-            logging.info(f"ExecuteNetworkCommand : {command} to {self.device_name} at {self.server}:{self.port_control}")
+            logging.info(
+                f"ExecuteNetworkCommand : {command} to {self.device_name} at {self.server}:{self.port_control}"
+            )
 
             # need the timeout because REP-REQ will wait indefinitely for a
             # reply, need to handle when a server stops or a message isn't
@@ -226,13 +251,19 @@ def NetworkingClient(time_offset, driver, connection, *args):
                 if status == "OK":
                     return retval
                 else:
-                    logging.warning(f"{self.device_name} networking warning in " +
-                    f"ExecuteNetworkCommand : error for {command} -> {retval}")
+                    logging.warning(
+                        f"{self.device_name} networking warning in "
+                        + f"ExecuteNetworkCommand : error for {command} -> {retval}"
+                    )
                     return np.nan
 
             # error handling if no reply received withing timeout
-            logging.warning(f"{self.device_name} networking warning in ExecuteNetworkCommand : no response from server")
-            warning_dict = {f"message" : "ExecuteNetworkCommand for {device_name}: no response from server"}
+            logging.warning(
+                f"{self.device_name} networking warning in ExecuteNetworkCommand : no response from server"
+            )
+            warning_dict = {
+                f"message": "ExecuteNetworkCommand for {device_name}: no response from server"
+            }
             self.warnings.append([time.time(), warning_dict])
             self.socket_control.setsockopt(zmq.LINGER, 0)
             self.socket_control.close()
@@ -250,12 +281,13 @@ def NetworkingClient(time_offset, driver, connection, *args):
 
     return NetworkingClientClass(time_offset, connection, *args)
 
+
 # navigate to /authentication folder
 # ip = "10.10.222.9"
 # port = 12346
 # name = "SynthHD Pro"
 # import zmq
-# import zmq.auth 
+# import zmq.auth
 # context = zmq.Context()
 # socket = context.socket(zmq.REQ)
 # server_public = zmq.auth.load_certificate("public_keys/server.key")[0]
@@ -270,7 +302,22 @@ def NetworkingClient(time_offset, driver, connection, *args):
 # port = 12346
 # name = "SynthHD Pro"
 # import zmq
-# import zmq.auth 
+# import zmq.auth
+# context = zmq.Context()
+# socket = context.socket(zmq.REQ)
+# server_public = zmq.auth.load_certificate("public_keys/server.key")[0]
+# client_public, client_secret = zmq.auth.load_certificate("private_keys/client.key_secret")
+# socket.curve_secretkey = client_secret
+# socket.curve_publickey = client_public
+# socket.curve_serverkey = server_public
+# socket.connect(f"tcp://{ip}:{port}")
+# socket.send_json([name, "ReadValue()"]); socket.recv_json()
+
+# ip = "localhost"
+# port = 12347
+# name = "CTC100"
+# import zmq
+# import zmq.auth
 # context = zmq.Context()
 # socket = context.socket(zmq.REQ)
 # server_public = zmq.auth.load_certificate("public_keys/server.key")[0]

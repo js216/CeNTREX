@@ -10,6 +10,7 @@ __pycache__
 *.o
 *.swo
 settings.ini
+settings.yaml
 *.hdf
 .vscode/settings.json
 *.key_secret

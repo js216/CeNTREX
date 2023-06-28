@@ -192,7 +192,7 @@ class RestartDevicePopup(qt.QDialog):
         err_msg = qt.QMessageBox()
         err_msg.setWindowTitle("Error")
         err_msg.setIcon(qt.QMessageBox.Critical)
-        err_msg.setText("CeNTREX DAQ is not running.")
+        err_msg.setText("CeNTREX DAQ is not running. Cannot restart devices.")
         err_msg.setStandardButtons(qt.QMessageBox.Ok | qt.QMessageBox.Cancel)
         err_msg.exec()
 

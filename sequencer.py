@@ -11,6 +11,7 @@ import PyQt5.QtWidgets as qt
 import yaml
 
 from protocols import CentrexGUIProtocol
+from utils_gui import error_popup
 
 
 def parse_dummy_variables(parameter, parent_info: dict):
@@ -223,6 +224,10 @@ class SequencerGUI(qt.QWidget):
         self.progress.setFormat(text)
 
     def start_sequencer(self):
+        if not self.parent.config["control_active"]:
+            error_popup("CeNTREX DAQ is not running. Cannot start sequencer.")
+            return
+
         # determine how many times to repeat the entire sequence
         try:
             if "# of repeats" not in self.repeat_le.text():
@@ -234,6 +239,7 @@ class SequencerGUI(qt.QWidget):
             n_repeats = 1
 
         # instantiate and start the thread
+
         self.sequencer = Sequencer(self.parent, self.circular, n_repeats)
         self.sequencer.start()
 
@@ -301,6 +307,7 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
         PyQt5.QtCore.QObject.__init__(self)
 
         # access to the outside world
+        self.parent = parent
         self.seqGUI = parent.ControlGUI.seq
         self.devices = parent.devices
 

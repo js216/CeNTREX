@@ -159,3 +159,12 @@ class FlexibleGridLayout(qt.QHBoxLayout):
                         exc_info=True,
                     )
                     pass
+
+
+def error_popup(message: str):
+    err_msg = qt.QMessageBox()
+    err_msg.setWindowTitle("Error")
+    err_msg.setIcon(qt.QMessageBox.Critical)
+    err_msg.setText(message)
+    err_msg.setStandardButtons(qt.QMessageBox.Ok | qt.QMessageBox.Cancel)
+    err_msg.exec()

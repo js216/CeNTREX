@@ -154,6 +154,55 @@ class AttrEditor(qt.QDialog):
                 self.parent.config["run_attributes"][key] = val
 
 
+class RestartDevicePopup(qt.QDialog):
+    def __init__(self, parent: CentrexGUI):
+        super().__init__()
+        self.parent = parent
+
+        if not self.parent.config["control_active"]:
+            self.not_running_popup()
+
+        dev_names = list(self.parent.devices.keys())
+
+        self.device_restart = qt.QComboBox()
+        self.device_restart.addItems(dev_names)
+
+        btn = qt.QDialogButtonBox.Ok | qt.QDialogButtonBox.Cancel
+
+        self.button_box = qt.QDialogButtonBox(btn)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+
+        self.layout = qt.QFormLayout()
+        self.layout.addRow("restart", self.device_restart)
+        self.layout.addRow(self.button_box)
+
+        self.setLayout(self.layout)
+
+    def accept(self):
+        dev_name = self.device_restart.currentText()
+        dev = self.parent.devices.get(dev_name)
+        dev.active.clear()
+        dev.join()
+
+        self.parent.devices[dev_name] = Device(dev.config)
+        dev = self.parent.devices.get(dev_name)
+
+        # setup connection
+        dev.setup_connection(self.parent.config["time_offset"])
+
+        dev.start()
+
+        logging.info(f"{dev_name}: restarted")
+
+    def not_running_popup(self):
+        err_msg = qt.QMessageBox()
+        err_msg.setIcon(qt.QMessageBox.Critical)
+        err_msg.setText(f"CeNTREX DAQ is not running.")
+        err_msg.setStandardButtons(qt.QMessageBox.Ok | qt.QMessageBox.Cancel)
+        err_msg.exec()
+
+
 class MandatoryParametersPopup(qt.QDialog):
     def __init__(self, parent: CentrexGUI):
         super().__init__()
@@ -350,6 +399,10 @@ class ControlGUI(qt.QWidget):
         pb = qt.QPushButton("Disable all")
         pb.clicked[bool].connect(self.disable_all_devices)
         control_frame.addWidget(pb, 4, 1, 1, 1)
+
+        pb = qt.QPushButton("Restart Device")
+        pb.clicked[bool].connect(self.restart_device)
+        control_frame.addWidget(pb, 5, 0, 1, 1)
 
         ########################################
         # files
@@ -672,6 +725,10 @@ class ControlGUI(qt.QWidget):
             except KeyError as e:
                 logging.warning(e)
                 logging.warning(traceback.format_exc())
+
+    def restart_device(self):
+        restart = RestartDevicePopup(self.parent)
+        restart.exec()
 
     def update_col_names_and_units(self):
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):

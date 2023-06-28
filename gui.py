@@ -159,9 +159,6 @@ class RestartDevicePopup(qt.QDialog):
         super().__init__()
         self.parent = parent
 
-        if not self.parent.config["control_active"]:
-            self.not_running_popup()
-
         dev_names = list(self.parent.devices.keys())
 
         self.device_restart = qt.QComboBox()
@@ -178,6 +175,9 @@ class RestartDevicePopup(qt.QDialog):
         self.layout.addRow(self.button_box)
 
         self.setLayout(self.layout)
+
+        if not self.parent.config["control_active"]:
+            self.not_running_popup()
 
     def accept(self):
         dev_name = self.device_restart.currentText()
@@ -201,6 +201,7 @@ class RestartDevicePopup(qt.QDialog):
         err_msg.setText(f"CeNTREX DAQ is not running.")
         err_msg.setStandardButtons(qt.QMessageBox.Ok | qt.QMessageBox.Cancel)
         err_msg.exec()
+        self.reject()
 
 
 class MandatoryParametersPopup(qt.QDialog):

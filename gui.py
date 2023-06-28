@@ -20,7 +20,7 @@ import wmi
 from PyQt5 import QtGui
 
 from config import DeviceConfig, ProgramConfig
-from device import Device
+from device import Device, restart_device
 from hdf_writer import HDF_writer
 from monitoring import Monitoring
 from networking import Networking
@@ -157,6 +157,7 @@ class AttrEditor(qt.QDialog):
 class RestartDevicePopup(qt.QDialog):
     def __init__(self, parent: CentrexGUI):
         super().__init__()
+        self.setWindowTitle("Restart Device")
         self.parent = parent
 
         dev_names = list(self.parent.devices.keys())
@@ -182,26 +183,18 @@ class RestartDevicePopup(qt.QDialog):
     def accept(self):
         dev_name = self.device_restart.currentText()
         dev = self.parent.devices.get(dev_name)
-        dev.active.clear()
-        dev.join()
+        dev = restart_device(dev, self.parent.config["time_offset"])
 
-        self.parent.devices[dev_name] = Device(dev.config)
-        dev = self.parent.devices.get(dev_name)
-
-        # setup connection
-        dev.setup_connection(self.parent.config["time_offset"])
-
-        dev.start()
-
-        logging.info(f"{dev_name}: restarted")
+        self.parent.devices[dev_name] = dev
+        self.close()
 
     def not_running_popup(self):
         err_msg = qt.QMessageBox()
+        err_msg.setWindowTitle("Error")
         err_msg.setIcon(qt.QMessageBox.Critical)
-        err_msg.setText(f"CeNTREX DAQ is not running.")
+        err_msg.setText("CeNTREX DAQ is not running.")
         err_msg.setStandardButtons(qt.QMessageBox.Ok | qt.QMessageBox.Cancel)
         err_msg.exec()
-        self.reject()
 
 
 class MandatoryParametersPopup(qt.QDialog):
@@ -729,7 +722,8 @@ class ControlGUI(qt.QWidget):
 
     def restart_device(self):
         restart = RestartDevicePopup(self.parent)
-        restart.exec()
+        if self.parent.config["control_active"]:
+            restart.exec()
 
     def update_col_names_and_units(self):
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):

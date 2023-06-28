@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import threading
 import time
@@ -9,6 +11,29 @@ import numpy as np
 import numpy.typing as npt
 
 from config import DeviceConfig
+
+
+def restart_device(device: Device, time_offset: float) -> Device:
+    logging.info(f"{device.name}: restart")
+    device.active.clear()
+    device.join()
+
+    data_queue = device.data_queue
+    events_queue = device.events_queue
+    plots_queue = device.config["plots_queue"]
+
+    device = Device(device.config)
+    device.setup_connection(time_offset)
+
+    device.data_queue = data_queue
+    device.events_queue = events_queue
+    device.config["plots_queue"] = plots_queue
+
+    device.start()
+
+    logging.info(f"{device.name}: restarted")
+
+    return device
 
 
 class Device(threading.Thread):

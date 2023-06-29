@@ -97,7 +97,9 @@ class HistogramPlotter:
     #################################################
 
     def GetWarnings(self):
-        return []
+        warnings = self.warnings
+        self.warnings = []
+        return warnings
 
     def ReadValue(self):
         """
@@ -264,3 +266,9 @@ class HistogramPlotter:
             # self.processing string contains y which is then evaluated
             y = self.unprocessed_data[-idx - 1]
             self.y_data = np.append(self.y_data, eval(self.processing))
+
+    def raise_exception(self):
+        self.warnings.append(
+            [time.time(), {"message": "testing warnings and exceptions", "test": 1}]
+        )
+        raise Exception("Test Exception")

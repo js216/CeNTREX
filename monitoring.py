@@ -1,20 +1,14 @@
-import datetime
 import logging
 import threading
 import time
 import traceback
-from collections.abc import Sequence
-from typing import Any, Dict, List, Tuple
+from typing import Any, List, Tuple
 
 import h5py
 import numpy as np
 import PyQt5
 import PyQt5.QtWidgets as qt
-from influxdb_client import InfluxDBClient, Point
-from influxdb_client.client.write_api import SYNCHRONOUS
-from influxdb_client.domain.write_precision import WritePrecision
 
-from config import DeviceConfig
 from device import Device as DeviceProtocol
 from protocols import CentrexGUIProtocol
 
@@ -33,15 +27,6 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
         self.hdf_fname: str = self.parent.config["files"]["hdf_fname"]
 
         self.time_last_monitored = 0.0
-
-        # connect to InfluxDB
-        conf = self.parent.config["influxdb"]
-        self.influxdb_client = InfluxDBClient(
-            url=f"{conf['host']}:{conf['port']}", token=conf["token"], org=conf["org"]
-        )
-        self.influxdb_org: str = conf["org"]
-        self.influxdb_bucket: str = conf["bucket"]
-        self.write_api = self.influxdb_client.write_api(write_options=SYNCHRONOUS)
 
     def run(self):
         while self.active.is_set():
@@ -91,18 +76,31 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                 # check device for abnormal conditions
                 if len(dev.warnings) != 0:
                     logging.warning("Abnormal condition in " + str(dev_name))
+                    warnings = dev.warnings
+                    dev.warnings = []
                     for warning in dev.warnings:
                         logging.warning(str(warning))
-                        if self.parent.config["influxdb"]["enabled"] in [
+                        self.parent.ControlGUI.update_warnings(str(warning))
+
+                    # push warnings into InfluxDBWriter if the writer is enabled and
+                    # the device is a slow device
+                    if (
+                        self.parent.config["influxdb"]["enabled"]
+                        in [
                             1,
                             2,
+                            True,
                             "2",
                             "1",
                             "True",
-                        ]:
-                            self.push_warnings_to_influxdb(dev.config, warning)
-                        self.parent.ControlGUI.update_warnings(str(warning))
-                    dev.warnings = []
+                        ]
+                        and dev.config["slow_data"]
+                    ):
+                        self.parent.ControlGUI.influxdb.dev_warnings[dev_name].extend(
+                            warnings
+                        )
+
+                    # empty the warnings queue
 
                 # find out and display the data queue length
                 dev.config["monitoring_GUI_elements"]["qsize"].setText(
@@ -153,10 +151,6 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                         "\n".join(formatted_data)
                     )
 
-                    # write slow data to InfluxDB
-                    if time.time() - self.time_last_monitored >= dt:
-                        self.write_to_influxdb(dev, data)
-
                 # if writing to HDF is disabled, empty the queues
                 if not bool(int(dev.config["control_params"]["HDF_enabled"]["value"])):
                     dev.events_queue.clear()
@@ -169,103 +163,6 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
             # fixed monitoring fast loop delay
             time.sleep(0.5)
         logging.info("Monitoring: stopped")
-
-    def write_to_influxdb(self, dev: DeviceProtocol, data):
-        # check writing to InfluxDB is enabled
-        if not self.parent.config["influxdb"]["enabled"] in [1, 2, "1", "2", "True"]:
-            return
-        if not dev.config["control_params"]["InfluxDB_enabled"]["value"] in [
-            1,
-            2,
-            "1",
-            "2",
-            "True",
-        ]:
-            return
-
-        # only slow data can write to InfluxDB
-        if not dev.config["slow_data"]:
-            return
-
-        # get dtypes from device
-        dtype = dev.config["dtype"]
-        if isinstance(dtype, str):
-            if "f" in dtype:
-                dtype = float
-        elif isinstance(dtype, Sequence):
-            _dtype = []
-            for d in dtype[1:]:
-                if isinstance(d, str):
-                    if "f" in d:
-                        _dtype.append(float)
-                    elif "S" in d:
-                        _dtype.append(str)
-                    elif "U" in d:
-                        _dtype.append(int)
-                    elif "b" in d:
-                        _dtype.append(bool)
-                    else:
-                        _dtype.append(eval(d))
-                else:
-                    _dtype.append(d)
-            dtype = _dtype
-
-        # check there is any non-np.nan data to write
-        # try-except because something crashes here
-        try:
-            _fields = []
-            for idk, (key, val) in enumerate(zip(dev.col_names_list[1:], data[1:])):
-                if isinstance(dtype, Sequence):
-                    val = dtype[idk](val)
-                else:
-                    val = dtype(val)
-                if isinstance(val, str):
-                    _fields.append((key, val))
-                elif not np.isnan(val):
-                    _fields.append((key, val))
-            if len(_fields) == 0:
-                return
-            fields = dict(_fields)
-        except Exception as e1:
-            logging.warning(f"Error in write_to_influxdb: {e1}")
-            for idk, (key, val) in enumerate(zip(dev.col_names_list[1:], data[1:])):
-                try:
-                    if isinstance(dtype, Sequence):
-                        val = dtype[idk](val)
-                    else:
-                        val = dtype(val)
-                    if isinstance(val, str):
-                        continue
-                    elif not np.isnan(val):
-                        continue
-                except Exception as e2:
-                    logging.warning(
-                        f"Error in write_to_influxdb: {key}, {val}, {type(val)}"
-                    )
-                    logging.warning(f"Error in write_to_influxdb: {str(e2)}")
-            return
-
-        # format the message for InfluxDB
-        p = (
-            Point(dev.config["driver"])
-            .tag("run_name", self.parent.run_name)
-            .tag("name", dev.config["name"])
-        )
-        p = p.time(
-            time=datetime.datetime.utcfromtimestamp(
-                data[0] + self.parent.config["time_offset"]
-            ).isoformat()
-        )
-        for k, v in fields.items():
-            p = p.field(k, v)
-        # push to InfluxDB
-        try:
-            self.write_api.write(
-                bucket=self.influxdb_bucket, record=p, org=self.influxdb_org
-            )
-        except Exception as err:
-            logging.warning(f"Error in write_to_influxdb: {err}")
-            logging.warning(traceback.format_exc())
 
     def display_monitoring_events(self, dev: DeviceProtocol):
         # check device enabled
@@ -384,22 +281,3 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                 logging.warning(e)
                 logging.warning(traceback.format_exc())
                 return
-
-    def push_warnings_to_influxdb(
-        self, dev_config: DeviceConfig, warning: Tuple[float, Dict[str, str]]
-    ):
-        json_body = [
-            {
-                "measurement": "warnings",
-                "tags": {
-                    "run_name": self.parent.run_name,
-                    "name": dev_config["name"],
-                    "driver": dev_config["driver"],
-                },
-                "time": int(1000 * warning[0]),
-                "fields": warning[1],
-            }
-        ]
-        self.write_api.write(
-            self.influxdb_bucket, json_body, write_precision=WritePrecision.MS
-        )

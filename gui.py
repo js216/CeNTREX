@@ -22,6 +22,7 @@ from PyQt5 import QtGui
 from config import DeviceConfig, ProgramConfig
 from device import Device, restart_device
 from hdf_writer import HDF_writer
+from influxdb import InfluxDBWriter
 from monitoring import Monitoring
 from networking import Networking
 from plots import PlotsGUI
@@ -1514,6 +1515,11 @@ class ControlGUI(qt.QWidget):
         self.monitoring.active.set()
         self.monitoring.start()
 
+        # start the InfluxDB thread
+        self.influxdb = InfluxDBWriter(self.parent)
+        self.influxdb.active.set()
+        self.influxdb.start()
+
         # start the networking thread
         if self.parent.config["networking"]["enabled"] in ["1", "2", "True"]:
             self.networking = Networking(self.parent)
@@ -1548,6 +1554,10 @@ class ControlGUI(qt.QWidget):
         if self.monitoring.active.is_set():
             self.monitoring.active.clear()
             self.monitoring.join()
+
+        if self.influxdb.active.is_set():
+            self.influxdb.active.clear()
+            self.influxdb.join()
 
         # stop networking
         if self.networking:

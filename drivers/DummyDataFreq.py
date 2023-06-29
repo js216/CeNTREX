@@ -30,7 +30,9 @@ class DummyDataFreq:
         return self
 
     def GetWarnings(self):
-        return self.warnings
+        warnings = self.warnings
+        self.warnings = []
+        return warnings
 
     def ReadValue(self):
         t = time.time() - self.time_offset
@@ -41,3 +43,9 @@ class DummyDataFreq:
 
     def test(self, value):
         logging.info(f"DummyDataFreq: test({value})")
+
+    def raise_exception(self):
+        self.warnings.append(
+            [time.time(), {"message": "testing warnings and exceptions", "test": 1}]
+        )
+        raise Exception("Test Exception")

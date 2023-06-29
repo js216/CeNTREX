@@ -13,10 +13,12 @@ import numpy.typing as npt
 from config import DeviceConfig
 
 
-def restart_device(device: Device, time_offset: float) -> Device:
+def restart_device(device: Device) -> Device:
     logging.info(f"{device.name}: restart")
     device.active.clear()
     device.join()
+
+    time_offset = device.time_offset
 
     data_queue = device.data_queue
     events_queue = device.events_queue

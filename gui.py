@@ -183,7 +183,7 @@ class RestartDevicePopup(qt.QDialog):
     def accept(self):
         dev_name = self.device_restart.currentText()
         dev = self.parent.devices.get(dev_name)
-        dev = restart_device(dev, self.parent.config["time_offset"])
+        dev = restart_device(dev)
 
         self.parent.devices[dev_name] = dev
         self.close()

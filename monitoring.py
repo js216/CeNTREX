@@ -16,6 +16,7 @@ from influxdb_client.domain.write_precision import WritePrecision
 
 from config import DeviceConfig
 from device import Device as DeviceProtocol
+from device import restart_device
 from protocols import CentrexGUIProtocol
 
 
@@ -87,6 +88,13 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                 # check device enabled
                 if not dev.config["control_params"]["enabled"]["value"] == 2:
                     continue
+
+                # auto restart device if no longer running (e.g. thread is no longer
+                # alive)
+                if not dev.is_alive():
+                    logging.warning(f"Auto-restart {dev_name}, thread inactive")
+                    dev = restart_device(dev)
+                    self.parent.devices[dev_name] = dev
 
                 # check device for abnormal conditions
                 if len(dev.warnings) != 0:

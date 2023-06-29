@@ -33,8 +33,8 @@ class Bristol671A:
         self.new_attributes = []
 
         # shape and type of the array of returned data from ReadValue
-        self.dtype = ("f", "f8")
-        self.shape = (2,)
+        self.dtype = ("f", "f8", "f8", "f8", "f8")
+        self.shape = (5,)
 
         self.ESE_register = {
             0: "Operation Complete (OPC)",
@@ -141,6 +141,8 @@ class Bristol671A:
             logging.warning("Verification error : " + str(err))
             self.verification_string = "False"
 
+        self.SetUnitPower()
+
         self.warnings = []
 
     def __enter__(self):
@@ -159,6 +161,8 @@ class Bristol671A:
         return [
             time.time() - self.time_offset,
             self.MeasureFrequency(),
+            self.FetchPower(),
+            *self.FetchEnvironment(),
         ]
 
     #######################################################
@@ -849,8 +853,7 @@ class Bristol671A:
         except Bristol671Error as err:
             logging.warning(
                 "Bristol671A warning in                             "
-                " QueryQuestionableHardwareCondition()"
-                + str(err)
+                " QueryQuestionableHardwareCondition()" + str(err)
             )
             return np.nan
         try:

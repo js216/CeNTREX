@@ -1,0 +1,16 @@
+- - null
+  - null
+  - np.array([1,2,3,16])
+  - 60.0
+  - false
+  - null
+  - true
+  - []
+- - Wavemeter + Switch Server
+  - SetPort
+  - $1
+  - null
+  - false
+  - null
+  - true
+  - []

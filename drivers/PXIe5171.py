@@ -250,7 +250,7 @@ class PXIe5171:
                 device, function, param = info
                 self.UpdateTraceAttrs({f"{device} {function}": param})
         else:
-            device, function, param = parent_info
+            device, function, param, enabled = parent_info
             if device == "":
                 return
             self.UpdateTraceAttrs({f"{device} {function}": param})

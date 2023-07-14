@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Union
+from typing import Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -13,7 +13,7 @@ def split(string, separator=","):
 
 def create_bins(
     scan_values: Union[npt.NDArray[np.float_], npt.NDArray[np.int_]], maxsize: int = 100
-) -> tuple[npt.NDArray[np.float_], npt.NDArray[np.float_]]:
+) -> Tuple[npt.NDArray[np.float_], npt.NDArray[np.float_]]:
     bin_centers = np.unique(scan_values)
     if len(bin_centers) > maxsize:
         bin_centers = np.linspace(bin_centers.min(), bin_centers.max(), maxsize)

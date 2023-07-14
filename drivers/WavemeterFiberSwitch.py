@@ -1,5 +1,10 @@
-from drivers.Bristol671A import *
-from drivers.SelfAlignFiberSwitch import *
+import logging
+import time
+
+import numpy as np
+
+from drivers.Bristol671A import Bristol671A
+from drivers.SelfAlignFiberSwitch import SelfAlignFiberSwitch
 
 
 class WavemeterFiberswitch:
@@ -63,7 +68,7 @@ class WavemeterFiberswitch:
     def SetPort(self, port):
         try:
             port = int(port)
-        except Exception as err:
+        except Exception:
             logging.warning(
                 "SelfAlignFiberSwitch warning in Setport : can't convert {0} to int".format(
                     port

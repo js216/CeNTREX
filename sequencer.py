@@ -348,10 +348,15 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
             "logspace",
             "parent_info",
             "array",
+            "dict",
         ]
         if any(x in item.text(2) for x in eval_matches):
             try:
-                params = eval(item.text(2))
+                if "dict" in item.text(2):
+                    params = [eval(item.text(2))]
+
+                else:
+                    params = eval(item.text(2))
             except Exception as e:
                 logging.warning(f"Cannot eval {item.text(2)}: {str(e)}")
                 return

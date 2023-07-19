@@ -841,8 +841,8 @@ class Plotter(qt.QWidget):
 
         try:
             x, y = data[0], data[1]
-            if len(x) < 5:  # require at least five datapoints
-                raise ValueError("Require at least five datapoints")
+            if len(x) < 2:  # require at least two datapoints
+                raise ValueError("Require at least two datapoints")
         except (ValueError, TypeError) as e:
             logging.warning(e)
             logging.warning(traceback.format_exc())

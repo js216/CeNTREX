@@ -251,7 +251,7 @@ class Device(threading.Thread):
                         self.networking_events_queue[uid] = ret_val
                     self.networking_commands = []
 
-                    # level 2: check device is enabled for regular ReadValue
+                    # level 2: check device is enabled for periodic ReadValue
                     if self.config["control_params"]["enabled"]["value"] < 2:
                         continue
 

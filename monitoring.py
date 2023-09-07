@@ -90,11 +90,25 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                     continue
 
                 # auto restart device if no longer running (e.g. thread is no longer
-                # alive)
+                # alive, or last data retrieval time was too long)
                 if not dev.is_alive():
-                    logging.warning(f"Auto-restart {dev_name}, thread inactive")
+                    logging.warning(
+                        f"Monitoring: auto-restart {dev_name}, thread inactive"
+                    )
                     dev = restart_device(dev)
                     self.parent.devices[dev_name] = dev
+
+                try:
+                    if time.time() - dev.time_last_read >= 5 * float(
+                        dev.config["control_params"]["dt"]["value"]
+                    ):
+                        logging.warning(
+                            f"Monitoring: auto-restart {dev_name}, acquisition timeout"
+                        )
+                        dev = restart_device(dev)
+                        self.parent.devices[dev_name] = dev
+                except ValueError:
+                    pass
 
                 # check device for abnormal conditions
                 if len(dev.warnings) != 0:

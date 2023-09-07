@@ -5,7 +5,7 @@
 import datetime
 import logging
 import time
-from typing import List, TypedDict
+from typing import Dict, List, TypedDict
 
 import niscope
 import numpy as np
@@ -250,12 +250,12 @@ class PXIe5171:
                 device, function, param = info
                 self.UpdateTraceAttrs({f"{device} {function}": param})
         else:
-            device, function, param = parent_info
+            device, function, param, enabled = parent_info
             if device == "":
                 return
             self.UpdateTraceAttrs({f"{device} {function}": param})
 
-    def UpdateTraceAttrs(self, attrs):
+    def UpdateTraceAttrs(self, attrs: Dict):
         self.trace_attrs.update(attrs)
 
     def DummyFunc(self, val):

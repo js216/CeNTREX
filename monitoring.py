@@ -99,8 +99,12 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                     self.parent.devices[dev_name] = dev
 
                 try:
-                    if time.time() - dev.time_last_read >= 5 * float(
-                        dev.config["control_params"]["dt"]["value"]
+                    # check if last retrieval time was too long only if the device is
+                    # enabled for periodic ReadValue()
+                    if (
+                        time.time() - dev.time_last_read
+                        >= 5 * float(dev.config["control_params"]["dt"]["value"])
+                        and dev.config["control_params"]["enabled"]["value"] < 2
                     ):
                         logging.warning(
                             f"Monitoring: auto-restart {dev_name}, acquisition timeout"

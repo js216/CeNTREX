@@ -14,7 +14,7 @@ from config import DeviceConfig
 
 
 def restart_device(device: Device) -> Device:
-    logging.info(f"{device.name}: restart")
+    logging.info(f"{device.config['name']}: restart")
     device.active.clear()
     device.join()
 
@@ -33,9 +33,15 @@ def restart_device(device: Device) -> Device:
 
     device.start()
 
-    logging.info(f"{device.name}: restarted")
+    logging.info(f"{device.config['name']}: restarted")
 
     return device
+
+
+def kill_device(device: Device) -> None:
+    logging.info(f"{device.config['name']}: kill")
+    device.active.clear()
+    device.join()
 
 
 class Device(threading.Thread):
@@ -63,7 +69,7 @@ class Device(threading.Thread):
         self.warnings: List[Tuple[float, Dict[str, str]]] = []
 
         # the data and events queues
-        self.time_last_read = 0.0
+        self.time_last_read = time.time()
         self.data_queue: Deque[
             Union[List[float], List[Tuple[npt.NDArray, List[str]]]]
         ] = deque()

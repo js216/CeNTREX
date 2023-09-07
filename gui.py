@@ -20,7 +20,7 @@ import wmi
 from PyQt5 import QtGui
 
 from config import DeviceConfig, ProgramConfig
-from device import Device, restart_device
+from device import Device, kill_device, restart_device
 from hdf_writer import HDF_writer
 from monitoring import Monitoring
 from networking import Networking
@@ -152,6 +152,48 @@ class AttrEditor(qt.QDialog):
                 key = self.qtw.item(row, 0).text()
                 val = self.qtw.item(row, 1).text()
                 self.parent.config["run_attributes"][key] = val
+
+
+class KillDevicePopup(qt.QDialog):
+    def __init__(self, parent: CentrexGUI):
+        super().__init__()
+        self.setWindowTitle("Kill Device")
+        self.parent = parent
+
+        dev_names = list(self.parent.devices.keys())
+
+        self.device_kill = qt.QComboBox()
+        self.device_kill.addItems(dev_names)
+
+        btn = qt.QDialogButtonBox.Ok | qt.QDialogButtonBox.Cancel
+
+        self.button_box = qt.QDialogButtonBox(btn)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+
+        self.layout = qt.QFormLayout()
+        self.layout.addRow("restart", self.device_kill)
+        self.layout.addRow(self.button_box)
+
+        self.setLayout(self.layout)
+
+        if not self.parent.config["control_active"]:
+            self.not_running_popup()
+
+    def accept(self):
+        dev_name = self.device_kill.currentText()
+        dev = self.parent.devices.get(dev_name)
+        kill_device(dev)
+
+        self.close()
+
+    def not_running_popup(self):
+        err_msg = qt.QMessageBox()
+        err_msg.setWindowTitle("Error")
+        err_msg.setIcon(qt.QMessageBox.Critical)
+        err_msg.setText("CeNTREX DAQ is not running. Cannot kill devices.")
+        err_msg.setStandardButtons(qt.QMessageBox.Ok | qt.QMessageBox.Cancel)
+        err_msg.exec()
 
 
 class RestartDevicePopup(qt.QDialog):
@@ -397,6 +439,10 @@ class ControlGUI(qt.QWidget):
         pb = qt.QPushButton("Restart Device")
         pb.clicked[bool].connect(self.restart_device)
         control_frame.addWidget(pb, 5, 0, 1, 1)
+
+        pb = qt.QPushButton("Kill Device")
+        pb.clicked[bool].connect(self.kill_device)
+        control_frame.addWidget(pb, 5, 1, 1, 1)
 
         ########################################
         # files
@@ -724,6 +770,11 @@ class ControlGUI(qt.QWidget):
         restart = RestartDevicePopup(self.parent)
         if self.parent.config["control_active"]:
             restart.exec()
+
+    def kill_device(self):
+        kill = KillDevicePopup(self.parent)
+        if self.parent.config["control_active"]:
+            kill.exec()
 
     def update_col_names_and_units(self):
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):

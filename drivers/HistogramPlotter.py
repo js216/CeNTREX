@@ -162,7 +162,7 @@ class HistogramPlotter:
         Attempting to fetch data from the specified fast and slow device.
         """
         try:
-            data1_queue = self.parent.devices[self.dev1].config["plots_queue"]
+            data1_queue = list(self.parent.devices[self.dev1].config["plots_queue"])
         except KeyError:
             logging.warning(f"HistogramPlotterNorm: device {self.dev1} not found")
             return

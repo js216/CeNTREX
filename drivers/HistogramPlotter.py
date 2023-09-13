@@ -162,7 +162,7 @@ class HistogramPlotter:
         Attempting to fetch data from the specified fast and slow device.
         """
         try:
-            data1_queue = self.parent.devices[self.dev1].config["plots_queue"]
+            data1_queue = list(self.parent.devices[self.dev1].config["plots_queue"])
         except KeyError:
             logging.warning(f"HistogramPlotterNorm: device {self.dev1} not found")
             return
@@ -210,36 +210,24 @@ class HistogramPlotter:
             logging.error("Error in HistogramPlotter: param not found: " + self.param2)
             return
 
-        self.unprocessed_data_ts = np.append(
-            self.unprocessed_data_ts, timestamps1[mask]
-        )
-        self.x_ts = np.append(self.x_ts, timestamps2[mask])
+        self.unprocessed_data_ts.extend(timestamps1[mask])
+        self.x_ts.extend(timestamps2[mask])
 
         data1_queue = [data1_queue[idx] for idx, m in enumerate(mask) if m]
         if len(self.unprocessed_data) == 0:
-            self.unprocessed_data = np.asarray(
-                [d[0][0][idx1] for d in data1_queue]
-            ).astype(float)
-            self.x_data = np.asarray([d[idx2] for d in data2_queue[mask]])
+            self.unprocessed_data = [d[0][0][idx1] for d in data1_queue]
+            self.x_data = [d[idx2] for d in data2_queue[mask]]
         else:
             for idd, d in enumerate(data1_queue):
                 # d is a list with at 0 the arrays and at 1 the timestamps
                 d = d[0]
                 if d.shape[0] > 1:
                     for di in d:
-                        self.unprocessed_data = np.vstack(
-                            [self.unprocessed_data, di[0][idx1]]
-                        ).astype(float)
-                        self.x_data = np.append(
-                            self.x_data, data2_queue[mask][idd][idx2]
-                        ).astype(float)
+                        self.unprocessed_data.append(di[0][idx1])
+                        self.x_data.append(data2_queue[mask][idd][idx2])
                 else:
-                    self.unprocessed_data = np.vstack(
-                        [self.unprocessed_data, d[0][idx1]]
-                    ).astype(float)
-                    self.x_data = np.append(
-                        self.x_data, data2_queue[mask][idd][idx2]
-                    ).astype(float)
+                    self.unprocessed_data.append(d[0][idx1])
+                    self.x_data.append(data2_queue[mask][idd][idx2])
 
     def ProcessData(self):
         """

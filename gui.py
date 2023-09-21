@@ -1477,7 +1477,7 @@ class ControlGUI(qt.QWidget):
                 self.status_label.setText("Starting " + dev_name + " ...")
                 self.parent.app.processEvents()
 
-                # reinstantiate the thread (since Python only allows threads to be
+                # re-instantiate the thread (since Python only allows threads to be
                 # started once, this is necessary to allow repeatedly stopping and
                 # starting control)
                 self.parent.devices[dev_name] = Device(dev.config)

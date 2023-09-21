@@ -101,6 +101,10 @@ class Device(threading.Thread):
 
         # verify the device responds correctly
         with self.config["driver_class"](*self.constr_params) as dev:
+            logging.info(
+                f"{self.config['name']} -> verification_string ="
+                f" {dev.verification_string}"
+            )
             if not isinstance(dev.verification_string, str):
                 self.operational = False
                 self.error_message = "verification_string is not of type str"

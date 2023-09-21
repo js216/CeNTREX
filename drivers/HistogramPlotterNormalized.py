@@ -108,7 +108,10 @@ class HistogramPlotterNormalized:
         Binning the fast and slow data to enable plotting of histograms
         """
         # most time spent in ProcessData()
-        self.ProcessData()
+        try:
+            self.ProcessData()
+        except Exception as exception:
+            logging.error(exception)
 
         x_data = self.x_data
         y_data = np.array(self.y_data)
@@ -275,8 +278,8 @@ class HistogramPlotterNormalized:
             return
         for idx in reversed(range(len_diff)):
             # self.processing string contains y which is then evaluated
-            y = self.unprocessed_data[-idx - 1]
-            y_norm = self.unprocessed_data_norm[-idx - 1]
+            y = self.unprocessed_data[-idx - 1]  # noqa: F841
+            y_norm = self.unprocessed_data_norm[-idx - 1]  # noqa: F841
             self.y_data = np.append(
                 self.y_data, eval(self.processing) / eval(self.processingnorm)
             )

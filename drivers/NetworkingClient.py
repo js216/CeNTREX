@@ -11,7 +11,6 @@ from types import FunctionType
 import numpy as np
 import zmq
 import zmq.auth
-from zmq.auth.thread import ThreadAuthenticator
 
 
 def wrapperNetworkClientMethods(func):
@@ -84,12 +83,17 @@ class ReadValueThread(threading.Thread):
             # upon stopping the program before the while loop reaches the
             # cleared thread event active
             try:
-                data = self.parent.socket_readout.recv_string()
-                retval = self.parent.Decode(data)
-                retval[0] -= self.parent.time_offset
-                self.value = retval
-                # need a sleep to release to other threads
-                time.sleep(1e-4)
+                # need the timeout because REP-REQ will wait indefinitely for a
+                # reply, need to handle when a server stops or a message isn't
+                # received for some other reason
+                if (
+                    self.parent.socket_readout.poll(self.parent.timeout) & zmq.POLLIN
+                ) != 0:
+                    data = self.socket_control.recv_json()
+                    data = self.parent.socket_readout.recv_string()
+                    retval = self.parent.Decode(data)
+                    retval[0] -= self.parent.time_offset
+                    self.value = retval
             except zmq.error.ContextTerminated:
                 warning_dict = {
                     "message": "stopped ReadValueThread because context was terminated"
@@ -97,9 +101,10 @@ class ReadValueThread(threading.Thread):
                 self.parent.warnings.append([time.time(), warning_dict])
                 logging.info(
                     f"{self.parent.device_name} networking info in "
-                    + f"ReadValueThread : stopped subscription"
+                    + "ReadValueThread : stopped subscription"
                 )
-                pass
+            # sleep to release to other threads
+            time.sleep(1e-4)
             self.finished = True
 
 
@@ -107,13 +112,6 @@ def NetworkingClient(time_offset, driver, connection, *args):
     # if connection is passed as a string, convert it to a dictionary
     if isinstance(connection, str):
         connection = json.loads(connection)
-
-    # very hacky way to get shape and dtype from the original driver
-    # this is defined in __init__ of the driver and as such you need to
-    # initialize the class to access it, which throws exceptions for some
-    # drivers if a usb/serial/whatever device is not attached
-    with open(f"drivers/{driver}.py") as f:
-        text = f.readlines()
 
     driver_spec = importlib.util.spec_from_file_location(
         driver,
@@ -144,13 +142,10 @@ def NetworkingClient(time_offset, driver, connection, *args):
 
             self.warnings = []
 
-            self.readvalue_thread = ReadValueThread(self)
-            self.readvalue_thread.active.set()
-            self.readvalue_thread.start()
-
             self.verification_string = self.ExecuteNetworkCommand("verification_string")
             logging.info(
-                f"NetworkingClientClass: retrieved verification_string {self.verification_string}"
+                "NetworkingClientClass: retrieved verification_string"
+                f" {self.verification_string}"
             )
 
             self.dtype = self.ExecuteNetworkCommand("dtype")
@@ -159,20 +154,18 @@ def NetworkingClient(time_offset, driver, connection, *args):
             self.shape = self.ExecuteNetworkCommand("shape")
             logging.info(f"NetworkingClientClass: retrieved shape {self.shape}")
 
+            self.readvalue_thread = ReadValueThread(self)
+            self.readvalue_thread.active.set()
+            self.readvalue_thread.start()
+
             self.new_attributes = []
 
             self.is_networking_client = True
-            logging.info(f"NetworkingClientClass: finished __init__")
+            logging.info("NetworkingClientClass: finished __init__")
 
         def __exit__(self, *args):
-            self.readvalue_thread.active.clear()
-            while not self.readvalue_thread.finished:
-                time.sleep(1e-3)
-            self.socket_readout.setsockopt(zmq.LINGER, 0)
-            self.socket_control.setsockopt(zmq.LINGER, 0)
-            self.socket_readout.close()
-            self.socket_control.close()
-            self.context.term()
+            logging.info("NetworkingClient: stop driver")
+            self.CloseConnection()
 
         def GetWarnings(self):
             warnings = self.warnings.copy()
@@ -221,11 +214,20 @@ def NetworkingClient(time_offset, driver, connection, *args):
             self.readvalue_thread.active.clear()
             while not self.readvalue_thread.finished:
                 time.sleep(1e-3)
+            logging.debug("NetworkingClient: stopped ReadValue thread")
+
             self.socket_readout.setsockopt(zmq.LINGER, 0)
+            logging.debug("NetworkingClient: socket_readout linger = 0")
             self.socket_control.setsockopt(zmq.LINGER, 0)
+            logging.debug("NetworkingClient: socket_control linger = 0")
+
             self.socket_readout.close()
+            logging.debug("NetworkingClient: socket_readout closed")
             self.socket_control.close()
+            logging.debug("NetworkingClient: socket_control closed")
+
             self.context.term()
+            logging.debug("NetworkingClient: context terminated")
 
         def Decode(self, message):
             """
@@ -240,7 +242,8 @@ def NetworkingClient(time_offset, driver, connection, *args):
             # send command to the server hosting the device
             self.socket_control.send_json([self.device_name, command])
             logging.info(
-                f"ExecuteNetworkCommand : {command} to {self.device_name} at {self.server}:{self.port_control}"
+                f"ExecuteNetworkCommand : {command} to {self.device_name} at"
+                f" {self.server}:{self.port_control}"
             )
 
             # need the timeout because REP-REQ will wait indefinitely for a
@@ -259,14 +262,19 @@ def NetworkingClient(time_offset, driver, connection, *args):
 
             # error handling if no reply received withing timeout
             logging.warning(
-                f"{self.device_name} networking warning in ExecuteNetworkCommand : no response from server"
+                f"{self.device_name} networking warning in ExecuteNetworkCommand : no"
+                " response from server"
             )
             warning_dict = {
-                f"message": "ExecuteNetworkCommand for {device_name}: no response from server"
+                "message": (
+                    f"ExecuteNetworkCommand for {self.device_name}: no response from"
+                    " server"
+                )
             }
             self.warnings.append([time.time(), warning_dict])
             self.socket_control.setsockopt(zmq.LINGER, 0)
             self.socket_control.close()
+            # reconnect upon failure
             self.socket_control = self.context.socket(zmq.REQ)
             self.socket_control.connect(f"tcp://{self.server}:{self.port_control}")
             return np.nan

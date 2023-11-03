@@ -505,6 +505,7 @@ class PlotConfig(Config):
             "fn": bool,
             "log": bool,
             "symbol": str,
+            "hist": bool,
             "from_HDF": bool,
             "controls": bool,
             "n_average": int,
@@ -536,6 +537,7 @@ class PlotConfig(Config):
         self["fn"] = False
         self["log"] = False
         self["symbol"] = None
+        self["hist"] = None
         self["plot_drawn"] = False
         self["animation_running"] = False
         self["from_HDF"] = False

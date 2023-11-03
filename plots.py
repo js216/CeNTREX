@@ -473,6 +473,12 @@ class Plotter(qt.QWidget):
         pb.clicked[bool].connect(self.toggle_points)
         ctrls_f.addWidget(pb, 0, 6)
 
+        # toggle histogram
+        pb = qt.QPushButton("hist")
+        pb.setMaximumWidth(50)
+        pb.clicked[bool].connect(self.toggle_hist)
+        ctrls_f.addWidget(pb, 0, 8)
+
         # for displaying a function of the data
 
         self.fn_qle = qt.QLineEdit()
@@ -508,7 +514,7 @@ class Plotter(qt.QWidget):
         pb = qt.QPushButton("\u274c")
         pb.setMaximumWidth(50)
         pb.setToolTip("Delete the plot")
-        ctrls_f.addWidget(pb, 0, 8)
+        ctrls_f.addWidget(pb, 0, 9)
         pb.clicked[bool].connect(lambda val: self.destroy())
 
         # update the values of the above controls
@@ -938,9 +944,21 @@ class Plotter(qt.QWidget):
             self.plot.showGrid(True, True)
             self.f.addWidget(self.plot)
         if not self.curve:
-            self.curve = self.plot.plot(*data, symbol=self.config["symbol"])
+            if self.config["hist"]:
+                dx = data[0][1] - data[0][0]
+                x = np.append(data[0] - dx / 2, data[0][-1] + dx / 2)
+                data = (x, data[1])
+            self.curve = self.plot.plot(
+                *data,
+                symbol=self.config["symbol"],
+                stepMode="center" if self.config["hist"] else None,
+            )
             self.update_labels()
         else:
+            if self.config["hist"]:
+                dx = data[0][1] - data[0][0]
+                x = np.append(data[0] - dx / 2, data[0][-1] + dx / 2)
+                data = (x, data[1])
             self.curve.setData(*data)
 
     def update_labels(self):
@@ -1123,3 +1141,17 @@ class Plotter(qt.QWidget):
 
         # display the function in the plot title (or not)
         self.update_labels()
+
+    def toggle_hist(self):
+        if not self.config["hist"]:
+            if self.curve is not None:
+                self.curve.clear()
+                self.curve = None
+            self.curve = None
+            self.config["hist"] = True
+        else:
+            if self.curve is not None:
+                self.curve.clear()
+                self.curve = None
+            self.curve = None
+            self.config["hist"] = None

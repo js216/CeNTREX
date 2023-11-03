@@ -103,7 +103,11 @@ class HistogramPlotter:
         """
         Binning the fast and slow data to enable plotting of histograms
         """
-        self.ProcessData()
+        try:
+            self.ProcessData()
+        except Exception as exception:
+            logging.error(exception)
+
         x_data = self.x_data
         y_data = np.array(self.y_data)
 
@@ -162,7 +166,7 @@ class HistogramPlotter:
         Attempting to fetch data from the specified fast and slow device.
         """
         try:
-            data1_queue = self.parent.devices[self.dev1].config["plots_queue"]
+            data1_queue = list(self.parent.devices[self.dev1].config["plots_queue"])
         except KeyError:
             logging.warning(f"HistogramPlotterNorm: device {self.dev1} not found")
             return
@@ -250,5 +254,5 @@ class HistogramPlotter:
             return
         for idx in reversed(range(len_diff)):
             # self.processing string contains y which is then evaluated
-            y = self.unprocessed_data[-idx - 1]
+            y = self.unprocessed_data[-idx - 1]  # noqa: F841
             self.y_data = np.append(self.y_data, eval(self.processing))

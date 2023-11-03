@@ -112,23 +112,23 @@ class BigSkyYag(BigSkyYagDriver):
         self.qswitch.stop()
 
     def start_pump(self):
-        self.pump = "on"
+        self.pump = True
 
     def stop_pump(self):
-        self.pump = "off"
+        self.pump = False
 
     def status_pump(self):
         return str(self.pump)
 
     def start(self):
-        self.shutter = "open"
+        self.shutter = True
         self.flashlamp.activate()
         self.qswitch.start()
 
     def stop(self):
         self.qswitch.stop()
         self.flashlamp.stop()
-        self.shutter = "close"
+        self.shutter = False
 
     def status_string(self) -> str:
         return str(self.status())

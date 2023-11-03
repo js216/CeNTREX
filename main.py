@@ -1,6 +1,7 @@
 ﻿import argparse
 import logging
 import sys
+import traceback
 from pathlib import Path
 
 import PyQt5.QtWidgets as qt
@@ -11,7 +12,7 @@ from gui import CentrexGUI
 # fancy colors and formatting for logging
 FORMAT = "%(message)s"
 logging.basicConfig(
-    level="WARNING",
+    level="DEBUG",
     format=FORMAT,
     datefmt="[%X]",
     handlers=[RichHandler(rich_tracebacks=True)],
@@ -56,12 +57,16 @@ if __name__ == "__main__":
     if not settings_path.is_file():
         logging.error(f"Settings file {settings_path} does not exist.")
     else:
-        app = qt.QApplication([])
-        main_window = CentrexGUI(
-            app,
-            settings_path=settings_path,
-            auto_start=arguments.start,
-            clear=arguments.clear,
-            mandatory_parameters=arguments.mandatory_parameters,
-        )
+        try:
+            app = qt.QApplication([])
+            main_window = CentrexGUI(
+                app,
+                settings_path=settings_path,
+                auto_start=arguments.start,
+                clear=arguments.clear,
+                mandatory_parameters=arguments.mandatory_parameters,
+            )
+        except Exception as e:
+            logging.error(e)
+            logging.error(traceback.format_exc())
         sys.exit(app.exec_())

@@ -89,7 +89,6 @@ class ReadValueThread(threading.Thread):
                 if (
                     self.parent.socket_readout.poll(self.parent.timeout) & zmq.POLLIN
                 ) != 0:
-                    data = self.socket_control.recv_json()
                     data = self.parent.socket_readout.recv_string()
                     retval = self.parent.Decode(data)
                     retval[0] -= self.parent.time_offset

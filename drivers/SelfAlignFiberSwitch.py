@@ -52,7 +52,7 @@ class SelfAlignFiberSwitch:
                 self.verification_string = "False"
                 self.instr = False
                 return
-        
+
         # self.Home()
 
         # HDF attributes generated when constructor is run
@@ -90,16 +90,17 @@ class SelfAlignFiberSwitch:
 
     def write(self, cmd):
         self.instr.write_raw(cmd)
-        self.instr.read_bytes(4)
+        # self.instr.read_bytes(4)
 
-    @CheckResponse
+    # @CheckResponse
     def SetPort(self, port):
         try:
             port = int(port)
         except Exception:
             logging.warning(
-                "SelfAlignFiberSwitch warning in Setport : can't convert {0} to int"
-                .format(port)
+                "SelfAlignFiberSwitch warning in Setport : can't convert {0} to int".format(
+                    port
+                )
             )
             warning_dict = {"Setport; can't convert {0} to int".format(port)}
             self.warnings.append([time.time(), warning_dict])

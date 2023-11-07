@@ -567,10 +567,10 @@ class Plotter(qt.QWidget):
             return
 
         # check x and y are good
-        if not self.config["x"] in self.param_list:
+        if self.config["x"] not in self.param_list:
             if self.dev.config["slow_data"]:  # fast data does not need an x variable
                 select_defaults = True
-        if not self.config["y"] in self.param_list:
+        if self.config["y"] not in self.param_list:
             select_defaults = True
 
         # select x and y
@@ -614,7 +614,7 @@ class Plotter(qt.QWidget):
                     libver="latest",
                     swmr=True,
                 ) as f:
-                    if not self.config["run"] in f.keys():
+                    if self.config["run"] not in f.keys():
                         self.stop_animation()
                         logging.warning(
                             "Plot error: Run not found in the HDF file:"
@@ -664,12 +664,12 @@ class Plotter(qt.QWidget):
             return False
 
         # check parameters are valid
-        if not self.config["x"] in self.param_list:
+        if self.config["x"] not in self.param_list:
             if self.dev.config["slow_data"]:  # fast data does not need an x variable
                 logging.warning("Plot warning: x not valid.")
                 return False
 
-        if not self.config["y"] in self.param_list:
+        if self.config["y"] not in self.param_list:
             logging.warning("Plot error: y not valid.")
             return False
 

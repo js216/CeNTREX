@@ -6,7 +6,6 @@ import traceback
 from collections.abc import Sequence
 from typing import Any, Dict, List, Tuple
 
-import h5py
 import numpy as np
 import PyQt5
 import PyQt5.QtWidgets as qt
@@ -110,7 +109,14 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                 )
 
                 # get the last event (if any) of the device
-                self.display_last_event(dev)
+                # try:
+                #     self.display_last_event(dev)
+                # except Exception as e:
+                #     logging.warning(
+                #         f"Exception for display_last_event for {dev.config['name']}"
+                #     )
+                #     logging.warning(e)
+                #     logging.warning(traceback.format_exc())
 
                 # send monitoring commands
                 for c_name, params in dev.config["control_params"].items():
@@ -122,6 +128,7 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                         dev.monitoring_commands.add(params["monitoring_command"])
 
                 # obtain monitoring events and update any indicator controls
+                # this crashes the GUI, not sure why yet, happens for random devices
                 self.display_monitoring_events(dev)
 
                 # get the last row of data from the plots_queue
@@ -172,9 +179,9 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
 
     def write_to_influxdb(self, dev: DeviceProtocol, data):
         # check writing to InfluxDB is enabled
-        if not self.parent.config["influxdb"]["enabled"] in [1, 2, "1", "2", "True"]:
+        if self.parent.config["influxdb"]["enabled"] not in [1, 2, "1", "2", "True"]:
             return
-        if not dev.config["control_params"]["InfluxDB_enabled"]["value"] in [
+        if dev.config["control_params"]["InfluxDB_enabled"]["value"] not in [
             1,
             2,
             "1",
@@ -283,7 +290,7 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
 
         for c_name, params in dev.config["control_params"].items():
             # check we're dealing with indicator controls
-            if not params.get("type") in [
+            if params.get("type") not in [
                 "indicator",
                 "indicator_button",
                 "indicator_lineedit",
@@ -326,10 +333,24 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                         self.update_style.emit(ind)
 
                 elif params.get("type") == "indicator_lineedit":
+                    # crashes here
+                    continue
+                    logging.info(
+                        f"{dev.config['name']} in display_monitoring_events"
+                        " indicator_lineedit 0"
+                    )
                     if not dev.config["control_GUI_elements"][c_name][
                         "currently_editing"
                     ]:
+                        logging.info(
+                            f"{dev.config['name']} in display_monitoring_events"
+                            " indicator_lineedit 1"
+                        )
                         ind = dev.config["control_GUI_elements"][c_name]["QLineEdit"]
+                        logging.info(
+                            f"{dev.config['name']} in display_monitoring_events"
+                            " indicator_lineedit 2"
+                        )
                         ind.setText(str(event[2]))
 
     def display_last_event(self, dev: DeviceProtocol):
@@ -337,53 +358,15 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
         if not dev.config["control_params"]["enabled"]["value"] == 2:
             return
 
-        # if HDF writing enabled for this device, get events from the HDF file
-        if dev.config["control_params"]["HDF_enabled"]["value"]:
-            try:
-                with h5py.File(self.hdf_fname, "r", libver="latest", swmr=True) as f:
-                    grp = f[self.parent.run_name + "/" + dev.config["path"]]
-                    events_dset = grp[dev.config["name"] + "_events"]
-                    if events_dset.shape[0] == 0:
-                        dev.config["monitoring_GUI_elements"]["events"].setText(
-                            "(no event)"
-                        )
-                        return
-                    else:
-                        last_event = events_dset[-1]
-                        dev.config["monitoring_GUI_elements"]["events"].setText(
-                            str(last_event)
-                        )
-                        return last_event
-            except OSError as err:
-                # if a HDF file is opened in read mode, it cannot be opened in write
-                # mode as well, even in SWMR mode. This only works if the file is opened
-                # in write mode first, and then it can be opened by multiple readers.
-                if (
-                    str(err)
-                    != "Unable to open file (file is already open for read-only)"
-                ):
-                    logging.warning(f"Monitoring error: {err}")
-                    logging.warning(traceback.format_exc())
-                else:
-                    logging.warning(f"Monitoring error: {err}")
-                    logging.warning(traceback.format_exc())
-            except RuntimeError as err:
-                logging.warning(f"Monitoring error: {err}")
-                logging.warning(traceback.format_exc())
-
-        # if HDF writing not enabled for this device, get events from the events_queue
-        else:
-            try:
-                if len(dev.events_queue) > 0:
-                    last_event = dev.events_queue.pop()
-                    dev.config["monitoring_GUI_elements"]["events"].setText(
-                        str(last_event)
-                    )
-                    return last_event
-            except IndexError as e:
-                logging.warning(e)
-                logging.warning(traceback.format_exc())
-                return
+        try:
+            if len(dev.events_queue) > 0:
+                last_event = dev.events_queue.pop()
+                dev.config["monitoring_GUI_elements"]["events"].setText(str(last_event))
+                return last_event
+        except IndexError as e:
+            logging.warning(e)
+            logging.warning(traceback.format_exc())
+            return
 
     def push_warnings_to_influxdb(
         self, dev_config: DeviceConfig, warning: Tuple[float, Dict[str, str]]

@@ -1,4 +1,5 @@
 import configparser
+import datetime
 import importlib
 import logging
 import traceback
@@ -65,11 +66,20 @@ class ProgramConfig(Config):
         self["plots_visible"] = False
         self["horizontal_split"] = True
 
+        for section in self.section_keys.keys():
+            self[section] = {}
+
+        # default filename is current date
+        cwd = Path(__file__).parent
+        fname = str(cwd / (datetime.datetime.now().strftime("%Y_%#m_%#m") + ".hdf"))
+        self["files"] = {"data_dir": cwd, "hdf_fname": fname}
+
     def read_from_file(self):
         settings = configparser.ConfigParser()
         settings.read(self.fname)
         for section, section_type in self.section_keys.items():
-            self[section] = settings[section]
+            for key, value in settings[section].items():
+                self[section][key] = value
 
     def write_to_file(self):
         # collect new configuration parameters to be written
@@ -198,8 +208,9 @@ class DeviceConfig(Config):
         if not self["double_connect_dev"]:
             if not (self["shape"] and self["dtype"]):
                 logging.warning(
-                    "Single-connect device {0} didn't specify data shape or type."
-                    .format(self.fname)
+                    "Single-connect device {0} didn't specify data shape or type.".format(
+                        self.fname
+                    )
                 )
             else:
                 self["shape"] = [float(val) for val in self["shape"]]

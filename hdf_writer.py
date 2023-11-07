@@ -64,7 +64,9 @@ class HDF_writer(threading.Thread):
                                 [
                                     (name.strip(), dtype)
                                     for name, dtype in zip(
-                                        dev.config["attributes"]["column_names"].split(","),
+                                        dev.config["attributes"]["column_names"].split(
+                                            ","
+                                        ),
                                         dev.config["dtype"],
                                     )
                                 ]
@@ -94,7 +96,7 @@ class HDF_writer(threading.Thread):
                         maxshape=(None, 3),
                         dtype=h5py.special_dtype(vlen=str),
                     )
-        
+
         except Exception as e:
             self.hdf_error.set()
             logging.error(f"HDF_witer error: {e}")

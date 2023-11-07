@@ -81,7 +81,7 @@ if __name__ == "__main__":
 
     shutter = Signal(
         frequency=frequency / 2,
-        offset=int(1 / frequency * 1e9) - int(1e6),
+        offset=int(1 / frequency * 1e9) - int(3e6),
         high=int(1 / frequency * 1e9),
         channels=[3, 6],
         active_high=True,

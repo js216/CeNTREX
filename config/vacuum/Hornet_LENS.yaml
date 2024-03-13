@@ -1,0 +1,99 @@
+COM_port:
+  colspan: null
+  column: 1
+  command: ''
+  label: COM port
+  options: ''
+  row: 3
+  rowspan: null
+  tooltip: null
+  type: QComboBox
+  value: 10.10.222.27::23
+HDF_enabled:
+  colspan: null
+  column: 0
+  label: HDF enabled
+  row: 1
+  rowspan: null
+  tooltip: null
+  type: QCheckBox
+  value: true
+IG_current:
+  colspan: null
+  column: 1
+  command: ''
+  label: IG current
+  options: 100mA, 4mA
+  row: 4
+  rowspan: null
+  tooltip: null
+  type: QComboBox
+  value: 100mA
+attributes:
+  column_names:
+  - time
+  - system pressure
+  - CG1 pressure
+  - CG2 pressure
+  ig filament current: 100 microamps
+  units:
+  - s
+  - torr
+  - torr
+  - torr
+connection_type:
+  type: dummy
+  value: TCP
+device:
+  column: 2
+  constr_params:
+  - COM_port
+  - connection_type
+  correct_response: true
+  driver: Hornet
+  label: EQL Hornet
+  max_nan_count: 10
+  meta_device: false
+  name: Electrostatic Lens Hornet
+  path: vacuum/pressure
+  plots_queue_maxlen: 1000
+  row: 3
+  slow_data: true
+dt:
+  colspan: null
+  column: 1
+  command: null
+  label: Loop delay [s]
+  row: 2
+  rowspan: null
+  tooltip: null
+  type: QLineEdit
+  value: 1.0
+enabled:
+  colspan: null
+  column: 0
+  label: Device enabled
+  row: 0
+  rowspan: null
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2
+ig_control:
+  action_commands: TurnIGOff, TurnIGOn
+  argument: ''
+  checked:
+  - true
+  - false
+  - true
+  - true
+  colspan: 2
+  column: 0
+  label: (IG?)
+  monitoring_command: ReadIGStatus()
+  return_values: '*01 1 IG ON, *01 0 IG OFF, invalid, None'
+  row: 6
+  rowspan: 1
+  states: enabled, disabled, error, disabled
+  texts: Turn IG off, Turn IG on, (IG?), (IG?)
+  type: indicator_button

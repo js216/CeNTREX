@@ -1,0 +1,64 @@
+HDF_enabled:
+  colspan: null
+  column: 0
+  label: HDF enabled
+  row: 1
+  rowspan: null
+  tooltip: null
+  type: QCheckBox
+  value: true
+attributes:
+  column_names:
+  - time
+  - frequency
+  units:
+  - s
+  - THz
+connection:
+  colspan: null
+  column: 0
+  ctrl_labels: IP, Port
+  ctrl_names: telnet_address, telnet_port
+  ctrl_options: '...; ...'
+  ctrl_types: QLineEdit, QLineEdit
+  ctrl_values: 172.28.168.109, 23
+  label: Connection
+  row: 3
+  rowspan: null
+  tooltip: null
+  type: ControlsRow
+device:
+  column: 1
+  com_port: null
+  constr_params:
+  - connection
+  correct_response: BRISTOL WAVELENGTH METER, 671A-VIS, 6894, 1.2.0
+  driver: Bristol671A
+  label: Bristol 671A
+  max_nan_count: 0
+  meta_device: false
+  name: Bristol671A
+  path: readout
+  plots_queue_maxlen: 1000
+  row: 0
+  slow_data: true
+dt:
+  colspan: null
+  column: 1
+  command: null
+  label: Loop delay [s]
+  row: 2
+  rowspan: null
+  tooltip: null
+  type: QLineEdit
+  value: 0.2
+enabled:
+  colspan: null
+  column: 0
+  label: Device enabled
+  row: 0
+  rowspan: null
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2

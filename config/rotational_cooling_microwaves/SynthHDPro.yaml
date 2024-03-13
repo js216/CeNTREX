@@ -1,0 +1,138 @@
+CHA_control:
+  action_commands: DisableCHA, EnableCHA
+  argument: ''
+  checked:
+  - true
+  - false
+  colspan: 1
+  column: 0
+  label: (J12?)
+  monitoring_command: GetCHAStatus()
+  return_values: on, off
+  row: 4
+  rowspan: 1
+  states: enabled, disabled
+  texts: J12 on, J12 off
+  type: indicator_button
+CHA_frequency:
+  colspan: 1
+  column: 2
+  command: SetFrequencyCHAGUI
+  label: Frequency J12
+  monitoring_command: GetFrequencyCHAGUI()
+  row: 4
+  rowspan: 1
+  tooltip: Hz
+  type: indicator_lineedit
+  value: 0
+CHA_power:
+  colspan: 1
+  column: 3
+  command: SetPowerCHAGUI
+  label: Power J12
+  monitoring_command: GetPowerCHAGUI()
+  row: 4
+  rowspan: 1
+  tooltip: dB
+  type: indicator_lineedit
+  value: 0
+CHB_control:
+  action_commands: DisableCHB, EnableCHB
+  argument: ''
+  checked:
+  - true
+  - false
+  colspan: 1
+  column: 0
+  label: (J23?)
+  monitoring_command: GetCHBStatus()
+  return_values: on, off
+  row: 5
+  rowspan: 1
+  states: enabled, disabled
+  texts: J23 on, J23 off
+  type: indicator_button
+CHB_frequency:
+  colspan: 1
+  column: 2
+  command: SetFrequencyCHBGUI
+  label: Frequency J23
+  monitoring_command: GetFrequencyCHBGUI()
+  row: 5
+  rowspan: 1
+  tooltip: Hz
+  type: indicator_lineedit
+  value: 0
+CHB_power:
+  colspan: 1
+  column: 3
+  command: SetPowerCHBGUI
+  label: Power J23
+  monitoring_command: GetPowerCHBGUI()
+  row: 5
+  rowspan: 1
+  tooltip: dB
+  type: indicator_lineedit
+  value: 0
+COM_port:
+  column: 1
+  command: ''
+  label: COM port
+  options: ''
+  row: 3
+  type: QComboBox
+  value: COM8
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  tooltip: null
+  type: QCheckBox
+  value: false
+attributes:
+  column_names:
+  - time
+  - j12 frequency
+  - j23 frequency
+  - j12 power
+  - j23 power
+  - j12 status
+  - j23 status
+  units:
+  - s
+  - Hz
+  - Hz
+  - dB
+  - dB
+  - ''
+  - ''
+device:
+  column: 1
+  constr_params:
+  - COM_port
+  correct_response: true
+  driver: SynthHDPro
+  label: SynthHD Pro
+  max_nan_count: 0
+  meta_device: false
+  name: SynthHD Pro
+  path: microwaves/
+  plots_queue_maxlen: 1000
+  row: 1
+  slow_data: true
+dt:
+  column: 1
+  command: null
+  label: Loop delay [s]
+  row: 2
+  tooltip: null
+  type: QLineEdit
+  value: 2
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2

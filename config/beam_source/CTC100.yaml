@@ -1,0 +1,237 @@
+AD_rate:
+  colspan: null
+  column: 1
+  command: setADrate
+  label: A/D rate
+  options: 16.7 ms, 33.3, 50 ms, 66.7 ms, 83.3 ms, 100 ms, 150 ms, 200 ms, 250 ms,
+    350 ms, 400 ms, 500 ms, 600 ms, 700 ms, 800 ms, 900 ms, 1000 ms
+  row: 4
+  rowspan: null
+  tooltip: null
+  type: QComboBox
+  value: 16.7 ms
+COM_port:
+  colspan: null
+  column: 1
+  command: ''
+  label: COM port
+  options: ''
+  row: 3
+  rowspan: null
+  tooltip: null
+  type: QComboBox
+  value: ASRL7::INSTR
+HDF_enabled:
+  colspan: null
+  column: 0
+  label: HDF enabled
+  row: 1
+  rowspan: null
+  tooltip: null
+  type: QCheckBox
+  value: true
+Out1_D:
+  colspan: null
+  column: 1
+  command: SetOut1D
+  label: Out1 D
+  row: 10
+  rowspan: null
+  tooltip: null
+  type: QLineEdit
+  value: 10
+Out1_I:
+  colspan: null
+  column: 1
+  command: SetOut1I
+  label: Out1 I
+  row: 9
+  rowspan: null
+  tooltip: null
+  type: QLineEdit
+  value: 50
+Out1_P:
+  colspan: null
+  column: 1
+  command: SetOut1P
+  label: Out1 P
+  row: 8
+  rowspan: null
+  tooltip: null
+  type: QLineEdit
+  value: 50
+Out1_setpoint:
+  colspan: null
+  column: 1
+  command: SetOut1Setpoint
+  label: Out1 setpoint [K]
+  row: 7
+  rowspan: null
+  tooltip: null
+  type: QLineEdit
+  value: 19
+Out1_src:
+  colspan: null
+  column: 1
+  command: SetOut1Src
+  label: Out1 source
+  options: In 1, In 2, In 3, In 4, AIO 1, AIO 2, AIO 3, AIO 4
+  row: 6
+  rowspan: null
+  tooltip: null
+  type: QComboBox
+  value: In 1
+Out2_D:
+  colspan: null
+  column: 1
+  command: SetOut2D
+  label: Out2 D
+  row: 15
+  rowspan: null
+  tooltip: null
+  type: QLineEdit
+  value: 10
+Out2_I:
+  colspan: null
+  column: 1
+  command: SetOut2I
+  label: Out2 I
+  row: 14
+  rowspan: null
+  tooltip: null
+  type: QLineEdit
+  value: 50
+Out2_P:
+  colspan: null
+  column: 1
+  command: SetOut2P
+  label: Out2 P
+  row: 13
+  rowspan: null
+  tooltip: null
+  type: QLineEdit
+  value: 50
+Out2_setpoint:
+  colspan: null
+  column: 1
+  command: SetOut2Setpoint
+  label: Out2 setpoint [K]
+  row: 12
+  rowspan: null
+  tooltip: null
+  type: QLineEdit
+  value: 19
+Out2_src:
+  colspan: null
+  column: 1
+  command: SetOut2Src
+  label: Out2 source
+  options: In 1, In 2, In 3, In 4, AIO 1, AIO 2, AIO 3, AIO 4
+  row: 11
+  rowspan: null
+  tooltip: null
+  type: QComboBox
+  value: In 1
+attributes:
+  column_names:
+  - time
+  - input nozzle
+  - cell top plate target side
+  - PCB 1
+  - 4K PT warm stage
+  - 16 PT warm stage
+  - PCB  2
+  - heater 1 power
+  - heater 1 current
+  - heater 1 voltage
+  - heater 1 resistance
+  - PCB 3
+  - heater 2 power
+  - heater 2 current
+  - heater 2 voltage
+  - heater 2 resistance
+  - PCB 4
+  - AIO 1
+  units:
+  - s
+  - K
+  - K
+  - K
+  - K
+  - K
+  - K
+  - W
+  - A
+  - V
+  - Ohm
+  - K
+  - W
+  - A
+  - V
+  - Ohm
+  - K
+  - V
+device:
+  column: 2
+  constr_params:
+  - COM_port
+  correct_response: CTC100 Cryogenic Temperature Controller, version 3.304, S/N 92980
+  driver: CTC100
+  label: SRS CTC100
+  max_nan_count: 10
+  meta_device: false
+  name: CTC100
+  path: beam_source/thermal
+  plots_queue_maxlen: 1000
+  row: 0
+  slow_data: true
+dt:
+  colspan: null
+  column: 1
+  command: null
+  label: Loop delay [s]
+  row: 2
+  rowspan: null
+  tooltip: null
+  type: QLineEdit
+  value: 0.25
+enabled:
+  colspan: null
+  column: 0
+  label: Device enabled
+  row: 0
+  rowspan: null
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2
+log_rate:
+  colspan: null
+  column: 1
+  command: setLogRate
+  label: Log interval
+  options: off, 0.1 s, 0.3 s, 1 s, 3 s, 10 s, 30 s, 1 min, 3 min, 10 min, 30 min,
+    1 hr
+  row: 5
+  rowspan: null
+  tooltip: null
+  type: QComboBox
+  value: 0.1 s
+output_toggle:
+  action_commands: outputDisable, outputEnable
+  argument: ''
+  checked:
+  - true
+  - false
+  - true
+  - true
+  colspan: 2
+  column: 0
+  label: (output status?)
+  monitoring_command: OutputStatusReport()
+  return_values: On, Off, invalid, None
+  row: 16
+  rowspan: 1
+  states: enabled, disabled, error, disabled
+  texts: Disable output, Enable output, [output control state?], [output control state?]
+  type: indicator_button

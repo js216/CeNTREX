@@ -1,0 +1,40 @@
+device:
+  name : DummyDataFreq
+  label : Data Frequency
+  path : test
+  driver : DummyDataFreq
+  constr_params : [period, frequency_span]
+  correct_response : test
+  row : 1
+  column : 2
+
+attributes:
+  column_names : [time, frequency]
+  units : [s, Hz]
+
+period:
+  type : dummy
+  value : 10
+
+frequency_span:
+  type : dummy
+  value : 50
+
+enabled:
+  label : Device enabled
+  type : QCheckBox
+  tristate : True
+  row : 0
+  column : 0
+  value : 2
+
+HDF_enabled:
+  type : dummy
+  value : 1
+
+dt:
+  label : Loop delay [s]
+  type : QLineEdit
+  row : 1
+  column : 1
+  value : 0.2

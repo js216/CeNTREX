@@ -1,0 +1,197 @@
+COM_port:
+  colspan: null
+  column: 1
+  command: ''
+  label: COM port
+  options: ''
+  row: 3
+  rowspan: null
+  tooltip: null
+  type: QComboBox
+  value: COM6
+HDF_enabled:
+  colspan: null
+  column: 0
+  label: HDF
+  row: 1
+  rowspan: null
+  tooltip: null
+  type: QCheckBox
+  value: true
+Home:
+  argument: ''
+  colspan: null
+  column: 3
+  command: HomeAllGUI
+  label: Home
+  row: 4
+  rowspan: null
+  tooltip: Home x and y
+  type: QPushButton
+attributes:
+  column_names:
+  - time
+  - x
+  - y
+  units:
+  - s
+  - microsteps
+  - microsteps
+coordinates_fname:
+  type: dummy
+  value: ablation_sweeps_february2019_corrected.sweep_hdf5
+dev1_axis:
+  type: dummy
+  value: y
+dev2_axis:
+  type: dummy
+  value: x
+device:
+  column: 1
+  constr_params:
+  - COM_port
+  - dev1_axis
+  - dev2_axis
+  - coordinates_fname
+  correct_response: true
+  driver: ZaberTMM
+  label: Ablation Mirror
+  max_nan_count: 0
+  meta_device: false
+  name: ZaberTMM
+  path: readout
+  plots_queue_maxlen: 1000
+  row: 1
+  slow_data: true
+dt:
+  colspan: null
+  column: 1
+  command: null
+  label: Loop delay [s]
+  row: 2
+  rowspan: null
+  tooltip: null
+  type: QLineEdit
+  value: 0.2
+enabled:
+  colspan: null
+  column: 0
+  label: Enabled
+  row: 0
+  rowspan: null
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2
+movex:
+  column: 1
+  command: MoveAbsoluteXGUI
+  label: Move X
+  monitoring_command: GetPositionXMemory()
+  row: 4
+  type: indicator_lineedit
+  value: 0
+movey:
+  column: 2
+  command: MoveAbsoluteYGUI
+  label: Move Y
+  monitoring_command: GetPositionYMemory()
+  row: 4
+  type: indicator_lineedit
+  value: 0
+point_a:
+  column: 1
+  command: SetPointAGUI
+  label: Spot 1
+  monitoring_command: GetPointAGUI()
+  row: 5
+  type: indicator_lineedit
+  value: 0
+point_b:
+  column: 2
+  command: SetPointBGUI
+  label: Spot 2
+  monitoring_command: GetPointBGUI()
+  row: 5
+  type: indicator_lineedit
+  value: 0
+random_pos:
+  argument: ''
+  colspan: null
+  column: 1
+  command: RandomPosition
+  label: Random Position
+  row: 6
+  rowspan: null
+  tooltip: Move to random position on target
+  type: QPushButton
+rectangle_sweep:
+  argument: ''
+  colspan: null
+  column: 5
+  command: SweepRectangle
+  label: Sweep
+  row: 5
+  rowspan: null
+  tooltip: null
+  type: QPushButton
+step:
+  column: 3
+  command: SetStepGUI
+  label: Step
+  monitoring_command: GetStepGUI()
+  row: 5
+  type: indicator_lineedit
+  value: 0
+stop_sweep:
+  argument: ''
+  colspan: null
+  column: 3
+  command: StopSweep
+  label: Stop
+  row: 7
+  rowspan: null
+  tooltip: null
+  type: QPushButton
+sweep:
+  colspan: null
+  column: 2
+  command: Sweep
+  label: Sweep
+  options: ''
+  row: 7
+  rowspan: null
+  tooltip: null
+  type: QComboBox
+  value: sweep01
+sweep_start_position:
+  colspan: null
+  column: 1
+  command: SweepStartPosition
+  label: Start Position
+  options: current, origin, random
+  row: 7
+  rowspan: null
+  tooltip: null
+  type: QComboBox
+  value: current
+sweep_status:
+  colspan: 2
+  column: 1
+  label: (sweep?)
+  monitoring_command: SweepStatus()
+  return_values: Sweeping, Inactive, Invalid, None
+  row: 8
+  rowspan: 1
+  states: enabled, disabled, error, error, disabled
+  texts: Sweeping, Sweep off, (sweep?), (sweep?)
+  tooltip: null
+  type: indicator
+wait:
+  column: 4
+  command: SetWaitGUI
+  label: Wait
+  monitoring_command: GetWaitGUI()
+  row: 5
+  type: indicator_lineedit
+  value: 0

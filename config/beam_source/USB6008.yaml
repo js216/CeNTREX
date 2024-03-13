@@ -1,0 +1,116 @@
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  type: QCheckBox
+  value: 1
+attributes:
+  column_names:
+  - time
+  - flow signal
+  - setpoint value
+  units:
+  - s
+  - sccm
+  - sccm
+change_setpoint:
+  align: nsew
+  argument: setpoint_value
+  column: 2
+  command: SetPointControl
+  label: Set
+  row: 8
+  type: QPushButton
+device:
+  column: 1
+  constr_params:
+  - flow_signal_out
+  - setpoint_in
+  - flood_in
+  - flood_out
+  correct_response: operational
+  driver: USB6008
+  label: NI USB-6008
+  max_nan_count: 10
+  meta_device: false
+  name: USB6008
+  path: beam_source/gas
+  plots_queue_maxlen: 1000
+  row: 0
+  slow_data: true
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 2
+  type: QLineEdit
+  value: 1.0
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tristate: true
+  type: QCheckBox
+  value: 2
+flood_check:
+  align: nsew
+  argument: ''
+  column: 1
+  command: ManualCheckFlood
+  label: Flood Check
+  row: 9
+  type: QPushButton
+flood_in:
+  column: 1
+  label: Flood In Port
+  row: 6
+  type: QLineEdit
+  value: /Dev1/port0/line0
+flood_indicator:
+  colspan: 1
+  column: 0
+  label: (flood status?)
+  monitoring_command: CheckFlood()
+  return_values: flooding, no flood, invalid, None
+  row: 9
+  rowspan: 1
+  states: error, disabled, error, disabled
+  texts: Flooding!, No flood, (flood status?), (flood status?)
+  tooltip: null
+  type: indicator
+flood_out:
+  column: 1
+  label: Flood Out Port
+  row: 7
+  type: QLineEdit
+  value: /Dev1/port0/line1
+flow_signal_out:
+  column: 1
+  label: Flow Signal Port
+  row: 3
+  type: QLineEdit
+  value: /Dev1/ai0
+neon_indicator:
+  colspan: 2
+  column: 0
+  label: (neon status?)
+  monitoring_command: NeonStatus()
+  return_values: flowing, not flowing, invalid, None
+  row: 10
+  rowspan: 1
+  states: enabled, disabled, error, disabled
+  texts: Flowing, Not flowing, (neon status?), (neon status?)
+  tooltip: null
+  type: indicator
+setpoint_in:
+  column: 1
+  label: Setpoint Port
+  row: 5
+  type: QLineEdit
+  value: /Dev1/ao0
+setpoint_value:
+  column: 1
+  command: SetPointControl
+  label: Setpoint [sccm]
+  row: 8
+  type: QLineEdit
+  value: 0.0

@@ -1,0 +1,103 @@
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  tooltip: null
+  type: QCheckBox
+  value: false
+attributes:
+  column_names:
+  - time
+  - emission state
+  - fault
+  - current
+  - shg temperature
+  - temperature 1
+  - temperature 2
+  - pd1
+  - pd2
+  - pd3
+  - pd4
+  units:
+  - s
+  - ''
+  - ''
+  - A
+  - C
+  - C
+  - C
+  - ''
+  - ''
+  - ''
+  - ''
+current_setpoint:
+  colspan: 1
+  column: 2
+  command: set_current
+  label: Current
+  monitoring_command: get_current()
+  row: 5
+  rowspan: 1
+  tooltip: Set amplifier current [A]
+  type: indicator_lineedit
+  value: 0
+device:
+  column: 0
+  constr_params:
+  - resource
+  correct_response: precilaser
+  driver: PrecilaserSHGAmplifier
+  label: Precilaser RC
+  max_nan_count: 0
+  meta_device: false
+  name: Precilaser RC
+  path: lasers
+  plots_queue_maxlen: 1000
+  row: 2
+  slow_data: true
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 2
+  type: QLineEdit
+  value: 2
+  width: 5
+emission_control:
+  action_commands: disable, enable
+  argument: ''
+  checked:
+  - true
+  - false
+  - false
+  colspan: 1
+  column: 1
+  label: (emission?)
+  monitoring_command: get_enabled()
+  return_values: True, False, invalid
+  row: 5
+  rowspan: 1
+  states: enabled, disabled, error, disabled
+  texts: Enabled, Disabled, (?)
+  tooltip: Toggle amplifier emission
+  type: indicator_button
+enabled:
+  colspan: null
+  column: 0
+  label: Device enabled
+  row: 0
+  rowspan: null
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2
+resource:
+  colspan: null
+  column: 1
+  command: ''
+  label: COM port
+  options: ''
+  row: 4
+  rowspan: null
+  tooltip: null
+  type: QComboBox
+  value: COM50

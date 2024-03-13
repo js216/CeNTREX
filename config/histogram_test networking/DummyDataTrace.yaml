@@ -1,0 +1,38 @@
+HDF_enabled:
+  type: dummy
+  value: 0
+attributes:
+  column_names:
+  - ch2
+  units:
+  - binary
+device:
+  column: 1
+  constr_params:
+  - period
+  correct_response: test
+  driver: DummyDataTrace
+  label: Data Trace
+  max_nan_count: 10
+  meta_device: false
+  name: DummyDataTrace
+  path: test/trace
+  plots_queue_maxlen: 1000
+  row: 2
+  slow_data: false
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 1
+  type: QLineEdit
+  value: 0.1
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tristate: true
+  type: QCheckBox
+  value: 2
+period:
+  type: dummy
+  value: 10

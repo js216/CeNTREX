@@ -1,0 +1,93 @@
+COM_port:
+  colspan: null
+  column: 1
+  command: ''
+  label: COM port
+  options: ''
+  row: 4
+  rowspan: null
+  tooltip: null
+  type: QComboBox
+  value: COM25
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  tooltip: null
+  type: QCheckBox
+  value: false
+attributes:
+  column_names:
+  - time
+  - emission state
+  - input power
+  - current
+  - current setpoint
+  - booster temperature
+  units:
+  - s
+  - ''
+  - A
+  - A
+  - A
+  - C
+current_setpoint:
+  colspan: 1
+  column: 2
+  command: SetCurrentGUI
+  label: Current
+  monitoring_command: GetCurrentSetpoint()
+  row: 5
+  rowspan: 1
+  tooltip: Set amplifier current [A]
+  type: indicator_lineedit
+  value: 0
+device:
+  column: 0
+  constr_params:
+  - COM_port
+  correct_response: NKT168351
+  driver: KoherasBoostik
+  label: Seed 1 Amplifier
+  max_nan_count: 0
+  meta_device: false
+  name: Seed 1 Amplifier
+  path: lasers
+  plots_queue_maxlen: 1000
+  row: 1
+  slow_data: true
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 2
+  type: QLineEdit
+  value: 2
+  width: 5
+emission_control:
+  action_commands: EmissionOff, EmissionOn
+  argument: ''
+  checked:
+  - true
+  - false
+  - false
+  colspan: 1
+  column: 1
+  label: (emission?)
+  monitoring_command: GetEmissionGUI()
+  return_values: True, False, invalid
+  row: 5
+  rowspan: 1
+  states: enabled, disabled, error, disabled
+  texts: Emission on, Emission off, (?)
+  tooltip: Toggle amplifier emission
+  type: indicator_button
+enabled:
+  colspan: null
+  column: 0
+  label: Device enabled
+  row: 0
+  rowspan: null
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2

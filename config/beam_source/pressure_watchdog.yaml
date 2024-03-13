@@ -1,0 +1,102 @@
+HDF_enabled:
+  type: dummy
+  value: 0
+attributes:
+  column_names:
+  - ''
+  units:
+  - ''
+comp1:
+  column: 1
+  command: ''
+  label: ''
+  options: is greater than, is equal to, is less than
+  row: 3
+  type: QComboBox
+  value: is greater than
+dev1:
+  column: 1
+  label: If
+  row: 2
+  type: QLineEdit
+  value: Hornet
+dev2:
+  column: 1
+  label: call
+  row: 4
+  type: QLineEdit
+  value: Hornet
+device:
+  column: 1
+  constr_params:
+  - dev1
+  - param1
+  - comp1
+  - number1
+  - dev2
+  - function
+  - msg
+  correct_response: N/A
+  driver: Watchdog
+  label: Pressure Watchdog
+  max_nan_count: 10
+  meta_device: true
+  name: pressure_watchdog
+  path: beam_source/pressure
+  plots_queue_maxlen: 1000
+  row: 3
+  slow_data: true
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 1
+  type: QLineEdit
+  value: 1.5
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tristate: true
+  type: QCheckBox
+  value: 0
+function:
+  column: 2
+  label: ''
+  row: 4
+  type: QLineEdit
+  value: TurnIGOff()
+msg:
+  column: 1
+  label: Error message
+  row: 5
+  type: QLineEdit
+  value: turning IG off
+number1:
+  column: 2
+  label: ''
+  row: 3
+  type: QLineEdit
+  value: 0.001
+param1:
+  column: 2
+  label: ''
+  row: 2
+  type: QLineEdit
+  value: system pressure
+power_toggle:
+  action_commands: DisableWatchdog, EnableWatchdog
+  argument: ''
+  checked:
+  - true
+  - false
+  - true
+  colspan: 3
+  column: 0
+  label: (status?)
+  monitoring_command: WatchDogStatus()
+  return_values: True, False, invalid, None
+  row: 6
+  rowspan: 1
+  states: enabled, disabled, error, disabled
+  texts: Disable watchdog, Enable watchdog, (status?), [control stopped]
+  type: indicator_button

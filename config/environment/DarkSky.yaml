@@ -1,0 +1,93 @@
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  type: QCheckBox
+  value: 0
+attributes:
+  column_names:
+  - time
+  - temperature
+  - humidity
+  - dewPoint
+  - pressure
+  - cloudCover
+  - uvIndex
+  - windSpeed
+  - windGust
+  - ozone
+  - precipIntensity
+  - precipProbability
+  - nearestStormDistance
+  - visibility
+  - latitude
+  - longitude
+  units:
+  - s
+  - C
+  - '%'
+  - C
+  - hpa
+  - '%'
+  - ''
+  - m/s
+  - m/s
+  - DU
+  - mm/h
+  - '%'
+  - km
+  - km
+  - ''
+  - ''
+device:
+  column: 0
+  constr_params:
+  - key
+  - latlon
+  - units
+  correct_response: Connected
+  driver: DarkSky
+  label: DarkSky
+  max_nan_count: 10
+  meta_device: false
+  name: DarkSky
+  path: environment
+  plots_queue_maxlen: 1000
+  row: 2
+  slow_data: true
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 2
+  type: QLineEdit
+  value: 300
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tristate: true
+  type: QCheckBox
+  value: 2
+key:
+  column: 1
+  label: API key
+  row: 3
+  type: QLineEdit
+  value: be5b79f74e3d0133f1beb1269e1e15c4
+latlon:
+  column: 1
+  command: ''
+  ctrl_labels: Latitude, Longitude
+  ctrl_names: latitude, longitude
+  ctrl_options: '...; ...'
+  ctrl_types: QLineEdit, QLineEdit
+  ctrl_values:
+  - 41.3171
+  - -72.923
+  label: Position
+  options: ''
+  row: 4
+  type: ControlsRow
+units:
+  type: dummy
+  value: si

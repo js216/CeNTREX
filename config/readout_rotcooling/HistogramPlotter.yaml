@@ -1,0 +1,108 @@
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  tooltip: null
+  type: QCheckBox
+  value: false
+attributes:
+  column_names:
+  - frequency
+  - integral
+  units:
+  - MHz
+  - adc
+dev1:
+  column: 1
+  command: SetDevice1
+  label: Dev1
+  options: PXIe5171
+  row: 2
+  type: QComboBox
+  value: PXIe5171
+dev2:
+  column: 1
+  command: SetDevice2
+  label: Dev2
+  options: Laser Lock 1, Laser Lock 2, SynthHD Pro
+  row: 3
+  type: QComboBox
+  value: Laser Lock 1
+device:
+  column: 2
+  constr_params:
+  - dev1
+  - param1
+  - processing
+  - dev2
+  - param2
+  - lower
+  - higher
+  - width
+  correct_response: test
+  driver: HistogramPlotter
+  label: Histogram Plotter
+  max_nan_count: 10
+  meta_device: true
+  name: histogram_plotter
+  path: readout
+  plots_queue_maxlen: 1000
+  row: 2
+  slow_data: false
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 1
+  type: QLineEdit
+  value: 0.1
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tristate: true
+  type: QCheckBox
+  value: 2
+higher:
+  column: 2
+  command: SetHigher
+  label: higher
+  row: 4
+  type: QLineEdit
+  value: 50
+lower:
+  column: 1
+  command: SetLower
+  label: Lower
+  row: 4
+  type: QLineEdit
+  value: -50
+param1:
+  column: 2
+  command: SetParam1
+  label: Param1
+  options: ch0, ch1, ch2, ch3, ch4, ch5, ch6, ch7
+  row: 2
+  type: QComboBox
+  value: ch1
+param2:
+  column: 2
+  command: SetParam2
+  label: Param2
+  options: laser 1 frequency, laser 2 frequency, CHA Frequency, CHB Frequency
+  row: 3
+  type: QComboBox
+  value: laser 1 frequency
+processing:
+  column: 1
+  command: SetProcessing
+  label: Processing
+  row: 5
+  type: QLineEdit
+  value: -np.trapz(y[150:] - np.mean(y[-3000:]))
+width:
+  column: 3
+  command: SetWidth
+  label: width
+  row: 4
+  type: QLineEdit
+  value: 5

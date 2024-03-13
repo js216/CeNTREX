@@ -4,12 +4,15 @@ import logging
 import os
 import threading
 import time
+from functools import partial
 
 import numpy as np
-import PyQt5
-import PyQt5.QtWidgets as qt
+import PySide6
+import PySide6.QtWidgets as qt
 import yaml
 
+from device import Device
+from device_utils import get_device_methods
 from protocols import CentrexGUIProtocol
 from utils_gui import error_popup
 
@@ -46,10 +49,55 @@ def parse_dummy_variables(parameter, parent_info: dict):
         return parameter
 
 
+class SelectPopup(qt.QDialog):
+    def __init__(self, title: str, options: list[str]):
+        super().__init__()
+        self.setWindowTitle(title)
+
+        self.select = qt.QComboBox()
+        self.select.addItems(options)
+
+        btn = qt.QDialogButtonBox.Ok | qt.QDialogButtonBox.Cancel
+
+        self.button_box = qt.QDialogButtonBox(btn)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+
+        self.layout = qt.QFormLayout()
+        self.layout.addRow(self.select)
+        self.layout.addRow(self.button_box)
+
+        self.setLayout(self.layout)
+
+    def accept(self):
+        self.close()
+
+
+def select_device_function(
+    item: qt.QTreeWidgetItem, column: int, devices: dict[str, Device]
+) -> None:
+    if column == 0:
+        dev = SelectPopup("Select Device", list(devices.keys()))
+        dev.exec()
+        item.setText(0, dev.select.currentText())
+        if item.text(1) != "":
+            methods = get_device_methods(item.text(0), devices)
+            if item.text(1) not in methods:
+                item.setText(1, "")
+    elif column == 1:
+        device = item.text(0)
+        if device == "":
+            return
+        methods = get_device_methods(item.text(0), devices)
+        dev = SelectPopup("Select Function", methods)
+        dev.exec()
+        item.setText(1, dev.select.currentText())
+
+
 class SequencerGUI(qt.QWidget):
     def __init__(self, parent: CentrexGUIProtocol):
         super().__init__()
-        self.parent = parent
+        self.parent: CentrexGUIProtocol = parent
         self.sequencer = None
 
         # make a box to contain the sequencer
@@ -58,6 +106,10 @@ class SequencerGUI(qt.QWidget):
 
         # make the tree
         self.qtw = qt.QTreeWidget()
+
+        self.qtw.itemClicked.connect(
+            partial(select_device_function, devices=self.parent.devices)
+        )
         self.main_frame.addWidget(self.qtw)
         self.qtw.setColumnCount(7)
         self.qtw.setHeaderLabels(
@@ -71,7 +123,7 @@ class SequencerGUI(qt.QWidget):
         self.qtw.setDragDropMode(qt.QAbstractItemView.InternalMove)
 
         self.qtw.header().setSectionResizeMode(
-            PyQt5.QtWidgets.QHeaderView.ResizeToContents
+            PySide6.QtWidgets.QHeaderView.ResizeToContents
         )
 
         # populate the tree
@@ -119,6 +171,8 @@ class SequencerGUI(qt.QWidget):
         self.progress.hide()
         self.bbox.addWidget(self.progress)
 
+        # self.qcombo_boxes: dict[uuid.UUID, qt.QComboBox] = {}
+
         # settings / defaults
         # TODO: use a Config class to do this
         self.circular = False
@@ -133,7 +187,7 @@ class SequencerGUI(qt.QWidget):
 
     def load_from_file(self):
         # check file exists
-        fname = self.parent.config["files"]["sequence_fname"]
+        fname = self.parent.config.files.sequence_fname
         if not os.path.exists(fname):
             logging.warning("Sequencer load warning: file does not exist.")
             return
@@ -149,14 +203,14 @@ class SequencerGUI(qt.QWidget):
     def list_to_tree(self, tree_list, item, ncols):
         for x in tree_list:
             t = qt.QTreeWidgetItem(item)
-            t.setFlags(t.flags() | PyQt5.QtCore.Qt.ItemIsEditable)
+            t.setFlags(t.flags() | PySide6.QtCore.Qt.ItemIsEditable)
             for i in range(ncols):
                 if i in [4, 6]:
-                    t.setFlags(t.flags() | PyQt5.QtCore.Qt.ItemIsUserCheckable)
+                    t.setFlags(t.flags() | PySide6.QtCore.Qt.ItemIsUserCheckable)
                     if x[i] is not None and x[i]:
-                        t.setCheckState(i, PyQt5.QtCore.Qt.Checked)
+                        t.setCheckState(i, PySide6.QtCore.Qt.Checked)
                     else:
-                        t.setCheckState(i, PyQt5.QtCore.Qt.Unchecked)
+                        t.setCheckState(i, PySide6.QtCore.Qt.Unchecked)
                 elif x[i] is not None:
                     t.setText(i, str(x[i]))
                 else:
@@ -172,7 +226,7 @@ class SequencerGUI(qt.QWidget):
         )
 
         # write to file
-        fname: str = self.parent.config["files"]["sequence_fname"]
+        fname = self.parent.config.files.sequence_fname
         with open(fname, "w") as f:
             yaml.safe_dump(tree_list, f)
 
@@ -201,13 +255,14 @@ class SequencerGUI(qt.QWidget):
         line = qt.QTreeWidgetItem(self.qtw)
         line.setFlags(
             line.flags()
-            | PyQt5.QtCore.Qt.ItemIsEditable
-            | PyQt5.QtCore.Qt.ItemIsUserCheckable
+            | PySide6.QtCore.Qt.ItemIsEditable
+            | PySide6.QtCore.Qt.ItemIsUserCheckable
         )
+
         for idx in [4]:
-            line.setCheckState(idx, PyQt5.QtCore.Qt.Unchecked)
+            line.setCheckState(idx, PySide6.QtCore.Qt.Unchecked)
         for idx in [6]:
-            line.setCheckState(idx, PyQt5.QtCore.Qt.Checked)
+            line.setCheckState(idx, PySide6.QtCore.Qt.Checked)
 
     def remove_line(self):
         for line in self.qtw.selectedItems():
@@ -224,7 +279,7 @@ class SequencerGUI(qt.QWidget):
         self.progress.setFormat(text)
 
     def start_sequencer(self):
-        if not self.parent.config["control_active"]:
+        if not self.parent.config.control_active:
             error_popup("CeNTREX DAQ is not running. Cannot start sequencer.")
             return
 
@@ -253,7 +308,7 @@ class SequencerGUI(qt.QWidget):
 
         # change the "Start" button into a "Stop" button
         self.start_pb.setText("Stop")
-        self.start_pb.disconnect()
+        # self.start_pb.disconnect()
         self.start_pb.clicked[bool].connect(self.stop_sequencer)
 
         # show the progress bar
@@ -268,13 +323,13 @@ class SequencerGUI(qt.QWidget):
 
         # change the "Stop" button into a "Start" button
         self.start_pb.setText("Start")
-        self.start_pb.disconnect()
+        # self.start_pb.disconnect()
         self.start_pb.clicked[bool].connect(self.start_sequencer)
 
         # change the "Resume" button into a "Pause" button; might have paused
         # before stopping sequencer
         self.pause_pb.setText("Pause")
-        self.pause_pb.disconnect()
+        # self.pause_pb.disconnect()
         self.pause_pb.clicked[bool].connect(self.pause_sequencer)
 
         # hide the progress bar
@@ -284,27 +339,27 @@ class SequencerGUI(qt.QWidget):
         if self.sequencer:
             self.sequencer.paused.set()
             self.pause_pb.setText("Resume")
-            self.pause_pb.disconnect()
+            # self.pause_pb.disconnect()
             self.pause_pb.clicked[bool].connect(self.resume_sequencer)
 
     def resume_sequencer(self):
         self.sequencer.paused.clear()
         self.pause_pb.setText("Pause")
-        self.pause_pb.disconnect()
+        # self.pause_pb.disconnect()
         self.pause_pb.clicked[bool].connect(self.pause_sequencer)
 
 
-class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
+class Sequencer(threading.Thread, PySide6.QtCore.QObject):
     # signal to update the progress bar
-    progress = PyQt5.QtCore.pyqtSignal(int)
-    progress_time = PyQt5.QtCore.pyqtSignal(str)
+    progress = PySide6.QtCore.Signal(int)
+    progress_time = PySide6.QtCore.Signal(str)
 
     # signal emitted when sequence terminates
-    finished = PyQt5.QtCore.pyqtSignal()
+    finished = PySide6.QtCore.Signal()
 
     def __init__(self, parent: CentrexGUIProtocol, circular, n_repeats):
         threading.Thread.__init__(self)
-        PyQt5.QtCore.QObject.__init__(self)
+        PySide6.QtCore.QObject.__init__(self)
 
         # access to the outside world
         self.parent = parent
@@ -324,7 +379,7 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
         self.circular = circular
         self.n_repeats = n_repeats
 
-    def flatten_tree(self, item, parent_info):
+    def flatten_tree(self, item: qt.QTreeWidgetItem, parent_info):
         for p_info in parent_info[1:]:
             if not p_info[3]:
                 return
@@ -339,6 +394,12 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
 
         if not enabled and dev != "":
             return
+
+        # try:
+        #     dev = self.seqGUI.qcombo_boxes[dev].currentText()
+        #     fn = self.seqGUI.qcombo_boxes[fn].currentText()
+        # except KeyError:
+        #     pass
 
         # extract the parameters
         eval_matches = [
@@ -486,4 +547,6 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
 
         # when finished
         self.progress.emit(len(self.flat_seq))
+        self.finished.emit()
+        self.finished.emit()
         self.finished.emit()

@@ -1,0 +1,76 @@
+COM_port:
+  column: 1
+  command: ''
+  label: COM port
+  options: ''
+  row: 3
+  type: QComboBox
+  value: 10.10.222.19::29
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  type: QCheckBox
+  value: 1
+attributes:
+  column_names:
+  - time
+  - motor current
+  - motor power
+  - link voltage
+  - pump temp
+  - pump ctrlr temp
+  units:
+  - s
+  - A
+  - W
+  - V
+  - C
+  - C
+device:
+  column: 0
+  constr_params:
+  - COM_port
+  correct_response: =S801 nXDS;D37479651A;30
+  driver: nXDS
+  label: nXDS 10i backing 3
+  max_nan_count: 10
+  meta_device: false
+  name: nXDS10i backing 3
+  path: vacuum/pressure
+  plots_queue_maxlen: 1000
+  row: 2
+  slow_data: true
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 2
+  type: QLineEdit
+  value: 1
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tristate: true
+  type: QCheckBox
+  value: 2
+power_toggle:
+  action_commands: StopPump, StartPump
+  argument: ''
+  checked:
+  - true
+  - false
+  - false
+  - true
+  - true
+  colspan: 2
+  column: 0
+  label: (pump speed?)
+  monitoring_command: PumpStatus()
+  return_values: running, stopped, accelerating, invalid, None
+  row: 4
+  rowspan: 1
+  states: enabled, disabled, intermediate, error, disabled
+  texts: Stop pump, Start pump, Accelerating [press to start], (pump speed?), (pump
+    speed?)
+  type: indicator_button

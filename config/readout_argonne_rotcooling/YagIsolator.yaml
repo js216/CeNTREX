@@ -1,0 +1,84 @@
+COM_port:
+  column: 1
+  command: ''
+  label: COM port
+  options: ''
+  row: 4
+  type: QComboBox
+  value: COM11
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  tooltip: null
+  type: QCheckBox
+  value: false
+InfluxDB_enabled:
+  column: 0
+  label: InfluxDB enabled
+  row: 2
+  type: QCheckBox
+  value: 0
+NR_qswitches:
+  colspan: 1
+  column: 2
+  command: SetNrQswitchesGUI
+  label: nr. qswitches
+  monitoring_command: GetNrQswitchesGUI()
+  row: 5
+  rowspan: 1
+  tooltip: Hz
+  type: indicator_lineedit
+  value: 0
+QSWITCH_control:
+  action_commands: DisableQswitchGUI, EnableQswitchGUI
+  argument: ''
+  checked:
+  - true
+  - false
+  colspan: 1
+  column: 0
+  label: (QS?)
+  monitoring_command: QswitchStatusGUI()
+  return_values: enabled, disabled
+  row: 5
+  rowspan: 1
+  states: enabled, disabled
+  texts: Qswitch ena, Qswitch dis
+  type: indicator_button
+attributes:
+  column_names:
+  - time
+  units:
+  - s
+device:
+  column: 0
+  compound_dataset: false
+  constr_params:
+  - COM_port
+  correct_response: YAG Isolator V1.0
+  driver: YagIsolator
+  label: YagIsolator
+  max_nan_count: 0
+  meta_device: false
+  name: YagIsolator
+  path: lasers
+  plots_queue_maxlen: 1000
+  row: 2
+  slow_data: true
+dt:
+  column: 1
+  command: null
+  label: Loop delay [s]
+  row: 2
+  tooltip: null
+  type: QLineEdit
+  value: 5
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2

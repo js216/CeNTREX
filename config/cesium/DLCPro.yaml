@@ -1,0 +1,73 @@
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  tooltip: null
+  type: QCheckBox
+  value: false
+attributes:
+  column_names:
+  - time
+  - emission
+  - piezo voltage
+  - diode current
+  - dl temperature
+  - dl temperature setpoint
+  - pressure
+  units:
+  - s
+  - ''
+  - V
+  - mA
+  - C
+  - C
+  - hPa
+connection_type:
+  colspan: null
+  column: 1
+  command: ''
+  label: Connection
+  options: SERIAL, TCP
+  row: 4
+  rowspan: null
+  tooltip: null
+  type: QComboBox
+  value: SERIAL
+device:
+  column: 0
+  constr_params:
+  - resource_name
+  - connection_type
+  correct_response: DLpro (S/N 020758)
+  driver: DLCPro
+  label: Cesium DLC Pro
+  max_nan_count: 0
+  meta_device: false
+  name: Cesium DLC Pro
+  path: lasers
+  plots_queue_maxlen: 1000
+  row: 0
+  slow_data: true
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 2
+  type: QLineEdit
+  value: 0.5
+  width: 5
+enabled:
+  colspan: null
+  column: 0
+  label: Device enabled
+  row: 0
+  rowspan: null
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2
+resource_name:
+  column: 1
+  label: COM
+  row: 3
+  type: QLineEdit
+  value: COM27

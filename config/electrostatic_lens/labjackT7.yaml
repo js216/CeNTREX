@@ -1,0 +1,162 @@
+HDF_enabled:
+  column: 2
+  label: HDF enabled
+  row: 0
+  type: Checkbutton
+  value: 1
+IP_address:
+  column: 1
+  command: ''
+  label: IP address
+  options: ''
+  row: 2
+  type: Entry
+  value: 172.28.169.152
+attributes:
+  column_names:
+  - V1
+  - V2
+  - I1
+  - I2
+  - VDIV1
+  - VDIV2
+  units:
+  - V
+  - V
+  - V
+  - V
+  - V
+  - V
+channels:
+  column: 6
+  column_labels: ', Input, Range, Coupling'
+  column_names:
+  - enable
+  - channel
+  column_options: '...; ...;'
+  column_types: Checkbutton, Label
+  column_values: 1,1,1,1,1,1; V1,V2,I1,I2,VDIV1,VDIV2;
+  column_widths:
+  - 10
+  - 10
+  - 5
+  - 3
+  columnspan: 1
+  label: Channels
+  row: 4
+  row_ids:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  rowspan: 6
+  type: ControlsTable
+device:
+  column: 0
+  columnspan: 1
+  constr_params:
+  - IP_address
+  - sampling
+  - channels
+  correct_response: 7
+  driver: labjackT7
+  label: Labjack T7 Pro
+  monitoring_column: 0
+  monitoring_row: 1
+  name: labjackT7
+  path: electrostatic_lens
+  row: 1
+  rowspan: 1
+  single_dataset: true
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 1
+  type: Hidden
+  value: 0
+  width: 5
+enabled:
+  column: 1
+  label: Device enabled
+  row: 0
+  tristate: true
+  type: Checkbutton
+  value: 2
+hv_enable:
+  column: 1
+  control_commands: HV1Enable, HV2Enable
+  control_labels: HV 1, HV 2
+  control_names: hv1_enable, hv2_enable
+  control_options: '...; ...;'
+  control_types: CheckbuttonCmd, CheckbuttonCmd
+  control_values:
+  - 0
+  - 0
+  control_widths:
+  - 7
+  - 7
+  label: HV Enable
+  row: 4
+  type: ControlsRow
+polarity:
+  column: 1
+  control_commands: ',, SetPolarity'
+  control_labels: HV 1, HV 2, Set
+  control_names: polarity1, polarity2, polarity_set
+  control_options: POS,NEG;POS,NEG;
+  control_types: OptionMenu, OptionMenu, Button
+  control_values: POS, NEG,
+  control_widths:
+  - 7
+  - 7
+  - 3
+  label: Polarity
+  row: 5
+  type: ControlsRow
+sampling:
+  column: 1
+  control_labels: Sample rate [S/s], Scans per read [S/r]
+  control_names: scans_rate, scans_per_read
+  control_options: '...; ...;'
+  control_types: Entry, Entry
+  control_values:
+  - 50
+  - 1
+  control_widths:
+  - 7
+  - 7
+  label: Sampling
+  row: 3
+  type: ControlsRow
+set_hv:
+  column: 1
+  control_commands: ',,,,SetVoltage'
+  control_labels: HV 1 [kV], HV 2 [kV], Ramp, Ramp Time [s], Set
+  control_names: hv1_v, hv2_v, ramp, ramp_time, voltage_set
+  control_options: '...;...;...;...;...;'
+  control_types: Entry, Entry, Checkbutton, Entry, Button
+  control_values:
+  - 0
+  - 0
+  - 0
+  - 0
+  control_widths:
+  - 7
+  - 7
+  - 7
+  - 7
+  - 3
+  label: Set Voltage
+  row: 6
+  type: ControlsRow
+stop_hv:
+  align: ''
+  argument: ''
+  column: 2
+  command: StopVoltage
+  label: Stop
+  row: 6
+  type: Button
+  width: 3

@@ -1,0 +1,81 @@
+COM_port:
+  type: dummy
+  value: client
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  tooltip: null
+  type: QCheckBox
+  value: false
+NR_qswitches:
+  colspan: 1
+  column: 1
+  command: SetNrQswitchesGUI
+  label: nr. qswitches
+  monitoring_command: GetNrQswitchesGUI()
+  row: 4
+  rowspan: 1
+  tooltip: Hz
+  type: indicator_lineedit
+  value: 0
+attributes:
+  column_names:
+  - time
+  units:
+  - s
+connection:
+  type: dummy
+  value:
+    device_name: YagIsolator
+    port_control: '12347'
+    port_readout: '12346'
+    publisher_name: LaserControl
+    server: 172.28.173.180
+device:
+  column: 2
+  constr_params:
+  - driver
+  - connection
+  - COM_port
+  correct_response: YAG Isolator V1.0
+  driver: NetworkingClient
+  label: YagIsolator
+  max_nan_count: 10
+  meta_device: false
+  name: YagIsolator
+  path: readout
+  plots_queue_maxlen: 1000
+  row: 0
+  slow_data: true
+driver:
+  type: dummy
+  value: YagIsolator
+dt:
+  column: 1
+  command: null
+  label: Loop delay [s]
+  row: 2
+  tooltip: null
+  type: QLineEdit
+  value: 2
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2
+socket_connection:
+  column: 1
+  command: ''
+  ctrl_labels: Host, Port
+  ctrl_names: host, port
+  ctrl_options: '...; ...'
+  ctrl_types: QLineEdit, QLineEdit
+  ctrl_values: 172.28.173.180, 65435
+  label: Socket Connection
+  options: ''
+  row: 3
+  type: ControlsRow

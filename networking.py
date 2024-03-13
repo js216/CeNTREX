@@ -11,6 +11,7 @@ import zmq.auth
 from zmq.auth.thread import ThreadAuthenticator
 from zmq.devices import Device
 
+from device import get_values_from_slow_device_dataclass
 from protocols import CentrexGUIProtocol
 
 
@@ -54,13 +55,13 @@ class NetworkingDeviceWorker(threading.Thread):
                 self.socket.send_json(["ERROR", "device not started"])
                 continue
             # check if device is enabled
-            elif not dev.config["control_params"]["enabled"]["value"] == 2:
+            elif not dev.config.control_params["enabled"].value == 2:
                 self.socket.send_json(["ERROR", "device not enabled"])
                 continue
             # check if device is slow data
             # ndarrays are not serializable by default, and fast devices return
             # ndarrays on ReadValue()
-            elif not dev.config["slow_data"] and command == "ReadValue()":
+            elif not dev.config.slow_data and command == "ReadValue()":
                 self.socket.send_json(["ERROR", "device does not support slow data"])
             else:
                 # put command into the networking queue
@@ -143,7 +144,7 @@ class Networking(threading.Thread):
         super(Networking, self).__init__()
         self.parent = parent
         self.active = threading.Event()
-        self.conf = self.parent.config["networking"]
+        self.conf = self.parent.config.networking
 
         # deamon = True ensures this thread terminates when the main threads
         # are terminated
@@ -151,7 +152,7 @@ class Networking(threading.Thread):
 
         self.context_readout = zmq.Context()
         self.socket_readout = self.context_readout.socket(zmq.PUB)
-        self.socket_readout.bind(f"tcp://*:{self.conf['port_readout']}")
+        self.socket_readout.bind(f"tcp://*:{self.conf.port_readout}")
 
         # dictionary with timestamps of last ReadValue update per device
         self.devices_last_updated = {
@@ -159,14 +160,14 @@ class Networking(threading.Thread):
         }
 
         # initialize the broker for network control of devices
-        allowed = self.conf["allowed"].split(",")
-        self.control_broker = NetworkingBroker(self.conf["port_control"], allowed)
+        allowed = self.conf.allowed
+        self.control_broker = NetworkingBroker(self.conf.port_control, allowed)
 
         # initialize the workers used for network control of devices
         backend_port = self.control_broker.backend_port
         self.workers = [
             NetworkingDeviceWorker(parent, backend_port)
-            for _ in range(int(self.conf["workers"]))
+            for _ in range(int(self.conf.workers))
         ]
 
     def encode(self, topic, message):
@@ -192,7 +193,7 @@ class Networking(threading.Thread):
             if not dev.control_started:
                 continue
             # check device enabled
-            if not dev.config["control_params"]["enabled"]["value"] == 2:
+            if not dev.config.control_params["enabled"].value == 2:
                 continue
 
             # check if device is a network client, don't retransmit data
@@ -207,7 +208,7 @@ class Networking(threading.Thread):
                 if not dev.control_started:
                     continue
                 # check device enabled
-                if not dev.config["control_params"]["enabled"]["value"] == 2:
+                if not dev.config.control_params["enabled"].value == 2:
                     continue
 
                 # check if device is a network client, don't retransmit data
@@ -215,18 +216,20 @@ class Networking(threading.Thread):
                 if getattr(dev, "is_networking_client", None):
                     continue
 
-                if len(dev.config["plots_queue"]) > 0:
-                    data = dev.config["plots_queue"][-1]
+                if len(dev.config.plots_queue) > 0:
+                    data = dev.config.plots_queue[-1]
                 else:
                     data = None
 
-                if isinstance(data, list):
-                    if dev.config["slow_data"]:
-                        t_readout = data[0]
+                if data is not None:
+                    if dev.config.slow_data:
+                        t_readout = data.time
                         if self.devices_last_updated[dev_name] != t_readout:
                             self.devices_last_updated[dev_name] = t_readout
-                            topic = f"{self.conf['name']}-{dev_name}"
-                            message = [dev.time_offset + data[0]] + data[1:]
+                            topic = f"{self.conf.name}-{dev_name}"
+                            message = [
+                                dev.time_offset + data.time
+                            ] + get_values_from_slow_device_dataclass(data)[1:]
                             self.socket_readout.send_string(self.encode(topic, message))
 
                 time.sleep(1e-5)

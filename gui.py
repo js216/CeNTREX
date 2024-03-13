@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import configparser
 import datetime as dt
-import glob
 import logging
 import os
 import re
@@ -12,29 +11,45 @@ import time
 import traceback
 from pathlib import Path
 
-import PyQt5
-import PyQt5.QtWidgets as qt
+import PySide6
+import PySide6.QtWidgets as qt
 import pythoncom
 import pyvisa
 import wmi
-from PyQt5 import QtGui
+from PySide6 import QtCore, QtGui
 
-from config import DeviceConfig, ProgramConfig
+from config import (
+    ControlParamTypes,
+    DeviceConfig,
+    ProgramConfig,
+    load_device_config,
+    load_program_config,
+)
 from device import Device, restart_device
+from device_utils import get_device_methods
 from hdf_writer import HDF_writer
 from monitoring import Monitoring
 from networking import Networking
 from plots import PlotsGUI
 from sequencer import SequencerGUI
-from utils import split
-from utils_gui import LabelFrame, ScrollableLabelFrame, error_box, update_QComboBox
+from utils_gui import LabelFrame, ScrollableLabelFrame, error_box
+from utils_widgets import (
+    create_checkbox_widget,
+    create_indicator_button_widget,
+    create_indicator_qlineedit_widget,
+    create_indicator_widget,
+    create_pushbutton_widget,
+    create_qcombobox_widget,
+    create_qlineedit_widget,
+    update_qcombobox,
+)
 
 
 class AttrEditor(qt.QDialog):
-    def __init__(self, parent: CentrexGUI, dev=None):
+    def __init__(self, parent: CentrexGUI, dev: Device | None = None):
         super().__init__()
         self.dev = dev
-        self.parent = parent
+        self.parent: CentrexGUI = parent
 
         # layout for GUI elements
         self.frame = qt.QGridLayout()
@@ -42,18 +57,18 @@ class AttrEditor(qt.QDialog):
 
         # draw the table
         if self.dev:
-            num_rows = len(self.dev.config["attributes"])
+            num_rows = len(self.dev.config.attributes)
         else:
-            num_rows = len(self.parent.config["run_attributes"])
+            num_rows = len(self.parent.config.run_attributes)
         self.qtw = qt.QTableWidget(num_rows, 2)
         self.qtw.setAlternatingRowColors(True)
         self.frame.addWidget(self.qtw, 0, 0, 1, 2)
 
         # put the attributes into the table
         if self.dev:
-            attrs = self.dev.config["attributes"].items()
+            attrs = self.dev.config.attributes.items()
         else:
-            attrs = self.parent.config["run_attributes"].items()
+            attrs = self.parent.config.run_attributes.items()
         for row, (key, val) in enumerate(attrs):
             self.qtw.setItem(row, 0, qt.QTableWidgetItem(key))
             self.qtw.setItem(row, 1, qt.QTableWidgetItem(val))
@@ -137,28 +152,28 @@ class AttrEditor(qt.QDialog):
     def change_attrs(self):
         if self.dev:  # if changing device attributes
             # write the new attributes to the config dict
-            self.dev.config["attributes"] = {}
+            self.dev.config.attributes = {}
             for row in range(self.qtw.rowCount()):
                 key = self.qtw.item(row, 0).text()
                 val = self.qtw.item(row, 1).text()
-                self.dev.config["attributes"][key] = val
+                self.dev.config.attributes[key] = val
 
             # update the column names and units
             self.parent.ControlGUI.update_col_names_and_units()
 
         else:  # if changing run attributes
-            self.parent.config["run_attributes"] = {}
+            self.parent.config.run_attributes = {}
             for row in range(self.qtw.rowCount()):
                 key = self.qtw.item(row, 0).text()
                 val = self.qtw.item(row, 1).text()
-                self.parent.config["run_attributes"][key] = val
+                self.parent.config.run_attributes[key] = val
 
 
 class RestartDevicePopup(qt.QDialog):
     def __init__(self, parent: CentrexGUI):
         super().__init__()
         self.setWindowTitle("Restart Device")
-        self.parent = parent
+        self.parent: CentrexGUI = parent
 
         dev_names = list(self.parent.devices.keys())
 
@@ -177,13 +192,13 @@ class RestartDevicePopup(qt.QDialog):
 
         self.setLayout(self.layout)
 
-        if not self.parent.config["control_active"]:
+        if not self.parent.config.control_active:
             self.not_running_popup()
 
     def accept(self):
         dev_name = self.device_restart.currentText()
         dev = self.parent.devices.get(dev_name)
-        dev = restart_device(dev, self.parent.config["time_offset"])
+        dev = restart_device(dev, self.parent.config.time_offset)
 
         self.parent.devices[dev_name] = dev
         self.close()
@@ -256,7 +271,7 @@ class MandatoryParametersPopup(qt.QDialog):
         err_msg.exec()
 
     def accept(self):
-        run_attributes = self.parent.config["run_attributes"]
+        run_attributes = self.parent.config.run_attributes
         for attr in self.mandatory_parameters:
             atr = getattr(self, attr.replace(" ", "_"))
             if isinstance(atr, qt.QComboBox):
@@ -280,7 +295,7 @@ class MandatoryParametersPopup(qt.QDialog):
 class ControlGUI(qt.QWidget):
     def __init__(self, parent: CentrexGUI, mandatory_parameters: bool = False):
         super().__init__()
-        self.parent = parent
+        self.parent: CentrexGUI = parent
         self.make_devices()
         self.place_GUI_elements()
         self.place_device_controls()
@@ -292,36 +307,34 @@ class ControlGUI(qt.QWidget):
         ind.style().polish(ind)
 
     def make_devices(self):
-        self.parent.devices = {}
+        self.parent.devices: dict[str, Device] = {}
 
         # check the config specifies a directory with device configuration files
-        if not os.path.isdir(self.parent.config["files"]["config_dir"]):
+        if not os.path.isdir(self.parent.config.files.config_dir):
             logging.error("Directory with device configuration files not specified.")
             return
 
         # iterate over all device config files
-        for fname in glob.glob(self.parent.config["files"]["config_dir"] + "/*.ini"):
+        for fname in self.parent.config.files.config_dir.glob("*.yaml"):
             # read device configuration
             try:
-                dev_config = DeviceConfig(fname)
+                dev_config: DeviceConfig = load_device_config(fname)
             except (IndexError, ValueError, TypeError, KeyError) as err:
-                logging.error(
-                    "Cannot read device config file " + fname + ": " + str(err)
-                )
+                logging.error(f"Cannot read device config file {fname}: {err}")
                 logging.error(traceback.format_exc())
                 return
 
             # for meta devices, include a reference to the parent
-            if dev_config["meta_device"]:
-                dev_config["parent"] = self.parent
+            if dev_config.meta_device:
+                dev_config.parent = self.parent
 
             # make a Device object
-            if dev_config["name"] in self.parent.devices:
+            if dev_config.name in self.parent.devices:
                 logging.warning(
                     "Warning in make_devices(): duplicate device name: "
-                    + dev_config["name"]
+                    + dev_config.name
                 )
-            self.parent.devices[dev_config["name"]] = Device(dev_config)
+            self.parent.devices[dev_config.name] = Device(dev_config)
 
     def place_GUI_elements(self):
         # main frame for all ControlGUI elements
@@ -329,9 +342,7 @@ class ControlGUI(qt.QWidget):
         self.setLayout(self.main_frame)
 
         # the status label
-        self.status_label = qt.QLabel(
-            "Ready to start", alignment=PyQt5.QtCore.Qt.AlignRight
-        )
+        self.status_label = qt.QLabel("Ready to start", alignment=QtCore.Qt.AlignRight)
         self.status_label.setFont(QtGui.QFont("Helvetica", 16))
         self.main_frame.addWidget(self.status_label)
 
@@ -410,9 +421,9 @@ class ControlGUI(qt.QWidget):
 
         self.config_dir_qle = qt.QLineEdit()
         self.config_dir_qle.setToolTip(
-            "Directory with .ini files with device configurations."
+            "Directory with .yaml files with device configurations."
         )
-        self.config_dir_qle.setText(self.parent.config["files"]["config_dir"])
+        self.config_dir_qle.setText(str(self.parent.config.files.config_dir))
         self.config_dir_qle.textChanged[str].connect(
             lambda val: self.parent.config.change("files", "config_dir", val)
         )
@@ -427,10 +438,16 @@ class ControlGUI(qt.QWidget):
 
         self.hdf_fname_qle = qt.QLineEdit()
         self.hdf_fname_qle.setToolTip("HDF file for storing all acquired data.")
-        self.hdf_fname_qle.setText(self.parent.config["files"]["hdf_fname"])
-        self.hdf_fname_qle.textChanged[str].connect(
-            lambda val: self.parent.config.change("files", "hdf_fname", val)
+        self.hdf_fname_qle.setText(
+            str(self.parent.config.files.hdf_dir / self.parent.config.files.hdf_fname)
         )
+
+        def change_hdf_filename(file: str) -> None:
+            path = Path(file)
+            self.parent.config.change("files", "hdf_fname", path.name)
+            self.parent.config.change("files", "hdf_dir", path.parent)
+
+        self.hdf_fname_qle.textChanged[str].connect(change_hdf_filename)
         files_frame.addWidget(self.hdf_fname_qle, 1, 1)
 
         pb = qt.QPushButton("Open...")
@@ -449,10 +466,19 @@ class ControlGUI(qt.QWidget):
             "The loop delay determines how frequently acquired data is written to the"
             " HDF file."
         )
-        qle.setText(self.parent.config["general"]["hdf_loop_delay"])
-        qle.textChanged[str].connect(
-            lambda val: self.parent.config.change("general", "hdf_loop_delay", val)
-        )
+        qle.setText(str(self.parent.config.general.hdf_loop_delay))
+
+        def hdf_loop_delay_change(delay: str) -> None:
+            if len(delay) == 0:
+                logging.warning("hdf_loop_delay emtpy.")
+                return
+            if float(delay) < 0.1:
+                logging.warning("hdf_loop_delay too small.")
+                return
+            else:
+                self.parent.config.change("general", "hdf_loop_delay", delay)
+
+        qle.textChanged[str].connect(hdf_loop_delay_change)
         files_frame.addWidget(qle, 3, 1)
 
         # run name
@@ -462,7 +488,7 @@ class ControlGUI(qt.QWidget):
         qle.setToolTip(
             "The name given to the HDF group containing all data for this run."
         )
-        qle.setText(self.parent.config["general"]["run_name"])
+        qle.setText(self.parent.config.general.run_name)
         qle.textChanged[str].connect(
             lambda val: self.parent.config.change("general", "run_name", val)
         )
@@ -490,27 +516,40 @@ class ControlGUI(qt.QWidget):
         cmd_frame = qt.QHBoxLayout()
         files_frame.addLayout(cmd_frame, 5, 1)
 
-        qle = qt.QLineEdit()
-        qle.setToolTip(
+        self.custom_func_cbx = qt.QComboBox()
+        self.custom_func_cbx.setToolTip(
             "Enter a command corresponding to a function in the selected device driver."
         )
-        qle.setText(self.parent.config["general"]["custom_command"])
-        qle.textChanged[str].connect(
-            lambda val: self.parent.config.change("general", "custom_command", val)
-        )
-        cmd_frame.addWidget(qle)
+        cmd_frame.addWidget(self.custom_func_cbx)
+
+        self.custom_params_qle = qt.QLineEdit()
+        self.custom_params_qle.setToolTip("Enter parameters for the selected function")
+        cmd_frame.addWidget(self.custom_params_qle)
 
         self.custom_dev_cbx = qt.QComboBox()
         dev_list = [dev_name for dev_name in self.parent.devices]
-        update_QComboBox(
+        update_qcombobox(
             cbx=self.custom_dev_cbx,
-            options=list(
-                set(dev_list) | set([self.parent.config["general"]["custom_device"]])
-            ),
-            value=self.parent.config["general"]["custom_device"],
+            options=dev_list,
+            value=dev_list[0],
         )
-        self.custom_dev_cbx.activated[str].connect(
-            lambda val: self.parent.config.change("general", "custom_device", val)
+
+        update_qcombobox(
+            cbx=self.custom_func_cbx,
+            options=get_device_methods(dev_list[0], self.parent.devices),
+            value=get_device_methods(dev_list[0], self.parent.devices)[0],
+        )
+
+        self.custom_dev_cbx.currentTextChanged[str].connect(
+            lambda text: update_qcombobox(
+                self.custom_func_cbx,
+                options=get_device_methods(
+                    self.custom_dev_cbx.currentText(), self.parent.devices
+                ),
+                value=get_device_methods(
+                    self.custom_dev_cbx.currentText(), self.parent.devices
+                )[0],
+            )
         )
         cmd_frame.addWidget(self.custom_dev_cbx)
 
@@ -525,7 +564,7 @@ class ControlGUI(qt.QWidget):
         # frame for the sequencer
         self.seq_box, self.seq_frame = LabelFrame("Sequencer")
         self.main_frame.addWidget(self.seq_box)
-        if not self.parent.config["sequencer_visible"]:
+        if not self.parent.config.sequencer_visible:
             self.seq_box.hide()
 
         # make and place the sequencer
@@ -542,7 +581,7 @@ class ControlGUI(qt.QWidget):
         # filename
         self.fname_qle = qt.QLineEdit()
         self.fname_qle.setToolTip("Filename for storing a sequence.")
-        self.fname_qle.setText(self.parent.config["files"]["sequence_fname"])
+        self.fname_qle.setText(str(self.parent.config.files.sequence_fname))
         self.fname_qle.textChanged[str].connect(
             lambda val: self.parent.config.change("files", "sequence_fname", val)
         )
@@ -601,7 +640,7 @@ class ControlGUI(qt.QWidget):
 
         gen_f.addWidget(qt.QLabel("Loop delay [s]:"), 0, 0)
         qle = qt.QLineEdit()
-        qle.setText(self.parent.config["general"]["monitoring_dt"])
+        qle.setText(str(self.parent.config.general.monitoring_dt))
         qle.textChanged[str].connect(
             lambda val: self.parent.config.change("general", "monitoring_dt", val)
         )
@@ -612,11 +651,7 @@ class ControlGUI(qt.QWidget):
         qch = qt.QCheckBox("InfluxDB")
         qch.setToolTip("InfluxDB enabled")
         qch.setTristate(False)
-        qch.setChecked(
-            True
-            if self.parent.config["influxdb"]["enabled"] in ["1", "True"]
-            else False
-        )
+        qch.setChecked(True if self.parent.config.influxdb.enabled else False)
         qch.stateChanged[int].connect(
             lambda val: self.parent.config.change("influxdb", "enabled", val)
         )
@@ -625,7 +660,7 @@ class ControlGUI(qt.QWidget):
         qle = qt.QLineEdit()
         qle.setToolTip("Host IP")
         qle.setMaximumWidth(50)
-        qle.setText(self.parent.config["influxdb"]["host"])
+        qle.setText(self.parent.config.influxdb.host)
         qle.textChanged[str].connect(
             lambda val: self.parent.config.change("influxdb", "host", val)
         )
@@ -634,7 +669,7 @@ class ControlGUI(qt.QWidget):
         qle = qt.QLineEdit()
         qle.setToolTip("Port")
         qle.setMaximumWidth(50)
-        qle.setText(self.parent.config["influxdb"]["port"])
+        qle.setText(str(self.parent.config.influxdb.port))
         qle.textChanged[str].connect(
             lambda val: self.parent.config.change("influxdb", "port", val)
         )
@@ -644,11 +679,7 @@ class ControlGUI(qt.QWidget):
         qch = qt.QCheckBox("Networking")
         qch.setToolTip("Networking enabled")
         qch.setTristate(False)
-        qch.setChecked(
-            True
-            if self.parent.config["networking"]["enabled"] in ["1", "True"]
-            else False
-        )
+        qch.setChecked(True if self.parent.config.networking.enabled else False)
         qch.stateChanged[int].connect(
             lambda val: self.parent.config.change("networking", "enabled", val)
         )
@@ -657,7 +688,7 @@ class ControlGUI(qt.QWidget):
         qle = qt.QLineEdit()
         qle.setToolTip("Read port")
         qle.setMaximumWidth(50)
-        qle.setText(self.parent.config["networking"]["port_readout"])
+        qle.setText(str(self.parent.config.networking.port_readout))
         qle.textChanged[str].connect(
             lambda val: self.parent.config.change("networking", "port_readout", val)
         )
@@ -666,7 +697,7 @@ class ControlGUI(qt.QWidget):
         qle = qt.QLineEdit()
         qle.setToolTip("Control port")
         qle.setMaximumWidth(50)
-        qle.setText(self.parent.config["networking"]["port_control"])
+        qle.setText(str(self.parent.config.networking.port_control))
         qle.textChanged[str].connect(
             lambda val: self.parent.config.change("networking", "port_control", val)
         )
@@ -675,7 +706,7 @@ class ControlGUI(qt.QWidget):
         qle = qt.QLineEdit()
         qle.setToolTip("Name")
         qle.setMaximumWidth(50)
-        qle.setText(self.parent.config["networking"]["name"])
+        qle.setText(self.parent.config.networking.name)
         qle.textChanged[str].connect(
             lambda val: self.parent.config.change("networking", "name", val)
         )
@@ -684,7 +715,7 @@ class ControlGUI(qt.QWidget):
         qle = qt.QLineEdit()
         qle.setToolTip("# Workers")
         qle.setMaximumWidth(50)
-        qle.setText(self.parent.config["networking"]["workers"])
+        qle.setText(str(self.parent.config.networking.workers))
         qle.textChanged[str].connect(
             lambda val: self.parent.config.change("networking", "workers", val)
         )
@@ -703,9 +734,7 @@ class ControlGUI(qt.QWidget):
     def enable_all_devices(self):
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
             try:
-                dev.config["control_GUI_elements"]["enabled"]["QCheckBox"].setChecked(
-                    True
-                )
+                dev.config.control_gui_elements["enabled"]["QCheckBox"].setChecked(2)
             except KeyError as e:
                 logging.warning(e)
                 logging.warning(traceback.format_exc())
@@ -713,7 +742,7 @@ class ControlGUI(qt.QWidget):
     def disable_all_devices(self):
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
             try:
-                dev.config["control_GUI_elements"]["enabled"]["QCheckBox"].setChecked(
+                dev.config.control_gui_elements["enabled"]["QCheckBox"].setChecked(
                     False
                 )
             except KeyError as e:
@@ -722,20 +751,20 @@ class ControlGUI(qt.QWidget):
 
     def restart_device(self):
         restart = RestartDevicePopup(self.parent)
-        if self.parent.config["control_active"]:
+        if self.parent.config.control_active:
             restart.exec()
 
     def update_col_names_and_units(self):
         for i, (dev_name, dev) in enumerate(self.parent.devices.items()):
             # column names
-            dev.col_names_list = split(dev.config["attributes"]["column_names"])
+            dev.col_names_list = dev.config.attributes.column_names
             dev.column_names = "\n".join(dev.col_names_list)
-            dev.config["monitoring_GUI_elements"]["col_names"].setText(dev.column_names)
+            dev.config.monitoring_gui_elements["col_names"].setText(dev.column_names)
 
             # units
-            units = split(dev.config["attributes"]["units"])
+            units = dev.config.attributes.units
             dev.units = "\n".join(units)
-            dev.config["monitoring_GUI_elements"]["units"].setText(dev.units)
+            dev.config.monitoring_gui_elements["units"].setText(dev.units)
 
     def update_warnings(self, warnings: str):
         self.warnings_label.setText(warnings)
@@ -744,7 +773,7 @@ class ControlGUI(qt.QWidget):
         pythoncom.CoInitialize()
         c = wmi.WMI()
         for d in c.Win32_LogicalDisk():
-            if d.Caption == self.parent.config["files"]["hdf_fname"][0:2]:
+            if d.Caption == str(self.parent.config.files.hdf_dir.drive):
                 size_MB = float(d.Size) / 1024 / 1024
                 free_MB = float(d.FreeSpace) / 1024 / 1024
                 self.free_qpb.setMinimum(0)
@@ -753,49 +782,49 @@ class ControlGUI(qt.QWidget):
                 self.parent.app.processEvents()
 
     def toggle_control(self, val="", show_only=False):
-        if not self.parent.config["control_visible"]:
-            self.parent.config["control_visible"] = True
+        if not self.parent.config.control_visible:
+            self.parent.config.control_visible = True
             self.show()
             self.parent.PlotsGUI.ctrls_box.show()
             self.parent.PlotsGUI.toggle_all_plot_controls()
         elif not show_only:
-            self.parent.config["control_visible"] = False
+            self.parent.config.control_visible = False
             self.hide()
             self.parent.PlotsGUI.ctrls_box.hide()
             self.parent.PlotsGUI.toggle_all_plot_controls()
 
     def toggle_sequencer(self, val=""):
-        if not self.parent.config["sequencer_visible"]:
+        if not self.parent.config.sequencer_visible:
             self.seq_box.show()
-            self.parent.config["sequencer_visible"] = True
+            self.parent.config.sequencer_visible = True
             self.hs_pb.setText("Hide sequencer")
         else:
             self.seq_box.hide()
-            self.parent.config["sequencer_visible"] = False
+            self.parent.config.sequencer_visible = False
             self.hs_pb.setText("Show sequencer")
 
     def toggle_monitoring(self, val=""):
-        if not self.parent.config["monitoring_visible"]:
-            self.parent.config["monitoring_visible"] = True
+        if not self.parent.config.monitoring_visible:
+            self.parent.config.monitoring_visible = True
             for dev_name, dev in self.parent.devices.items():
-                dev.config["monitoring_GUI_elements"]["df_box"].show()
+                dev.config.monitoring_gui_elements["df_box"].show()
             self.monitoring_pb.setText("Hide monitoring")
             self.monitoring_pb.setToolTip("Hide MonitoringGUI (Ctrl+M).")
         else:
-            self.parent.config["monitoring_visible"] = False
+            self.parent.config.monitoring_visible = False
             for dev_name, dev in self.parent.devices.items():
-                dev.config["monitoring_GUI_elements"]["df_box"].hide()
+                dev.config.monitoring_gui_elements["df_box"].hide()
             self.monitoring_pb.setText("Show monitoring")
             self.monitoring_pb.setToolTip("Show MonitoringGUI (Ctrl+M).")
 
     def toggle_plots(self, val=""):
-        if not self.parent.config["plots_visible"]:
-            self.parent.config["plots_visible"] = True
+        if not self.parent.config.plots_visible:
+            self.parent.config.plots_visible = True
             self.parent.PlotsGUI.show()
             self.plots_pb.setText("Hide plots")
             self.plots_pb.setToolTip("Hide PlotsGUI (Ctrl+P).")
         else:
-            self.parent.config["plots_visible"] = False
+            self.parent.config.plots_visible = False
             self.parent.PlotsGUI.hide()
             self.plots_pb.setText("Show plots")
             self.plots_pb.setToolTip("Show PlotsGUI (Ctrl+P).")
@@ -809,9 +838,9 @@ class ControlGUI(qt.QWidget):
     def place_device_controls(self):
         for dev_name, dev in self.parent.devices.items():
             # frame for device controls and monitoring
-            label = dev.config["label"] + " [" + dev.config["name"] + "]"
+            label = dev.config.label + " [" + dev.config.name + "]"
             box, dcf = LabelFrame(label, type="vbox")
-            self.devices_frame.addWidget(box, dev.config["row"], dev.config["column"])
+            self.devices_frame.addWidget(box, dev.config.row, dev.config.column)
 
             # layout for controls
             df_box, df = qt.QWidget(), qt.QGridLayout()
@@ -832,222 +861,137 @@ class ControlGUI(qt.QWidget):
             # for changing plots_queue maxlen
             qle = qt.QLineEdit()
             qle.setToolTip("Change plots_queue maxlen.")
-            qle.setText(str(dev.config["plots_queue_maxlen"]))
+            qle.setText(str(dev.config.plots_queue_maxlen))
             qle.textChanged[str].connect(
                 lambda maxlen, dev=dev: dev.change_plots_queue_maxlen(maxlen)
             )
             df.addWidget(qle, 1, 1)
 
             # device-specific controls
-            dev.config["control_GUI_elements"] = {}
-            for c_name, param in dev.config["control_params"].items():
+            for c_name, param in dev.config.control_params.items():
                 # the dict for control GUI elements
-                dev.config["control_GUI_elements"][c_name] = {}
-                c = dev.config["control_GUI_elements"][c_name]
+                dev.config.control_gui_elements[c_name] = {}
+                c = dev.config.control_gui_elements[c_name]
 
-                # place QCheckBoxes
-                if param.get("type") == "QCheckBox":
-                    # the QCheckBox
-                    c["QCheckBox"] = qt.QCheckBox(param["label"])
-                    c["QCheckBox"].setCheckState(param["value"])
-                    if param["tristate"]:
-                        c["QCheckBox"].setTristate(True)
-                    else:
-                        c["QCheckBox"].setTristate(False)
-                    df.addWidget(c["QCheckBox"], param["row"], param["col"])
+                if param.type == ControlParamTypes.QCHECKBOX:
+                    c["QCheckBox"] = create_checkbox_widget(param, c_name, dev)
+                    df.addWidget(c["QCheckBox"], param.row, param.column)
 
-                    # tooltip
-                    if param.get("tooltip"):
-                        c["QCheckBox"].setToolTip(param["tooltip"])
-
-                    # commands for the QCheckBox
-                    c["QCheckBox"].stateChanged[int].connect(
-                        lambda state, dev=dev, ctrl=c_name, nonTriState=not param[
-                            "tristate"
-                        ]: dev.config.change_param(
-                            ctrl, state, sect="control_params", nonTriState=nonTriState
-                        )
+                elif param.type == ControlParamTypes.QPUSHBUTTON:
+                    c["QPushButton"] = create_pushbutton_widget(
+                        param, c_name, dev, self
                     )
-
-                # place QPushButtons
-                elif param.get("type") == "QPushButton":
-                    # the QPushButton
-                    c["QPushButton"] = qt.QPushButton(param["label"])
-                    df.addWidget(c["QPushButton"], param["row"], param["col"])
-
-                    # tooltip
-                    if param.get("tooltip"):
-                        c["QPushButton"].setToolTip(param["tooltip"])
-
-                    # commands for the QPushButton
-                    if param.get("argument"):
-                        c["QPushButton"].clicked[bool].connect(
-                            lambda state, dev=dev, cmd=param["cmd"], arg=dev.config[
-                                "control_params"
-                            ][param["argument"]]: self.queue_command(
-                                dev, cmd + "(" + arg["value"] + ")"
-                            )
-                        )
-                    else:
-                        c["QPushButton"].clicked[bool].connect(
-                            lambda state, dev=dev, cmd=param["cmd"]: self.queue_command(
-                                dev, cmd + "()"
-                            )
-                        )
+                    df.addWidget(c["QPushButton"], param.row, param.column)
 
                 # place QLineEdits
-                elif param.get("type") == "QLineEdit":
+                elif param.type == ControlParamTypes.QLINEEDIT:
                     # the label
                     df.addWidget(
-                        qt.QLabel(param["label"]),
-                        param["row"],
-                        param["col"] - 1,
-                        alignment=PyQt5.QtCore.Qt.AlignRight,
+                        qt.QLabel(param.label),
+                        param.row,
+                        param.column - 1,
+                        alignment=QtCore.Qt.AlignRight,
                     )
 
                     # the QLineEdit
-                    c["QLineEdit"] = qt.QLineEdit()
-                    c["QLineEdit"].setText(param["value"])
-                    c["QLineEdit"].textChanged[str].connect(
-                        lambda text, dev=dev, ctrl=c_name: dev.config.change_param(
-                            ctrl, text, sect="control_params"
-                        )
-                    )
-                    df.addWidget(c["QLineEdit"], param["row"], param["col"])
-
-                    # tooltip
-                    if param.get("tooltip"):
-                        c["QLineEdit"].setToolTip(param["tooltip"])
-
-                    # commands for the QLineEdit
-                    if param.get("enter_cmd"):
-                        if param.get("enter_cmd") != "None":
-                            c["QLineEdit"].returnPressed.connect(
-                                lambda dev=dev, cmd=param["enter_cmd"], qle=c[
-                                    "QLineEdit"
-                                ]: self.queue_command(dev, cmd + "(" + qle.text() + ")")
-                            )
+                    c["QLineEdit"] = create_qlineedit_widget(param, c_name, dev, self)
+                    df.addWidget(c["QLineEdit"], param.row, param.column)
 
                 # place QComboBoxes
-                elif param.get("type") == "QComboBox":
+                elif param.type == ControlParamTypes.QCOMBOBOX:
                     # the label
                     df.addWidget(
-                        qt.QLabel(param["label"]),
-                        param["row"],
-                        param["col"] - 1,
-                        alignment=PyQt5.QtCore.Qt.AlignRight,
+                        qt.QLabel(param.label),
+                        param.row,
+                        param.column - 1,
+                        alignment=QtCore.Qt.AlignRight,
                     )
 
                     # the QComboBox
-                    c["QComboBox"] = qt.QComboBox()
-                    update_QComboBox(
-                        cbx=c["QComboBox"],
-                        options=list(set(param["options"]) | set([param["value"]])),
-                        value="divide by?",
-                    )
-                    c["QComboBox"].setCurrentText(param["value"])
-                    df.addWidget(c["QComboBox"], param["row"], param["col"])
-
-                    # tooltip
-                    if param.get("tooltip"):
-                        c["QComboBox"].setToolTip(param["tooltip"])
-
-                    # commands for the QComboBox
-                    c["QComboBox"].activated[str].connect(
-                        lambda text, dev=dev, config=c_name: dev.config.change_param(
-                            config, text, sect="control_params"
-                        )
-                    )
-                    if param.get("command"):
-                        c["QComboBox"].activated[str].connect(
-                            lambda text, dev=dev, cmd=param["command"], qcb=c[
-                                "QComboBox"
-                            ]: self.queue_command(
-                                dev, cmd + "('" + qcb.currentText() + "')"
-                            )
-                        )
+                    c["QComboBox"] = create_qcombobox_widget(param, c_name, dev, self)
+                    df.addWidget(c["QComboBox"], param.row, param.column)
 
                 # place ControlsRows
-                elif param.get("type") == "ControlsRow":
+                elif param.type == ControlParamTypes.CONTROLSROW:
                     # the frame for the row of controls
-                    box, ctrl_frame = LabelFrame(param["label"], type="hbox")
-                    df.addWidget(box, param["row"], param["col"])
+                    box, ctrl_frame = LabelFrame(param.label, type="hbox")
+                    df.addWidget(box, param.row, param.column)
 
                     # the individual controls that compose a ControlsRow
-                    for ctrl in param["ctrl_names"]:
-                        if param["ctrl_types"][ctrl] == "QLineEdit":
+                    for ctrl in param.ctrl_names:
+                        if param.ctrl_types[ctrl] == "QLineEdit":
                             qle = qt.QLineEdit()
-                            qle.setText(param["value"][ctrl])
-                            qle.setToolTip(param["ctrl_labels"][ctrl])
+                            qle.setText(param.value[ctrl])
+                            qle.setToolTip(param.ctrl_labels[ctrl])
                             # stop black formatter from changing the block below
                             # fmt: off
                             qle.textChanged[str].connect(
                                 lambda val, dev=dev, config=c_name, sub_ctrl=ctrl:
-                                    dev.config.change_param(
-                                        config,
-                                        val,
-                                        sect="control_params",
+                                    dev.config.change_param_subsection(
+                                        param = config,
+                                        section="control_params",
+                                        value = val,
                                         sub_ctrl=sub_ctrl,
                                     )
                             )
                             # fmt: on
                             ctrl_frame.addWidget(qle)
 
-                        elif param["ctrl_types"][ctrl] == "QComboBox":
+                        elif param.ctrl_types[ctrl] == "QComboBox":
                             cbx = qt.QComboBox()
-                            cbx.setToolTip(param["ctrl_labels"][ctrl])
+                            cbx.setToolTip(param.ctrl_labels[ctrl])
                             # stop black formatter from changing the block below
                             # fmt: off
-                            cbx.activated[str].connect(
+                            cbx.activated[int].connect(
                                 lambda val, dev=dev, config=c_name, sub_ctrl=ctrl:
-                                    dev.config.change_param(
-                                        config,
-                                        val,
-                                        sect="control_params",
+                                    dev.config.change_param_subsection(
+                                        param = config,
+                                        section="control_params",
+                                        value = val,
                                         sub_ctrl=sub_ctrl,
                                     )
                             )
                             # fmt: on
-                            update_QComboBox(
+                            update_qcombobox(
                                 cbx=cbx,
-                                options=param["ctrl_options"][ctrl],
-                                value=param["value"][ctrl],
+                                options=param.ctrl_options[ctrl],
+                                value=param.value[ctrl],
                             )
                             ctrl_frame.addWidget(cbx)
 
                         else:
                             logging.warning(
                                 "ControlsRow error: sub-control type not supported: "
-                                + param["ctrl_types"][ctrl]
+                                + param.ctrl_types[ctrl]
                             )
 
                 # place ControlsTables
-                elif param.get("type") == "ControlsTable":
+                elif param.type == ControlParamTypes.CONTROLSTABLE:
                     # the frame for the row of controls
-                    box, ctrl_frame = LabelFrame(param["label"], type="grid")
-                    if param.get("rowspan") and param.get("colspan"):
+                    box, ctrl_frame = LabelFrame(param.label, type="grid")
+                    if param.rowspan and param.colspan:
                         df.addWidget(
                             box,
-                            param["row"],
-                            param["col"],
-                            param["rowspan"],
-                            param["colspan"],
+                            param.row,
+                            param.column,
+                            param.rowspan,
+                            param.colspan,
                         )
                     else:
-                        df.addWidget(box, param["row"], param["col"])
+                        df.addWidget(box, param.row, param.column)
 
-                    for i, row in enumerate(param["row_ids"]):
-                        for j, col in enumerate(param["col_names"]):
-                            if param["col_types"][col] == "QLabel":
+                    for i, row in enumerate(param.row_ids):
+                        for j, col in enumerate(param.col_names):
+                            if param.col_types[col] == "QLabel":
                                 ql = qt.QLabel()
-                                ql.setToolTip(param["col_labels"][col])
-                                ql.setText(param["value"][col][i])
+                                ql.setToolTip(param.col_labels[col])
+                                ql.setText(param.value[col][i])
                                 ctrl_frame.addWidget(ql, i, j)
 
-                            elif param["col_types"][col] == "QLineEdit":
+                            elif param.col_types[col] == "QLineEdit":
                                 qle = qt.QLineEdit()
-                                qle.setToolTip(param["col_labels"][col])
-                                qle.setText(param["value"][col][i])
+                                qle.setToolTip(param.col_labels[col])
+                                qle.setText(param.value[col][i])
                                 # stop black formatter from changing the block below
                                 # fmt: off
                                 qle.textChanged[str].connect(
@@ -1064,20 +1008,20 @@ class ControlGUI(qt.QWidget):
                                 # fmt: on
                                 ctrl_frame.addWidget(qle, i, j)
 
-                            elif param["col_types"][col] == "QCheckBox":
+                            elif param.col_types[col] == "QCheckBox":
                                 qch = qt.QCheckBox()
-                                qch.setToolTip(param["col_labels"][col])
-                                qch.setCheckState(int(param["value"][col][i]))
+                                qch.setToolTip(param.col_labels[col])
+                                qch.setCheckState(int(param.value[col][i]))
                                 qch.setTristate(False)
                                 # stop black formatter from changing the block below
                                 # fmt: off
                                 qch.stateChanged[int].connect(
                                     lambda val, dev=dev, config=c_name, sub_ctrl=col,
                                     row=row:
-                                        dev.config.change_param(
-                                            config,
-                                            "1" if val != 0 else "0",
-                                            sect="control_params",
+                                        dev.config.change_param_subsection(
+                                            param = config,
+                                            section="control_params",
+                                            value = "1" if val != 0 else "0",
                                             sub_ctrl=sub_ctrl,
                                             row=row,
                                         )
@@ -1085,154 +1029,87 @@ class ControlGUI(qt.QWidget):
                                 # fmt: on
                                 ctrl_frame.addWidget(qch, i, j)
 
-                            elif param["col_types"][col] == "QComboBox":
+                            elif param.col_types[col] == "QComboBox":
                                 cbx = qt.QComboBox()
-                                cbx.setToolTip(param["col_labels"][col])
+                                cbx.setToolTip(param.col_labels[col])
                                 # stop black formatter from changing the block below
                                 # fmt: off
-                                cbx.activated[str].connect(
+                                cbx.activated[int].connect(
                                     lambda val, dev=dev, config=c_name, sub_ctrl=col,
                                     row=row:
-                                        dev.config.change_param(
-                                            config,
-                                            val,
-                                            sect="control_params",
+                                        dev.config.change_param_subsection(
+                                            param =config,
+                                            section="control_params",
+                                            value = cbx.itemText(val),
                                             sub_ctrl=sub_ctrl,
                                             row=row,
                                         )
                                 )
                                 # fmt: on
-                                update_QComboBox(
+                                update_qcombobox(
                                     cbx=cbx,
-                                    options=param["col_options"][col],
-                                    value=param["value"][col][i],
+                                    options=param.col_options[col],
+                                    value=param.value[col][i],
                                 )
                                 ctrl_frame.addWidget(cbx, i, j)
 
                             else:
                                 logging.warning(
                                     "ControlsRow error: sub-control type not"
-                                    " supported: "
-                                    + c["col_types"][col]
+                                    " supported: " + c["col_types"][col]
                                 )
 
                 # place indicators
-                elif param.get("type") == "indicator":
+                elif param.type == ControlParamTypes.INDICATOR:
                     # the indicator label
-                    c["QLabel"] = qt.QLabel(
-                        param["label"], alignment=PyQt5.QtCore.Qt.AlignCenter
-                    )
-                    c["QLabel"].setProperty("state", param["states"][-1])
-                    ind = c["QLabel"]
-                    self.update_style(ind)
-                    if param.get("rowspan") and param.get("colspan"):
+                    c["QLabel"] = create_indicator_widget(param)
+                    self.update_style(c["QLabel"])
+                    if param.rowspan and param.colspan:
                         df.addWidget(
                             c["QLabel"],
-                            param["row"],
-                            param["col"],
-                            param["rowspan"],
-                            param["colspan"],
+                            param.row,
+                            param.column,
+                            param.rowspan,
+                            param.colspan,
                         )
                     else:
-                        df.addWidget(c["QLabel"], param["row"], param["col"])
-
-                    # tooltip
-                    if param.get("tooltip"):
-                        c["QLabel"].setToolTip(param["tooltip"])
+                        df.addWidget(c["QLabel"], param.row, param.column)
 
                 # place indicator_buttons
-                elif param.get("type") == "indicator_button":
+                elif param.type == ControlParamTypes.INDICATORBUTTON:
                     # the QPushButton
-                    c["QPushButton"] = qt.QPushButton(param["label"])
-                    c["QPushButton"].setCheckable(True)
-                    c["QPushButton"].setChecked(param["checked"][-1])
-
-                    # style
-                    c["QPushButton"].setProperty("state", param["states"][-1])
-                    ind = c["QPushButton"]
-                    self.update_style(ind)
-
-                    # tooltip
-                    if param.get("tooltip"):
-                        c["QPushButton"].setToolTip(param["tooltip"])
+                    c["QPushButton"] = create_indicator_button_widget(
+                        param, c_name, dev, self
+                    )
+                    self.update_style(c["QPushButton"])
 
                     # rowspan / colspan
-                    if param.get("rowspan") and param.get("colspan"):
+                    if param.rowspan and param.colspan:
                         df.addWidget(
                             c["QPushButton"],
-                            param["row"],
-                            param["col"],
-                            param["rowspan"],
-                            param["colspan"],
+                            param.row,
+                            param.column,
+                            param.rowspan,
+                            param.colspan,
                         )
                     else:
-                        df.addWidget(c["QPushButton"], param["row"], param["col"])
-
-                    # commands for the QPushButton
-                    if param.get("argument"):
-                        c["QPushButton"].clicked[bool].connect(
-                            lambda state, dev=dev, cmd_list=param[
-                                "action_commands"
-                            ], arg=dev.config["control_params"][
-                                param["argument"]
-                            ]: self.queue_command(
-                                dev, cmd_list[int(state)] + "(" + arg["value"] + ")"
-                            )
-                        )
-                    else:
-                        c["QPushButton"].clicked[bool].connect(
-                            lambda state, dev=dev, cmd_list=param[
-                                "action_commands"
-                            ]: self.queue_command(dev, cmd_list[int(state)] + "()")
-                        )
+                        df.addWidget(c["QPushButton"], param.row, param.column)
 
                 # place indicators_lineedits
-                elif param.get("type") == "indicator_lineedit":
+                elif param.type == ControlParamTypes.INDICATORLINEEDIT:
                     # the label
                     df.addWidget(
-                        qt.QLabel(param["label"]),
-                        param["row"],
-                        param["col"] - 1,
-                        alignment=PyQt5.QtCore.Qt.AlignRight,
+                        qt.QLabel(param.label),
+                        param.row,
+                        param.column - 1,
+                        alignment=QtCore.Qt.AlignRight,
                     )
 
                     # the QLineEdit
-                    c["QLineEdit"] = qt.QLineEdit()
-                    c["QLineEdit"].setText(param["value"])
-                    c["QLineEdit"].textChanged[str].connect(
-                        lambda text, dev=dev, ctrl=c_name: dev.config.change_param(
-                            ctrl, text, sect="control_params"
-                        )
+                    c["QLineEdit"] = create_indicator_qlineedit_widget(
+                        param, c_name, dev, self
                     )
-                    df.addWidget(c["QLineEdit"], param["row"], param["col"])
-
-                    # tooltip
-                    if param.get("tooltip"):
-                        c["QLineEdit"].setToolTip(param["tooltip"])
-
-                    # commands for the QLineEdit
-                    if param.get("enter_cmd"):
-                        if param.get("enter_cmd") != "None":
-                            c["QLineEdit"].returnPressed.connect(
-                                lambda dev=dev, cmd=param["enter_cmd"], qle=c[
-                                    "QLineEdit"
-                                ]: self.queue_command(dev, cmd + "(" + qle.text() + ")")
-                            )
-
-                    # disable auto-updating when the text is being edited
-                    dev.config.change_param(
-                        GUI_element=c_name, key="currently_editing", val=False
-                    )
-                    c["QLineEdit"].textEdited[str].connect(
-                        lambda text, dev=dev, c_name=c_name: dev.config.change_param(
-                            GUI_element=c_name, key="currently_editing", val=True
-                        )
-                    )
-                    c["QLineEdit"].returnPressed.connect(
-                        lambda dev=dev, c_name=c_name: dev.config.change_param(
-                            GUI_element=c_name, key="currently_editing", val=False
-                        )
-                    )
+                    df.addWidget(c["QLineEdit"], param.row, param.column)
 
             ##################################
             # MONITORING                     #
@@ -1241,81 +1118,81 @@ class ControlGUI(qt.QWidget):
             # layout for monitoring info
             df_box, df = qt.QWidget(), qt.QGridLayout()
             df_box.setLayout(df)
-            if not self.parent.config["monitoring_visible"]:
+            if not self.parent.config.monitoring_visible:
                 df_box.hide()
             dcf.addWidget(df_box)
-            dev.config["monitoring_GUI_elements"] = {"df_box": df_box}
+            dev.config.monitoring_gui_elements = {"df_box": df_box}
 
             # length of the data queue
             df.addWidget(
-                qt.QLabel("Queue length:"), 0, 0, alignment=PyQt5.QtCore.Qt.AlignRight
+                qt.QLabel("Queue length:"), 0, 0, alignment=PySide6.QtCore.Qt.AlignRight
             )
-            dev.config["monitoring_GUI_elements"]["qsize"] = qt.QLabel("N/A")
+            dev.config.monitoring_gui_elements["qsize"] = qt.QLabel("N/A")
             df.addWidget(
-                dev.config["monitoring_GUI_elements"]["qsize"],
+                dev.config.monitoring_gui_elements["qsize"],
                 0,
                 1,
-                alignment=PyQt5.QtCore.Qt.AlignLeft,
+                alignment=PySide6.QtCore.Qt.AlignLeft,
             )
 
             # NaN count
             df.addWidget(
-                qt.QLabel("NaN count:"), 1, 0, alignment=PyQt5.QtCore.Qt.AlignRight
+                qt.QLabel("NaN count:"), 1, 0, alignment=PySide6.QtCore.Qt.AlignRight
             )
-            dev.config["monitoring_GUI_elements"]["NaN_count"] = qt.QLabel("N/A")
+            dev.config.monitoring_gui_elements["NaN_count"] = qt.QLabel("N/A")
             df.addWidget(
-                dev.config["monitoring_GUI_elements"]["NaN_count"],
+                dev.config.monitoring_gui_elements["NaN_count"],
                 1,
                 1,
-                alignment=PyQt5.QtCore.Qt.AlignLeft,
+                alignment=PySide6.QtCore.Qt.AlignLeft,
             )
 
             # column names
-            dev.col_names_list = split(dev.config["attributes"]["column_names"])
+            dev.col_names_list = dev.config.attributes.column_names
             dev.column_names = "\n".join(dev.col_names_list)
-            dev.config["monitoring_GUI_elements"]["col_names"] = qt.QLabel(
-                dev.column_names, alignment=PyQt5.QtCore.Qt.AlignRight
+            dev.config.monitoring_gui_elements["col_names"] = qt.QLabel(
+                dev.column_names, alignment=PySide6.QtCore.Qt.AlignRight
             )
-            df.addWidget(dev.config["monitoring_GUI_elements"]["col_names"], 2, 0)
+            df.addWidget(dev.config.monitoring_gui_elements["col_names"], 2, 0)
 
             # data
-            dev.config["monitoring_GUI_elements"]["data"] = qt.QLabel("(no data)")
+            dev.config.monitoring_gui_elements["data"] = qt.QLabel("(no data)")
             df.addWidget(
-                dev.config["monitoring_GUI_elements"]["data"],
+                dev.config.monitoring_gui_elements["data"],
                 2,
                 1,
-                alignment=PyQt5.QtCore.Qt.AlignLeft,
+                alignment=PySide6.QtCore.Qt.AlignLeft,
             )
 
             # units
-            units = split(dev.config["attributes"]["units"])
+            units = dev.config.attributes.units
             dev.units = "\n".join(units)
-            dev.config["monitoring_GUI_elements"]["units"] = qt.QLabel(dev.units)
+            dev.config.monitoring_gui_elements["units"] = qt.QLabel(dev.units)
             df.addWidget(
-                dev.config["monitoring_GUI_elements"]["units"],
+                dev.config.monitoring_gui_elements["units"],
                 2,
                 2,
-                alignment=PyQt5.QtCore.Qt.AlignLeft,
+                alignment=PySide6.QtCore.Qt.AlignLeft,
             )
 
             # latest event / command sent to device & its return value
             df.addWidget(
-                qt.QLabel("Last event:"), 3, 0, alignment=PyQt5.QtCore.Qt.AlignRight
+                qt.QLabel("Last event:"), 3, 0, alignment=PySide6.QtCore.Qt.AlignRight
             )
-            dev.config["monitoring_GUI_elements"]["events"] = qt.QLabel("(no events)")
-            dev.config["monitoring_GUI_elements"]["events"].setWordWrap(True)
+            dev.config.monitoring_gui_elements["events"] = qt.QLabel("(no events)")
+            dev.config.monitoring_gui_elements["events"].setWordWrap(True)
             df.addWidget(
-                dev.config["monitoring_GUI_elements"]["events"],
+                dev.config.monitoring_gui_elements["events"],
                 3,
                 1,
                 1,
                 2,
-                alignment=PyQt5.QtCore.Qt.AlignLeft,
+                alignment=PySide6.QtCore.Qt.AlignLeft,
             )
 
     def rename_HDF(self, state):
         # check we're not running already
-        if self.parent.config["control_active"]:
+        if self.parent.config.control_active:
             logging.warning(
                 "Warning: Rename HDF while control is running takes                   "
                 " effect only after restarting control."
@@ -1329,24 +1206,35 @@ class ControlGUI(qt.QWidget):
                 ),
             )
 
-        # get old file path
-        old_fname = self.parent.config["files"]["hdf_fname"]
+        current_date = dt.datetime.strftime(dt.datetime.now(), "%Y_%m_%d")
+        hdf_fname = f"{current_date}.hdf"
 
-        # strip the old name from the full path
-        path = "/".join(old_fname.split("/")[0:-1])
+        # checking if the file already exists, iterate through subscripts until it
+        # doesn't
+        i = 1
+        while True:
+            path = self.parent.config.files.hdf_dir / hdf_fname
+            if path.is_file():
+                hdf_fname = f"{current_date}_{i}.hdf"
+                i += 1
+            else:
+                break
 
-        # add the new filename
-        path += "/" + dt.datetime.strftime(dt.datetime.now(), "%Y_%m_%d") + ".hdf"
-
-        # set the hdf_fname to the new path
-        self.parent.config["files"]["hdf_fname"] = path
+        self.parent.config.files.hdf_fname = hdf_fname
 
         # update the QLineEdit
-        self.hdf_fname_qle.setText(path)
+        self.hdf_fname_qle.setText(
+            str(self.parent.config.files.hdf_dir / self.parent.config.files.hdf_fname)
+        )
 
-    def open_file(self, sect, config, qle=None):
+    def open_file(self, sect, config, qle: qt.QLineEdit | None = None):
         # ask the user to select a file
-        val = qt.QFileDialog.getSaveFileName(self, "Select file")[0]
+        if qle is None:
+            val = qt.QFileDialog.getSaveFileName(self, "Select file")[0]
+        else:
+            val = qt.QFileDialog.getSaveFileName(
+                self, "Select file", dir=str(qle.text())
+            )[0]
         if not val:
             return
 
@@ -1359,9 +1247,16 @@ class ControlGUI(qt.QWidget):
 
         return val
 
-    def open_dir(self, sect, config, qle=None):
+    def open_dir(self, sect, config, qle: qt.QLineEdit | None = None):
         # ask the user to select a directory
-        val = str(qt.QFileDialog.getExistingDirectory(self, "Select Directory"))
+        if qle is None:
+            val = str(qt.QFileDialog.getExistingDirectory(self, "Select Directory"))
+        else:
+            val = str(
+                qt.QFileDialog.getExistingDirectory(
+                    self, "Select Directory", dir=str(Path((qle.text())))
+                )
+            )
         if not val:
             return
 
@@ -1386,38 +1281,32 @@ class ControlGUI(qt.QWidget):
 
         # changes the list of devices in send custom command
         dev_list = [dev_name for dev_name in self.parent.devices]
-        update_QComboBox(
+        update_qcombobox(
             cbx=self.custom_dev_cbx,
             options=list(
-                set(dev_list) | set([self.parent.config["general"]["custom_device"]])
+                set(dev_list) | set([self.parent.config.general.custom_device])
             ),
-            value=self.parent.config["general"]["custom_device"],
+            value=self.parent.config.general.custom_device,
         )
-
-        # update the available devices for plotting
-        self.parent.PlotsGUI.refresh_all_run_lists()
 
     def get_dev_list(self):
         dev_list = []
         for dev_name, dev in self.parent.devices.items():
-            if dev.config["control_params"]["enabled"]["value"]:
+            if dev.config.control_params["enabled"].value:
                 dev_list.append(dev_name)
         return dev_list
 
     def queue_custom_command(self):
         # check the command is valid
-        cmd = self.parent.config["general"]["custom_command"]
+        cmd = f"{self.custom_func_cbx.currentText()}({self.custom_params_qle.text()})"
         search = re.compile(r'[^A-Za-z0-9()".?!*# ]_=').search
         if bool(search(cmd)):
             error_box("Command error", "Invalid command.")
             return
 
         # check the device is valid
-        dev_name = self.parent.config["general"]["custom_device"]
+        dev_name = self.custom_dev_cbx.currentText()
         dev = self.parent.devices.get(dev_name)
-        if not dev:
-            error_box("Device error", "Device not found.")
-            return
         if not dev.operational:
             error_box("Device error", "Device not operational.")
             return
@@ -1430,13 +1319,13 @@ class ControlGUI(qt.QWidget):
     def refresh_COM_ports(self, button_pressed):
         for dev_name, dev in self.parent.devices.items():
             # check device has a COM_port control
-            if not dev.config["control_GUI_elements"].get("COM_port"):
+            if not dev.config.control_gui_elements.get("COM_port"):
                 continue
             else:
-                cbx = dev.config["control_GUI_elements"]["COM_port"]["QComboBox"]
+                cbx = dev.config.control_gui_elements["COM_port"]["QComboBox"]
 
             # update the QComboBox of COM_port options
-            update_QComboBox(
+            update_qcombobox(
                 cbx=cbx,
                 options=pyvisa.ResourceManager().list_resources(),
                 value=cbx.currentText(),
@@ -1445,19 +1334,19 @@ class ControlGUI(qt.QWidget):
     def edit_attrs(self, dev):
         # open the AttrEditor dialog window
         w = AttrEditor(self.parent, dev)
-        w.setWindowTitle("Attributes for " + dev.config["name"])
+        w.setWindowTitle("Attributes for " + dev.config.name)
         w.exec_()
 
     def start_control(self):
         logging.info("Start control")
         # check we're not running already
-        if self.parent.config["control_active"]:
+        if self.parent.config.control_active:
             return
 
         # check at least one device is enabled
         at_least_one_enabled = False
         for dev_name, dev in self.parent.devices.items():
-            if dev.config["control_params"]["enabled"]["value"]:
+            if dev.config.control_params["enabled"].value:
                 at_least_one_enabled = True
         if not at_least_one_enabled:
             logging.warning("Cannot start: no device enabled.")
@@ -1468,11 +1357,11 @@ class ControlGUI(qt.QWidget):
             parameter_popup.exec()
 
         # select the time offset
-        self.parent.config["time_offset"] = time.time()
+        self.parent.config.time_offset = time.time()
 
         # setup & check connections of all devices
         for dev_name, dev in self.parent.devices.items():
-            if dev.config["control_params"]["enabled"]["value"]:
+            if dev.config.control_params["enabled"].value:
                 # update the status label
                 self.status_label.setText("Starting " + dev_name + " ...")
                 self.parent.app.processEvents()
@@ -1484,11 +1373,11 @@ class ControlGUI(qt.QWidget):
                 dev = self.parent.devices[dev_name]
 
                 # setup connection
-                dev.setup_connection(self.parent.config["time_offset"])
+                dev.setup_connection(self.parent.config.time_offset)
                 if not dev.operational:
                     error_box(
                         "Device error",
-                        "Error: " + dev.config["label"] + " not responding.",
+                        "Error: " + dev.config.label + " not responding.",
                         dev.error_message,
                     )
                     self.status_label.setText("Device configuration error")
@@ -1504,7 +1393,7 @@ class ControlGUI(qt.QWidget):
 
         # start control for all devices
         for dev_name, dev in self.parent.devices.items():
-            if dev.config["control_params"]["enabled"]["value"]:
+            if dev.config.control_params["enabled"].value:
                 dev.clear_queues()
                 dev.start()
 
@@ -1515,34 +1404,23 @@ class ControlGUI(qt.QWidget):
         self.monitoring.start()
 
         # start the networking thread
-        if self.parent.config["networking"]["enabled"] in ["1", "2", "True"]:
+        if self.parent.config.networking.enabled:
             self.networking = Networking(self.parent)
             self.networking.start()
         else:
             self.networking = False
 
         # update program status
-        self.parent.config["control_active"] = True
+        self.parent.config.control_active = True
         self.status_label.setText("Running")
-
-        # update the values of the above controls
-        # make all plots display the current run and file, and clear f(y) for fast data
-        self.parent.config["files"]["plotting_hdf_fname"] = self.parent.config["files"][
-            "hdf_fname"
-        ]
-        self.parent.PlotsGUI.refresh_all_run_lists(select_defaults=False)
-        self.parent.PlotsGUI.clear_all_fast_y()
 
     def stop_control(self):
         # stop the sequencer
         self.seq.stop_sequencer()
 
         # check we're not stopped already
-        if not self.parent.config["control_active"]:
+        if not self.parent.config.control_active:
             return
-
-        # stop all plots
-        self.parent.PlotsGUI.stop_all_plots()
 
         # stop monitoring
         if self.monitoring.active.is_set():
@@ -1565,6 +1443,9 @@ class ControlGUI(qt.QWidget):
         HDF_status.setProperty("state", "disabled")
         HDF_status.setStyle(HDF_status.style())
 
+        # stop all plots
+        self.parent.PlotsGUI.stop_all_plots()
+
         # stop each Device thread
         for dev_name, dev in self.parent.devices.items():
             if dev.active.is_set():
@@ -1573,22 +1454,22 @@ class ControlGUI(qt.QWidget):
                 self.parent.app.processEvents()
 
                 # reset the status of all indicators
-                for c_name, params in dev.config["control_params"].items():
-                    if params.get("type") == "indicator":
-                        ind = dev.config["control_GUI_elements"][c_name]["QLabel"]
+                for c_name, params in dev.config.control_params.items():
+                    if params.type == ControlParamTypes.INDICATOR:
+                        ind = dev.config.control_gui_elements[c_name]["QLabel"]
                         ind.setText(params["texts"][-1])
                         ind.setProperty("state", params["states"][-1])
                         ind.setStyle(ind.style())
 
-                    elif params.get("type") == "indicator_button":
-                        ind = dev.config["control_GUI_elements"][c_name]["QPushButton"]
+                    elif params.type == ControlParamTypes.INDICATORBUTTON:
+                        ind = dev.config.control_gui_elements[c_name]["QPushButton"]
                         ind.setChecked(params["checked"][-1])
                         ind.setText(params["texts"][-1])
                         ind.setProperty("state", params["states"][-1])
                         ind.setStyle(ind.style())
 
-                    elif params.get("type") == "indicator_lineedit":
-                        ind = dev.config["control_GUI_elements"][c_name]["QLineEdit"]
+                    elif params.type == ControlParamTypes.INDICATORLINEEDIT:
+                        ind = dev.config.control_gui_elements[c_name]["QLineEdit"]
                         ind.setText(params["label"])
 
                 # stop the device, and wait for it to finish
@@ -1597,7 +1478,7 @@ class ControlGUI(qt.QWidget):
                 logging.info(f"{dev_name}: stopped")
 
         # update status
-        self.parent.config["control_active"] = False
+        self.parent.config.control_active = False
         self.status_label.setText("Recording finished")
 
 
@@ -1612,6 +1493,8 @@ class CentrexGUI(qt.QMainWindow):
     ):
         super().__init__()
 
+        self.devices: dict[str, Device] = {}
+
         self.hdf_clear = clear
 
         logging.info("Starting CeNTREX DAQ")
@@ -1623,10 +1506,10 @@ class CentrexGUI(qt.QMainWindow):
         self.load_stylesheet()
 
         # read program configuration
-        self.config = ProgramConfig(settings_path)
+        self.config: ProgramConfig = load_program_config(settings_path)
 
         # set debug level
-        logging.getLogger().setLevel(self.config["general"]["debug_level"])
+        logging.getLogger().setLevel(self.config.general.debug_level)
 
         # GUI elements
         self.ControlGUI = ControlGUI(self, mandatory_parameters=mandatory_parameters)
@@ -1643,34 +1526,34 @@ class CentrexGUI(qt.QMainWindow):
         self.resize(1100, 900)
 
         # keyboard shortcuts
-        qt.QShortcut(QtGui.QKeySequence("Ctrl+Shift+C"), self).activated.connect(
+        QtGui.QShortcut(QtGui.QKeySequence("Ctrl+Shift+C"), self).activated.connect(
             self.ControlGUI.toggle_control
         )
-        qt.QShortcut(QtGui.QKeySequence("Esc"), self).activated.connect(
+        QtGui.QShortcut(QtGui.QKeySequence("Esc"), self).activated.connect(
             lambda: self.ControlGUI.toggle_control(show_only=True)
         )
-        qt.QShortcut(QtGui.QKeySequence("Ctrl+P"), self).activated.connect(
+        QtGui.QShortcut(QtGui.QKeySequence("Ctrl+P"), self).activated.connect(
             self.ControlGUI.toggle_plots
         )
-        qt.QShortcut(QtGui.QKeySequence("Ctrl+M"), self).activated.connect(
+        QtGui.QShortcut(QtGui.QKeySequence("Ctrl+M"), self).activated.connect(
             self.ControlGUI.toggle_monitoring
         )
-        qt.QShortcut(QtGui.QKeySequence("Ctrl+S"), self).activated.connect(
+        QtGui.QShortcut(QtGui.QKeySequence("Ctrl+S"), self).activated.connect(
             self.ControlGUI.start_control
         )
-        qt.QShortcut(QtGui.QKeySequence("Ctrl+Q"), self).activated.connect(
+        QtGui.QShortcut(QtGui.QKeySequence("Ctrl+Q"), self).activated.connect(
             self.ControlGUI.stop_control
         )
-        qt.QShortcut(QtGui.QKeySequence("Ctrl+T"), self).activated.connect(
+        QtGui.QShortcut(QtGui.QKeySequence("Ctrl+T"), self).activated.connect(
             self.PlotsGUI.toggle_all_plot_controls
         )
-        qt.QShortcut(QtGui.QKeySequence("Ctrl+V"), self).activated.connect(
+        QtGui.QShortcut(QtGui.QKeySequence("Ctrl+V"), self).activated.connect(
             self.toggle_orientation
         )
-        qt.QShortcut(QtGui.QKeySequence("Ctrl+Shift+S"), self).activated.connect(
+        QtGui.QShortcut(QtGui.QKeySequence("Ctrl+Shift+S"), self).activated.connect(
             self.PlotsGUI.start_all_plots
         )
-        qt.QShortcut(QtGui.QKeySequence("Ctrl+Shift+Q"), self).activated.connect(
+        QtGui.QShortcut(QtGui.QKeySequence("Ctrl+Shift+Q"), self).activated.connect(
             self.PlotsGUI.stop_all_plots
         )
 
@@ -1687,16 +1570,16 @@ class CentrexGUI(qt.QMainWindow):
                 self.app.setStyleSheet(f.read())
 
     def toggle_orientation(self):
-        if self.config["horizontal_split"]:
-            self.qs.setOrientation(PyQt5.QtCore.Qt.Vertical)
-            self.config["horizontal_split"] = False
+        if self.config.horizontal_split:
+            self.qs.setOrientation(PySide6.QtCore.Qt.Vertical)
+            self.config.horizontal_split = False
             self.ControlGUI.orientation_pb.setText("Vertical mode")
             self.ControlGUI.orientation_pb.setToolTip(
                 "Put controls and plots/monitoring side-by-side (Ctrl+V)."
             )
         else:
-            self.qs.setOrientation(PyQt5.QtCore.Qt.Horizontal)
-            self.config["horizontal_split"] = True
+            self.qs.setOrientation(PySide6.QtCore.Qt.Horizontal)
+            self.config.horizontal_split = True
             self.ControlGUI.orientation_pb.setText("Horizontal mode")
             self.ControlGUI.orientation_pb.setToolTip(
                 "Put controls and plots/monitoring on top of each other (Ctrl+V)."
@@ -1704,7 +1587,7 @@ class CentrexGUI(qt.QMainWindow):
 
     def closeEvent(self, event):
         self.ControlGUI.seq.stop_sequencer()
-        if self.config["control_active"]:
+        if self.config.control_active:
             if (
                 qt.QMessageBox.question(
                     self,
@@ -1719,3 +1602,7 @@ class CentrexGUI(qt.QMainWindow):
                 event.accept()
             else:
                 event.ignore()
+                self.ControlGUI.stop_control()
+                event.accept()
+                event.accept()
+                event.accept()

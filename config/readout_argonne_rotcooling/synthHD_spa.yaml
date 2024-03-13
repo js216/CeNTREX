@@ -1,0 +1,71 @@
+COM_port:
+  type: dummy
+  value: client
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  tooltip: null
+  type: QCheckBox
+  value: true
+attributes:
+  column_names:
+  - time
+  - j01 frequency
+  - j12 frequency
+  - j01 power
+  - j12 power
+  - j01 status
+  - j12 status
+  units:
+  - s
+  - Hz
+  - Hz
+  - dB
+  - dB
+  - ''
+  - ''
+connection:
+  type: dummy
+  value:
+    device_name: SynthHD Pro
+    port_control: '12348'
+    port_readout: '12347'
+    publisher_name: SPA Microwaves
+    server: 10.10.222.13
+device:
+  column: 1
+  compound_dataset: true
+  constr_params:
+  - driver
+  - connection
+  - COM_port
+  correct_response: true
+  driver: NetworkingClient
+  label: SynthHD SPA
+  max_nan_count: 5
+  meta_device: false
+  name: SynthHD SPA
+  path: microwaves/
+  plots_queue_maxlen: 1000
+  row: 6
+  slow_data: true
+driver:
+  type: dummy
+  value: SynthHDPro
+dt:
+  column: 1
+  command: null
+  label: Loop delay [s]
+  row: 2
+  tooltip: null
+  type: QLineEdit
+  value: 1
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2

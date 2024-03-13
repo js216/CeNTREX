@@ -1,0 +1,99 @@
+COM_port:
+  type: dummy
+  value: client
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  type: QCheckBox
+  value: 0
+YAG_status_indicator:
+  colspan: 2
+  column: 0
+  label: (YAG state?)
+  monitoring_command: NanoLGSystemStatus()
+  return_values: Laser On, Laser On/Shutter Closed, Pump On, YAG Off, invalid, None
+  row: 4
+  rowspan: 1
+  states: enabled, intermediate2, disabled, error, disabled, disabled
+  texts: Laser On, Laser On/Shutter Closed, Pump On, YAG Off, (YAG state?), (YAG state?)
+  tooltip: null
+  type: indicator
+attributes:
+  column_names:
+  - time
+  - system state
+  - pump state
+  - laser state
+  - shutter state
+  - water temperature
+  - crystal temperature
+  - qswitch delay
+  - rep rate divider
+  - rep rate mode
+  - lamp shots total
+  - lamp shots user
+  - lamp trigger external
+  - qswitch trigger external
+  - interlock
+  units:
+  - s
+  - ''
+  - ''
+  - ''
+  - ''
+  - C
+  - C
+  - us
+  - ''
+  - ''
+  - ''
+  - ''
+  - ''
+  - ''
+  - ''
+  - ''
+device:
+  column: 0
+  constr_params:
+  - socket_connection
+  - driver
+  - COM_port
+  correct_response: NanoLG
+  driver: SocketDeviceClient
+  label: YAG Client
+  max_nan_count: 10
+  meta_device: false
+  name: NanoLG
+  path: ablation
+  plots_queue_maxlen: 1000
+  row: 0
+  slow_data: true
+driver:
+  type: dummy
+  value: NanoLG_readoutctrl
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 2
+  type: QLineEdit
+  value: 0.5
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tristate: true
+  type: QCheckBox
+  value: 0
+socket_connection:
+  column: 1
+  command: ''
+  ctrl_labels: Host, Port
+  ctrl_names: host, port
+  ctrl_options: '...; ...'
+  ctrl_types: QLineEdit, QLineEdit
+  ctrl_values: 172.28.173.180, 65432
+  label: Socket Connection
+  options: ''
+  row: 3
+  type: ControlsRow

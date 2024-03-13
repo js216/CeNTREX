@@ -1,0 +1,87 @@
+HDF_enabled:
+  colspan: null
+  column: 0
+  label: HDF
+  row: 1
+  rowspan: null
+  tooltip: null
+  type: QCheckBox
+  value: true
+attributes:
+  column_names:
+  - time
+  - cavity lock
+  - cavity error
+  - cavity voltage
+  - laser 1 lock
+  - laser 2 lock
+  - laser 1 error
+  - laser 2 error
+  - laser 1 frequency
+  - laser 2 frequency
+  - laser 1 lockpoint
+  - laser 2 lockpoint
+  - laser 1 voltage
+  - laser 2 voltage
+  units:
+  - s
+  - ''
+  - MHz
+  - V
+  - ''
+  - MHz
+  - MHz
+  - MHz
+  - MHz
+  - MHz
+  - MHz
+  - V
+  - V
+device:
+  column: 0
+  compound_dataset: true
+  constr_params:
+  - socket_connection
+  correct_response: laser locking
+  driver: LaserLock
+  label: Laser Lock 1
+  max_nan_count: 0
+  meta_device: false
+  name: Laser Lock 1
+  path: lasers
+  plots_queue_maxlen: 1000
+  row: 3
+  slow_data: true
+dt:
+  colspan: null
+  column: 1
+  command: null
+  label: Loop delay [s]
+  row: 2
+  rowspan: null
+  tooltip: null
+  type: QLineEdit
+  value: 0.05
+enabled:
+  colspan: null
+  column: 0
+  label: Enabled
+  row: 0
+  rowspan: null
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2
+socket_connection:
+  colspan: null
+  column: 1
+  ctrl_labels: IP, Port
+  ctrl_names: host, port
+  ctrl_options: '...; ...'
+  ctrl_types: QLineEdit, QLineEdit
+  ctrl_values: 10.10.222.9, 65430
+  label: Connection
+  row: 3
+  rowspan: null
+  tooltip: null
+  type: ControlsRow

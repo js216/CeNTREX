@@ -1,7 +1,19 @@
 import time
+from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 from scipy import signal
+
+
+@dataclass
+class DummyDataTraceData:
+    time: float
+    data: npt.NDArray[np.float64]
+    attrs: list[dict[str, Any]]
+    shape: tuple[int] = (1, 2, 100)
+    dtype: type | tuple[type, ...] = np.float64
 
 
 class DummyDataTrace:
@@ -43,8 +55,10 @@ class DummyDataTrace:
             signal.gaussian(2000, 150) + np.random.randn(2000) / 5 - 0.5 / 10
         )
 
-        dset = [
-            np.array([fl_signal, ab_signal]).reshape(self.shape),
-            [{"timestamp": t}],
-        ]
-        return dset
+        return DummyDataTraceData(
+            time.time() - self.time_offset,
+            data=np.array([fl_signal, ab_signal]).reshape(self.shape),
+            attrs=[{}],
+            shape=self.shape,
+            dtype=self.dtype,
+        )

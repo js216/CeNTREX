@@ -48,6 +48,8 @@ program's functionality:
 - `HDF_writer` writes all the data collected by `Device` objects to an HDF file
   for future reference and analysis.
 
+- `Networking` controls all the sockets and workers for sending monitoring data to remoe clients and executing remote commands on local devices. 
+
 The program is thus generic enough to make it easy to add capabilities to
 control any number of new devices by simply (1) writing a device driver, and (2)
 a device config file. The easiest way to do both of these things is to copy a
@@ -61,7 +63,7 @@ The exact order of events after the user starts control is specified in the
 
    - check the control is not running already
    - select the time offset (see below in the section on Data structure)
-   - setup & check connections of all `double_connect` devices; instantiate new
+   - setup & check connections; instantiate new
      Devices (Python threads can only be started once, so this allows
      re-starting stopped control)
    - connect device controls with the new instances of Devices
@@ -97,9 +99,9 @@ When the user stops control, the `ControlGUI.stop_control()` function is called,
 going through the following sequence of events:
 
 - Check the program is not stopped already
-- Stop all plots
 - Stop monitoring
 - Stop the HDF writer
+- Stop all plots
 - For each Device thread:
    - Check device is active
    - Reset all indicators to the default value
@@ -131,111 +133,119 @@ attributes that have been declared previously. This enables the programmer to
 have a clear overview of what configuration parameters exist by simply
 inspecting the relevant `Config` class.
 
-In the present implementation, `Config` is a subclass of the standard `dict`. To
-ensure only the pre-declared attributes get put in the dictionary, the
-`__setitem__()` method is extended to check the keys are declared before putting
-them in the `dict`:
-
-    def __setitem__(self, key, val):
-        # check the key is permitted
-        if not key in dict(self.static_keys, **self.runtime_keys, **self.section_keys):
-            logging.error("Error in Config: key " + key + " not permitted.")
-
-        # set the value in the dict
-        super().__setitem__(key, val)
-
+In the present implementation, `ProgramConfig` is a subclass of a pydantic `BaseModel` to ensure value typechecking when loading the `.yaml` config file.
 
 ## Configuration files
 
-Upon starting, the program reads the main config file `config/settings.ini` that
+Upon starting, the program reads the main config file `config/settings.yaml` that
 defines general program settings; the values are read by the instance of
 `ProgramConfig` class. The main config file has to contain the following
-sections and fields:
+sections and fields with default values:
+```python
+class RuntimeKeys(BaseModel):
+    time_offset: float = 0
+    control_active: bool = False
+    control_visible: bool = True
+    monitoring_visible: bool = False
+    sequencer_visible: bool = False
+    plots_visible: bool = False
+    horizontal_split: bool = True
 
-    [general]
-    default_plot_dt =
-    default_hdf_dt =
-    run_name =
-    hdf_loop_delay =
-    monitoring_dt =
-    custom_command =
-    custom_device =
 
-    [run_attributes]
+class GeneralConfig(BaseModel):
+    run_name: str = "test"
+    plot_dt: float = 0.1
+    hdf_loop_delay: float = 0.1
+    monitoring_dt: float = 5.0
+    debug_level: str = "WARNING"
 
-    [files]
-    config_dir =
-    hdf_fname =
-    plotting_hdf_fname =
-    plotting_config_fname =
 
-    [influxdb]
-    enabled =
-    host =
-    port =
-    username =
-    password =
-    database =
+class FilesConfig(BaseModel):
+    config_dir: Path
+    hdf_dir: Path
+    plotting_config_fname: Path
+    sequence_fname: Path
+    hdf_fname: str = field(
+        default_factory=lambda: datetime.datetime.strftime(
+            datetime.datetime.now(), "%Y_%m_%d"
+        )
+        + ".hdf"
+    )
 
-    [networking]
-    enabled =
-    name =
-    port_readout =
-    port_control =
-    workers =
-    allowed =
 
-Device configurations are read from `.ini` files in the chosen directory. (Thus
+class InfluxDBConfig(BaseModel):
+    host: str
+    port: int
+    org: str
+    token: str
+    bucket: str
+    enabled: bool = False
+
+
+class NetworkingConfig(BaseModel):
+    name: str
+    port_readout: int
+    port_control: int
+    allowed: list[str]
+    workers: int
+    enabled: bool = False
+
+
+class ProgramConfig(BaseModel):
+    fname: Path  # config filename
+    general: GeneralConfig
+    networking: NetworkingConfig
+    files: FilesConfig
+    influxdb: InfluxDBConfig
+    time_offset: float = 0
+    control_active: bool = False
+    control_visible: bool = True
+    monitoring_visible: bool = False
+    sequencer_visible: bool = False
+    plots_visible: bool = False
+    horizontal_split: bool = True
+    run_attributes: dict[str, Any] = field(default_factory=lambda: {})
+
+```
+
+Device configurations are read from `.yaml` files in the chosen directory. (Thus
 choosing a different directory allows for a different set of devices or device
 configurations to be loaded.) These files have the structure:
 
-    [device]
-    ...
+```yaml
+device:
+  name : DummyDataFreq
+  label : Data Frequency
+  path : test
+  driver : DummyDataFreq
+  constr_params : [period, frequency_span]
+  correct_response : test
+  row : 1
+  column : 2
 
-    [attributes]
-    column_names = time, IG pressure
-    units = s, torr
-    ...
+attributes:
+  column_names : [time, frequency]
+  units : [s, Hz]
+```
 
-    [...]
+The `device:` section has to contain the non-default parameters of the `DeviceConfig` dataclass in `config.py`.
+The `attributes` are copied verbatim into the HDF file, and displayed in the `MonitoringGUI`. Any following config file sections specify the controls to be displayed in `ControlGUI`.
 
-The `[device]` section has to contain the parameters specified in the method
-`define_permitted_keys()` of the `DeviceConfig` class. The `[attributes]` are
-copied verbatim into the HDF file, and displayed in the `MonitoringGUI`. Any
-following config file sections specify the controls to be displayed in
-`ControlGUI`.
-
-Several types of controls are supported: `QCheckBox`, `QLineEdit`, `QComboBox`,
-and `QPushButton`, etc. The exact syntax of these is subject to change, and is
-best learned from the existing config files. However, the definitive guide to
-what fields are required for a given control type can be obtained from the
-`read_from_file()` function of the `DeviceConfig` class.
-
-Most all devices will have a checkbox to determine whether the devices is
+Several types of controls are supported: `QCheckBox`, `QLineEdit`, `QComboBox`, and `QPushButton`, etc. The exact syntax of these is subject to change, and is best learned from the `control_params` field of the `DeviceConfig` datclass. Most all devices will have a checkbox to determine whether the devices is
 enabled. For example:
-
-    [enabled]
-    label = Device enabled
-    type = QCheckBox
-    tristate = True
-    row = 0
-    col = 0
-    value = 2
+```yaml
+    enabled:
+      label: Device enabled
+      type: QCheckBox
+      tristate : True
+      row: 0
+      column: 0
+      value: 2
+``````
 
 This has to be a tristate checkbox, and the three states have the following
 meanings: 1 = connect to the device, but do not read data from it; 2 = connect
 to the device and read data from it; 0 = leave the device alone.
-
-Note that config classes can also generate default options that don't need to be
-specified in the `.ini` files. See `set_defaults()` methods in the `Config`
-classes for examples.
-
-For `double_connect` devices, the device driver constructor defines the data
-type and shape, and when starting control, the program instantiates the driver
-in order to access these parameters to correctly initialize storage. However,
-for some devices it may be undesirable to instantiate the device driver twice.
-For such devices, the data type and shape have to be specified in the `.ini`
-file using the `dtype` and `dshape` options in the `[device]` section of
 
 ## Error handling
 
@@ -244,12 +254,13 @@ file using the `dtype` and `dshape` options in the `[device]` section of
 If a function within a device driver has to stop due to an error condition, it
 should report the error using the `logging.error()` function giving a
 descriptive message of what went wrong, and return nothing:
-
-    try:
-       some code
-    except SomeException as err:
-       logging.error("ERROR: an error has occurred: " + str(err))
-       return
+```python
+  try:
+     do_some_code()
+  except SomeException as err:
+     logging.error(f"ERROR: an error has occurred: {err}")
+     return
+```
 
 If there is an abnormal condition that does not require the function to
 terminate, it should be reported via the `logging.warning()` function.
@@ -262,18 +273,16 @@ exceptions to be raised unless stopping the `Device` loop is the desired effect.
 
 ### Exceptions in the main program
 
-The exceptions that occur while calling the driver's `ReadValue()` function, or
-at some other time while the driver is instantiated, are handled after the main
-loop of the `Device` class, as follows:
-
-    except Exception as err:
-       warning_dict = {
-               "message" : "exception in " + self.config["name"] + ": "+str(err),
-               "exception" : 1,
-           }
-       self.warnings.append([time.time(), warning_dict])
-
-Thus, we catch any kind of exception, package it in the `warning_dict`, and
+The exceptions that occur while calling the driver's `ReadValue()` function, or at some other time while the driver is instantiated, are handled after the main loop of the `Device` class, as follows:
+```python
+except Exception as err:
+  DeviceWarning(
+    time = time.time(),
+    message = f"device_name Warning: {err}",
+    level = WarningLevel.WARNING
+  )
+```
+Thus, we catch any kind of exception, package it in the `DeviceWarning`, and
 append it to the list of warnings. Later, when `Monitoring` detects that the
 list of warnings is not empty, it will read this dict, push it to InfluxDB,
 report it as a `logging.warning()`, and display it in the appropriate field in
@@ -284,12 +293,12 @@ thus be taken seriously to prevent failing to record data.
 If the driver raises exceptions when the `Device` instance attempts to execute
 user-specified or monitoring commands, it will catch them, convert them to
 strings, and report it as the return value of the command:
-
-    try:
-        ret_val = eval("device." + c.strip())
-    except Exception as err:
-        ret_val = str(err)
-
+```python
+try:
+    ret_val = eval("device." + c.strip())
+except Exception as err:
+    ret_val = str(err)
+```
 Thus, the user should not be able to crash the program, or any of its parts, by
 simply trying to call inappropriate driver commands.
 
@@ -311,7 +320,7 @@ through the following:
    - Write data to InfluxDB
    - If writing to HDF is disabled, empty the queues (otherwise the `HDF_writer`
      will do it)
-- Sleep for the loop delayadd thermometers to power supply box
+- Sleep for the loop delay
 
 The 'monitoring events' and 'monitoring commands' referred to in the above are
 used, in the present version of the program, exclusively for the so-called
@@ -331,25 +340,25 @@ Currently, three kinds of indicator controls are supported:
 - `indicator_lineedit`: a `QLineEdit` that changes its text to the return value
   of the `monitoring_command`
 
-For `indicator`s and `indicator_buttons, the text values corresponding to the
-given return values are to be listed in the relevant section of the `.ini` file,
+For `indicator`s and `indicator_buttons`, the text values corresponding to the
+given return values are to be listed in the relevant section of the `.yaml` file,
 and styles can similarly be chosen from a list of styles pre-defined in
 `darkstyle.qss` (see beginning of that file). For example, a simple indicator
 will require the following fields:
-
-    monitoring_command = CheckFlood()
-    return_values = flooding, no flood, invalid, None
-    texts = Flooding!, No flood, (flood status?), (flood status?)
-    states = error, disabled, error, disabled
-
+```yaml
+monitoring_command : CheckFlood()
+return_values : [flooding, no flood, invalid, None]
+texts : [Flooding!, No flood, (flood status?), (flood status?)]
+states : [error, disabled, error, disabled]
+```
 An indicator button in addition needs a list of two commands to be run,
 depending on whether the button is considered `checked` or not. In addition,
 there has to be a list of boolean values that define which return values are
 considered checked and which aren't. For example:
-
-    action_commands = StopPump, StartPump
-    checked = True, False, False, True, True
-
+```yaml
+action_commands : [StopPump, StartPump]
+checked : [true, false, false, true, true]
+```
 ## HDF writer
 
 The `HDF_writer` instance executes the following loop:
@@ -413,34 +422,35 @@ The drivers are classes inside the Python modules that are stored in `drivers/`.
 Instantiating the driver class is the abstract representation of opening a
 connection to a physical device. For example, many RS-232 devices have the
 following lines in the class constructor:
-
-    try:
-       self.instr = self.rm.open_resource(resource_name)
-    except pyvisa.errors.VisaIOError:
-       # deal with the exception
-
+```python
+try:
+   self.instr = self.rm.open_resource(resource_name)
+except pyvisa.errors.VisaIOError:
+   # deal with the exception
+```
 The constructor also has to accomplish a few other things:
 
 - Make the verification string, which is compared against the one specified in
-  the device configuration (`.ini`) file to ensure the connection was successful
+  the device configuration (`.yaml`) file to ensure the connection was successful
 
 - Define what new attributes should be added to the device's dataset in the HDF
   file. If no new attributes are required, just leave it an empty list:
-
-        self.new_attributes = []
-
+  ```
+  self.new_attributes = []
+  ```
 - Specify the shape and datatype of the data returned by `ReadValue()`. For
   instance, if three float values (plus the UNIX time as a floating-point
   number) are to be returned, the correct specification would be
-
-        self.dtype = 'f'
-        self.shape = (4, )
+  ```
+  self.dtype = 'f'
+  self.shape = (4, )
+  ```
 
 - Define the list of warnings that will be polled at regular intervals to detect
   abnormal operation of the device. The list should probably initially be empty:
-
-        self.warnings = []
-
+  ```
+  self.warnings = []
+  ```
 Opening a connection to the device is of course not the only action that the
 driver classes serve to provide a consistent, abstract interface to:
 
@@ -453,10 +463,11 @@ driver classes serve to provide a consistent, abstract interface to:
 
 - In order to enable using the Python [`with` statement](https://docs.python.org/3/reference/compound_stmts.html#the-with-statement), the driver has to define the methods `__enter__()` and `__exit()__`. Normally, `enter` just returns `self`, whereas `exit` does whatever cleanup is needed to close the connection to the
 device:
-
-        def __exit__(self, *exc):
-            if self.instr:
-                self.instr.close()
+  ```
+  def __exit__(self, *exc):
+      if self.instr:
+          self.instr.close()
+  ```
 
 - Provide a function `GetWarnings()` that will be called at regular intervals to
   populate the list of `warnings`. This function can check for the device
@@ -473,17 +484,17 @@ value, the thermal watchdog can turn off the heaters --- see
 
 
 ## Networking
-Network control and readout is implemented using ZMQ. The `settings.ini` file should
+Network control and readout is implemented using ZMQ. The `settings.yaml` file should
 contain a section `networking`
-
-    [networking]
-    enabled =
-    name =
-    workers =
-    port_readout =
-    port_control =
-    allowed =
-
+```yaml
+networking:
+  enabled: 
+  name:
+  workers:
+  port_readout:
+  port_control:
+  allowed: []
+```
 * `enabled` is a boolean value to allow network control and readout.
 * `name` is a user chosen name for network readout
 * `workers` is the number of thread to spin up for network control. Each worker
@@ -517,10 +528,10 @@ Verification of a successfull connection (and to the correct device) has not bee
 
 ### Slow and fast devices
 
-The device `.ini` file should specify whether the device is a slow or a fast
-device, e.g.
-
-    slow_data = True
+The device `.yaml` file should specify whether the device is a fast device, by default a slow device is assumed:
+```yaml
+slow_data : true
+```
 
 A slow device is expected to return only a few values each time its
 `ReadValue()` is called, and thus requires a single dataset to contain all the

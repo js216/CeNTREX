@@ -1,0 +1,58 @@
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  type: QCheckBox
+  value: 0
+InfluxDB_enabled:
+  column: 0
+  label: InfluxDB enabled
+  row: 2
+  type: QCheckBox
+  value: 1
+attributes:
+  column_names:
+  - time
+  - ds18b20_temperature
+  - bme280_temperature
+  - humidity
+  - pressure
+  units:
+  - s
+  - C
+  - C
+  - '%'
+  - hPa
+device:
+  column: 0
+  constr_params:
+  - ip
+  correct_response: Wireless Sensor Station Lasertable 1
+  driver: WirelessSensorStationLasertable1
+  label: Lasertable 1
+  max_nan_count: 10
+  meta_device: false
+  name: Lasertable 1
+  path: environment
+  plots_queue_maxlen: 1000
+  row: 4
+  slow_data: true
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 2
+  type: QLineEdit
+  value: 30
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tristate: true
+  type: QCheckBox
+  value: 2
+ip:
+  column: 1
+  label: IP Address
+  row: 3
+  type: QLineEdit
+  value: 172.29.135.206

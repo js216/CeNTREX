@@ -1,0 +1,84 @@
+HDF_enabled:
+  colspan: null
+  column: 0
+  label: HDF
+  row: 1
+  rowspan: null
+  tooltip: null
+  type: QCheckBox
+  value: false
+attributes:
+  column_names:
+  - time
+  - running
+  - qswitch_delay
+  units:
+  - s
+  - ''
+  - us
+board_number:
+  column: 1
+  command: ''
+  label: Board number
+  options:
+  - 0
+  - 1
+  - 2
+  - 3
+  row: 3
+  type: QComboBox
+  value: 0
+device:
+  column: 0
+  constr_params:
+  - board_number
+  correct_response: 6147
+  driver: PulseBlaster
+  label: PulseBlaster
+  max_nan_count: 0
+  meta_device: false
+  name: PulseBlaster
+  path: readout
+  plots_queue_maxlen: 1000
+  row: 3
+  slow_data: true
+dt:
+  colspan: null
+  column: 1
+  command: null
+  label: Loop delay [s]
+  row: 2
+  rowspan: null
+  tooltip: null
+  type: QLineEdit
+  value: 1
+enabled:
+  colspan: null
+  column: 0
+  label: Enabled
+  row: 0
+  rowspan: null
+  tooltip: null
+  tristate: false
+  type: QCheckBox
+  value: 2
+program_device:
+  argument: ''
+  colspan: null
+  column: 2
+  command: ProgramAndStart
+  label: Start
+  row: 4
+  rowspan: null
+  tooltip: program and start PulseBlaster
+  type: QPushButton
+set_qswitch:
+  colspan: null
+  column: 1
+  command: GenerateSequenceQSwitch
+  label: Qswitch delay
+  row: 4
+  rowspan: null
+  tooltip: us
+  type: QLineEdit
+  value: 170

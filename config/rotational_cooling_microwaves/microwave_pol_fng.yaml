@@ -1,0 +1,102 @@
+CH1_control:
+  action_commands: DisableCH1, EnableCH1
+  argument: ''
+  checked:
+  - true
+  - false
+  colspan: 1
+  column: 0
+  label: (ch1?)
+  monitoring_command: GetOutputState1()
+  return_values: On, Off
+  row: 5
+  rowspan: 1
+  states: enabled, disabled
+  texts: J12 pol on, J12 pol off
+  type: indicator_button
+CH2_control:
+  action_commands: DisableCH2, EnableCH2
+  argument: ''
+  checked:
+  - true
+  - false
+  colspan: 1
+  column: 0
+  label: (ch2?)
+  monitoring_command: GetOutputState2()
+  return_values: On, Off
+  row: 6
+  rowspan: 1
+  states: enabled, disabled
+  texts: J23 pol on, J23 pol off
+  type: indicator_button
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  tooltip: null
+  type: QCheckBox
+  value: false
+attributes:
+  column_names:
+  - time
+  - ch1
+  - waveform1
+  - frequency1
+  - amplitude1
+  - offset1
+  - ch2
+  - waveform2
+  - frequency2
+  - amplitude2
+  - offset2
+  units:
+  - s
+  - ''
+  - ''
+  - Hz
+  - V
+  - V
+  - ''
+  - ''
+  - Hz
+  - V
+  - V
+device:
+  column: 1
+  constr_params:
+  - resource
+  correct_response: Siglent Technologies,SDG1032X,SDG1XCAD2R3284,1.01.01.30R1
+  driver: SiglentSDG1032X
+  label: Polarization SDG1032X
+  max_nan_count: 0
+  meta_device: false
+  name: polarization_SDG1032X
+  path: microwaves
+  plots_queue_maxlen: 1000
+  row: 0
+  slow_data: true
+dt:
+  column: 1
+  command: null
+  label: Loop delay [s]
+  row: 2
+  tooltip: null
+  type: QLineEdit
+  value: 2
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2
+resource:
+  column: 1
+  command: ''
+  label: COM port
+  options: ''
+  row: 4
+  type: QComboBox
+  value: USB0::0xF4EC::0x1103::SDG1XCAD2R3284::INSTR

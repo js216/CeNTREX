@@ -1,6 +1,7 @@
 import logging
 import time
-from typing import Tuple, Union
+from dataclasses import dataclass
+from typing import Any, Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -29,6 +30,15 @@ def create_bins(
             bin_centers + dscan_min / 2,
         )
     return bin_centers, bins
+
+
+@dataclass
+class HistogramPlotterData:
+    time: float
+    data: npt.NDArray[np.float64]
+    attrs: list[dict[str, Any]]
+    dtype: tuple[type, ...] = (np.float64,)
+    shape: tuple[int, ...] = (1, 2, 100)
 
 
 class HistogramPlotter:
@@ -75,7 +85,7 @@ class HistogramPlotter:
 
         # shape and type of the array of returned data
         self.shape = (1, 2, self.nbins_max)
-        self.dtype = float
+        self.dtype = np.float64
 
         self.processed_changed = False
 
@@ -116,7 +126,13 @@ class HistogramPlotter:
             data = np.concatenate(
                 (np.linspace(-1, 1, self.shape[-1]), np.zeros(self.shape[-1]))
             ).reshape(self.shape)
-            return [data, [{"timestamp": time.time() - self.time_offset}]]
+            return HistogramPlotterData(
+                time=time.time() - self.time_offset,
+                data=data,
+                attrs=[{}],
+                dtype=self.dtype,
+                shape=self.shape,
+            )
 
         else:
             bin_centers, bins = create_bins(x_data, maxsize=self.nbins_max)
@@ -125,8 +141,13 @@ class HistogramPlotter:
                 x_data, y_data, statistic="mean", bins=bins
             )
             data = np.concatenate((bin_centers, bin_means)).reshape(self.shape)
-
-            return [data, [{"timestamp": time.time() - self.time_offset}]]
+            return HistogramPlotterData(
+                time.time() - self.time_offset,
+                data=data,
+                attrs=[{}],
+                dtype=self.dtype,
+                shape=self.shape,
+            )
 
     def SetProcessing(self, processing):
         self.processing = processing
@@ -166,14 +187,12 @@ class HistogramPlotter:
         Attempting to fetch data from the specified fast and slow device.
         """
         try:
-            data1_queue = list(self.parent.devices[self.dev1].config["plots_queue"])
+            data1_queue = list(self.parent.devices[self.dev1].config.plots_queue)
         except KeyError:
             logging.warning(f"HistogramPlotterNorm: device {self.dev1} not found")
             return
         try:
-            data2_queue = np.asarray(
-                self.parent.devices[self.dev2].config["plots_queue"]
-            )
+            data2_queue = np.asarray(self.parent.devices[self.dev2].config.plots_queue)
         except KeyError:
             logging.warning(f"HistogramPlotterNorm: device {self.dev} not found")
             return
@@ -181,8 +200,8 @@ class HistogramPlotter:
         if len(data2_queue) == 0 or len(data1_queue) == 0:
             return
 
-        timestamps1 = np.asarray([d[-1][0]["timestamp"] for d in data1_queue])
-        timestamps2 = np.asarray([d[0] for d in data2_queue])
+        timestamps1 = np.asarray([d.time for d in data1_queue])
+        timestamps2 = np.asarray([d.time for d in data2_queue])
 
         dt = timestamps2[:, np.newaxis] - timestamps1
         dt[dt > 0] = 1e3
@@ -197,12 +216,9 @@ class HistogramPlotter:
             mask = timestamps1 > self.unprocessed_data_ts[-1]
 
         # extract the desired parameter 1 and 2
-        col_names1 = split(
-            self.parent.devices[self.dev1].config["attributes"]["column_names"]
-        )
-        col_names2 = split(
-            self.parent.devices[self.dev2].config["attributes"]["column_names"]
-        )
+        col_names1 = self.parent.devices[self.dev1].config.attributes.column_names
+        col_names2 = self.parent.devices[self.dev2].config.attributes.column_names
+
         try:
             idx1 = col_names1.index(self.param1)
         except IndexError:
@@ -218,20 +234,20 @@ class HistogramPlotter:
         self.x_ts.extend(timestamps2[mask])
 
         data1_queue = [data1_queue[idx] for idx, m in enumerate(mask) if m]
+
         if len(self.unprocessed_data) == 0:
-            self.unprocessed_data = [d[0][0][idx1] for d in data1_queue]
-            self.x_data = [d[idx2] for d in data2_queue[mask]]
+            self.unprocessed_data = [d.data[0, idx1] for d in data1_queue]
+            self.x_data = [getattr(d, self.param2) for d in data2_queue[mask]]
         else:
             for idd, d in enumerate(data1_queue):
                 # d is a list with at 0 the arrays and at 1 the timestamps
-                d = d[0]
-                if d.shape[0] > 1:
+                if d.data.shape[0] > 1:
                     for di in d:
-                        self.unprocessed_data.append(di[0][idx1])
-                        self.x_data.append(data2_queue[mask][idd][idx2])
+                        self.unprocessed_data.append(di.data[0][idx1])
+                        self.x_data.append(getattr(data2_queue[mask][idd], self.param2))
                 else:
-                    self.unprocessed_data.append(d[0][idx1])
-                    self.x_data.append(data2_queue[mask][idd][idx2])
+                    self.unprocessed_data.append(d.data[0][idx1])
+                    self.x_data.append(getattr(data2_queue[mask][idd], self.param2))
 
     def ProcessData(self):
         """

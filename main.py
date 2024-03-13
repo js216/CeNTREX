@@ -4,7 +4,7 @@ import sys
 import traceback
 from pathlib import Path
 
-import PyQt5.QtWidgets as qt
+import PySide6.QtWidgets as qt
 from rich.logging import RichHandler
 
 from gui import CentrexGUI
@@ -48,7 +48,7 @@ if __name__ == "__main__":
     arguments = parser.parse_args()
 
     if arguments.settings is None:
-        settings_path = filepath.parent / "config" / "settings.ini"
+        settings_path = filepath.parent / "config" / "settings.yaml"
     else:
         settings_path = Path(arguments.settings)
         if arguments.r:
@@ -69,4 +69,4 @@ if __name__ == "__main__":
         except Exception as e:
             logging.error(e)
             logging.error(traceback.format_exc())
-        sys.exit(app.exec_())
+        sys.exit(app.exec())

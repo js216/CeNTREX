@@ -1,0 +1,73 @@
+COM_port:
+  type: dummy
+  value: client
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  tooltip: null
+  type: QCheckBox
+  value: true
+attributes:
+  column_names:
+  - time
+  - emission state
+  - input power
+  - current
+  - current setpoint
+  - booster temperature
+  units:
+  - s
+  - ''
+  - A
+  - A
+  - A
+  - C
+device:
+  column: 0
+  constr_params:
+  - socket_connection
+  - driver
+  - COM_port
+  correct_response: NKT168351
+  driver: SocketDeviceClient
+  label: Seed 1 Amplifier
+  max_nan_count: 0
+  meta_device: false
+  name: Seed1Amplifier
+  path: readout
+  plots_queue_maxlen: 1000
+  row: 2
+  slow_data: true
+driver:
+  type: dummy
+  value: KoherasBoostik
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 2
+  type: QLineEdit
+  value: 10
+  width: 5
+enabled:
+  colspan: null
+  column: 0
+  label: Device enabled
+  row: 0
+  rowspan: null
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2
+socket_connection:
+  column: 1
+  command: ''
+  ctrl_labels: Host, Port
+  ctrl_names: host, port
+  ctrl_options: '...; ...'
+  ctrl_types: QLineEdit, QLineEdit
+  ctrl_values: 172.28.173.180, 65433
+  label: Socket Connection
+  options: ''
+  row: 3
+  type: ControlsRow

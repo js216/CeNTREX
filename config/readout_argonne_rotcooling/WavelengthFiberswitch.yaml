@@ -1,0 +1,83 @@
+COM_port_fiberswitch:
+  type: dummy
+  value: client
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  type: QCheckBox
+  value: 1
+attributes:
+  column_names:
+  - time
+  - seed1
+  - seed2
+  - seed3
+  - cesium
+  - power
+  - temperature
+  - pressure
+  units:
+  - s
+  - THz
+  - THz
+  - THz
+  - THz
+  - mW
+  - C
+  - mm Hg
+connection:
+  type: dummy
+  value:
+    device_name: Wavemeter + Switch Server
+    port_control: '12349'
+    port_readout: '12348'
+    publisher_name: WavemeterControl
+    server: 127.0.0.1
+connection_wavemeter:
+  type: dummy
+  value:
+    telnet_address: ''
+    telnet_port: ''
+device:
+  column: 1
+  compound_dataset: true
+  constr_params:
+  - driver
+  - connection
+  - connection_wavemeter
+  - COM_port_fiberswitch
+  - ports
+  correct_response: BRISTOL WAVELENGTH METER, 671A-VIS, 6894, 1.2.1, True
+  driver: NetworkingClient
+  label: Wavelength Client
+  max_nan_count: 10
+  meta_device: false
+  name: Wavelength
+  path: lasers
+  plots_queue_maxlen: 1000
+  row: 3
+  slow_data: true
+driver:
+  type: dummy
+  value: WavemeterFiberswitch
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 2
+  type: QLineEdit
+  value: 0.2
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tristate: true
+  type: QCheckBox
+  value: 2
+ports:
+  type: dummy
+  value:
+  - 1
+  - 2
+  - 3
+  - 16

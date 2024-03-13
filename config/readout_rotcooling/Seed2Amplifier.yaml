@@ -1,0 +1,69 @@
+COM_port:
+  type: dummy
+  value: client
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  tooltip: null
+  type: QCheckBox
+  value: true
+attributes:
+  column_names:
+  - time
+  - emission state
+  - input power
+  - current
+  - current setpoint
+  - booster temperature
+  units:
+  - s
+  - ''
+  - A
+  - A
+  - A
+  - C
+connection:
+  type: dummy
+  value:
+    device_name: Seed 2 Amplifier
+    port_control: '12347'
+    port_readout: '12346'
+    publisher_name: LaserControl
+    server: 172.28.173.180
+device:
+  column: 1
+  constr_params:
+  - driver
+  - connection
+  - COM_port
+  correct_response: network
+  driver: NetworkingClient
+  label: Seed 2 Amplifier
+  max_nan_count: 0
+  meta_device: false
+  name: Seed2Amplifier
+  path: readout
+  plots_queue_maxlen: 1000
+  row: 4
+  slow_data: true
+driver:
+  type: dummy
+  value: KoherasBoostik
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 2
+  type: QLineEdit
+  value: 10
+  width: 5
+enabled:
+  colspan: null
+  column: 0
+  label: Device enabled
+  row: 0
+  rowspan: null
+  tooltip: null
+  tristate: false
+  type: QCheckBox
+  value: 0

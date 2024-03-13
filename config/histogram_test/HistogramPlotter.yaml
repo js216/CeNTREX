@@ -1,0 +1,83 @@
+device:
+  name : histogram_plotter
+  label : Histogram Plotter
+  path : test/histogram
+  driver : HistogramPlotter
+  constr_params : [dev1, param1, processing, dev2, param2, nbins_max]
+  meta_device : True
+  correct_response : histogram_plotter
+  slow_data : False
+  row : 1
+  column : 1
+
+attributes:
+  column_names : [frequency, integral]
+  units : [MHz, adc]
+
+enabled:
+  label : Device enabled
+  type : QCheckBox
+  tristate : True
+  row : 0
+  column : 0
+  value : 2
+
+HDF_enabled:
+  type : dummy
+  value : 0
+
+dt:
+  label : Loop delay [s]
+  type : QLineEdit
+  row : 1
+  column : 1
+  value : 0.1
+
+dev1:
+  label : Dev1
+  type : QLineEdit
+  row : 2
+  column : 1
+  value : "DummyDataTrace"
+  command : SetDevice1
+
+param1:
+  label : Param1
+  type : QLineEdit
+  row : 2
+  column : 2
+  value : "ch2"
+  command : SetParam1
+
+processing:
+  label : Processing
+  type : QLineEdit
+  row : 2
+  column : 3
+  value : "-np.trapz(y[250:1900] - np.concatenate((y[50:200],y[-150:])).mean())"
+  command : SetProcessing
+
+dev2:
+  label : Dev2
+  type : QLineEdit
+  row : 3
+  column : 1
+  value : "DummyDataFreq"
+  command : SetDevice2
+
+param2:
+  label : Param2
+  type : QLineEdit
+  row : 3
+  column : 2
+  value : "frequency"
+  command : SetParam2
+
+nbins_max:
+  label : Max bins
+  type : QLineEdit
+  row : 4
+  column : 1
+  value : 100
+  command : set_nbins_max
+

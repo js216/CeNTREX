@@ -1,0 +1,82 @@
+COM_port:
+  column: 1
+  command: ''
+  label: COM port
+  options: ''
+  row: 4
+  type: QComboBox
+  value: USB0::0xF4EC::0x1103::SDG1XCAD2R3284::INSTR
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  tooltip: null
+  type: QCheckBox
+  value: false
+InfluxDB_enabled:
+  column: 0
+  label: InfluxDB enabled
+  row: 2
+  type: QCheckBox
+  value: 0
+attributes:
+  column_names:
+  - time
+  - ch1
+  - waveform1
+  - frequency1
+  - amplitude1
+  - offset1
+  - ch2
+  - waveform2
+  - frequency2
+  - amplitude2
+  - offset2
+  units:
+  - s
+  - ''
+  - ''
+  - Hz
+  - V
+  - V
+  - ''
+  - ''
+  - Hz
+  - V
+  - V
+device:
+  column: 1
+  constr_params:
+  - COM_port
+  correct_response: Siglent Technologies,SDG1032X,SDG1XCAD2R3284,1.01.01.30R1
+  driver: SiglentSDG1032X
+  label: SDG1032X
+  max_nan_count: 0
+  meta_device: false
+  name: SDG1032X
+  path: lasers
+  plots_queue_maxlen: 1000
+  row: 3
+  slow_data: true
+dt:
+  column: 1
+  command: null
+  label: Loop delay [s]
+  row: 2
+  tooltip: null
+  type: QLineEdit
+  value: 2
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2
+port:
+  column: 1
+  label: Socket Port
+  row: 3
+  type: QLineEdit
+  value: 65437

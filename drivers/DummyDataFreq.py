@@ -1,8 +1,15 @@
 import logging
 import time
+from dataclasses import dataclass
 
 import numpy as np
 from scipy import signal
+
+
+@dataclass
+class DummyDataFreqData:
+    time: float
+    frequency: float
 
 
 class DummyDataFreq:
@@ -19,10 +26,6 @@ class DummyDataFreq:
 
         self.new_attributes = []
 
-        # shape and type of the array of returned data
-        self.shape = (2,)
-        self.dtype = ("f4", "float")
-
     def __exit__(self, *exc):
         pass
 
@@ -32,12 +35,12 @@ class DummyDataFreq:
     def GetWarnings(self):
         return self.warnings
 
-    def ReadValue(self):
+    def ReadValue(self) -> DummyDataFreqData:
         t = time.time() - self.time_offset
-        return [
+        return DummyDataFreqData(
             t,
             self.frequency_span * signal.sawtooth(2 * np.pi / self.period * t, width=1),
-        ]
+        )
 
     def test(self, value):
         logging.info(f"DummyDataFreq: test({value})")

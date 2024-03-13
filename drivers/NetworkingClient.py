@@ -5,12 +5,15 @@ import json
 import logging
 import threading
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from types import FunctionType
 
 import numpy as np
 import zmq
 import zmq.auth
+
+from config import get_dtype_from_dataclass, get_shape_from_dataclass
 
 
 def wrapperNetworkClientMethods(func):
@@ -93,7 +96,7 @@ class ReadValueThread(threading.Thread):
                     retval = self.parent.Decode(data)
                     retval[0] -= self.parent.time_offset
                     self.value = retval
-            except zmq.error.ContextTerminated:
+            except (zmq.error.ContextTerminated, zmq.error.ZMQError):
                 warning_dict = {
                     "message": "stopped ReadValueThread because context was terminated"
                 }
@@ -105,6 +108,11 @@ class ReadValueThread(threading.Thread):
             # sleep to release to other threads
             time.sleep(1e-4)
             self.finished = True
+
+
+@dataclass
+class NetworkingClientData:
+    time: float
 
 
 def NetworkingClient(time_offset, driver, connection, *args):
@@ -119,10 +127,11 @@ def NetworkingClient(time_offset, driver, connection, *args):
 
     driver_module = importlib.util.module_from_spec(driver_spec)
     driver_spec.loader.exec_module(driver_module)
-    driver = getattr(driver_module, driver)
+    driver_class = getattr(driver_module, driver)
+    driver_dataclass = getattr(driver_module, f"{driver}Data")
 
     @NetworkingClassDecorator
-    class NetworkingClientClass(driver):
+    class NetworkingClientClass(driver_class):
         def __init__(self, time_offset, connection, *args):
             logging.info(f"Initializing NetworkingClientClass({str(driver)})")
             self.time_offset = time_offset
@@ -146,11 +155,14 @@ def NetworkingClient(time_offset, driver, connection, *args):
                 "NetworkingClientClass: retrieved verification_string"
                 f" {self.verification_string}"
             )
-
             self.dtype = self.ExecuteNetworkCommand("dtype")
+            if "object has no attribute" in self.dtype:
+                self.dtype = get_dtype_from_dataclass(driver_dataclass)
             logging.info(f"NetworkingClientClass: retrieved dtype {self.dtype}")
 
             self.shape = self.ExecuteNetworkCommand("shape")
+            if "object has no attribute" in self.shape:
+                self.shape = get_shape_from_dataclass(driver_dataclass)
             logging.info(f"NetworkingClientClass: retrieved shape {self.shape}")
 
             self.readvalue_thread = ReadValueThread(self)
@@ -282,9 +294,9 @@ def NetworkingClient(time_offset, driver, connection, *args):
             if self.readvalue_thread.value:
                 value = self.readvalue_thread.value
                 self.readvalue_thread.value = None
-                return value
+                return driver_dataclass(*value)
             else:
-                return np.nan
+                return None
 
     return NetworkingClientClass(time_offset, connection, *args)
 
@@ -333,4 +345,5 @@ def NetworkingClient(time_offset, driver, connection, *args):
 # socket.curve_publickey = client_public
 # socket.curve_serverkey = server_public
 # socket.connect(f"tcp://{ip}:{port}")
+# socket.send_json([name, "ReadValue()"]); socket.recv_json()
 # socket.send_json([name, "ReadValue()"]); socket.recv_json()

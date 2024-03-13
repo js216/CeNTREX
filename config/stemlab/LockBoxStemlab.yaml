@@ -1,0 +1,201 @@
+HDF_enabled:
+  colspan: null
+  column: 0
+  label: HDF
+  row: 1
+  rowspan: null
+  tooltip: null
+  type: QCheckBox
+  value: true
+attributes:
+  column_names:
+  - ch1
+  - ch2
+  units:
+  - V
+  - V
+cavity_lock:
+  action_commands: UnlockCavity, LockCavity
+  argument: ''
+  checked:
+  - true
+  - false
+  - false
+  colspan: 1
+  column: 3
+  label: (lock?)
+  monitoring_command: LockStatus()
+  return_values: Locked, Unlocked, invalid
+  row: 6
+  rowspan: 1
+  states: enabled, disabled, errors
+  texts: Lock on, Lock off, (lock?)
+  type: indicator_button
+device:
+  column: 0
+  constr_params:
+  - hostname
+  - reloadfpga
+  correct_response: true
+  driver: LockBoxStemlab
+  dtype: f8
+  label: LockBoxStemlab
+  max_nan_count: 0
+  meta_device: false
+  name: Stemlab
+  path: stemlab/stemlab
+  plots_queue_maxlen: 10
+  row: 0
+  shape:
+  - 1
+  - 2
+  - 16384
+  slow_data: false
+dt:
+  colspan: null
+  column: 1
+  command: null
+  label: Loop delay [s]
+  row: 2
+  rowspan: null
+  tooltip: null
+  type: QLineEdit
+  value: 0.1
+enabled:
+  colspan: null
+  column: 0
+  label: Enabled
+  row: 0
+  rowspan: null
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2
+filter:
+  column: 2
+  command: PIDFilter
+  label: Filter
+  monitoring_command: GetPIDFilter()
+  row: 6
+  type: indicator_lineedit
+  value: 100000.0
+hostname:
+  column: 1
+  label: Hostname
+  row: 3
+  type: QLineEdit
+  value: 172.28.170.46
+ival:
+  column: 1
+  command: PIDIVal
+  label: Integrator
+  monitoring_command: GetPIDIval()
+  row: 6
+  type: indicator_lineedit
+  value: null
+pid_integral:
+  column: 3
+  command: PIDIntegral
+  label: I
+  monitoring_command: GetPIDIntegral()
+  row: 5
+  type: indicator_lineedit
+  value: 0
+pid_proportional:
+  column: 2
+  command: PIDProportional
+  label: P
+  monitoring_command: GetPIDProportional()
+  row: 5
+  type: indicator_lineedit
+  value: -1
+pid_reset:
+  argument: ''
+  column: 4
+  command: PIDReset
+  label: RST
+  row: 5
+  type: QPushButton
+pid_setpoint:
+  column: 1
+  command: PIDSetPoint
+  label: sp
+  monitoring_command: GetPIDSetpoint()
+  row: 5
+  type: indicator_lineedit
+  value: 0
+ramp_amplitude:
+  column: 3
+  command: RampAmplitude
+  label: Amplitude
+  monitoring_command: GetRampAmplitude()
+  row: 4
+  type: indicator_lineedit
+  value: 1
+ramp_frequency_indicator:
+  column: 2
+  command: RampFrequency
+  label: Frequency
+  monitoring_command: GetRampFrequency()
+  row: 4
+  type: indicator_lineedit
+  value: 50
+ramp_offset:
+  column: 4
+  command: RampOffset
+  label: Offset
+  monitoring_command: GetRampOffset()
+  row: 4
+  type: indicator_lineedit
+  value: 0
+ramp_on:
+  action_commands: RampOff, RampOn
+  argument: ''
+  checked:
+  - true
+  - false
+  - false
+  colspan: 1
+  column: 1
+  label: (ramp?)
+  monitoring_command: RampStatus()
+  return_values: On, Off, invalid
+  row: 4
+  rowspan: 1
+  states: enabled, disabled, errors
+  texts: Ramp on, Ramp off, (ramp?)
+  type: indicator_button
+reloadfpga:
+  column: 2
+  label: Reload FPGA
+  row: 0
+  tristate: false
+  type: QCheckBox
+  value: 0
+scope_ch1:
+  column: 2
+  command: null
+  label: CH1
+  options: asg0, in1, in2, pid0
+  row: 7
+  tooltip: Scope CH1
+  type: QComboBox
+  value: asg0
+scope_ch2:
+  column: 3
+  command: ScopeCH2Input
+  label: CH2
+  options: asg0, in1, in2, pid0
+  row: 7
+  tooltip: Scope CH2
+  type: QComboBox
+  value: in1
+scope_trig:
+  column: 1
+  command: null
+  label: Scope Trigger
+  options: immediately, asg0, ch1_positive_edge, ch1_negative_edge, pid0
+  row: 7
+  tooltip: Scope trigger
+  type: QComboBox
+  value: immediately

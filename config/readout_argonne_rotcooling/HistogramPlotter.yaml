@@ -1,0 +1,84 @@
+HDF_enabled:
+  type: dummy
+  value: 0
+attributes:
+  column_names:
+  - frequency
+  - integral
+  units:
+  - MHz
+  - adc
+dev1:
+  column: 1
+  command: SetDevice1
+  label: Dev1
+  row: 2
+  type: QLineEdit
+  value: PXIe5171
+dev2:
+  column: 1
+  command: SetDevice2
+  label: Dev2
+  row: 3
+  type: QLineEdit
+  value: Laser Lock 1
+device:
+  column: 2
+  constr_params:
+  - dev1
+  - param1
+  - processing
+  - dev2
+  - param2
+  - nbins_max
+  correct_response: histogram_plotter
+  driver: HistogramPlotter
+  label: Histogram Plotter
+  max_nan_count: 10
+  meta_device: true
+  name: histogram_plotter
+  path: readout/histogram
+  plots_queue_maxlen: 1000
+  row: 2
+  slow_data: false
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 1
+  type: QLineEdit
+  value: 0.1
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tristate: true
+  type: QCheckBox
+  value: 2
+nbins_max:
+  column: 1
+  command: set_nbins_max
+  label: Max bins
+  row: 4
+  type: QLineEdit
+  value: 100
+param1:
+  column: 2
+  command: SetParam1
+  label: Param1
+  row: 2
+  type: QLineEdit
+  value: ch2
+param2:
+  column: 2
+  command: SetParam2
+  label: Param2
+  row: 3
+  type: QLineEdit
+  value: laser 2 lockpoint
+processing:
+  column: 3
+  command: SetProcessing
+  label: Processing
+  row: 2
+  type: QLineEdit
+  value: -np.trapz(y[250:1900] - np.concatenate((y[50:200],y[-150:])).mean())

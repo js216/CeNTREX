@@ -1,0 +1,86 @@
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  tooltip: null
+  type: QCheckBox
+  value: false
+attributes:
+  column_names:
+  - time
+  - integral
+  units:
+  - s
+  - ''
+ch:
+  colspan: null
+  column: 1
+  command: ''
+  label: Monitor ch
+  options: ch0, ch1, ch2, ch3, ch4, ch5, ch6, ch7
+  row: 2
+  rowspan: null
+  tooltip: null
+  type: QComboBox
+  value: ch1
+device:
+  column: 2
+  constr_params:
+  - pxie
+  - mirror
+  - qswitch
+  - threshold
+  - ch
+  correct_response: true
+  driver: MonitorSignal
+  label: MonitorSignal
+  max_nan_count: 10
+  meta_device: true
+  name: MonitorSignal
+  path: readout
+  plots_queue_maxlen: 1000
+  row: 3
+  slow_data: true
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 1
+  type: QLineEdit
+  value: 0.1
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tristate: true
+  type: QCheckBox
+  value: 0
+max_spots:
+  column: 2
+  command: SetMaxSpots
+  label: max_spots
+  row: 3
+  type: QLineEdit
+  value: 10
+mirror:
+  type: dummy
+  value: ZaberTMM
+nshots:
+  column: 1
+  command: SetNshots
+  label: nshots
+  row: 3
+  type: QLineEdit
+  value: 10
+pxie:
+  type: dummy
+  value: PXIe5171
+qswitch:
+  type: dummy
+  value: YagIsolator
+threshold:
+  column: 2
+  command: SetThreshold
+  label: threshold
+  row: 2
+  type: QLineEdit
+  value: 5000000.0

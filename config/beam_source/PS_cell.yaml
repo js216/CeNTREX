@@ -1,0 +1,100 @@
+COM_port:
+  colspan: null
+  column: 1
+  command: ''
+  label: COM port
+  options: ''
+  row: 3
+  rowspan: null
+  tooltip: null
+  type: QComboBox
+  value: GPIB1::1::INSTR
+HDF_enabled:
+  colspan: null
+  column: 0
+  label: HDF enabled
+  row: 1
+  rowspan: null
+  tooltip: null
+  type: QCheckBox
+  value: true
+attributes:
+  column_names:
+  - time
+  - voltage
+  - current
+  - power
+  units:
+  - s
+  - V
+  - A
+  - W
+current_indicator:
+  column: 1
+  command: SetCurrent
+  label: Amps
+  monitoring_command: MeasureCurrent()
+  row: 5
+  type: indicator_lineedit
+  value: 0.0
+device:
+  column: 3
+  com_port: null
+  constr_params:
+  - COM_port
+  correct_response: 0
+  driver: HP6645A
+  label: 16K PT cold plate top heater
+  max_nan_count: 10
+  meta_device: false
+  name: PS_cell
+  path: beam_source/thermal
+  plots_queue_maxlen: 1000
+  row: 1
+  slow_data: true
+dt:
+  colspan: null
+  column: 1
+  command: null
+  label: Loop delay [s]
+  row: 2
+  rowspan: null
+  tooltip: null
+  type: QLineEdit
+  value: 1.0
+enabled:
+  colspan: null
+  column: 0
+  label: Device enabled
+  row: 0
+  rowspan: null
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 0
+output_toggle:
+  action_commands: OutputDisable, OutputEnable
+  argument: ''
+  checked:
+  - true
+  - false
+  - true
+  - true
+  colspan: 2
+  column: 0
+  label: (output state?)
+  monitoring_command: OutputStatusReport()
+  return_values: on, off, invalid, None
+  row: 6
+  rowspan: 1
+  states: enabled, disabled, error, disabled
+  texts: Disable output, Enable output, [output control state?], [output control state?]
+  type: indicator_button
+voltage_indicator:
+  column: 1
+  command: SetVoltage
+  label: Volts
+  monitoring_command: MeasureVoltage()
+  row: 4
+  type: indicator_lineedit
+  value: 0.0

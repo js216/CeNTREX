@@ -1,0 +1,77 @@
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  type: QCheckBox
+  value: 1
+Vg1:
+  colspan: 1
+  column: 1
+  command: set_ch1_voltage
+  label: Vg1
+  monitoring_command: ch1_voltage_setpoint
+  row: 4
+  rowspan: 1
+  tooltip: Set Vg1 voltage [V]
+  type: indicator_lineedit
+  value: 0
+Vg2:
+  colspan: 1
+  column: 1
+  command: set_ch2_voltage
+  label: Vg2
+  monitoring_command: ch2_voltage_setpoint
+  row: 5
+  rowspan: 1
+  tooltip: Set Vg2 voltage [V]
+  type: indicator_lineedit
+  value: 0
+attributes:
+  column_names:
+  - time
+  - Vg1 voltage
+  - Vg2 voltage
+  - Vg1 current
+  - Vg2 current
+  units:
+  - s
+  - V
+  - V
+  - I
+  - I
+device:
+  column: 0
+  constr_params:
+  - resource
+  correct_response: Siglent Technologies,SPD3303X-E,SPD3XIDX5R3677,1.01.01.02.07R2,V3.0
+  driver: SPD3303X
+  label: Vg1 Vg2 +5V
+  max_nan_count: 10
+  meta_device: false
+  name: vg_5pos
+  path: microwaves/
+  plots_queue_maxlen: 1000
+  row: 2
+  slow_data: true
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 2
+  type: QLineEdit
+  value: 5
+  width: 5
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tristate: true
+  type: QCheckBox
+  value: 2
+resource:
+  column: 1
+  command: ''
+  label: Resource name
+  options: ''
+  row: 3
+  type: QComboBox
+  value: USB0::0xF4EC::0x1430::SPD3XIDX5R3677::INSTR

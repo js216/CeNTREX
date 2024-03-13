@@ -1,0 +1,123 @@
+COM_port:
+  colspan: null
+  column: 1
+  command: ''
+  label: COM port
+  options: ''
+  row: 3
+  rowspan: null
+  tooltip: null
+  type: QComboBox
+  value: 10.10.222.18::26
+HDF_enabled:
+  colspan: null
+  column: 0
+  label: HDF enabled
+  row: 1
+  rowspan: null
+  tooltip: null
+  type: QCheckBox
+  value: true
+attributes:
+  column_names:
+  - time
+  - ActualSpd
+  - DrvCurrent
+  - DrvVoltage
+  - DrvPower
+  - TempPwrStg
+  - TempElec
+  - TempPmpBot
+  - TempBearng
+  - TempMotor
+  - RotorImbalance
+  - BearingWear
+  units:
+  - s
+  - Hz
+  - A
+  - V
+  - W
+  - C
+  - C
+  - C
+  - C
+  - C
+  - ''
+  - ''
+brake_toggle:
+  action_commands: BrakeOff, BrakeOn
+  argument: ''
+  checked:
+  - true
+  - false
+  - true
+  - true
+  colspan: 2
+  column: 0
+  label: (brake status?)
+  monitoring_command: BrakeStatus()
+  return_values: on, off, invalid, none
+  row: 6
+  rowspan: 1
+  states: enabled, disabled, error, disabled
+  texts: Disable brake, Enable brake, (brake status?), (brake status?)
+  type: indicator_button
+connection_type:
+  type: dummy
+  value: TCP
+device:
+  column: 1
+  constr_params:
+  - COM_port
+  - connection_type
+  correct_response: TM 700
+  driver: HiPace700
+  label: DET HiPace 700
+  max_nan_count: 10
+  meta_device: false
+  name: Detection HiPace700
+  path: beam_source/pressure
+  plots_queue_maxlen: 1000
+  row: 1
+  slow_data: true
+dt:
+  colspan: null
+  column: 1
+  command: null
+  label: Loop delay [s]
+  row: 2
+  rowspan: null
+  tooltip: null
+  type: QLineEdit
+  value: 1
+enabled:
+  colspan: null
+  column: 0
+  label: Device enabled
+  row: 0
+  rowspan: null
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2
+power_toggle:
+  action_commands: StopPump, StartPump
+  argument: ''
+  checked:
+  - true
+  - false
+  - false
+  - true
+  - true
+  colspan: 2
+  column: 0
+  label: (pump speed?)
+  monitoring_command: TurboStatus()
+  return_values: running, stopped, accelerating, invalid, none
+  row: 5
+  rowspan: 1
+  states: enabled, disabled, intermediate, error, disabled
+  texts: Stop pump, Start pump, Accelerating [press to start], (pump speed?), (pump
+    speed?)
+  type: indicator_button

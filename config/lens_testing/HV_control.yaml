@@ -1,0 +1,107 @@
+COM_port:
+  column: 1
+  command: ''
+  label: COM port
+  options: ''
+  row: 3
+  type: QComboBox
+  value: ASRL6::INSTR
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  type: QCheckBox
+  value: 1
+attributes:
+  column_names:
+  - time
+  - voltage monitor
+  - current monitor
+  - voltage_program
+  - divider_voltage
+  - error_voltage
+  units:
+  - s
+  - kV
+  - uA
+  - kV
+  - V
+  - V
+change_setpoint:
+  align: nsew
+  argument: setpoint_value
+  column: 2
+  command: SetVoltage
+  label: Set
+  row: 6
+  type: QPushButton
+device:
+  column: 1
+  constr_params:
+  - COM_port
+  correct_response: HV_control v1.3 ready. Board A.
+  driver: HV_control
+  label: HV_control
+  max_nan_count: 10
+  meta_device: false
+  name: HV_control
+  path: lens_testing
+  plots_queue_maxlen: 1000
+  row: 1
+  slow_data: true
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 2
+  type: QLineEdit
+  value: 2.0
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tristate: true
+  type: QCheckBox
+  value: 2
+setpoint_value:
+  column: 1
+  command: SetVoltage
+  label: Setpoint [kV]
+  row: 6
+  type: QLineEdit
+  value: 0.0
+switch_enable:
+  action_commands: DisableHV, EnableHV
+  argument: ''
+  checked:
+  - true
+  - false
+  - true
+  colspan: 2
+  column: 0
+  label: (status?)
+  monitoring_command: QueryEnabled()
+  return_values: enabled, disabled
+  row: 4
+  rowspan: 1
+  states: enabled, disabled
+  texts: Enabled, Disabled
+  tooltip: null
+  type: indicator_button
+switch_polarity:
+  action_commands: SetNegative, SetPositive
+  argument: ''
+  checked:
+  - true
+  - false
+  - true
+  colspan: 2
+  column: 0
+  label: (polarity?)
+  monitoring_command: QueryPolarity()
+  return_values: positive, negative
+  row: 5
+  rowspan: 1
+  states: enabled, intermediate2, disabled
+  texts: Positive, Negative
+  tooltip: null
+  type: indicator_button

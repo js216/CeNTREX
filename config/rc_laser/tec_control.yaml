@@ -1,0 +1,74 @@
+COM_port:
+  column: 1
+  command: ''
+  label: COM port
+  options: ''
+  row: 3
+  type: QComboBox
+  value: COM5
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  tooltip: null
+  type: QCheckBox
+  value: false
+attributes:
+  column_names:
+  - time
+  - ch1 setpoint
+  - ch1 temperature
+  - ch1 current
+  - ch1 voltage
+  - ch1 state
+  - ch2 setpoint
+  - ch2 temperature
+  - ch2 current
+  - ch2 voltage
+  - ch2 state
+  units:
+  - s
+  - C
+  - C
+  - A
+  - V
+  - ''
+  - C
+  - C
+  - A
+  - V
+  - ''
+device:
+  column: 0
+  constr_params:
+  - COM_port
+  - number_devices
+  correct_response: C623C628EBEEE611917932E617904F51_88C48F630BEFE611A2E235E617904F51
+  driver: CeNTREXTECControl
+  label: RC TEC Control
+  max_nan_count: 0
+  meta_device: false
+  name: RC TEC Control
+  path: lasers/
+  plots_queue_maxlen: 1000
+  row: 0
+  slow_data: true
+dt:
+  column: 1
+  command: null
+  label: Loop delay [s]
+  row: 2
+  tooltip: null
+  type: QLineEdit
+  value: 2
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2
+number_devices:
+  type: dummy
+  value: 2

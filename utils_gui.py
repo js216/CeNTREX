@@ -1,8 +1,8 @@
 import logging
 from typing import Optional
 
-import PyQt5
-import PyQt5.QtWidgets as qt
+import PySide6
+import PySide6.QtWidgets as qt
 
 
 def LabelFrame(
@@ -69,9 +69,9 @@ def ScrollableLabelFrame(
     # make a scrollable area, and add the inner area to it
     sa = qt.QScrollArea()
     if not horiz_scroll:
-        sa.setHorizontalScrollBarPolicy(PyQt5.QtCore.Qt.ScrollBarAlwaysOff)
+        sa.setHorizontalScrollBarPolicy(PySide6.QtCore.Qt.ScrollBarAlwaysOff)
     if not vert_scroll:
-        sa.setVerticalScrollBarPolicy(PyQt5.QtCore.Qt.ScrollBarAlwaysOff)
+        sa.setVerticalScrollBarPolicy(PySide6.QtCore.Qt.ScrollBarAlwaysOff)
         sa.setMinimumHeight(
             sa.sizeHint().height() - 40
         )  # the recommended height is too large
@@ -152,7 +152,8 @@ class FlexibleGridLayout(qt.QHBoxLayout):
             for i in reversed(range(col.count())):
                 try:
                     if col.itemAt(i).layout():
-                        col.itemAt(i).layout().itemAt(0).widget().setParent(None)
+                        if col.itemAt(i).layout().itemAt(0) is not None:
+                            col.itemAt(i).layout().itemAt(0).widget().setParent(None)
                 except AttributeError:
                     logging.info(
                         "Exception in clear() in class FlexibleGridLayout",

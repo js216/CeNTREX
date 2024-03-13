@@ -1,0 +1,64 @@
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  tooltip: null
+  type: QCheckBox
+  value: false
+attributes:
+  column_names:
+  - time
+  - frequency
+  - power
+  - temperature
+  - pressure
+  units:
+  - s
+  - THz
+  - mW
+  - C
+  - mm Hg
+connection_wavemeter:
+  column: 1
+  ctrl_labels: IP, Port
+  ctrl_names: telnet_address, telnet_port
+  ctrl_options: '...; ...'
+  ctrl_types: QLineEdit, QLineEdit
+  ctrl_values: 10.10.222.102, 23
+  label: Wavemeter
+  row: 4
+  type: ControlsRow
+device:
+  column: 0
+  constr_params:
+  - connection_wavemeter
+  correct_response: BRISTOL WAVELENGTH METER, 671A-VIS, 51821, 1.2.1
+  driver: Bristol671A
+  label: Wavemeter Zombies
+  max_nan_count: 0
+  meta_device: false
+  name: Wavemeter Zombies
+  path: lasers
+  plots_queue_maxlen: 1000
+  row: 0
+  slow_data: true
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 2
+  type: QLineEdit
+  value: 0.5
+  width: 5
+enabled:
+  colspan: null
+  column: 0
+  label: Device enabled
+  row: 0
+  rowspan: null
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2
+timeout:
+  type: dummy
+  value: 0.5

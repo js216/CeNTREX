@@ -1,0 +1,178 @@
+COM_port:
+  colspan: null
+  column: 1
+  command: ''
+  label: COM port
+  options: ''
+  row: 3
+  rowspan: null
+  tooltip: null
+  type: QComboBox
+  value: COM5
+HDF_enabled:
+  colspan: null
+  column: 0
+  label: HDF
+  row: 1
+  rowspan: null
+  tooltip: null
+  type: QCheckBox
+  value: true
+attributes:
+  column_names:
+  - time
+  - frequency
+  - power
+  units:
+  - s
+  - Hz
+  - dBm
+device:
+  column: 1
+  constr_params:
+  - COM_port
+  correct_response: true
+  driver: SynthHDProFrequencySweep
+  label: 26.8 GHz
+  max_nan_count: 0
+  meta_device: false
+  name: SynthHDPro
+  path: readout
+  plots_queue_maxlen: 1000
+  row: 5
+  slow_data: true
+disable:
+  argument: ''
+  colspan: null
+  column: 4
+  command: Disable()
+  label: Disable
+  row: 4
+  rowspan: null
+  tooltip: Disable RF output
+  type: QPushButton
+dt:
+  colspan: null
+  column: 1
+  command: null
+  label: Loop delay [s]
+  row: 2
+  rowspan: null
+  tooltip: null
+  type: QLineEdit
+  value: 0.2
+enable:
+  argument: ''
+  colspan: null
+  column: 3
+  command: Enable()
+  label: Enable
+  row: 4
+  rowspan: null
+  tooltip: Enable RF output
+  type: QPushButton
+enabled:
+  colspan: null
+  column: 0
+  label: Enabled
+  row: 0
+  rowspan: null
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2
+frequency:
+  column: 1
+  command: SetFrequencyGUI
+  label: Frequency
+  monitoring_command: GetFrequencyGUI()
+  row: 4
+  tooltip: Hz
+  type: indicator_lineedit
+  value: 0
+frequency_start:
+  column: 1
+  command: SetSweepStartGUI
+  label: Start Frequency
+  monitoring_command: GetSweepStart()
+  row: 5
+  tooltip: Hz
+  type: indicator_lineedit
+  value: 0
+frequency_step:
+  column: 1
+  command: SetSweepStepGUI
+  label: Frequency Step
+  monitoring_command: GetSweepStep()
+  row: 6
+  tooltip: Hz
+  type: indicator_lineedit
+  value: 0
+frequency_stop:
+  column: 2
+  command: SetSweepStopGUI
+  label: Stop Frequency
+  monitoring_command: GetSweepStop()
+  row: 5
+  tooltip: Hz
+  type: indicator_lineedit
+  value: 0
+frequency_wait:
+  column: 2
+  command: SetSweepWaitGUI
+  label: Wait time
+  monitoring_command: GetSweepWait()
+  row: 6
+  tooltip: seconds
+  type: indicator_lineedit
+  value: 0
+power:
+  column: 2
+  command: SetPowerGUI
+  label: Power
+  monitoring_command: GetPowerGUI()
+  row: 4
+  tooltip: dBm
+  type: indicator_lineedit
+  value: 0
+power_sweep:
+  colspan: 2
+  column: 1
+  command: PowerSweep
+  label: Power Sweep
+  row: 7
+  tooltip: 'list with 2 entries: list of powers, wait time'
+  type: QLineEdit
+  value: 0
+start_sweep:
+  argument: ''
+  colspan: null
+  column: 3
+  command: Sweep
+  label: Start
+  row: 5
+  rowspan: null
+  tooltip: Start frequency sweep
+  type: QPushButton
+stop_sweep:
+  argument: ''
+  colspan: null
+  column: 4
+  command: StopSweep
+  label: Stop
+  row: 5
+  rowspan: null
+  tooltip: Stop frequency sweep
+  type: QPushButton
+sweep_status:
+  colspan: 2
+  column: 1
+  label: (sweep?)
+  monitoring_command: SweepStatus()
+  return_values: Sweeping, Inactive, Invalid, None
+  row: 8
+  rowspan: 1
+  states: enabled, disabled, error, error, disabled
+  texts: Sweeping, Sweep off, (sweep?), (sweep?)
+  tooltip: null
+  type: indicator

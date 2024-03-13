@@ -1,0 +1,48 @@
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  type: QCheckBox
+  value: 1
+attributes:
+  column_names:
+  - time
+  - random number
+  units:
+  - s
+  - '-'
+device:
+  column: 2
+  constr_params:
+  - someParameter
+  correct_response: the test string
+  driver: Test
+  label: Test device
+  max_nan_count: 10
+  meta_device: false
+  name: Test2
+  path: test
+  plots_queue_maxlen: 1000
+  row: 1
+  slow_data: true
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 2
+  type: QLineEdit
+  value: 1.5
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tristate: true
+  type: QCheckBox
+  value: 2
+someParameter:
+  column: 1
+  command: ''
+  label: some parameter
+  options: ''
+  row: 3
+  type: QComboBox
+  value: test2

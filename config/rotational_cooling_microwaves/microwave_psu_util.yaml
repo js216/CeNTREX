@@ -1,0 +1,94 @@
+12pos_vd_5neg:
+  type: dummy
+  value: 12pos_vd_5neg
+HDF_enabled:
+  type: dummy
+  value: 0
+J12_toggle:
+  action_commands: stop_J12, start_J12
+  argument: ''
+  checked:
+  - true
+  - false
+  colspan: 2
+  column: 1
+  label: (J12 PSU?)
+  monitoring_command: J12_status()
+  return_values: on, off
+  row: 3
+  rowspan: 1
+  states: enabled, disabled
+  texts: J12 On, J12 Off
+  type: indicator_button
+J23_toggle:
+  action_commands: stop_J23, start_J23
+  argument: ''
+  checked:
+  - true
+  - false
+  colspan: 2
+  column: 1
+  label: (J23 PSU?)
+  monitoring_command: J23_status()
+  return_values: on, off
+  row: 4
+  rowspan: 1
+  states: enabled, disabled
+  texts: J23 On, J23 Off
+  type: indicator_button
+a_5pos:
+  type: dummy
+  value: a_5pos
+attributes:
+  column_names:
+  - ''
+  units:
+  - ''
+device:
+  column: 0
+  constr_params:
+  - 12pos_vd_5neg
+  - vg_5pos
+  - a_5pos
+  correct_response: N/A
+  driver: MicrowaveRCPSU
+  label: Microwave PSU Utility
+  max_nan_count: 10
+  meta_device: true
+  name: microwave_psu_util
+  path: microwaves/
+  plots_queue_maxlen: 1000
+  row: 0
+  slow_data: true
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 1
+  type: QLineEdit
+  value: 1.5
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tristate: true
+  type: QCheckBox
+  value: 2
+start_all:
+  align: nsew
+  argument: ''
+  column: 1
+  command: start_all
+  label: Start
+  row: 2
+  type: QPushButton
+stop_all:
+  align: nsew
+  argument: ''
+  column: 2
+  command: stop_all
+  label: Stop
+  row: 2
+  type: QPushButton
+vg_5pos:
+  type: dummy
+  value: vg_5pos

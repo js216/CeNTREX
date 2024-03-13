@@ -1,0 +1,70 @@
+COM_port:
+  column: 1
+  command: ''
+  label: COM port
+  options: ''
+  row: 3
+  type: QComboBox
+  value: ASRL5::INSTR
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  type: QCheckBox
+  value: 1
+attributes:
+  column_names:
+  - time
+  - PM1.0
+  - PM2.5
+  - PM4.0
+  - PM10
+  - NC0.5
+  - NC1.0
+  - NC2.5
+  - NC4.0
+  - NC10
+  - temperature
+  - pressure
+  - humidity
+  units:
+  - s
+  - ug/m^3
+  - ug/m^3
+  - ug/m^3
+  - ug/m^3
+  - '#/cm^3'
+  - '#/cm^3'
+  - '#/cm^3'
+  - '#/cm^3'
+  - '#/cm^3'
+  - C
+  - hPa
+  - '%'
+device:
+  column: 1
+  constr_params:
+  - COM_port
+  correct_response: SPS30_mounting v1.0 ready.
+  driver: SPS30
+  label: SPS30
+  max_nan_count: 10
+  meta_device: false
+  name: SPS30
+  path: particulates_monitoring
+  plots_queue_maxlen: 1000
+  row: 1
+  slow_data: true
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 2
+  type: QLineEdit
+  value: 1.0
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tristate: true
+  type: QCheckBox
+  value: 2

@@ -1,0 +1,96 @@
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  type: QCheckBox
+  value: 0
+InfluxDB_enabled:
+  column: 0
+  label: InfluxDB enabled
+  row: 2
+  type: QCheckBox
+  value: 1
+attributes:
+  column_names:
+  - time
+  - returnTemperature
+  - returnHumidity
+  - returnDewPoint
+  - supplyTemperature
+  - coolingCapacity
+  - dehumCapacity
+  - humCapacity
+  - fanCapacity
+  - tempSetPoint
+  - tempDeadBand
+  - tempPropBand
+  - tempIntegrationTime
+  - humSetPoint
+  - humDeadBand
+  - humPropBand
+  - humIntegrationTime
+  - fanSpeedTempSetPoint
+  - hotWater/hotGas Valve
+  units:
+  - s
+  - C
+  - '%'
+  - C
+  - C
+  - '%'
+  - '%'
+  - '%'
+  - '%'
+  - C
+  - C
+  - C
+  - s
+  - '%'
+  - '%'
+  - '%'
+  - min
+  - '%'
+  - '%'
+  - '%'
+  - min
+  - C
+  - '%'
+connection:
+  column: 1
+  command: ''
+  ctrl_labels: Address, Community, trap
+  ctrl_names: host, community, trap
+  ctrl_options: '...; ...; ...'
+  ctrl_types: QLineEdit, QLineEdit, QLineEdit
+  ctrl_values: 172.28.173.181, centrex, 161
+  label: Connection
+  options: ''
+  row: 3
+  type: ControlsRow
+device:
+  column: 0
+  constr_params:
+  - connection
+  correct_response: IS-UNITY-DP
+  driver: Vertiv
+  label: Vertiv
+  max_nan_count: 10
+  meta_device: false
+  name: Vertiv
+  path: environment
+  plots_queue_maxlen: 1000
+  row: 3
+  slow_data: true
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 2
+  type: QLineEdit
+  value: 30
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tristate: true
+  type: QCheckBox
+  value: 2

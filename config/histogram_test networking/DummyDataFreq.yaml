@@ -1,0 +1,57 @@
+HDF_enabled:
+  type: dummy
+  value: 0
+attributes:
+  column_names:
+  - time
+  - frequency
+  units:
+  - s
+  - Hz
+connection:
+  type: dummy
+  value:
+    device_name: DummyDataFreq
+    port_control: '12346'
+    port_readout: '12345'
+    publisher_name: network
+    server: localhost
+device:
+  column: 2
+  constr_params:
+  - driver
+  - connection
+  - period
+  - frequency_span
+  correct_response: test
+  driver: NetworkingClient
+  label: Data Frequency
+  max_nan_count: 10
+  meta_device: false
+  name: DummyDataFreq
+  path: test/trace
+  plots_queue_maxlen: 1000
+  row: 1
+  slow_data: true
+driver:
+  type: dummy
+  value: DummyDataFreq
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 1
+  type: QLineEdit
+  value: 0.2
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tristate: true
+  type: QCheckBox
+  value: 2
+frequency_span:
+  type: dummy
+  value: 50
+period:
+  type: dummy
+  value: 10

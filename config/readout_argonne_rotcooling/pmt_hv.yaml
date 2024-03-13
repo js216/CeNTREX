@@ -1,0 +1,112 @@
+CH0_control:
+  action_commands: turn_off_ch0, turn_on_ch0
+  argument: ''
+  checked:
+  - true
+  - false
+  colspan: 1
+  column: 0
+  label: (ch0?)
+  monitoring_command: output0_state()
+  return_values: on, off
+  row: 4
+  rowspan: 1
+  states: enabled, disabled
+  texts: CH0 on, CH0 off
+  type: indicator_button
+CH1_control:
+  action_commands: turn_off_ch1, turn_on_ch1
+  argument: ''
+  checked:
+  - true
+  - false
+  colspan: 1
+  column: 0
+  label: (ch1?)
+  monitoring_command: output1_state()
+  return_values: on, off
+  row: 5
+  rowspan: 1
+  states: enabled, disabled
+  texts: CH1 on, CH1 off
+  type: indicator_button
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  tooltip: null
+  type: QCheckBox
+  value: true
+attributes:
+  column_names:
+  - time
+  - ch0 setpoint
+  - ch0 voltage
+  - ch0 current
+  - ch1 setpoint
+  - ch1 voltage
+  - ch1 current
+  - ch2 setpoint
+  - ch2 voltage
+  - ch2 current
+  - ch3 setpoint
+  - ch3 voltage
+  - ch3 current
+  units:
+  - s
+  - V
+  - V
+  - A
+  - V
+  - V
+  - A
+  - V
+  - V
+  - A
+  - V
+  - V
+  - A
+connection:
+  type: dummy
+  value:
+    device_name: IsegNHR
+    port_control: '12350'
+    port_readout: '12349'
+    publisher_name: Detection
+    server: 10.10.222.9
+device:
+  column: 0
+  compound_dataset: true
+  constr_params:
+  - driver
+  - connection
+  correct_response: N04C2
+  driver: NetworkingClient
+  label: PMT HV
+  max_nan_count: 4
+  meta_device: false
+  name: PMT HV
+  path: readout
+  plots_queue_maxlen: 1000
+  row: 6
+  slow_data: true
+driver:
+  type: dummy
+  value: IsegNHR
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 2
+  type: QLineEdit
+  value: 1
+  width: 5
+enabled:
+  colspan: null
+  column: 0
+  label: Device enabled
+  row: 0
+  rowspan: null
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2

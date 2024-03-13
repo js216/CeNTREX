@@ -1,0 +1,76 @@
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  tooltip: null
+  type: QCheckBox
+  value: true
+attributes:
+  column_names:
+  - time
+  - emission state
+  - fault
+  - current
+  - shg temperature
+  - temperature 1
+  - temperature 2
+  - pd1
+  - pd2
+  - pd3
+  - pd4
+  units:
+  - s
+  - ''
+  - ''
+  - A
+  - C
+  - C
+  - C
+  - ''
+  - ''
+  - ''
+  - ''
+connection:
+  type: dummy
+  value:
+    device_name: Precilaser RC
+    port_control: '12350'
+    port_readout: '12349'
+    publisher_name: Detection
+    server: 10.10.222.9
+device:
+  column: 0
+  compound_dataset: true
+  constr_params:
+  - driver
+  - connection
+  correct_response: precilaser
+  driver: NetworkingClient
+  label: Precilaser RC
+  max_nan_count: 0
+  meta_device: false
+  name: Precilaser RC
+  path: lasers
+  plots_queue_maxlen: 1000
+  row: 5
+  slow_data: true
+driver:
+  type: dummy
+  value: PrecilaserSHGAmplifier
+dt:
+  column: 1
+  label: Loop delay [s]
+  row: 2
+  type: QLineEdit
+  value: 1
+  width: 5
+enabled:
+  colspan: null
+  column: 0
+  label: Device enabled
+  row: 0
+  rowspan: null
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 0

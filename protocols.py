@@ -1,9 +1,9 @@
 import datetime
 import threading
 from typing import Dict
-from typing_extensions import Protocol
 
-import PyQt5.QtWidgets as qt
+import PySide6.QtWidgets as qt
+from typing_extensions import Protocol
 
 from config import ProgramConfig
 from device import Device as DeviceProtocol
@@ -19,10 +19,13 @@ class ControlGUIProtocol(Protocol):
     HDF_writer: HDF_writerProtocol
 
     def check_free_disk_space(self):
-        pass
+        ...
 
     def update_warnings(self, warnings: str):
-        pass
+        ...
+
+    def queue_command(self, dev: DeviceProtocol, cmd: str):
+        ...
 
 
 # class DeviceProtocol(Protocol):

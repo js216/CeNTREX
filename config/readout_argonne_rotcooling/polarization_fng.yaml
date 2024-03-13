@@ -1,0 +1,79 @@
+COM_port:
+  type: dummy
+  value: client
+HDF_enabled:
+  column: 0
+  label: HDF enabled
+  row: 1
+  tooltip: null
+  type: QCheckBox
+  value: true
+attributes:
+  column_names:
+  - time
+  - ch1
+  - waveform1
+  - frequency1
+  - amplitude1
+  - offset1
+  - ch2
+  - waveform2
+  - frequency2
+  - amplitude2
+  - offset2
+  units:
+  - s
+  - ''
+  - ''
+  - Hz
+  - V
+  - V
+  - ''
+  - ''
+  - Hz
+  - V
+  - V
+connection:
+  type: dummy
+  value:
+    device_name: polarization_SDG1032X
+    port_control: '12346'
+    port_readout: '12345'
+    publisher_name: Rotational Cooling Microwaves
+    server: 10.10.222.13
+device:
+  column: 1
+  compound_dataset: true
+  constr_params:
+  - driver
+  - connection
+  - COM_port
+  correct_response: Siglent Technologies,SDG1032X,SDG1XCAD2R3284,1.01.01.30R1
+  driver: NetworkingClient
+  label: Polarization SDG1032X
+  max_nan_count: 5
+  meta_device: false
+  name: Polarization SDG1032X
+  path: microwaves/
+  plots_queue_maxlen: 1000
+  row: 5
+  slow_data: true
+driver:
+  type: dummy
+  value: SiglentSDG1032X
+dt:
+  column: 1
+  command: null
+  label: Loop delay [s]
+  row: 2
+  tooltip: null
+  type: QLineEdit
+  value: 1
+enabled:
+  column: 0
+  label: Device enabled
+  row: 0
+  tooltip: null
+  tristate: true
+  type: QCheckBox
+  value: 2

@@ -63,7 +63,12 @@ class Monitoring(threading.Thread, PySide6.QtCore.QObject):
 
             HDF_status.setText(status)
 
-            if time.time() - hdf_time > 5.0:
+            time_late = (
+                5
+                if self.parent.config.general.hdf_loop_delay < 5
+                else 2 * self.parent.config.general.hdf_loop_delay
+            )
+            if time.time() - hdf_time > time_late:
                 HDF_status.setProperty("state", "error")
             else:
                 HDF_status.setProperty("state", "enabled")

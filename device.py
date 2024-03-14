@@ -236,9 +236,16 @@ class Device(threading.Thread):
                         if (c == "ReadValue()") and ret_val:
                             self.data_queue.append(ret_val)
                             self.config.plots_queue.append(ret_val)
-                        ret_val = "None" if not ret_val else ret_val
-                        self.last_event = [time.time() - self.time_offset, c, ret_val]
-                        self.events_queue.append(self.last_event)
+                            self.events_queue.append(
+                                [time.time() - self.time_offset, c, ""]
+                            )
+                        else:
+                            self.last_event = [
+                                time.time() - self.time_offset,
+                                c,
+                                ret_val,
+                            ]
+                            self.events_queue.append(self.last_event)
                     self.commands = []
 
                     # send sequencer commands, if any, to the device, and record return
@@ -253,12 +260,17 @@ class Device(threading.Thread):
                         if (c == "ReadValue()") and ret_val:
                             self.data_queue.append(ret_val)
                             self.config.plots_queue.append(ret_val)
+                            self.events_queue.append(
+                                [time.time() - self.time_offset, c, ""]
+                            )
+                        else:
+                            self.events_queue.append(
+                                [time.time() - self.time_offset, c, ret_val]
+                            )
                         self.sequencer_events_queue.append(
                             [id0, time.time_ns(), c, ret_val]
                         )
-                        self.events_queue.append(
-                            [time.time() - self.time_offset, c, ret_val]
-                        )
+
                     self.sequencer_commands = []
 
                     # send monitoring commands, if any, to the device, and record return

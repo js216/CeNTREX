@@ -102,40 +102,43 @@ class HDF_writer(threading.Thread):
         self.active.set()
         if self.hdf_error.is_set():
             return
-        with h5py.File(self.filename, "a", libver="latest") as file:
-            file.swmr_mode = True
-            time_last_flush = time.time()
-            while self.active.is_set():
-                # update the last write time
-                self.time_last_write = datetime.datetime.now().replace(microsecond=0)
-                # empty queues to HDF
-                try:
+        # file.swmr_mode = True
+        time_last_flush = time.time()
+        while self.active.is_set():
+            # empty queues to HDF
+            try:
+                with h5py.File(self.filename, "a", libver="latest") as file:
                     self.write_all_queues_to_HDF(file)
+                    # update the last write time
+                    self.time_last_write = datetime.datetime.now().replace(
+                        microsecond=0
+                    )
                     if (
                         time.time() - time_last_flush
                         >= self.parent.config.general.hdf_flush_dt
                     ):
                         file.flush()
-                except OSError as err:
-                    if (
-                        str(err)
-                        == "Unable to open file (file is already open in read-only mode)"
-                    ):
-                        continue
-                    else:
-                        logging.warning(f"HDF_writer error: {err}")
-                        logging.warning(traceback.format_exc())
+            except OSError as err:
+                if (
+                    str(err)
+                    == "Unable to open file (file is already open in read-only mode)"
+                ):
+                    continue
+                else:
+                    logging.warning(f"HDF_writer error: {err}")
+                    logging.warning(traceback.format_exc())
 
-                # loop delay
-                time.sleep(self.parent.config.general.hdf_loop_delay)
+            # loop delay
+            time.sleep(self.parent.config.general.hdf_loop_delay)
 
-            # make sure everything is written to HDF when the thread terminates
-            try:
+        # make sure everything is written to HDF when the thread terminates
+        try:
+            with h5py.File(self.filename, "a", libver="latest") as file:
                 self.write_all_queues_to_HDF(file)
                 file.flush()
-            except OSError as err:
-                logging.warning("HDF_writer error: ", err)
-                logging.warning(traceback.format_exc())
+        except OSError as err:
+            logging.warning("HDF_writer error: ", err)
+            logging.warning(traceback.format_exc())
         logging.info("HDF_writer: stopped")
 
     def write_all_queues_to_HDF(self, file: h5py.File):

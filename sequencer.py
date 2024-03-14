@@ -433,7 +433,9 @@ class Sequencer(threading.Thread, PySide6.QtCore.QObject):
         try:
             dt = float(item.text(3))
         except ValueError:
-            logging.info(f"Cannot convert to float: {item.text(3)}")
+            logging.info(
+                f"Sequencer: cannot convert dt for {dev}.{fn} to float: {item.text(3)}"
+            )
             dt = self.default_dt
 
         # extract number of repetitions of the line
@@ -547,6 +549,4 @@ class Sequencer(threading.Thread, PySide6.QtCore.QObject):
 
         # when finished
         self.progress.emit(len(self.flat_seq))
-        self.finished.emit()
-        self.finished.emit()
         self.finished.emit()

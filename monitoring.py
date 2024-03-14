@@ -1,3 +1,4 @@
+import copy
 import datetime
 import logging
 import threading
@@ -258,7 +259,7 @@ class Monitoring(threading.Thread, PySide6.QtCore.QObject):
 
         try:
             if len(dev.events_queue) > 0:
-                last_event = list(dev.events_queue)[-1]
+                last_event = copy.copy(list(dev.events_queue)[-1])
                 last_event[0] = (
                     datetime.datetime.fromtimestamp(last_event[0] + dev.time_offset)
                     .replace(microsecond=0)

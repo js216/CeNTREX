@@ -351,7 +351,7 @@ def get_data_fast_queue(
     plots_queue = np.array([dset.data for dset in device.config.plots_queue])
 
     idy = param_list.index(config.y)
-    y = plots_queue[:, idy, :]
+    y = plots_queue[:, 0, idy, :]
 
     if config.z in param_list and config.z != "(none)":
         idz = param_list.index(config.z)

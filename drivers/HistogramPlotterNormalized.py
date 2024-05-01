@@ -263,6 +263,7 @@ class HistogramPlotterNormalized:
 
         if self.processed_changed:
             self.y_data = []
+            self.y_data = []
             for y, y_norm in zip(self.unprocessed_data, self.processed_data_norm):
                 yi = eval(self.processing)
                 yin = eval(self.processingnorm)

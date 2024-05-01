@@ -255,4 +255,4 @@ class HistogramPlotter:
         for idx in reversed(range(len_diff)):
             # self.processing string contains y which is then evaluated
             y = self.unprocessed_data[-idx - 1]  # noqa: F841
-            self.y_data = np.append(self.y_data, eval(self.processing))
+            self.y_data.append(eval(self.processing))

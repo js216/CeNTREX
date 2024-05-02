@@ -70,8 +70,8 @@ class ProgramConfig(Config):
             self[section] = {}
 
         # default filename is current date
-        cwd = Path(__file__).parent
-        fname = str(cwd / (datetime.datetime.now().strftime("%Y_%#m_%#m") + ".hdf"))
+        cwd = Path().cwd()
+        fname = str(cwd / (datetime.datetime.now().strftime("%Y_%#m_%#d") + ".hdf"))
         self["files"] = {"data_dir": cwd, "hdf_fname": fname}
 
     def read_from_file(self):
@@ -80,6 +80,11 @@ class ProgramConfig(Config):
         for section, section_type in self.section_keys.items():
             for key, value in settings[section].items():
                 self[section][key] = value
+        cwd = Path().cwd()
+        if Path(self["files"].get("data_dir")) != cwd:
+            self["files"]["hdf_fname"] = str(
+                Path(self["files"]["data_dir"]) / Path(self["files"]["hdf_fname"]).stem
+            )
 
     def write_to_file(self):
         # collect new configuration parameters to be written

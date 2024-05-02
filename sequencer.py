@@ -4,14 +4,62 @@ import logging
 import os
 import threading
 import time
+from functools import partial
 
 import numpy as np
 import PyQt5
 import PyQt5.QtWidgets as qt
 import yaml
 
+from device import Device
+from device_utils import get_device_methods
 from protocols import CentrexGUIProtocol
 from utils_gui import error_popup
+
+
+class SelectPopup(qt.QDialog):
+    def __init__(self, title: str, options: list[str]):
+        super().__init__()
+        self.setWindowTitle(title)
+
+        self.select = qt.QComboBox()
+        self.select.addItems(options)
+
+        btn = qt.QDialogButtonBox.Ok | qt.QDialogButtonBox.Cancel
+
+        self.button_box = qt.QDialogButtonBox(btn)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+
+        self.layout = qt.QFormLayout()
+        self.layout.addRow(self.select)
+        self.layout.addRow(self.button_box)
+
+        self.setLayout(self.layout)
+
+    def accept(self):
+        self.close()
+
+
+def select_device_function(
+    item: qt.QTreeWidgetItem, column: int, devices: dict[str, Device]
+) -> None:
+    if column == 0:
+        dev = SelectPopup("Select Device", list(devices.keys()))
+        dev.exec()
+        item.setText(0, dev.select.currentText())
+        if item.text(1) != "":
+            methods = get_device_methods(item.text(0), devices)
+            if item.text(1) not in methods:
+                item.setText(1, "")
+    elif column == 1:
+        device = item.text(0)
+        if device == "":
+            return
+        methods = get_device_methods(item.text(0), devices)
+        dev = SelectPopup("Select Function", methods)
+        dev.exec()
+        item.setText(1, dev.select.currentText())
 
 
 def parse_dummy_variables(parameter, parent_info: dict):
@@ -58,6 +106,11 @@ class SequencerGUI(qt.QWidget):
 
         # make the tree
         self.qtw = qt.QTreeWidget()
+
+        self.qtw.itemClicked.connect(
+            partial(select_device_function, devices=self.parent.devices)
+        )
+
         self.main_frame.addWidget(self.qtw)
         self.qtw.setColumnCount(7)
         self.qtw.setHeaderLabels(
@@ -324,7 +377,7 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
         self.circular = circular
         self.n_repeats = n_repeats
 
-    def flatten_tree(self, item, parent_info):
+    def flatten_tree(self, item: qt.QTreeWidgetItem, parent_info):
         for p_info in parent_info[1:]:
             if not p_info[3]:
                 return

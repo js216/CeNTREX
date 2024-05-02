@@ -1,50 +1,58 @@
-import pyvisa
-import time
-import numpy as np
 import logging
+import time
+
+import numpy as np
+import pyvisa
+
+import pyvisa
+
 
 class nXDS:
-    registers = ('system_status_register1', 'system_status_register2',
-                 'warning_register', 'fault_register')
+    registers = (
+        "system_status_register1",
+        "system_status_register2",
+        "warning_register",
+        "fault_register",
+    )
     system_status_register1 = {
-        0   : 'decelleration',
-        1   : 'acceleration/running',
-        2   : 'standby speed',
-        3   : 'normal speed',
-        4   : 'above ramp speed',
-        5   : 'above overload speed',
-        10  : 'serial enable active'
+        0: "decelleration",
+        1: "acceleration/running",
+        2: "standby speed",
+        3: "normal speed",
+        4: "above ramp speed",
+        5: "above overload speed",
+        10: "serial enable active",
     }
     system_status_register2 = {
-        0   : 'upper power regulator active',
-        1   : 'lower power regulator active',
-        2   : 'upper voltage regulator active',
-        4   : 'service due',
-        6   : 'warning',
-        7   : 'alarm'
+        0: "upper power regulator active",
+        1: "lower power regulator active",
+        2: "upper voltage regulator active",
+        4: "service due",
+        6: "warning",
+        7: "alarm",
     }
     warning_register = {
-        1   : 'low pump-controller temperature',
-        6   : 'pump-controller temperature regulator active',
-        10  : 'high pump-controller temperature',
-        15  : 'self test warning'
+        1: "low pump-controller temperature",
+        6: "pump-controller temperature regulator active",
+        10: "high pump-controller temperature",
+        15: "self test warning",
     }
     fault_register = {
-        1   : 'over voltage trip',
-        2   : 'over current trip',
-        3   : 'over temperature trip',
-        4   : 'under temperature trip',
-        5   : 'power stage fault',
-        8   : 'H/W fault latch set',
-        9   : 'EEPROM fault',
-        11  : 'no parameter set',
-        12  : 'self test fault',
-        13  : 'serial control mode interlock',
-        14  : 'overload time out',
-        15  : 'acceleration time out'
+        1: "over voltage trip",
+        2: "over current trip",
+        3: "over temperature trip",
+        4: "under temperature trip",
+        5: "power stage fault",
+        8: "H/W fault latch set",
+        9: "EEPROM fault",
+        11: "no parameter set",
+        12: "self test fault",
+        13: "serial control mode interlock",
+        14: "overload time out",
+        15: "acceleration time out",
     }
 
-    def __init__(self, time_offset, resource_name, connection_type = "TCP"):
+    def __init__(self, time_offset, resource_name, connection_type="TCP"):
         self.time_offset = time_offset
         self.rm = pyvisa.ResourceManager()
         try:
@@ -63,8 +71,8 @@ class nXDS:
         self.instr.parity = pyvisa.constants.Parity.none
         self.instr.data_bits = 8
         self.instr.baud_rate = 9600
-        self.instr.read_termination = '\r'
-        self.instr.write_termination = '\r'
+        self.instr.read_termination = "\r"
+        self.instr.write_termination = "\r"
 
         # make the verification string
         self.verification_string = self.QueryIdentification()
@@ -73,8 +81,8 @@ class nXDS:
         self.new_attributes = []
 
         # shape and type of the array of returned data
-        self.dtype = 'f'
-        self.shape = (6, )
+        self.dtype = "f"
+        self.shape = (6,)
 
         self.warnings = []
 
@@ -87,13 +95,14 @@ class nXDS:
 
     def ReadValue(self):
         self.CheckWarningsFaults()
-        return [time.time()-self.time_offset,
-                self.MotorCurrent(),
-                self.MotorPower(),
-                self.LinkVoltage(),
-                self.PumpTemperature(),
-                self.PumpCtrlrTemperature(),
-               ]
+        return [
+            time.time() - self.time_offset,
+            self.MotorCurrent(),
+            self.MotorPower(),
+            self.LinkVoltage(),
+            self.PumpTemperature(),
+            self.PumpCtrlrTemperature(),
+        ]
 
     def GetWarnings(self):
         warnings = self.warnings
@@ -109,14 +118,17 @@ class nXDS:
         else:
             for register_name, register in zip(self.registers[2:], registers[2:]):
                 if isinstance(register, str):
-                    logging.warning("nXDS warning in CheckWarningsFaults: register value is " + register)
-                    continue  
+                    logging.warning(
+                        "nXDS warning in CheckWarningsFaults: register value is "
+                        + register
+                    )
+                    continue
                 # not adding system status registers to warnings
                 idx = 0
                 while register:
-                    register_desc = eval('self.'+register_name).get(idx)
+                    register_desc = eval("self." + register_name).get(idx)
                     if (register & 1) and register_desc:
-                        warning_dict = {"message" : register_desc}
+                        warning_dict = {"message": register_desc}
                         self.warnings.append([time.time(), warning_dict])
                     idx += 1
                     register >>= 1
@@ -125,7 +137,7 @@ class nXDS:
         try:
             return self.instr.query("?S0")
         except pyvisa.errors.VisaIOError as err:
-            return("nXDS warning in QueryIdentification(): " + str(err))
+            return "nXDS warning in QueryIdentification(): " + str(err)
 
     def StopPump(self):
         try:
@@ -205,7 +217,7 @@ class nXDS:
             return np.nan
 
         try:
-            return float(val.split(';')[-3])/10
+            return float(val.split(";")[-3]) / 10
         except ValueError as err:
             logging.warning("nXDS warning in LinkVoltage(): " + str(err))
             return np.nan
@@ -218,7 +230,7 @@ class nXDS:
             return np.nan
 
         try:
-            return float(val.split(';')[-1])/10
+            return float(val.split(";")[-1]) / 10
         except ValueError as err:
             logging.warning("nXDS warning in MotorPower(): " + str(err))
             return np.nan
@@ -243,7 +255,7 @@ class nXDS:
             return np.nan
 
         try:
-            return float(val.split(';')[-2])/10
+            return float(val.split(";")[-2]) / 10
         except ValueError as err:
             logging.warning("nXDS warning in MotorCurrent(): " + str(err))
             return np.nan
@@ -309,12 +321,12 @@ class nXDS:
         while True:
             try:
                 status = self.instr.query("?V802")
-                words = status.split(';')[-4:]
+                words = status.split(";")[-4:]
                 registers = []
                 for word in words:
                     tmp = 0
-                    for idx, char in zip(reversed(range(4)),word):
-                        tmp += int(char, 16) << idx*4
+                    for idx, char in zip(reversed(range(4)), word):
+                        tmp += int(char, 16) << idx * 4
                     registers.append(tmp)
                 return registers
             except pyvisa.errors.VisaIOError as err:

@@ -862,9 +862,10 @@ class ControlGUI(qt.QWidget):
 
                     # commands for the QCheckBox
                     c["QCheckBox"].stateChanged[int].connect(
-                        lambda state, dev=dev, ctrl=c_name, nonTriState=not param[
-                            "tristate"
-                        ]: dev.config.change_param(
+                        lambda state,
+                        dev=dev,
+                        ctrl=c_name,
+                        nonTriState=not param["tristate"]: dev.config.change_param(
                             ctrl, state, sect="control_params", nonTriState=nonTriState
                         )
                     )
@@ -882,11 +883,12 @@ class ControlGUI(qt.QWidget):
                     # commands for the QPushButton
                     if param.get("argument"):
                         c["QPushButton"].clicked[bool].connect(
-                            lambda state, dev=dev, cmd=param["cmd"], arg=dev.config[
-                                "control_params"
-                            ][param["argument"]]: self.queue_command(
-                                dev, cmd + "(" + arg["value"] + ")"
-                            )
+                            lambda state,
+                            dev=dev,
+                            cmd=param["cmd"],
+                            arg=dev.config["control_params"][
+                                param["argument"]
+                            ]: self.queue_command(dev, cmd + "(" + arg["value"] + ")")
                         )
                     else:
                         c["QPushButton"].clicked[bool].connect(
@@ -923,9 +925,11 @@ class ControlGUI(qt.QWidget):
                     if param.get("enter_cmd"):
                         if param.get("enter_cmd") != "None":
                             c["QLineEdit"].returnPressed.connect(
-                                lambda dev=dev, cmd=param["enter_cmd"], qle=c[
-                                    "QLineEdit"
-                                ]: self.queue_command(dev, cmd + "(" + qle.text() + ")")
+                                lambda dev=dev,
+                                cmd=param["enter_cmd"],
+                                qle=c["QLineEdit"]: self.queue_command(
+                                    dev, cmd + "(" + qle.text() + ")"
+                                )
                             )
 
                 # place QComboBoxes
@@ -960,9 +964,10 @@ class ControlGUI(qt.QWidget):
                     )
                     if param.get("command"):
                         c["QComboBox"].activated[str].connect(
-                            lambda text, dev=dev, cmd=param["command"], qcb=c[
-                                "QComboBox"
-                            ]: self.queue_command(
+                            lambda text,
+                            dev=dev,
+                            cmd=param["command"],
+                            qcb=c["QComboBox"]: self.queue_command(
                                 dev, cmd + "('" + qcb.currentText() + "')"
                             )
                         )
@@ -1112,8 +1117,7 @@ class ControlGUI(qt.QWidget):
                             else:
                                 logging.warning(
                                     "ControlsRow error: sub-control type not"
-                                    " supported: "
-                                    + c["col_types"][col]
+                                    " supported: " + c["col_types"][col]
                                 )
 
                 # place indicators
@@ -1171,9 +1175,10 @@ class ControlGUI(qt.QWidget):
                     # commands for the QPushButton
                     if param.get("argument"):
                         c["QPushButton"].clicked[bool].connect(
-                            lambda state, dev=dev, cmd_list=param[
-                                "action_commands"
-                            ], arg=dev.config["control_params"][
+                            lambda state,
+                            dev=dev,
+                            cmd_list=param["action_commands"],
+                            arg=dev.config["control_params"][
                                 param["argument"]
                             ]: self.queue_command(
                                 dev, cmd_list[int(state)] + "(" + arg["value"] + ")"
@@ -1181,9 +1186,11 @@ class ControlGUI(qt.QWidget):
                         )
                     else:
                         c["QPushButton"].clicked[bool].connect(
-                            lambda state, dev=dev, cmd_list=param[
-                                "action_commands"
-                            ]: self.queue_command(dev, cmd_list[int(state)] + "()")
+                            lambda state,
+                            dev=dev,
+                            cmd_list=param["action_commands"]: self.queue_command(
+                                dev, cmd_list[int(state)] + "()"
+                            )
                         )
 
                 # place indicators_lineedits
@@ -1214,9 +1221,11 @@ class ControlGUI(qt.QWidget):
                     if param.get("enter_cmd"):
                         if param.get("enter_cmd") != "None":
                             c["QLineEdit"].returnPressed.connect(
-                                lambda dev=dev, cmd=param["enter_cmd"], qle=c[
-                                    "QLineEdit"
-                                ]: self.queue_command(dev, cmd + "(" + qle.text() + ")")
+                                lambda dev=dev,
+                                cmd=param["enter_cmd"],
+                                qle=c["QLineEdit"]: self.queue_command(
+                                    dev, cmd + "(" + qle.text() + ")"
+                                )
                             )
 
                     # disable auto-updating when the text is being edited

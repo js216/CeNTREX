@@ -196,7 +196,7 @@ class Device(threading.Thread):
                             self.data_queue.append(ret_val)
                             self.config["plots_queue"].append(ret_val)
                             self.events_queue.append(
-                                time.time() - self.time_offset, c, ""
+                                (time.time() - self.time_offset, c, "")
                             )
                         else:
                             ret_val = "None" if not ret_val else ret_val

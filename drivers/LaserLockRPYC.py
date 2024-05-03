@@ -74,11 +74,14 @@ class LaserLockRPYC:
             ","
         )
         units_base = ", , , , , GHz, GHz, mW, , MHz, dBm".split(",")
+        units_base = [unit.strip() for unit in units_base]
 
         units = ["s"]
         column_names = ["time"]
         for i in range(self.nr_lasers):
-            column_names.extend([f"laser{i} {cname}" for cname in column_names_base])
+            column_names.extend(
+                [f"laser{i} {cname.strip()}" for cname in column_names_base]
+            )
             units.extend(units_base)
 
         self.new_attributes = [

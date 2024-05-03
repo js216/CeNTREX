@@ -21,6 +21,7 @@ from PyQt5 import QtGui
 
 from config import DeviceConfig, ProgramConfig
 from device import Device, restart_device
+from device_utils import get_device_methods
 from hdf_writer import HDF_writer
 from monitoring import Monitoring
 from networking import Networking
@@ -484,21 +485,20 @@ class ControlGUI(qt.QWidget):
         files_frame.addWidget(pb, 4, 2)
 
         # the control to send a custom command to a specified device
-
         files_frame.addWidget(qt.QLabel("Cmd:"), 5, 0)
 
         cmd_frame = qt.QHBoxLayout()
         files_frame.addLayout(cmd_frame, 5, 1)
 
-        qle = qt.QLineEdit()
-        qle.setToolTip(
+        self.custom_func_cbx = qt.QComboBox()
+        self.custom_func_cbx.setToolTip(
             "Enter a command corresponding to a function in the selected device driver."
         )
-        qle.setText(self.parent.config["general"]["custom_command"])
-        qle.textChanged[str].connect(
-            lambda val: self.parent.config.change("general", "custom_command", val)
-        )
-        cmd_frame.addWidget(qle)
+        cmd_frame.addWidget(self.custom_func_cbx)
+
+        self.custom_params_qle = qt.QLineEdit()
+        self.custom_params_qle.setToolTip("Enter parameters for the selected function")
+        cmd_frame.addWidget(self.custom_params_qle)
 
         self.custom_dev_cbx = qt.QComboBox()
         dev_list = [dev_name for dev_name in self.parent.devices]
@@ -508,6 +508,23 @@ class ControlGUI(qt.QWidget):
                 set(dev_list) | set([self.parent.config["general"]["custom_device"]])
             ),
             value=self.parent.config["general"]["custom_device"],
+        )
+        update_QComboBox(
+            cbx=self.custom_func_cbx,
+            options=get_device_methods(dev_list[0], self.parent.devices),
+            value=get_device_methods(dev_list[0], self.parent.devices)[0],
+        )
+
+        self.custom_dev_cbx.currentTextChanged[str].connect(
+            lambda text: update_QComboBox(
+                self.custom_func_cbx,
+                options=get_device_methods(
+                    self.custom_dev_cbx.currentText(), self.parent.devices
+                ),
+                value=get_device_methods(
+                    self.custom_dev_cbx.currentText(), self.parent.devices
+                )[0],
+            )
         )
         self.custom_dev_cbx.activated[str].connect(
             lambda val: self.parent.config.change("general", "custom_device", val)
@@ -1415,14 +1432,14 @@ class ControlGUI(qt.QWidget):
 
     def queue_custom_command(self):
         # check the command is valid
-        cmd = self.parent.config["general"]["custom_command"]
+        cmd = f"{self.custom_func_cbx.currentText()}({self.custom_params_qle.text()})"
         search = re.compile(r'[^A-Za-z0-9()".?!*# ]_=').search
         if bool(search(cmd)):
             error_box("Command error", "Invalid command.")
             return
 
         # check the device is valid
-        dev_name = self.parent.config["general"]["custom_device"]
+        dev_name = self.custom_dev_cbx.currentText()
         dev = self.parent.devices.get(dev_name)
         if not dev:
             error_box("Device error", "Device not found.")

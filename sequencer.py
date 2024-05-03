@@ -389,7 +389,6 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
             item.checkState(4),
             item.checkState(6),
         )
-
         if not enabled and dev != "":
             return
 
@@ -425,7 +424,12 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
         try:
             dt = float(item.text(3))
         except ValueError:
-            logging.info(f"Cannot convert to float: {item.text(3)}")
+            # the first entry is always an empty device and function for some reason,
+            # skip the logging here if dev == ""
+            if dev != "":
+                logging.info(
+                    f"Sequencer: cannot convert dt for {dev}.{fn} to float: {item.text(3)}, using the default dt={self.default_dt} s"
+                )
             dt = self.default_dt
 
         # extract number of repetitions of the line
@@ -435,7 +439,9 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
             else:
                 n_rep = 1
         except ValueError:
-            logging.info(f"Cannot convert to int: {item.text(5)}")
+            logging.info(
+                f"Sequencer: cannot convert repetitions to int for {dev}.{fn}: {item.text(5)}"
+            )
             n_rep = 1
 
         # iterate over the given parameter list

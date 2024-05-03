@@ -27,7 +27,21 @@ class LaserLockRPYC:
         ],
         seed_names: list[str] = ["seed1", "seed2", "seed3"],
         linien_names: list[str] = ["linien-seed1", "linien-seed2", "linien-seed3"],
-    ):
+        dt_max: float = 5.0,
+    ) -> None:
+        """
+        Class to interface with the CeNTREX laer lock reference system.
+
+        Args:
+            time_offset (float): acquisition start
+            address (str): _description_
+            port_rpyc (int): rpyc port
+            port_api (int): rest api port
+            laser_synths (list[tuple[str, int]], optional): List of tuples of SynthHD device names and channels for each laser. Defaults to [ ("SG1", 0), ("SG1", 1), ("SG2", 0), ].
+            seed_names (list[str], optional): Seed laser names. Defaults to ["seed1", "seed2", "seed3"].
+            linien_names (list[str], optional): Linien instance names. Defaults to ["linien-seed1", "linien-seed2", "linien-seed3"].
+            dt_max (float, optional): Maximum allowed time difference between remote device data and local time. Defaults to 5.0.
+        """
         self.time_offset = time_offset
         self.address = str(address).strip('"')
         self.port_rpyc = int(port_rpyc)
@@ -35,6 +49,7 @@ class LaserLockRPYC:
         self.laser_synths = laser_synths
         self.seed_names = seed_names
         self.linien_names = linien_names
+        self.dt_max = dt_max
 
         self.nr_lasers = len(seed_names)
 
@@ -114,6 +129,10 @@ class LaserLockRPYC:
             response = urlopen(f"http://{self.address}:{self.port_api}/{synth}/data")
             self.synth_data[synth] = json.loads(response.read())
 
+            assert (
+                time.time() - self.synth_data[synth]["time"] <= self.dt_max
+            ), f"remote data more than {self.dt_max} seconds out of date"
+
         data = [time.time() - self.time_offset]
         for seed, linien, (synth, channel) in zip(
             self.seed_names, self.linien_names, self.laser_synths
@@ -157,13 +176,16 @@ class LaserLockRPYC:
         """
         name, channel = self.laser_synths[laser]
         self._update_synth_data(name)
+        assert (
+            time.time() - self.synth_data[name]["time"] <= self.dt_max
+        ), f"remote data more than {self.dt_max} seconds out of date"
 
         # checking to make sure to not move the frequency more than a few MHz at a time
         frequency_set = self.synth_data[name][f"frequency{channel}"] / 1e6
 
         assert (
-            abs(lockpoint - frequency_set) <= 4
-        ), f"Can't move frequency more than 4MHz without loss of lock; setpoint={frequency_set:.1f}, lockpoint={lockpoint:.1f}"
+            abs(lockpoint - frequency_set) <= 6
+        ), f"Can't move frequency more than 6 MHz without loss of lock; setpoint={frequency_set:.1f}, lockpoint={lockpoint:.1f}"
 
         self.devices[name].device.change_frequency_and_amplitude(
             channel + 1, lockpoint * 1e6

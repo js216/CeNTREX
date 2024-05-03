@@ -106,7 +106,7 @@ class HDF_writer(threading.Thread):
         if self.hdf_error.is_set():
             return
         with h5py.File(self.filename, "a", libver="latest") as file:
-            file.swmr_mode = True
+            time_last_flush = time.time()
             while self.active.is_set():
                 # update the last write time
                 self.time_last_write = datetime.datetime.now().replace(microsecond=0)
@@ -114,6 +114,8 @@ class HDF_writer(threading.Thread):
                 # empty queues to HDF
                 try:
                     self.write_all_queues_to_HDF(file)
+                    if time.time() - time_last_flush > 10.0:
+                        file.flush()
                 except OSError as err:
                     if (
                         str(err)
@@ -140,6 +142,7 @@ class HDF_writer(threading.Thread):
             # make sure everything is written to HDF when the thread terminates
             try:
                 self.write_all_queues_to_HDF(file)
+                file.flush()
             except OSError as err:
                 logging.warning("HDF_writer error: ", err)
                 logging.warning(traceback.format_exc())

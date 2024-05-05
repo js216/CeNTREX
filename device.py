@@ -61,7 +61,7 @@ class Device(threading.Thread):
         self.warnings: List[Tuple[float, Dict[str, str]]] = []
 
         # the data and events queues
-        self.time_last_read = 0.0
+        self.time_last_read = time.time()
         self.data_queue: Deque[
             Union[List[float], List[Tuple[npt.NDArray, List[str]]]]
         ] = deque()
@@ -69,6 +69,7 @@ class Device(threading.Thread):
         self.events_queue: Deque[Tuple[float, str, Any]] = deque()
         self.monitoring_events_queue: Deque[Tuple[float, str, Any]] = deque()
         self.sequencer_events_queue: Deque[Tuple[int, int, str, Any]] = deque()
+        self.sequencer_errors_queue: Deque[Exception] = deque()
         # use a dictionary for the networking queue to allow use of .get() to
         # allow for unique ids if multiple network clients are connected
         self.networking_events_queue: Dict[int, Any] = {}
@@ -216,7 +217,8 @@ class Device(threading.Thread):
                         except Exception as e:
                             logging.warning(e)
                             logging.warning(traceback.format_exc())
-                            ret_val = None
+                            self.sequencer_errors_queue.append(e)
+                            ret_val = e
                         if (c == "ReadValue()") and ret_val:
                             self.data_queue.append(ret_val)
                             self.config["plots_queue"].append(ret_val)
@@ -262,7 +264,7 @@ class Device(threading.Thread):
                         self.networking_events_queue[uid] = ret_val
                     self.networking_commands = []
 
-                    # level 2: check device is enabled for regular ReadValue
+                    # level 2: check device is enabled for periodic ReadValue
                     if self.config["control_params"]["enabled"]["value"] < 2:
                         continue
 

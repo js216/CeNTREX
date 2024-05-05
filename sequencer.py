@@ -293,7 +293,7 @@ class SequencerGUI(qt.QWidget):
 
         # instantiate and start the thread
 
-        self.sequencer = Sequencer(self.parent, self.circular, n_repeats)
+        self.sequencer = Sequencer(self.parent, self, self.circular, n_repeats)
         self.sequencer.start()
 
         # NB: Qt is not thread safe. Calling SequencerGUI.update_progress()
@@ -355,12 +355,19 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
     # signal emitted when sequence terminates
     finished = PyQt5.QtCore.pyqtSignal()
 
-    def __init__(self, parent: CentrexGUIProtocol, circular, n_repeats):
+    def __init__(
+        self,
+        parent: CentrexGUIProtocol,
+        sequencer_gui: SequencerGUI,
+        circular,
+        n_repeats,
+    ):
         threading.Thread.__init__(self)
         PyQt5.QtCore.QObject.__init__(self)
 
         # access to the outside world
         self.parent = parent
+        self.sequencer_gui = sequencer_gui
         self.seqGUI = parent.ControlGUI.seq
         self.devices = parent.devices
 
@@ -500,9 +507,13 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
         for i, (dev, fn, p, dt, wait, parent_info) in enumerate(self.flat_seq):
             # check for user stop request
             while self.paused.is_set():
+                # only pause when not reading from the PXI scope to make sure we get all
+                # traces from RAM
                 if (dev == "PXIe5171") & (fn == "ReadValue"):
                     break
                 time.sleep(1e-3)
+                if not self.active.is_set():
+                    break
             if not self.active.is_set():
                 return
 
@@ -511,6 +522,17 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
             if dev is not None:
                 self.devices[dev].sequencer_commands.append([id0, f"{fn}({p})"])
                 time.sleep(dt)
+
+                # general check for an error in any device
+                for dev_name, dev_thread in self.devices.items():
+                    try:
+                        error = dev_thread.sequencer_errors_queue.pop()
+                        self.sequencer_gui.pause_sequencer()
+                        logging.warning(
+                            f"Sequencer: pause because of error in {dev_name} => {error}"
+                        )
+                    except IndexError:
+                        continue
 
                 # wait till completion, if requested
                 if wait:
@@ -522,9 +544,15 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
 
                         # look for return values
                         try:
-                            id1, _, _, _ = self.devices[
+                            id1, _, _, ret_val = self.devices[
                                 dev
                             ].sequencer_events_queue.pop()
+                            # check if an exception was returned
+                            if isinstance(ret_val, Exception):
+                                logging.warning(
+                                    f"Sequencer: pause because of error in {dev} => {ret_val}"
+                                )
+                                self.sequencer_gui.pause_sequencer()
                             if id1 == id0:
                                 finished = True
                         except IndexError:

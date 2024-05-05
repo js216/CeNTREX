@@ -15,6 +15,7 @@ from influxdb_client.domain.write_precision import WritePrecision
 
 from config import DeviceConfig
 from device import Device as DeviceProtocol
+from device import restart_device
 from protocols import CentrexGUIProtocol
 
 
@@ -86,6 +87,13 @@ class Monitoring(threading.Thread, PyQt5.QtCore.QObject):
                 # check device enabled
                 if not dev.config["control_params"]["enabled"]["value"] == 2:
                     continue
+
+                # automatically restart device if the last read data was more than n
+                # seconds ago
+                if time.time() - dev.time_last_read > 30.0:
+                    self.parent.devices[dev_name] = restart_device(
+                        dev, self.parent.config["time_offset"]
+                    )
 
                 # check device for abnormal conditions
                 if len(dev.warnings) != 0:

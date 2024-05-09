@@ -2,6 +2,7 @@ import datetime
 import itertools
 import logging
 import os
+import re
 import threading
 import time
 from functools import partial
@@ -415,7 +416,13 @@ class Sequencer(threading.Thread, PyQt5.QtCore.QObject):
                     params = [eval(item.text(2))]
 
                 else:
-                    params = eval(item.text(2))
+                    txt: str = item.text(2)
+                    matches = re.findall(r"\$[0-9]+", txt)
+                    if len(matches) > 0:
+                        for match in matches:
+                            p = parse_dummy_variables(match, parent_info)
+                            txt = txt.replace(match, str(p))
+                    params = eval(txt)
             except Exception as e:
                 logging.warning(f"Cannot eval {item.text(2)}: {str(e)}")
                 return

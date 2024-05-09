@@ -1,11 +1,46 @@
+from __future__ import annotations
+
 import logging
+import threading
 import time
 
 import numpy as np
 import pyvisa
 
+
+class RampVoltage(threading.Thread):
+    def __init__(
+        self,
+        control: HV_control,
+        setpoint: float,
+        ramp_time: float,
+        step_time: float = 0.05,
+    ):
+        super().__init__()
+
+        self.control = control
+        self.setpoint = setpoint
+        self.ramp_time = time
+        self.step_time = step_time
+
+    def run(self):
+        delta_voltage = self.control.ReadValue()[3] - self.setpoint
+        ramp_rate = delta_voltage / self.ramp_time
+
+        tstart = time.time()
+        while True:
+            new_setpoint = ramp_rate * (time.time() - tstart)
+            new_setpoint = (
+                new_setpoint if new_setpoint < self.setpoint else self.setpoint
+            )
+            self.control.SetVoltage(ramp_rate * time.time())
+            if new_setpoint == self.setpoint:
+                break
+            time.sleep(self.step_time)
+
+
 class HV_control:
-    def __init__(self, time_offset, resource_name):
+    def __init__(self, time_offset: float, resource_name: str):
         self.time_offset = time_offset
         self.rm = pyvisa.ResourceManager()
         try:
@@ -79,30 +114,38 @@ class HV_control:
         # convert the response to a number
         try:
             voltages = [float(x) for x in resp.split(",")]
-            voltages = [(int(x)-32768) / 65535 * (2 * 3 * 4.096) for x in resp.split(',')]
+            voltages = [
+                (int(x) - 32768) / 65535 * (2 * 3 * 4.096) for x in resp.split(",")
+            ]
         except ValueError as err:
             logging.warning("HV_control warning in ReadVoltages(): " + str(err))
             return 5 * [np.nan]
 
         # units conversion
-        voltage_monitor = voltages[0]  * 30 / 10
-        current_monitor = voltages[1]  * 400 / 10
-        voltage_program = voltages[2]  * 30 / 10
-        divider_voltage = voltages[3] 
-        error_voltage   = voltages[4] 
+        voltage_monitor = voltages[0] * 30 / 10
+        current_monitor = voltages[1] * 400 / 10
+        voltage_program = voltages[2] * 30 / 10
+        divider_voltage = voltages[3]
+        error_voltage = voltages[4]
 
-        return [voltage_monitor, current_monitor, voltage_program, divider_voltage, error_voltage]
+        return [
+            voltage_monitor,
+            current_monitor,
+            voltage_program,
+            divider_voltage,
+            error_voltage,
+        ]
 
     def EnableHV(self):
         self.HV_enabled = True
-        self.instr.write(f'h0')
+        self.instr.write(f"h0")
 
     def DisableHV(self):
         self.HV_enabled = False
-        self.instr.write(f'h1')
+        self.instr.write(f"h1")
 
     def QueryEnabled(self):
-        en_read = self.instr.query('H')
+        en_read = self.instr.query("H")
         if en_read == "0":
             return "enabled"
         elif en_read == "1":
@@ -110,20 +153,24 @@ class HV_control:
 
     def SetPositive(self):
         if self.HV_enabled:
-            logging.warning("HV_control warning in SetPolarity(): cannot change polarity with HV enabled.")
+            logging.warning(
+                "HV_control warning in SetPolarity(): cannot change polarity with HV enabled."
+            )
         else:
-            self.instr.write(f'p1')
+            self.instr.write(f"p1")
             self.polarity = "positive"
 
     def SetNegative(self):
         if self.HV_enabled:
-            logging.warning("HV_control warning in SetPolarity(): cannot change polarity with HV enabled.")
+            logging.warning(
+                "HV_control warning in SetPolarity(): cannot change polarity with HV enabled."
+            )
         else:
-            self.instr.write(f'p0')
+            self.instr.write(f"p0")
             self.polarity = "negative"
 
     def QueryPolarity(self):
-        pol_read = self.instr.query('P')
+        pol_read = self.instr.query("P")
         if pol_read == "1":
             return "positive"
         elif pol_read == "0":
@@ -134,3 +181,15 @@ class HV_control:
         self.voltage = voltage
         voltage_DAC = int(55355 * (voltage / 30))
         self.instr.write(f"d{voltage_DAC}")
+
+    def RampVoltage(
+        self, voltage: float, ramp_time: float = 10, ramp_step: float = 0.05
+    ):
+        ramp = RampVoltage(self, voltage, ramp_time, ramp_step)
+        ramp.start()
+
+    def DoNothing(self, param):
+        pass
+
+    def DoNothing(self, param):
+        pass

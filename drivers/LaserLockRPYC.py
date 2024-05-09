@@ -53,7 +53,7 @@ class LaserLockRPYC:
 
         self.nr_lasers = len(seed_names)
 
-        # grab unique synthezier device names
+        # grab unique synthesizer device names
         _synths = [val[0] for val in laser_synths]
         self.synths = []
         for synth in _synths:
@@ -187,9 +187,11 @@ class LaserLockRPYC:
             abs(lockpoint - frequency_set) <= 6
         ), f"Can't move frequency more than 6 MHz without loss of lock; setpoint={frequency_set:.1f}, lockpoint={lockpoint:.1f}"
 
-        self.devices[name].device.change_frequency_and_amplitude(
-            channel + 1, lockpoint * 1e6
-        )
+        ch = channel
+        if name == "SG2":
+            ch += 2
+
+        self.devices[name].device.change_frequency_and_amplitude(ch + 1, lockpoint)
 
     def move_laser0_lockpoint(self, lockpoint: float) -> None:
         self.move_laser_lockpoint(0, lockpoint)

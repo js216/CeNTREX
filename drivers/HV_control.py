@@ -20,23 +20,36 @@ class RampVoltage(threading.Thread):
 
         self.control = control
         self.setpoint = setpoint
-        self.ramp_time = time
+        self.ramp_time = ramp_time
         self.step_time = step_time
+        self.active = threading.Event()
 
     def run(self):
-        delta_voltage = self.control.ReadValue()[3] - self.setpoint
+        if self.setpoint < 0:
+            raise ValueError("RampVoltage: negative voltage not supported")
+
+        old_setpoint = self.control.ReadValue()[3]
+        delta_voltage = self.setpoint - old_setpoint
         ramp_rate = delta_voltage / self.ramp_time
 
         tstart = time.time()
-        while True:
-            new_setpoint = ramp_rate * (time.time() - tstart)
-            new_setpoint = (
-                new_setpoint if new_setpoint < self.setpoint else self.setpoint
-            )
-            self.control.SetVoltage(ramp_rate * time.time())
+        self.active.set()
+        while self.active.is_set():
+            new_setpoint = old_setpoint + ramp_rate * (time.time() - tstart)
+            if ramp_rate > 0:
+                new_setpoint = (
+                    new_setpoint if new_setpoint <= self.setpoint else self.setpoint
+                )
+            elif ramp_rate < 0:
+                new_setpoint = (
+                    new_setpoint if new_setpoint >= self.setpoint else self.setpoint
+                )
+            self.control.SetVoltage(new_setpoint)
             if new_setpoint == self.setpoint:
+                self.active.clear()
                 break
             time.sleep(self.step_time)
+        self.active.clear()
 
 
 class HV_control:
@@ -61,6 +74,8 @@ class HV_control:
         self.polarity = "positive"
         self.voltage = 0
 
+        self.ramp = None
+
         # make the verification string
         try:
             self.verification_string = self.QueryIdentification()
@@ -82,6 +97,9 @@ class HV_control:
     def __exit__(self, *exc):
         if self.instr:
             self.instr.close()
+        if self.ramp is not None:
+            self.ramp.active.clear()
+            self.ramp.join()
 
     def ReadValue(self):
         return [time.time() - self.time_offset, *self.ReadVoltages()]
@@ -182,11 +200,24 @@ class HV_control:
         voltage_DAC = int(55355 * (voltage / 30))
         self.instr.write(f"d{voltage_DAC}")
 
-    def RampVoltage(
-        self, voltage: float, ramp_time: float = 10, ramp_step: float = 0.05
+    def ramp_voltage(
+        self, voltage: float, ramp_time: float = 10.0, ramp_step: float = 0.05
     ):
-        ramp = RampVoltage(self, voltage, ramp_time, ramp_step)
-        ramp.start()
+        if not self.HV_enabled:
+            raise ValueError("RampVoltage: HV not enabled")
+        if self.ramp is None or not self.ramp.active.is_set():
+            if self.ramp is not None:
+                self.ramp.join()
+            self.ramp = RampVoltage(self, voltage, ramp_time, ramp_step)
+            self.ramp.start()
+        elif self.ramp.active.is_set():
+            raise Exception("HV_control: voltage ramp currently running")
+        else:
+            raise Exception("HV_control: other error")
+
+    def stop_ramp(self):
+        if self.ramp is not None and self.ramp.active.is_set():
+            self.ramp.active.clear()
 
     def DoNothing(self, param):
         pass

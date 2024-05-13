@@ -7,7 +7,7 @@ class ThorlabsElliptecRotation(elliptec.Rotator):
     def __init__(self, time_offset: float, resource_name: str):
         self.time_offset = time_offset
         self.controller = elliptec.Controller(resource_name)
-        super().__init__(self, controller=self.controller)
+        super().__init__(controller=self.controller)
 
         self.dtype = "f"
         self.shape = (2,)
@@ -17,7 +17,7 @@ class ThorlabsElliptecRotation(elliptec.Rotator):
         self.warnings = []
 
     def ReadValue(self) -> tuple[float, float]:
-        return (time.time() - self.time_offset, self.get_angle())
+        return [time.time() - self.time_offset, self.get_angle()]
 
     def GetWarnings(self) -> list:
         warnings = self.warnings

@@ -945,9 +945,12 @@ class Plotter(qt.QWidget):
             self.f.addWidget(self.plot)
         if not self.curve:
             if self.config["hist"]:
-                dx = data[0][1] - data[0][0]
-                x = np.append(data[0] - dx / 2, data[0][-1] + dx / 2)
-                data = (x, data[1])
+                bin_diffs = np.diff(data[0])
+                bins = np.append(
+                    [data[0][0] - bin_diffs[0] / 2], data[0][1:] - bin_diffs / 2
+                )
+                bins = np.append(bins, [data[0][-1] + bin_diffs[-1] / 2])
+                data = (bins, data[1])
             self.curve = self.plot.plot(
                 *data,
                 symbol=self.config["symbol"],
@@ -956,9 +959,12 @@ class Plotter(qt.QWidget):
             self.update_labels()
         else:
             if self.config["hist"]:
-                dx = data[0][1] - data[0][0]
-                x = np.append(data[0] - dx / 2, data[0][-1] + dx / 2)
-                data = (x, data[1])
+                bin_diffs = np.diff(data[0])
+                bins = np.append(
+                    [data[0][0] - bin_diffs[0] / 2], data[0][1:] - bin_diffs / 2
+                )
+                bins = np.append(bins, [data[0][-1] + bin_diffs[-1] / 2])
+                data = (bins, data[1])
             self.curve.setData(*data)
 
     def update_labels(self):

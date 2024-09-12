@@ -2,8 +2,10 @@ import datetime
 import itertools
 import logging
 import os
+import re
 import threading
 import time
+from functools import partial
 from functools import partial
 
 import numpy as np
@@ -13,8 +15,55 @@ import yaml
 
 from device import Device
 from device_utils import get_device_methods
+from device import Device
+from device_utils import get_device_methods
 from protocols import CentrexGUIProtocol
 from utils_gui import error_popup
+
+
+class SelectPopup(qt.QDialog):
+    def __init__(self, title: str, options: list[str]):
+        super().__init__()
+        self.setWindowTitle(title)
+
+        self.select = qt.QComboBox()
+        self.select.addItems(options)
+
+        btn = qt.QDialogButtonBox.Ok | qt.QDialogButtonBox.Cancel
+
+        self.button_box = qt.QDialogButtonBox(btn)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+
+        self.layout = qt.QFormLayout()
+        self.layout.addRow(self.select)
+        self.layout.addRow(self.button_box)
+
+        self.setLayout(self.layout)
+
+    def accept(self):
+        self.close()
+
+
+def select_device_function(
+    item: qt.QTreeWidgetItem, column: int, devices: dict[str, Device]
+) -> None:
+    if column == 0:
+        dev = SelectPopup("Select Device", list(devices.keys()))
+        dev.exec()
+        item.setText(0, dev.select.currentText())
+        if item.text(1) != "":
+            methods = get_device_methods(item.text(0), devices)
+            if item.text(1) not in methods:
+                item.setText(1, "")
+    elif column == 1:
+        device = item.text(0)
+        if device == "":
+            return
+        methods = get_device_methods(item.text(0), devices)
+        dev = SelectPopup("Select Function", methods)
+        dev.exec()
+        item.setText(1, dev.select.currentText())
 
 
 def parse_dummy_variables(parameter, parent_info: dict):
@@ -295,7 +344,7 @@ class SequencerGUI(qt.QWidget):
 
         # instantiate and start the thread
 
-        self.sequencer = Sequencer(self.parent, self.circular, n_repeats)
+        self.sequencer = Sequencer(self.parent, self, self.circular, n_repeats)
         self.sequencer.start()
 
         # NB: Qt is not thread safe. Calling SequencerGUI.update_progress()
@@ -357,12 +406,19 @@ class Sequencer(threading.Thread, PySide6.QtCore.QObject):
     # signal emitted when sequence terminates
     finished = PySide6.QtCore.Signal()
 
-    def __init__(self, parent: CentrexGUIProtocol, circular, n_repeats):
+    def __init__(
+        self,
+        parent: CentrexGUIProtocol,
+        sequencer_gui: SequencerGUI,
+        circular,
+        n_repeats,
+    ):
         threading.Thread.__init__(self)
         PySide6.QtCore.QObject.__init__(self)
 
         # access to the outside world
         self.parent = parent
+        self.sequencer_gui = sequencer_gui
         self.seqGUI = parent.ControlGUI.seq
         self.devices = parent.devices
 
@@ -380,6 +436,7 @@ class Sequencer(threading.Thread, PySide6.QtCore.QObject):
         self.n_repeats = n_repeats
 
     def flatten_tree(self, item: qt.QTreeWidgetItem, parent_info):
+    def flatten_tree(self, item: qt.QTreeWidgetItem, parent_info):
         for p_info in parent_info[1:]:
             if not p_info[3]:
                 return
@@ -391,7 +448,6 @@ class Sequencer(threading.Thread, PySide6.QtCore.QObject):
             item.checkState(4),
             item.checkState(6),
         )
-
         if not enabled and dev != "":
             return
 
@@ -417,7 +473,13 @@ class Sequencer(threading.Thread, PySide6.QtCore.QObject):
                     params = [eval(item.text(2))]
 
                 else:
-                    params = eval(item.text(2))
+                    txt: str = item.text(2)
+                    matches = re.findall(r"\$[0-9]+", txt)
+                    if len(matches) > 0:
+                        for match in matches:
+                            p = parse_dummy_variables(match, parent_info)
+                            txt = txt.replace(match, str(p))
+                    params = eval(txt)
             except Exception as e:
                 logging.warning(f"Cannot eval {item.text(2)}: {str(e)}")
                 return
@@ -445,7 +507,9 @@ class Sequencer(threading.Thread, PySide6.QtCore.QObject):
             else:
                 n_rep = 1
         except ValueError:
-            logging.info(f"Cannot convert to int: {item.text(5)}")
+            logging.info(
+                f"Sequencer: cannot convert repetitions to int for {dev}.{fn}: {item.text(5)}"
+            )
             n_rep = 1
 
         # iterate over the given parameter list
@@ -504,9 +568,13 @@ class Sequencer(threading.Thread, PySide6.QtCore.QObject):
         for i, (dev, fn, p, dt, wait, parent_info) in enumerate(self.flat_seq):
             # check for user stop request
             while self.paused.is_set():
+                # only pause when not reading from the PXI scope to make sure we get all
+                # traces from RAM
                 if (dev == "PXIe5171") & (fn == "ReadValue"):
                     break
                 time.sleep(1e-3)
+                if not self.active.is_set():
+                    break
             if not self.active.is_set():
                 return
 
@@ -515,6 +583,17 @@ class Sequencer(threading.Thread, PySide6.QtCore.QObject):
             if dev is not None:
                 self.devices[dev].sequencer_commands.append([id0, f"{fn}({p})"])
                 time.sleep(dt)
+
+                # general check for an error in any device
+                for dev_name, dev_thread in self.devices.items():
+                    try:
+                        error = dev_thread.sequencer_errors_queue.pop()
+                        self.sequencer_gui.pause_sequencer()
+                        logging.warning(
+                            f"Sequencer: pause because of error in {dev_name} => {error}"
+                        )
+                    except IndexError:
+                        continue
 
                 # wait till completion, if requested
                 if wait:
@@ -526,9 +605,15 @@ class Sequencer(threading.Thread, PySide6.QtCore.QObject):
 
                         # look for return values
                         try:
-                            id1, _, _, _ = self.devices[
+                            id1, _, _, ret_val = self.devices[
                                 dev
                             ].sequencer_events_queue.pop()
+                            # check if an exception was returned
+                            if isinstance(ret_val, Exception):
+                                logging.warning(
+                                    f"Sequencer: pause because of error in {dev} => {ret_val}"
+                                )
+                                self.sequencer_gui.pause_sequencer()
                             if id1 == id0:
                                 finished = True
                         except IndexError:

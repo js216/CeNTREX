@@ -1,7 +1,7 @@
 import logging
 import time
-from dataclasses import dataclass
-from typing import Any, Tuple, Union
+import traceback
+from typing import Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -32,16 +32,7 @@ def create_bins(
     return bin_centers, bins
 
 
-@dataclass
-class HistogramPlotterData:
-    time: float
-    data: npt.NDArray[np.float64]
-    attrs: list[dict[str, Any]]
-    dtype: tuple[type, ...] = (np.float64,)
-    shape: tuple[int, ...] = (1, 2, 100)
-
-
-class HistogramPlotter:
+class HistogramPlotterAbsorptionNormalized:
     """
     Driver takes data from a fast device and a slow device, processes a trace
     from a fast device and subsequently bins the processed data and slow device
@@ -55,12 +46,16 @@ class HistogramPlotter:
             self.dev1,
             self.param1,
             self.processing,
+            self.paramabs,
+            self.paramabsnorm,
+            self.processingnorm,
             self.dev2,
             self.param2,
             self.nbins_max,
+            self.absorption_cutoff,
         ) = params
-
         self.nbins_max = int(self.nbins_max)
+        self.absorption_cutoff = float(self.absorption_cutoff)
 
         # Need the " marks surrounding the expression otherwise the CeNTREX DAQ
         # enter_cmd fails due to the eval inside main, this is a workaround
@@ -70,22 +65,27 @@ class HistogramPlotter:
         self.param1 = self.Strip(self.param1, '"')
         self.param2 = self.Strip(self.param2, '"')
         self.processing = self.Strip(self.processing, '"')
+        self.paramabs = self.Strip(self.paramabs, '"')
+        self.paramabsnorm = self.Strip(self.paramabsnorm, '"')
+        self.processingnorm = self.Strip(self.processingnorm, '"')
 
         self.verification_string = "histogram_plotter"
-
         # lists to store matched slow (x), fast (unprocessed_data) and processed fast
         # (y) data in
         self.x_ts = []
         self.x_data = []
         self.unprocessed_data_ts = []
         self.unprocessed_data = []
+        self.unprocessed_data_norm = []
         self.y_data = []
+        self.y_data_norm = []
+
         self.warnings = []
         self.new_attributes = []
 
         # shape and type of the array of returned data
         self.shape = (1, 2, self.nbins_max)
-        self.dtype = np.float64
+        self.dtype = float
 
         self.processed_changed = False
 
@@ -113,44 +113,43 @@ class HistogramPlotter:
         """
         Binning the fast and slow data to enable plotting of histograms
         """
+        # most time spent in ProcessData()
         try:
             self.ProcessData()
         except Exception as exception:
             logging.error(exception)
+            logging.error(traceback.format_exc())
 
-        x_data = self.x_data
+        x_data = np.array(self.x_data)
         y_data = np.array(self.y_data)
+        y_data_norm = np.array(self.y_data_norm)
+
+        m = y_data_norm >= self.absorption_cutoff
 
         # return zeros if no data present
         if len(x_data) == 0 or len(y_data) == 0 or len(np.unique(x_data)) <= 1:
             data = np.concatenate(
                 (np.linspace(-1, 1, self.shape[-1]), np.zeros(self.shape[-1]))
             ).reshape(self.shape)
-            return HistogramPlotterData(
-                time=time.time() - self.time_offset,
-                data=data,
-                attrs=[{}],
-                dtype=self.dtype,
-                shape=self.shape,
-            )
+            return [data, [{"timestamp": time.time() - self.time_offset}]]
 
         else:
             bin_centers, bins = create_bins(x_data, maxsize=self.nbins_max)
             self.shape = (1, 2, len(bin_centers))
             bin_means, bin_edges, bin_number = binned_statistic(
-                x_data, y_data, statistic="mean", bins=bins
+                x_data[m], (y_data / y_data_norm)[m], statistic="mean", bins=bins
             )
             data = np.concatenate((bin_centers, bin_means)).reshape(self.shape)
-            return HistogramPlotterData(
-                time.time() - self.time_offset,
-                data=data,
-                attrs=[{}],
-                dtype=self.dtype,
-                shape=self.shape,
-            )
+
+            return [data, [{"timestamp": time.time() - self.time_offset}]]
 
     def SetProcessing(self, processing):
         self.processing = processing
+        self.processed_changed = True
+
+    def SetProcessingNorm(self, processingnorm):
+        self.processingnorm = processingnorm
+        self.processed_changed = True
 
     def SetDevice1(self, dev1):
         self.dev1 = dev1
@@ -158,6 +157,10 @@ class HistogramPlotter:
 
     def SetParam1(self, param1):
         self.param1 = param1
+        self.ClearData()
+
+    def SetParamNorm(self, paramnorm):
+        self.paramabs = paramnorm
         self.ClearData()
 
     def SetDevice2(self, dev2):
@@ -177,6 +180,7 @@ class HistogramPlotter:
         self.unprocessed_data_ts = []
         self.unprocessed_data = []
         self.y_data = []
+        self.unprocessed_data_norm
 
     #################################################
     # Device Commands
@@ -187,12 +191,14 @@ class HistogramPlotter:
         Attempting to fetch data from the specified fast and slow device.
         """
         try:
-            data1_queue = list(self.parent.devices[self.dev1].config.plots_queue)
+            data1_queue = list(self.parent.devices[self.dev1].config["plots_queue"])
         except KeyError:
             logging.warning(f"HistogramPlotterNorm: device {self.dev1} not found")
             return
         try:
-            data2_queue = np.asarray(self.parent.devices[self.dev2].config.plots_queue)
+            data2_queue = np.asarray(
+                self.parent.devices[self.dev2].config["plots_queue"]
+            )
         except KeyError:
             logging.warning(f"HistogramPlotterNorm: device {self.dev} not found")
             return
@@ -200,8 +206,8 @@ class HistogramPlotter:
         if len(data2_queue) == 0 or len(data1_queue) == 0:
             return
 
-        timestamps1 = np.asarray([d.time for d in data1_queue])
-        timestamps2 = np.asarray([d.time for d in data2_queue])
+        timestamps1 = np.asarray([d[-1][0]["timestamp"] for d in data1_queue])
+        timestamps2 = np.asarray([d[0] for d in data2_queue])
 
         dt = timestamps2[:, np.newaxis] - timestamps1
         dt[dt > 0] = 1e3
@@ -216,11 +222,16 @@ class HistogramPlotter:
             mask = timestamps1 > self.unprocessed_data_ts[-1]
 
         # extract the desired parameter 1 and 2
-        col_names1 = self.parent.devices[self.dev1].config.attributes.column_names
-        col_names2 = self.parent.devices[self.dev2].config.attributes.column_names
-
+        col_names1 = split(
+            self.parent.devices[self.dev1].config["attributes"]["column_names"]
+        )
+        col_names2 = split(
+            self.parent.devices[self.dev2].config["attributes"]["column_names"]
+        )
         try:
             idx1 = col_names1.index(self.param1)
+            idx1abs = col_names1.index(self.paramabs)
+            idx1absnorm = col_names1.index(self.paramabsnorm)
         except IndexError:
             logging.error("Error in HistogramPlotter: param not found: " + self.param1)
             return
@@ -231,34 +242,52 @@ class HistogramPlotter:
             return
 
         self.unprocessed_data_ts.extend(timestamps1[mask])
+
         self.x_ts.extend(timestamps2[mask])
 
         data1_queue = [data1_queue[idx] for idx, m in enumerate(mask) if m]
 
         if len(self.unprocessed_data) == 0:
-            self.unprocessed_data = [d.data[0, idx1] for d in data1_queue]
-            self.x_data = [getattr(d, self.param2) for d in data2_queue[mask]]
+            self.unprocessed_data = [d[0][0][idx1] for d in data1_queue]
+            self.unprocessed_data_norm = [
+                d[0][0][idx1abs].astype(float) / d[0][0][idx1absnorm].astype(float)
+                for d in data1_queue
+            ]
+            self.x_data = [d[idx2] for d in data2_queue[mask]]
         else:
             for idd, d in enumerate(data1_queue):
-                # d is a list with at 0 the arrays and at 1 the timestamps
-                if d.data.shape[0] > 1:
+                d = d[0]
+                if d.shape[0] > 1:
+                    print("hit d.shape[0] > 1")
                     for di in d:
-                        self.unprocessed_data.append(di.data[0][idx1])
-                        self.x_data.append(getattr(data2_queue[mask][idd], self.param2))
+                        self.unprocessed_data.append(di[0][idx1])
+                        self.unprocessed_data_norm.append(
+                            di[0][idx1abs].astype(float)
+                            / di[0][idx1absnorm].astype(float)
+                        )
+                        self.x_data.append(data2_queue[mask][idd][idx2])
                 else:
-                    self.unprocessed_data.append(d.data[0][idx1])
-                    self.x_data.append(getattr(data2_queue[mask][idd], self.param2))
+                    self.unprocessed_data.append(d[0][idx1])
+                    self.unprocessed_data_norm.append(
+                        d[0][idx1abs].astype(float) / d[0][idx1absnorm].astype(float)
+                    )
+                    self.x_data.append(data2_queue[mask][idd][idx2])
 
     def ProcessData(self):
         """
         Processing data from the fast device
         """
+        # most time spent in FetchData()
         self.FetchData()
 
         if self.processed_changed:
             self.y_data = []
-            for y in self.unprocessed_data:
-                self.y_data.append(eval(self.processing))
+            self.y_data = []
+            for y, y_norm in zip(self.unprocessed_data, self.processed_data_norm):
+                yi = eval(self.processing).astype(float)
+                yin = eval(self.processingnorm)
+                self.y_data.append(yi)
+                self.y_data_norm.append(yin)
             self.processed_changed = False
             return
 
@@ -270,5 +299,10 @@ class HistogramPlotter:
             return
         for idx in reversed(range(len_diff)):
             # self.processing string contains y which is then evaluated
-            y = self.unprocessed_data[-idx - 1]  # noqa: F841
-            self.y_data.append(eval(self.processing))
+            y = self.unprocessed_data[-idx - 1].astype(float)  # noqa: F841
+            y_norm = self.unprocessed_data_norm[-idx - 1]  # noqa: F841
+            y_norm /= y_norm[-1500:].mean()
+            yi = eval(self.processing)
+            yin = eval(self.processingnorm)
+            self.y_data.append(yi)
+            self.y_data_norm.append(yin)

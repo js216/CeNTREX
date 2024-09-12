@@ -27,6 +27,7 @@ from config import (
 )
 from device import Device, restart_device
 from device_utils import get_device_methods
+from device_utils import get_device_methods
 from hdf_writer import HDF_writer
 from monitoring import Monitoring
 from networking import Networking
@@ -510,7 +511,6 @@ class ControlGUI(qt.QWidget):
         files_frame.addWidget(pb, 4, 2)
 
         # the control to send a custom command to a specified device
-
         files_frame.addWidget(qt.QLabel("Cmd:"), 5, 0)
 
         cmd_frame = qt.QHBoxLayout()
@@ -518,8 +518,15 @@ class ControlGUI(qt.QWidget):
 
         self.custom_func_cbx = qt.QComboBox()
         self.custom_func_cbx.setToolTip(
+        self.custom_func_cbx = qt.QComboBox()
+        self.custom_func_cbx.setToolTip(
             "Enter a command corresponding to a function in the selected device driver."
         )
+        cmd_frame.addWidget(self.custom_func_cbx)
+
+        self.custom_params_qle = qt.QLineEdit()
+        self.custom_params_qle.setToolTip("Enter parameters for the selected function")
+        cmd_frame.addWidget(self.custom_params_qle)
         cmd_frame.addWidget(self.custom_func_cbx)
 
         self.custom_params_qle = qt.QLineEdit()
@@ -1057,6 +1064,7 @@ class ControlGUI(qt.QWidget):
                                 logging.warning(
                                     "ControlsRow error: sub-control type not"
                                     " supported: " + c["col_types"][col]
+                                    " supported: " + c["col_types"][col]
                                 )
 
                 # place indicators
@@ -1299,12 +1307,14 @@ class ControlGUI(qt.QWidget):
     def queue_custom_command(self):
         # check the command is valid
         cmd = f"{self.custom_func_cbx.currentText()}({self.custom_params_qle.text()})"
+        cmd = f"{self.custom_func_cbx.currentText()}({self.custom_params_qle.text()})"
         search = re.compile(r'[^A-Za-z0-9()".?!*# ]_=').search
         if bool(search(cmd)):
             error_box("Command error", "Invalid command.")
             return
 
         # check the device is valid
+        dev_name = self.custom_dev_cbx.currentText()
         dev_name = self.custom_dev_cbx.currentText()
         dev = self.parent.devices.get(dev_name)
         if not dev.operational:

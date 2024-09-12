@@ -12,7 +12,7 @@ from gui import CentrexGUI
 # fancy colors and formatting for logging
 FORMAT = "%(message)s"
 logging.basicConfig(
-    level="DEBUG",
+    level="WARNING",
     format=FORMAT,
     datefmt="[%X]",
     handlers=[RichHandler(rich_tracebacks=True)],

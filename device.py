@@ -256,7 +256,8 @@ class Device(threading.Thread):
                         except Exception as e:
                             logging.warning(e)
                             logging.warning(traceback.format_exc())
-                            ret_val = None
+                            self.sequencer_errors_queue.append(e)
+                            ret_val = e
                         if (c == "ReadValue()") and ret_val:
                             self.data_queue.append(ret_val)
                             self.config.plots_queue.append(ret_val)

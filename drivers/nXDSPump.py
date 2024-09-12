@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream:drivers/nXDS.py
 import logging
 import time
 
@@ -8,6 +9,104 @@ import pyvisa
 
 
 class nXDS:
+=======
+from __future__ import annotations
+
+import datetime
+import logging
+import time
+from dataclasses import dataclass
+from enum import Enum, auto
+
+import numpy as np
+import pyvisa
+from nxds import nXDS
+
+
+class WarningLevel(Enum):
+    WARNING = auto()
+    ERROR = auto()
+
+
+@dataclass
+class nXDSPumpData:
+    time: float
+    current: float
+    power: float
+    link_voltage: float
+    pump_temperature: float
+    pump_controller_temperature: float
+
+
+@dataclass
+class nXDSPumpWarning:
+    time: float
+    message: str
+    level: WarningLevel = WarningLevel.WARNING
+
+    def to_text(self) -> str:
+        ts_str = (
+            datetime.datetime.fromtimestamp(self.time)
+            .replace(microsecond=0)
+            .isoformat()
+        )
+        return f"{ts_str} - {self.level.name} : {self.message}"
+
+
+class nXDSPump(nXDS):
+    def __init__(self, time_offset: float, ip_port: str):
+        super().__init__(resource_name=ip_port, connection_type="TCPIP")
+        self.time_offset = time_offset
+        self.warnings = []
+
+        # make the verification string
+        self.verification_string = self.identification
+
+        # HDF attributes generated when constructor is run
+        self.new_attributes = []
+
+    def __enter__(self) -> nXDSPump:
+        return self
+
+    def __exit__(self, *exc) -> None:
+        if self.instrument:
+            self.instrument.close()
+
+    def ReadValue(self) -> nXDSPumpData:
+        return nXDSPumpData(
+            time=time.time() - self.time_offset,
+            current=self.motor_current,
+            power=self.motor_power,
+            link_voltage=self.link_voltage,
+            pump_temperature=self.pump_temperature,
+            pump_controller_temperature=self.pump_controller_temperature,
+        )
+
+    def GetWarnings(self) -> list[nXDSPumpWarning]:
+        # check if there are faults (7) present
+        if self.system_status_register_2 == 7:
+            fault_register = self.fault_register
+            self.warnings.append(
+                nXDSPumpWarning(
+                    time=time.time(),
+                    message=", ".join([fault.name for fault in fault_register]),
+                    level=WarningLevel.ERROR,
+                )
+            )
+
+        warnings = self.warnings
+        self.warnings = []
+        return warnings
+
+    def StopPump(self) -> None:
+        self.stop_pump()
+
+    def StartPump(self) -> None:
+        self.start_pump()
+
+
+class nXDSOld:
+>>>>>>> Stashed changes:drivers/nXDSPump.py
     registers = (
         "system_status_register1",
         "system_status_register2",

@@ -6,15 +6,12 @@ import re
 import threading
 import time
 from functools import partial
-from functools import partial
 
 import numpy as np
 import PySide6
 import PySide6.QtWidgets as qt
 import yaml
 
-from device import Device
-from device_utils import get_device_methods
 from device import Device
 from device_utils import get_device_methods
 from protocols import CentrexGUIProtocol
@@ -435,7 +432,6 @@ class Sequencer(threading.Thread, PySide6.QtCore.QObject):
         self.circular = circular
         self.n_repeats = n_repeats
 
-    def flatten_tree(self, item: qt.QTreeWidgetItem, parent_info):
     def flatten_tree(self, item: qt.QTreeWidgetItem, parent_info):
         for p_info in parent_info[1:]:
             if not p_info[3]:

@@ -27,7 +27,6 @@ from config import (
 )
 from device import Device, restart_device
 from device_utils import get_device_methods
-from device_utils import get_device_methods
 from hdf_writer import HDF_writer
 from monitoring import Monitoring
 from networking import Networking
@@ -516,8 +515,6 @@ class ControlGUI(qt.QWidget):
         cmd_frame = qt.QHBoxLayout()
         files_frame.addLayout(cmd_frame, 5, 1)
 
-        self.custom_func_cbx = qt.QComboBox()
-        self.custom_func_cbx.setToolTip(
         self.custom_func_cbx = qt.QComboBox()
         self.custom_func_cbx.setToolTip(
             "Enter a command corresponding to a function in the selected device driver."
@@ -1063,8 +1060,10 @@ class ControlGUI(qt.QWidget):
                             else:
                                 logging.warning(
                                     "ControlsRow error: sub-control type not"
-                                    " supported: " + c["col_types"][col]
-                                    " supported: " + c["col_types"][col]
+                                    + " supported: "
+                                    + c["col_types"][col]
+                                    + " supported: "
+                                    + c["col_types"][col]
                                 )
 
                 # place indicators

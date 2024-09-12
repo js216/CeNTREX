@@ -19,12 +19,14 @@ from utils_gui import error_popup
 
 
 class SelectPopup(qt.QDialog):
-    def __init__(self, title: str, options: list[str]):
+    def __init__(self, title: str, options: list[str], selected: str):
         super().__init__()
         self.setWindowTitle(title)
 
         self.select = qt.QComboBox()
         self.select.addItems(options)
+        if len(selected) > 0:
+            self.select.setCurrentIndex(options.index(selected))
 
         btn = qt.QDialogButtonBox.Ok | qt.QDialogButtonBox.Cancel
 
@@ -46,7 +48,7 @@ def select_device_function(
     item: qt.QTreeWidgetItem, column: int, devices: dict[str, Device]
 ) -> None:
     if column == 0:
-        dev = SelectPopup("Select Device", list(devices.keys()))
+        dev = SelectPopup("Select Device", list(devices.keys()), item.text(0))
         dev.exec()
         item.setText(0, dev.select.currentText())
         if item.text(1) != "":
@@ -58,7 +60,7 @@ def select_device_function(
         if device == "":
             return
         methods = get_device_methods(item.text(0), devices)
-        dev = SelectPopup("Select Function", methods)
+        dev = SelectPopup("Select Function", methods, item.text(1))
         dev.exec()
         item.setText(1, dev.select.currentText())
 

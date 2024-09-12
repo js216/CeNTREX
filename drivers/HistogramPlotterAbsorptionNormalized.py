@@ -24,11 +24,11 @@ def create_bins(
         bins = np.append(bins, bins.max() + bin_width / 2)
 
     else:
-        dscan_min = np.diff(bin_centers).min()
+        bin_diffs = np.diff(bin_centers)
         bins = np.append(
-            [bin_centers.min() - dscan_min / 2],
-            bin_centers + dscan_min / 2,
+            [bin_centers[0] - bin_diffs[0] / 2], bin_centers[1:] - bin_diffs / 2
         )
+        bins = np.append(bins, [bin_centers[-1] + bin_diffs[-1] / 2])
     return bin_centers, bins
 
 

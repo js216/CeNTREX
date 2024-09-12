@@ -5,10 +5,20 @@
 import datetime
 import logging
 import time
+from dataclasses import dataclass
 from typing import Dict, List, TypedDict
 
 import niscope
 import numpy as np
+import numpy.typing as npt
+
+
+@dataclass
+class PXIe5171Data:
+    time: float
+    data: npt.NDArray[np.int16]
+    shape: tuple[int] = (1, 2, 100)
+    dtype: type | tuple[type, ...] = np.int16
 
 
 class Record(TypedDict):
@@ -239,15 +249,19 @@ class PXIe5171:
         # increment record count
         self.rec_num += self.num_records
 
-        return [waveforms_flat.reshape(self.shape), all_attrs]
+        return PXIe5171Data(
+            timestamp,
+            data=waveforms_flat.reshape(self.shape),
+            attrs=all_attrs,
+            dtype=self.dtype,
+        )
 
     def GetWarnings(self):
         return None
 
     def UpdateSequenceAttrs(self, parent_info):
         if len(np.shape(parent_info)) == 2:
-            for info in parent_info:
-                device, function, param = info
+            for device, function, param in parent_info:
                 self.UpdateTraceAttrs({f"{device} {function}": param})
         else:
             device, function, param, enabled = parent_info

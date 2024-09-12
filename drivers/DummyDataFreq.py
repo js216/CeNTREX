@@ -37,10 +37,15 @@ class DummyDataFreq:
 
     def ReadValue(self) -> DummyDataFreqData:
         t = time.time() - self.time_offset
-        return DummyDataFreqData(
-            t,
-            self.frequency_span * signal.sawtooth(2 * np.pi / self.period * t, width=1),
-        )
+
+        if np.random.choice([0, 1]):
+            return DummyDataFreqData(
+                t,
+                self.frequency_span
+                * signal.sawtooth(2 * np.pi / self.period * t, width=1),
+            )
+        else:
+            return DummyDataFreqData(t, -1000)
 
     def test(self, value):
         logging.info(f"DummyDataFreq: test({value})")

@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Tuple, Union
+from typing import Dict, Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -31,6 +31,46 @@ def create_bins(
     return bin_centers, bins
 
 
+def check_bins_update(
+    x: Union[npt.NDArray[np.float_], npt.NDArray[np.int_]],
+    binned_data: Dict[int, Tuple[int, float]],
+    bin_centers: Union[npt.NDArray[np.float_], npt.NDArray[np.int_]],
+    bin_edges: Union[npt.NDArray[np.float_], npt.NDArray[np.int_]],
+    nbins_max: int,
+) -> bool:
+    if len(binned_data) == 0:
+        return True
+    elif (x.min() < np.min(bin_edges)) or (x.max() > np.max(bin_edges)):
+        return True
+    elif not np.all(np.isin(x, bin_centers)) and (len(binned_data) < nbins_max):
+        return True
+    else:
+        return False
+
+
+def bin_new_data(
+    x_data: Union[npt.NDArray[np.float_], npt.NDArray[np.int_]],
+    y_data: Union[npt.NDArray[np.float_], npt.NDArray[np.int_]],
+    binned_data: Dict[int, Tuple[int, float]],
+    bin_edges: Union[npt.NDArray[np.float_], npt.NDArray[np.int_]],
+) -> Tuple[npt.NDArray[np.float_], npt.NDArray[np.float_]]:
+    bin_numbers = np.digitize(x_data, bins=bin_edges, right=True)
+    for bin_number in np.unique(bin_numbers):
+        if bin_number == 0:
+            continue
+        m = bin_numbers == bin_number
+        current_data = binned_data.get(bin_number)
+        if current_data is None:
+            binned_data[bin_number] = (m.sum(), np.mean(y_data[m]))
+        else:
+            # calculate the new mean of the data
+            mean = (current_data[0] * current_data[1] + np.sum(y_data[m])) / (
+                current_data[0] + m.sum()
+            )
+            binned_data[bin_number] = (current_data[0] + m.sum(), mean)
+    return
+
+
 class HistogramPlotter:
     """
     Driver takes data from a fast device and a slow device, processes a trace
@@ -51,6 +91,7 @@ class HistogramPlotter:
         ) = params
 
         self.nbins_max = int(self.nbins_max)
+        self.bin_width = int(self.bin_width)
 
         # Need the " marks surrounding the expression otherwise the CeNTREX DAQ
         # enter_cmd fails due to the eval inside main, this is a workaround
@@ -70,6 +111,8 @@ class HistogramPlotter:
         self.unprocessed_data_ts = []
         self.unprocessed_data = []
         self.y_data = []
+        self.x_data_new = []
+        self.y_data_new = []
         self.warnings = []
         self.new_attributes = []
 
@@ -78,6 +121,11 @@ class HistogramPlotter:
         self.dtype = float
 
         self.processed_changed = False
+
+        self.binned_data: Dict[int, Tuple[int, float]] = {}
+        self.bin_centers = None
+        self.bin_edges = None
+        self.shape = None
 
     def __enter__(self):
         return self
@@ -108,8 +156,8 @@ class HistogramPlotter:
         except Exception as exception:
             logging.error(exception)
 
-        x_data = self.x_data
-        y_data = np.array(self.y_data)
+        x_data = self.x_data_new
+        y_data = np.array(self.y_data_new)
 
         # return zeros if no data present
         if len(x_data) == 0 or len(y_data) == 0 or len(np.unique(x_data)) <= 1:
@@ -119,12 +167,25 @@ class HistogramPlotter:
             return [data, [{"timestamp": time.time() - self.time_offset}]]
 
         else:
-            bin_centers, bins = create_bins(x_data, maxsize=self.nbins_max)
-            self.shape = (1, 2, len(bin_centers))
-            bin_means, bin_edges, bin_number = binned_statistic(
-                x_data, y_data, statistic="mean", bins=bins
-            )
-            data = np.concatenate((bin_centers, bin_means)).reshape(self.shape)
+            # check if new bins are required
+            if check_bins_update(
+                x_data,
+                self.binned_data,
+                self.bin_centers,
+                self.bin_edges,
+                self.nbins_max,
+            ):
+                self.bin_centers, self.bin_edges = create_bins(
+                    self.x_data, maxsize=self.nbins_max
+                )
+                self.shape = (1, 2, len(self.bin_centers))
+                self.binned_data.clear()
+                bin_new_data(self.x_data, self.y_data, self.binned_data, self.bin_edges)
+            else:
+                bin_new_data(x_data, y_data, self.binned_data, self.bin_edges)
+
+            bin_means = np.array([v[1] for v in self.binned_data.values()])
+            data = np.concatenate((self.bin_centers, bin_means)).reshape(self.shape)
 
             return [data, [{"timestamp": time.time() - self.time_offset}]]
 
@@ -220,18 +281,25 @@ class HistogramPlotter:
         data1_queue = [data1_queue[idx] for idx, m in enumerate(mask) if m]
         if len(self.unprocessed_data) == 0:
             self.unprocessed_data = [d[0][0][idx1] for d in data1_queue]
-            self.x_data = [d[idx2] for d in data2_queue[mask]]
+            x = [d[idx2] for d in data2_queue[mask]]
+            self.x_data = x
+            self.x_data_new = x
         else:
             for idd, d in enumerate(data1_queue):
                 # d is a list with at 0 the arrays and at 1 the timestamps
                 d = d[0]
                 if d.shape[0] > 1:
+                    self.x_data_new = []
                     for di in d:
                         self.unprocessed_data.append(di[0][idx1])
-                        self.x_data.append(data2_queue[mask][idd][idx2])
+                        x = data2_queue[mask][idd][idx2]
+                        self.x_data.append(x)
+                        self.x_data_new.append(x)
                 else:
                     self.unprocessed_data.append(d[0][idx1])
-                    self.x_data.append(data2_queue[mask][idd][idx2])
+                    x = data2_queue[mask][idd][idx2]
+                    self.x_data.append(x)
+                    self.x_data_new = x
 
     def ProcessData(self):
         """
@@ -255,4 +323,6 @@ class HistogramPlotter:
         for idx in reversed(range(len_diff)):
             # self.processing string contains y which is then evaluated
             y = self.unprocessed_data[-idx - 1]  # noqa: F841
-            self.y_data.append(eval(self.processing))
+            y = eval(self.processing)
+            self.y_data.append(y)
+            self.y_data_new = y

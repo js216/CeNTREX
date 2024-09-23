@@ -425,7 +425,7 @@ class ZaberTMM:
     def CreateWarning(self, warning):
         warning_dict = {"message": warning}
         self.warnings.append([time.time(), warning_dict])
-
+        return Exception
     def GetWarnings(self):
         warnings = self.warnings.copy()
         self.warnings = []

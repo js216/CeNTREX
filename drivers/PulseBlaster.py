@@ -57,7 +57,7 @@ if __name__ == "__main__":
     qswitch_delay = 80  # microseconds
     qswitch_high = 100_000
     flashlamp_high = 100_000
-    frequency = 26  # Hz
+    frequency = 23 #23  # Hz
 
     trigger = Signal(
         frequency=frequency, offset=0, high=100_000, channels=[0, 7], active_high=True

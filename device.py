@@ -170,7 +170,7 @@ class Device(threading.Thread):
                     except ValueError as e:
                         logging.warning(e)
                         logging.info(traceback.format_exc())
-                        dt = 0.1
+                        dt = 0.5
 
                     # 1 kHz loop delay
                     time.sleep(1e-3)

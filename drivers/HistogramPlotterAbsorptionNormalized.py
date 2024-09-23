@@ -1,22 +1,64 @@
 import logging
 import time
 import traceback
-from typing import Dict, Tuple, Union
+from copy import copy
+from typing import Dict, Sequence, Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
-from scipy.stats import binned_statistic
 
 
 def split(string, separator=","):
     return [x.strip() for x in string.split(separator)]
 
 
+class Histogram:
+    def __init__(self, bin_edges: Union[Sequence[int], Sequence[float]]):
+        self.bin_edges = bin_edges
+        self.bin_centers = bin_edges[:-1] + np.diff(bin_edges) / 2
+
+        self.data: Dict[int, Tuple[int, float]] = dict(
+            [(i, (0, 0)) for i in range(1, len(bin_edges))]
+        )
+
+    def __len__(self) -> int:
+        return len(self.data)
+
+    def update(
+        self,
+        x: Union[npt.NDArray[np.int_], npt.NDArray[np.float_]],
+        y: Union[npt.NDArray[np.int_], npt.NDArray[np.float_]],
+    ):
+        bin_numbers = np.digitize(x, bins=self.bin_edges, right=True)
+        for bin_number in np.unique(bin_numbers):
+            if bin_number == 0:
+                continue
+            elif bin_number >= len(self.bin_edges):
+                continue
+            m = bin_numbers == bin_number
+            current_data = self.data.get(bin_number)
+            assert current_data is not None, f"{bin_number=}, {len(self.data)=}"
+            mean = (current_data[0] * current_data[1] + np.sum(y[m])) / (
+                current_data[0] + m.sum()
+            )
+            self.data[bin_number] = (current_data[0] + m.sum(), mean)
+
+    @property
+    def x(self) -> Union[npt.NDArray[np.int_], npt.NDArray[np.float_]]:
+        return self.bin_centers
+
+    @property
+    def y(self) -> Union[npt.NDArray[np.int_], npt.NDArray[np.float_]]:
+        return np.array([v[1] for v in self.data.values()])
+
+
 def create_bins(
     scan_values: Union[npt.NDArray[np.float_], npt.NDArray[np.int_]], maxsize: int = 100
 ) -> Tuple[npt.NDArray[np.float_], npt.NDArray[np.float_]]:
     bin_centers = np.unique(scan_values)
-    if len(bin_centers) > maxsize:
+    if len(bin_centers) == 1:
+        bins = np.array([bin_centers * 0.9, bin_centers * 1.1])
+    elif len(bin_centers) > maxsize:
         bin_centers = np.linspace(bin_centers.min(), bin_centers.max(), maxsize)
         bins = bin_centers.copy()
         bin_width = bins[1] - bins[0]
@@ -29,48 +71,26 @@ def create_bins(
             [bin_centers[0] - bin_diffs[0] / 2], bin_centers[1:] - bin_diffs / 2
         )
         bins = np.append(bins, [bin_centers[-1] + bin_diffs[-1] / 2])
-    return bin_centers, bins
+    return bins
 
 
 def check_bins_update(
     x: Union[npt.NDArray[np.float_], npt.NDArray[np.int_]],
-    binned_data: Dict[int, Tuple[int, float]],
-    bin_centers: Union[npt.NDArray[np.float_], npt.NDArray[np.int_]],
-    bin_edges: Union[npt.NDArray[np.float_], npt.NDArray[np.int_]],
+    binned_data: Histogram,
     nbins_max: int,
 ) -> bool:
     if len(binned_data) == 0:
         return True
-    elif (x.min() < np.min(bin_edges)) or (x.max() > np.max(bin_edges)):
+    elif (x.min() < np.min(binned_data.bin_edges)) or (
+        x.max() > np.max(binned_data.bin_edges)
+    ):
         return True
-    elif not np.all(np.isin(x, bin_centers)) and (len(binned_data) < nbins_max):
+    elif not np.all(np.isin(x, binned_data.bin_centers)) and (
+        len(binned_data) < nbins_max
+    ):
         return True
     else:
         return False
-
-
-def bin_new_data(
-    x_data: Union[npt.NDArray[np.float_], npt.NDArray[np.int_]],
-    y_data: Union[npt.NDArray[np.float_], npt.NDArray[np.int_]],
-    y_data_norm: Union[npt.NDArray[np.float_], npt.NDArray[np.int_]],
-    binned_data: Dict[int, Tuple[int, float]],
-    bin_edges: Union[npt.NDArray[np.float_], npt.NDArray[np.int_]],
-) -> Tuple[npt.NDArray[np.float_], npt.NDArray[np.float_]]:
-    bin_numbers = np.digitize(x_data, bins=bin_edges, right=True)
-    for bin_number in np.unique(bin_numbers):
-        if bin_number == 0:
-            continue
-        m = bin_numbers == bin_number
-        current_data = binned_data.get(bin_number)
-        if current_data is None:
-            binned_data[bin_number] = (m.sum(), np.mean(y_data[m] / y_data_norm[m]))
-        else:
-            # calculate the new mean of the data
-            mean = (
-                current_data[0] * current_data[1] + np.sum(y_data[m] / y_data_norm[m])
-            ) / (current_data[0] + m.sum())
-            binned_data[bin_number] = (current_data[0] + m.sum(), mean)
-    return
 
 
 class HistogramPlotterAbsorptionNormalized:
@@ -113,16 +133,14 @@ class HistogramPlotterAbsorptionNormalized:
         self.verification_string = "histogram_plotter"
         # lists to store matched slow (x), fast (unprocessed_data) and processed fast
         # (y) data in
-        self.x_ts = []
         self.x_data = []
-        self.unprocessed_data_ts = []
-        self.unprocessed_data = []
-        self.unprocessed_data_norm = []
         self.y_data = []
         self.y_data_norm = []
         self.x_data_new = []
         self.y_data_new = []
         self.y_data_norm_new = []
+
+        self.timestamp_last_fetched = 0.0
 
         self.warnings = []
         self.new_attributes = []
@@ -132,12 +150,9 @@ class HistogramPlotterAbsorptionNormalized:
         self.dtype = float
 
         self.processed_changed = False
-        self.nbins_max_changed = False
+        self.redo_binning_flag = False
 
-        self.binned_data: Dict[int, Tuple[int, float]] = {}
-        self.bin_centers = None
-        self.bin_edges = None
-        self.shape = None
+        self.binned_data: Histogram = Histogram([])
 
     def __enter__(self):
         return self
@@ -172,52 +187,58 @@ class HistogramPlotterAbsorptionNormalized:
 
         x_data = np.array(self.x_data_new)
         y_data = np.array(self.y_data_new)
-        y_data_norm = np.array(self.y_data_norm)
+        y_data_norm = np.array(self.y_data_norm_new)
 
         m = y_data_norm >= self.absorption_cutoff
 
         # return zeros if no data present
-        if len(x_data) == 0 or len(y_data) == 0 or len(np.unique(x_data)) <= 1:
+        if len(self.x_data) < 10:
             data = np.concatenate(
                 (np.linspace(-1, 1, self.shape[-1]), np.zeros(self.shape[-1]))
             ).reshape(self.shape)
             return [data, [{"timestamp": time.time() - self.time_offset}]]
 
-        else:
+        elif len(x_data[m]) > 0:
             # check if new bins are required
-            if check_bins_update(
-                x_data,
-                self.binned_data,
-                self.bin_centers,
-                self.bin_edges,
-                self.nbins_max,
+            if (
+                check_bins_update(
+                    x_data,
+                    self.binned_data,
+                    self.nbins_max,
+                )
+                or self.redo_binning_flag
             ):
-                self.bin_centers, self.bin_edges = create_bins(
-                    self.x_data, maxsize=self.nbins_max
-                )
-                self.shape = (1, 2, len(self.bin_centers))
-                self.binned_data.clear()
+                logging.info("redo binning")
+                self.redo_binning_flag = False
+                bin_edges = create_bins(self.x_data, maxsize=self.nbins_max)
                 m = np.array(self.y_data_norm) >= self.absorption_cutoff
-                bin_new_data(
-                    np.array(self.x_data)[m],
-                    np.array(self.y_data)[m],
-                    np.array(self.y_data_norm)[m],
-                    self.binned_data,
-                    self.bin_edges,
+                self.binned_data = Histogram(bin_edges)
+                self.shape = (1, 2, len(self.binned_data))
+                self.binned_data.update(
+                    self.x_data[m], self.y_data[m] / self.y_data_norm[m]
                 )
+
+                self.x_data_new = []
+                self.y_data_new = []
             else:
-                bin_new_data(
+                self.binned_data.update(
                     x_data[m],
-                    y_data[m],
-                    y_data_norm[m],
-                    self.binned_data,
-                    self.bin_edges,
+                    y_data[m] / y_data_norm[m],
                 )
 
-            bin_means = np.array([v[1] for v in self.binned_data.values()])
-            data = np.concatenate((self.bin_centers, bin_means)).reshape(self.shape)
-
+                self.x_data_new = []
+                self.y_data_new = []
+        elif len(self.binned_data) == 0:
+            data = np.concatenate(
+                (np.linspace(-1, 1, self.shape[-1]), np.zeros(self.shape[-1]))
+            ).reshape(self.shape)
             return [data, [{"timestamp": time.time() - self.time_offset}]]
+
+        data = np.concatenate((self.binned_data.x, self.binned_data.y)).reshape(
+            self.shape
+        )
+
+        return [data, [{"timestamp": time.time() - self.time_offset}]]
 
     def SetProcessing(self, processing):
         self.processing = processing
@@ -248,16 +269,17 @@ class HistogramPlotterAbsorptionNormalized:
         self.ClearData()
 
     def set_nbins_max(self, nbins_max: int):
-        self.nbins_max_changed = True
+        self.redo_binning_flag = True
         self.nbins_max = int(nbins_max)
 
+    def set_absorption_cutoff(self, absorption_cutoff: float):
+        self.redo_binning_flag = True
+        self.absorption_cutoff = absorption_cutoff
+
     def ClearData(self):
-        self.x_ts = []
         self.x_data = []
-        self.unprocessed_data_ts = []
-        self.unprocessed_data = []
         self.y_data = []
-        self.unprocessed_data_norm
+        self.y_data_norm = []
 
     #################################################
     # Device Commands
@@ -293,10 +315,12 @@ class HistogramPlotterAbsorptionNormalized:
         timestamps2 = timestamps2[indices2]
         data2_queue = data2_queue[indices2]
 
-        if len(self.unprocessed_data) == 0:
+        if self.timestamp_last_fetched == 0:
             mask = np.ones(len(data1_queue), dtype=bool)
         else:
-            mask = timestamps1 > self.unprocessed_data_ts[-1]
+            mask = timestamps1 > self.timestamp_last_fetched
+
+        self.timestamp_last_fetched = timestamps1[mask][-1]
 
         # extract the desired parameter 1 and 2
         col_names1 = split(
@@ -318,30 +342,28 @@ class HistogramPlotterAbsorptionNormalized:
             logging.error("Error in HistogramPlotter: param not found: " + self.param2)
             return
 
-        self.unprocessed_data_ts.extend(timestamps1[mask])
-
-        self.x_ts.extend(timestamps2[mask])
-
         data1_queue = [data1_queue[idx] for idx, m in enumerate(mask) if m]
 
-        if len(self.unprocessed_data) == 0:
-            self.unprocessed_data = [d[0][0][idx1] for d in data1_queue]
-            self.unprocessed_data_norm = [
+        if self.timestamp_last_fetched == 0:
+            unprocessed_data = [d[0][0][idx1] for d in data1_queue]
+            unprocessed_data_norm = [
                 d[0][0][idx1abs].astype(float) / d[0][0][idx1absnorm].astype(float)
                 for d in data1_queue
             ]
             x = [d[idx2] for d in data2_queue[mask]]
-            self.x_data = x
-            self.x_data_new = x
+            self.x_data = copy(x)
+            self.x_data_new = copy(x)
         else:
+            unprocessed_data = []
+            unprocessed_data_norm = []
             for idd, d in enumerate(data1_queue):
                 d = d[0]
                 if d.shape[0] > 1:
                     self.x_data_new = []
                     print("hit d.shape[0] > 1")
                     for di in d:
-                        self.unprocessed_data.append(di[0][idx1])
-                        self.unprocessed_data_norm.append(
+                        unprocessed_data.append(di[0][idx1])
+                        unprocessed_data_norm.append(
                             di[0][idx1abs].astype(float)
                             / di[0][idx1absnorm].astype(float)
                         )
@@ -349,32 +371,30 @@ class HistogramPlotterAbsorptionNormalized:
                         self.x_data.append(x)
                         self.x_data_new.append(x)
                 else:
-                    self.unprocessed_data.append(d[0][idx1])
-                    self.unprocessed_data_norm.append(
+                    unprocessed_data.append(d[0][idx1])
+                    unprocessed_data_norm.append(
                         d[0][idx1abs].astype(float) / d[0][idx1absnorm].astype(float)
                     )
                     x = data2_queue[mask][idd][idx2]
                     self.x_data.append(x)
-                    self.x_data_new = x
+                    self.x_data_new.append(x)
+        return unprocessed_data, unprocessed_data_norm
 
     def ProcessData(self):
         """
         Processing data from the fast device
         """
         # most time spent in FetchData()
-        self.FetchData()
+        unprocessed_data, unprocessed_data_norm = self.FetchData()
 
         if self.processed_changed:
             self.y_data = []
             self.y_data = []
-            for y, y_norm in zip(self.unprocessed_data, self.processed_data_norm):
-                yi = eval(self.processing).astype(float)
-                yin = eval(self.processingnorm)
-                self.y_data.append(yi)
-                self.y_data_norm.append(yin)
-            self.y_data_new = self.y_data
-            self.y_data_norm_new = self.y_data_norm_new
+            self.x_data_new = []
+            self.y_data_new = []
+            self.y_data_norm_new = []
             self.processed_changed = False
+            self.redo_binning_flag = True
             return
 
         if len(self.x_data) == 0:
@@ -385,12 +405,13 @@ class HistogramPlotterAbsorptionNormalized:
             return
         for idx in reversed(range(len_diff)):
             # self.processing string contains y which is then evaluated
-            y = self.unprocessed_data[-idx - 1].astype(float)  # noqa: F841
-            y_norm = self.unprocessed_data_norm[-idx - 1]  # noqa: F841
+            y = unprocessed_data[-idx - 1].astype(float)  # noqa: F841
+            y_norm = unprocessed_data_norm[-idx - 1]  # noqa: F841
             y_norm /= y_norm[-1500:].mean()
             yi = eval(self.processing)
             yin = eval(self.processingnorm)
             self.y_data.append(yi)
             self.y_data_norm.append(yin)
             self.y_data_new = yi
-            self.y_data_norm_new = yi
+            self.y_data_new.append(yi)
+            self.y_data_norm_new.append(yin)

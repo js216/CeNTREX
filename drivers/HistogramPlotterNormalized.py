@@ -311,7 +311,8 @@ class HistogramPlotterNormalized:
             mask = np.ones(len(data1_queue), dtype=bool)
         else:
             mask = timestamps1 > self.timestamp_last_fetched
-        if mask.sum() == 0:
+
+        if (len(mask) == 0) or (mask.sum() == 0):
             return [], []
 
         self.timestamp_last_fetched = timestamps1[mask][-1]

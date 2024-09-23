@@ -4,7 +4,7 @@
   - 20.0
   - false
   - null
-  - true
+  - false
   - []
 - - PMT HV
   - turn_on_ch1
@@ -12,7 +12,7 @@
   - 20.0
   - true
   - null
-  - true
+  - false
   - []
 - - ZaberTMM
   - SetPointAGUI
@@ -20,7 +20,7 @@
   - 0.1
   - false
   - null
-  - true
+  - false
   - []
 - - ZaberTMM
   - SetPointBGUI
@@ -28,7 +28,7 @@
   - 0.1
   - false
   - null
-  - true
+  - false
   - []
 - - ZaberTMM
   - SetStepGUI
@@ -36,7 +36,7 @@
   - 0.1
   - false
   - null
-  - true
+  - false
   - []
 - - ZaberTMM
   - setupStepRectangle
@@ -44,7 +44,7 @@
   - 0.1
   - false
   - null
-  - true
+  - false
   - []
 - - Wavelength
   - SetPort
@@ -52,7 +52,7 @@
   - 5.0
   - false
   - null
-  - true
+  - false
   - []
 - - Wavelength
   - SetPort
@@ -60,7 +60,7 @@
   - 5.0
   - false
   - null
-  - true
+  - false
   - []
 - - Wavelength
   - SetPort
@@ -68,7 +68,7 @@
   - 5.0
   - false
   - null
-  - true
+  - false
   - []
 - - Wavelength
   - SetPort
@@ -76,7 +76,7 @@
   - null
   - false
   - null
-  - true
+  - false
   - []
 - - BigSkyYag
   - start
@@ -84,7 +84,7 @@
   - null
   - false
   - null
-  - true
+  - false
   - []
 - - FlowController
   - SetPointControl
@@ -92,7 +92,7 @@
   - 5.0
   - true
   - null
-  - true
+  - false
   - []
 - - SynthHD SPA
   - SetFrequencyCHAGUI
@@ -114,11 +114,11 @@
       - '1'
       - null
       - false
-      - 40
+      - 10
       - true
       - - - YagIsolator
           - SetNrQswitchesGUI
-          - '100'
+          - '10'
           - null
           - false
           - null
@@ -129,7 +129,7 @@
           - null
           - null
           - true
-          - 100
+          - 10
           - true
           - []
         - - ZaberTMM
@@ -146,7 +146,7 @@
   - null
   - false
   - null
-  - true
+  - false
   - []
 - - ZaberTMM
   - randomStep
@@ -154,7 +154,7 @@
   - 0.5
   - false
   - null
-  - true
+  - false
   - []
 - - BigSkyYag
   - stop
@@ -162,7 +162,7 @@
   - null
   - false
   - null
-  - true
+  - false
   - []
 - - PMT HV
   - turn_off_ch1
@@ -170,7 +170,7 @@
   - null
   - false
   - null
-  - true
+  - false
   - []
 - - PMT HV
   - turn_off_ch0
@@ -178,5 +178,5 @@
   - null
   - false
   - null
-  - true
+  - false
   - []

@@ -209,17 +209,26 @@ class HistogramPlotterAbsorptionNormalized:
                 or self.redo_binning_flag
             ):
                 logging.info("redo binning")
+
+                m = np.array(self.y_data_norm) >= self.absorption_cutoff
+                if len(m) == 0 or m.sum() == 0:
+                    data = np.concatenate(
+                        (np.linspace(-1, 1, self.shape[-1]), np.zeros(self.shape[-1]))
+                    ).reshape(self.shape)
+                    return [data, [{"timestamp": time.time() - self.time_offset}]]
+
+
                 self.redo_binning_flag = False
                 bin_edges = create_bins(self.x_data, maxsize=self.nbins_max)
-                m = np.array(self.y_data_norm) >= self.absorption_cutoff
                 self.binned_data = Histogram(bin_edges)
                 self.shape = (1, 2, len(self.binned_data))
                 self.binned_data.update(
-                    self.x_data[m], self.y_data[m] / self.y_data_norm[m]
+                    np.asarray(self.x_data)[m], np.asarray(self.y_data)[m] / np.asarray(self.y_data_norm)[m]
                 )
 
                 self.x_data_new = []
                 self.y_data_new = []
+                self.y_data_norm_new = []
             else:
                 self.binned_data.update(
                     x_data[m],
@@ -228,6 +237,7 @@ class HistogramPlotterAbsorptionNormalized:
 
                 self.x_data_new = []
                 self.y_data_new = []
+                self.y_data_norm_new = []
         elif len(self.binned_data) == 0:
             data = np.concatenate(
                 (np.linspace(-1, 1, self.shape[-1]), np.zeros(self.shape[-1]))
@@ -293,17 +303,17 @@ class HistogramPlotterAbsorptionNormalized:
             data1_queue = list(self.parent.devices[self.dev1].config["plots_queue"])
         except KeyError:
             logging.warning(f"HistogramPlotterNorm: device {self.dev1} not found")
-            return
+            return [], []
         try:
             data2_queue = np.asarray(
                 self.parent.devices[self.dev2].config["plots_queue"]
             )
         except KeyError:
             logging.warning(f"HistogramPlotterNorm: device {self.dev} not found")
-            return
+            return [], []
 
         if len(data2_queue) == 0 or len(data1_queue) == 0:
-            return
+            return [], []
 
         timestamps1 = np.asarray([d[-1][0]["timestamp"] for d in data1_queue])
         timestamps2 = np.asarray([d[0] for d in data2_queue])
@@ -320,6 +330,9 @@ class HistogramPlotterAbsorptionNormalized:
         else:
             mask = timestamps1 > self.timestamp_last_fetched
 
+        if (len(mask) == 0) or (mask.sum() == 0):
+            return [], []
+
         self.timestamp_last_fetched = timestamps1[mask][-1]
 
         # extract the desired parameter 1 and 2
@@ -335,12 +348,12 @@ class HistogramPlotterAbsorptionNormalized:
             idx1absnorm = col_names1.index(self.paramabsnorm)
         except IndexError:
             logging.error("Error in HistogramPlotter: param not found: " + self.param1)
-            return
+            return [], []
         try:
             idx2 = col_names2.index(self.param2)
         except IndexError:
             logging.error("Error in HistogramPlotter: param not found: " + self.param2)
-            return
+            return [], []
 
         data1_queue = [data1_queue[idx] for idx, m in enumerate(mask) if m]
 
@@ -399,11 +412,10 @@ class HistogramPlotterAbsorptionNormalized:
 
         if len(self.x_data) == 0:
             return
-
-        len_diff = len(self.unprocessed_data) - len(self.y_data)
-        if len_diff == 0:
+        elif len(unprocessed_data) == 0:
             return
-        for idx in reversed(range(len_diff)):
+
+        for idx in reversed(range(len(unprocessed_data))):
             # self.processing string contains y which is then evaluated
             y = unprocessed_data[-idx - 1].astype(float)  # noqa: F841
             y_norm = unprocessed_data_norm[-idx - 1]  # noqa: F841
@@ -412,6 +424,5 @@ class HistogramPlotterAbsorptionNormalized:
             yin = eval(self.processingnorm)
             self.y_data.append(yi)
             self.y_data_norm.append(yin)
-            self.y_data_new = yi
             self.y_data_new.append(yi)
             self.y_data_norm_new.append(yin)

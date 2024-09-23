@@ -2,6 +2,7 @@ import logging
 import time
 from copy import copy
 from typing import Dict, Sequence, Tuple, Union
+import traceback
 
 import numpy as np
 import numpy.typing as npt
@@ -176,6 +177,7 @@ class HistogramPlotter:
             self.ProcessData()
         except Exception as exception:
             logging.error(exception)
+            logging.error(traceback.format_exc())
 
         x_data = np.array(self.x_data_new)
         y_data = np.array(self.y_data_new)
@@ -288,6 +290,9 @@ class HistogramPlotter:
         else:
             mask = timestamps1 > self.timestamp_last_fetched
 
+        if (len(mask) == 0) or (mask.sum() == 0):
+            return [], []
+
         self.timestamp_last_fetched = timestamps1[mask][-1]
 
         # extract the desired parameter 1 and 2
@@ -342,7 +347,6 @@ class HistogramPlotter:
             return
 
         if self.processed_changed:
-            logging.info("processing changed")
             self.x_data = []
             self.y_data = []
             self.x_data_new = []
@@ -353,10 +357,10 @@ class HistogramPlotter:
 
         if len(self.x_data) == 0:
             return
-
-        if len(unprocessed_data) == 0:
+        elif len(unprocessed_data) == 0:
             return
 
+        print(unprocessed_data)
         for idx in reversed(range(len(unprocessed_data))):
             # self.processing string contains y which is then evaluated
             y = unprocessed_data[-idx - 1]  # noqa: F841

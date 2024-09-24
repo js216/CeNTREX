@@ -211,18 +211,18 @@ class HistogramPlotterNormalized:
                     np.asarray(self.y_data) / np.asarray(self.y_data_norm),
                 )
 
-                self.x_data_new = []
-                self.y_data_new = []
-                self.y_data_norm_new = []
+                self.x_data_new.clear()
+                self.y_data_new.clear()
+                self.y_data_norm_new.clear()
             else:
                 self.binned_data.update(
                     x_data,
                     y_data / y_data_norm,
                 )
 
-                self.x_data_new = []
-                self.y_data_new = []
-                self.y_data_norm_new = []
+                self.x_data_new.clear()
+                self.y_data_new.clear()
+                self.y_data_norm_new.clear()
 
         data = np.concatenate((self.binned_data.x, self.binned_data.y)).reshape(
             self.shape
@@ -267,8 +267,12 @@ class HistogramPlotterNormalized:
         self.absorption_cutoff = absorption_cutoff
 
     def ClearData(self):
-        self.x_data = []
-        self.y_data = []
+        self.x_data.clear()
+        self.y_data.clear()
+        self.y_data_norm.clear()
+        self.x_data_new.clear()
+        self.y_data_new.clear()
+        self.y_data_norm_new.clear()
 
     #################################################
     # Device Commands
@@ -371,12 +375,12 @@ class HistogramPlotterNormalized:
 
         if self.processed_changed:
             logging.info("processing changed")
-            self.x_data = []
-            self.y_data = []
-            self.y_data_norm = []
-            self.x_data_new = []
-            self.y_data_new = []
-            self.y_data_norm_new = []
+            self.x_data.clear()
+            self.y_data.clear()
+            self.y_data_norm.clear()
+            self.x_data_new.clear()
+            self.y_data_new.clear()
+            self.y_data_norm_new.clear()
             self.redo_binning_flag = True
             self.processed_changed = False
             return

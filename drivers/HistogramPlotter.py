@@ -127,8 +127,6 @@ class HistogramPlotter:
         # (y) data in
         self.x_ts = []
         self.x_data = []
-        self.unprocessed_data_ts = []
-        self.unprocessed_data = []
         self.y_data = []
         self.x_data_new = []
         self.y_data_new = []
@@ -205,13 +203,13 @@ class HistogramPlotter:
                 self.binned_data = Histogram(self.bin_edges)
                 self.binned_data.update(np.array(self.x_data), np.array(self.y_data))
 
-                self.x_data_new = []
-                self.y_data_new = []
+                self.x_data_new.clear()
+                self.y_data_new.clear()
             else:
                 self.binned_data.update(x_data, y_data)
 
-                self.x_data_new = []
-                self.y_data_new = []
+                self.x_data_new.clear()
+                self.y_data_new.clear()
 
         data = np.concatenate((self.binned_data.x, self.binned_data.y)).reshape(
             self.shape
@@ -243,11 +241,10 @@ class HistogramPlotter:
         self.nbins_max = int(nbins_max)
 
     def ClearData(self):
-        self.x_ts = []
-        self.x_data = []
-        self.unprocessed_data_ts = []
-        self.unprocessed_data = []
-        self.y_data = []
+        self.x_data.clear()
+        self.y_data.clear()
+        self.x_data_new.clear()
+        self.y_data_new.clear()
 
     #################################################
     # Device Commands
@@ -346,10 +343,10 @@ class HistogramPlotter:
             return
 
         if self.processed_changed:
-            self.x_data = []
-            self.y_data = []
-            self.x_data_new = []
-            self.y_data_new = []
+            self.x_data.clear()
+            self.y_data.clear()
+            self.x_data_new.clear()
+            self.y_data_new.clear()
             self.processed_changed = False
             self.redo_binning_flag = True
             return

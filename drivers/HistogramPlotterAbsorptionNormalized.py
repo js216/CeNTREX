@@ -226,18 +226,18 @@ class HistogramPlotterAbsorptionNormalized:
                     np.asarray(self.y_data)[m] / np.asarray(self.y_data_norm)[m],
                 )
 
-                self.x_data_new = []
-                self.y_data_new = []
-                self.y_data_norm_new = []
+                self.x_data_new.clear()
+                self.y_data_new.clear()
+                self.y_data_norm_new.clear()
             else:
                 self.binned_data.update(
                     x_data[m],
                     y_data[m] / y_data_norm[m],
                 )
 
-                self.x_data_new = []
-                self.y_data_new = []
-                self.y_data_norm_new = []
+                self.x_data_new.clear()
+                self.y_data_new.clear()
+                self.y_data_norm_new.clear()
         elif len(self.binned_data) == 0:
             data = np.concatenate(
                 (np.linspace(-1, 1, self.shape[-1]), np.zeros(self.shape[-1]))
@@ -287,9 +287,12 @@ class HistogramPlotterAbsorptionNormalized:
         self.absorption_cutoff = absorption_cutoff
 
     def ClearData(self):
-        self.x_data = []
-        self.y_data = []
-        self.y_data_norm = []
+        self.x_data.clear()
+        self.y_data.clear()
+        self.y_data_norm.clear()
+        self.x_data_new.clear()
+        self.y_data_new.clear()
+        self.y_data_norm_new.clear()
 
     #################################################
     # Device Commands
@@ -372,7 +375,7 @@ class HistogramPlotterAbsorptionNormalized:
             for idd, d in enumerate(data1_queue):
                 d = d[0]
                 if d.shape[0] > 1:
-                    self.x_data_new = []
+                    self.x_data_new.clear()
                     print("hit d.shape[0] > 1")
                     for di in d:
                         unprocessed_data.append(di[0][idx1])
@@ -401,11 +404,11 @@ class HistogramPlotterAbsorptionNormalized:
         unprocessed_data, unprocessed_data_norm = self.FetchData()
 
         if self.processed_changed:
-            self.y_data = []
-            self.y_data = []
-            self.x_data_new = []
-            self.y_data_new = []
-            self.y_data_norm_new = []
+            self.y_data.clear()
+            self.y_data.clear()
+            self.x_data_new.clear()
+            self.y_data_new.clear()
+            self.y_data_norm_new.clear()
             self.processed_changed = False
             self.redo_binning_flag = True
             return

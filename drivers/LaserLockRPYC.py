@@ -1,7 +1,7 @@
 import json
 import time
 import uuid
-from typing import Any
+from typing import Any, List, Tuple
 from urllib.request import urlopen
 
 import rpyc
@@ -28,6 +28,7 @@ class LaserLockRPYC:
         seed_names: list[str] = ["seed1", "seed2", "seed3"],
         linien_names: list[str] = ["linien-seed1", "linien-seed2", "linien-seed3"],
         dt_max: float = 5.0,
+        nr_lasers: int = 3,
     ) -> None:
         """
         Class to interface with the CeNTREX laer lock reference system.
@@ -51,7 +52,7 @@ class LaserLockRPYC:
         self.linien_names = linien_names
         self.dt_max = dt_max
 
-        self.nr_lasers = len(seed_names)
+        self.nr_lasers = int(nr_lasers)
 
         # grab unique synthesizer device names
         _synths = [val[0] for val in laser_synths]
@@ -85,6 +86,12 @@ class LaserLockRPYC:
         self.verification_string = self.conn.root.get_service_name()
         self.verification_string = "RUNNER"
 
+        self.new_attributes, self.dtype, self.shape = self.generate_new_attributes(self.nr_lasers)
+
+        self.warnings = []
+
+    @staticmethod
+    def generate_new_attributes(nr_lasers: int = 3) -> Tuple[List[Tuple[str, str]], str, Tuple[int]]:
         column_names_base = "lock, error mean, error std, control mean, emission, frequency, frequency setpoint, power, nltl enable, nltl frequency, nltl power".split(
             ","
         )
@@ -93,19 +100,19 @@ class LaserLockRPYC:
 
         units = ["s"]
         column_names = ["time"]
-        for i in range(self.nr_lasers):
+        for i in range(nr_lasers):
             column_names.extend(
                 [f"laser{i} {cname.strip()}" for cname in column_names_base]
             )
             units.extend(units_base)
 
-        self.new_attributes = [
+        new_attributes = [
             ("column_names", ",".join(column_names)),
             ("units", ",".join(units)),
         ]
-        self.dtype = "f"
-        self.shape = (1 + self.nr_lasers * 11,)
-        self.warnings = []
+        dtype = "f"
+        shape = (1 + nr_lasers * 11,)
+        return new_attributes, dtype, shape
 
     def __exit__(self, *exc):
         # self.conn.close()

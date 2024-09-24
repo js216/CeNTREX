@@ -57,7 +57,7 @@ def create_bins(
 ) -> Tuple[npt.NDArray[np.float_], npt.NDArray[np.float_]]:
     bin_centers = np.unique(scan_values)
     if len(bin_centers) == 1:
-        bins = np.array([bin_centers * 0.9, bin_centers * 1.1])
+        bins = np.array([bin_centers[0] * 0.9, bin_centers[0] * 1.1])
     elif len(bin_centers) > maxsize:
         bin_centers = np.linspace(bin_centers.min(), bin_centers.max(), maxsize)
         bins = bin_centers.copy()
@@ -72,6 +72,7 @@ def create_bins(
         )
         bins = np.append(bins, [bin_centers[-1] + bin_diffs[-1] / 2])
     return bin_centers, bins
+
 
 
 def check_bins_update(

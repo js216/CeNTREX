@@ -1329,12 +1329,14 @@ class ControlGUI(qt.QWidget):
                     if param.get("tooltip"):
                         d.setToolTip(param["tooltip"])
 
+                    return_values = self.parent.devices[d.currentText()].config["attributes"]["column_names"].strip(",").split(",")
+                    return_values = [rv.strip() for rv in return_values]
                     r = qt.QComboBox()
                     update_QComboBox(
                         cbx=r,
-                        options=list(
-                            self.parent.devices[d.currentText()].col_names_list
-                        ),
+                        options=set(list(
+                            return_values
+                        )) | set([param["return_value"]]),
                         value="divide by?",
                     )
 
@@ -1373,9 +1375,7 @@ class ControlGUI(qt.QWidget):
                         dev.config["control_params"][config]["device_value"] = text
                         value = dev.config["control_params"][config]["value"]
                         dev.config["control_params"][config]["value"] = (
-                            text,
-                            value[1],
-                            value[2],
+                            text, *value[1:]
                         )
 
                     d.activated[str].connect(change_param)
@@ -1388,17 +1388,20 @@ class ControlGUI(qt.QWidget):
 
                     returns = []
                     for idr in range(int(param["nr_returns"])):
-                        returns.append(qt.QComboBox())
-                        r = returns[-1]
+                        r = qt.QComboBox()
+
+                        return_values = self.parent.devices[d.currentText()].config["attributes"]["column_names"].strip(",").split(",")
+                        return_values = [rv.strip() for rv in return_values]
+                        r = qt.QComboBox()
                         update_QComboBox(
                             cbx=r,
-                            options=list(
-                                self.parent.devices[d.currentText()].col_names_list
-                            ),
+                            options=set(list(
+                                return_values
+                            )) | set([param[f"return_value_{idr+1}"]]),
                             value="divide by?",
                         )
 
-                        def change_param(text, dev=dev, config=c_name):
+                        def change_param(text, idr=idr, dev=dev, config=c_name):
                             dev.config["control_params"][config][
                                 f"return_value_{idr+1}"
                             ] = text
@@ -1410,12 +1413,21 @@ class ControlGUI(qt.QWidget):
                         r.setCurrentText(param[f"return_value_{idr+1}"])
 
                         ctrl_frame.addWidget(r)
+                        returns.append(r)
 
-                    def update_returns(device, returns=returns):
-                        for r in returns:
+                    def update_returns(device, dev=dev, config=c_name, returns=returns):
+                        for idr, r in enumerate(returns):
+                            return_values = self.parent.devices[device].config["attributes"]["column_names"].strip(",").split(",")
+                            return_values = [rv.strip() for rv in return_values]
                             update_QComboBox(
-                                r, list(self.parent.devices[device].col_names_list), ""
+                                r, return_values, return_values[idr]
                             )
+                            dev.config["control_params"][config][
+                                f"return_value_{idr+1}"
+                            ] = return_values[idr]
+                            value = list(dev.config["control_params"][config]["value"])
+                            value[idr + 1] = str(return_values[idr])
+                            dev.config["control_params"][config]["value"] = tuple(value)
 
                     d.currentTextChanged.connect(update_returns)
 

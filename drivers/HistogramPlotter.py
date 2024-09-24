@@ -29,7 +29,16 @@ class Histogram:
         x: Union[npt.NDArray[np.int_], npt.NDArray[np.float_]],
         y: Union[npt.NDArray[np.int_], npt.NDArray[np.float_]],
     ):
-        bin_numbers = np.digitize(x, bins=self.bin_edges, right=True)
+        try:
+            bin_numbers = np.digitize(x, bins=self.bin_edges, right=True)
+        except Exception as e:
+            logging.error(e)
+            print(self.bin_edges)
+            print(x)
+            print(y)
+            logging.error(traceback.format_exc())
+            return
+
         for bin_number in np.unique(bin_numbers):
             if bin_number == 0:
                 continue
@@ -57,7 +66,7 @@ def create_bins(
 ) -> Tuple[npt.NDArray[np.float_], npt.NDArray[np.float_]]:
     bin_centers = np.unique(scan_values)
     if len(bin_centers) == 1:
-        bins = np.array([bin_centers * 0.9, bin_centers * 1.1])
+        bins = np.array([bin_centers[0] * 0.9, bin_centers[0] * 1.1])
     elif len(bin_centers) > maxsize:
         bin_centers = np.linspace(bin_centers.min(), bin_centers.max(), maxsize)
         bins = bin_centers.copy()

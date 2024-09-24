@@ -52,12 +52,14 @@ class Histogram:
         return np.array([v[1] for v in self.data.values()])
 
 
+
+
 def create_bins(
     scan_values: Union[npt.NDArray[np.float_], npt.NDArray[np.int_]], maxsize: int = 100
 ) -> Tuple[npt.NDArray[np.float_], npt.NDArray[np.float_]]:
     bin_centers = np.unique(scan_values)
     if len(bin_centers) == 1:
-        bins = np.array([bin_centers * 0.9, bin_centers * 1.1])
+        bins = np.array([bin_centers[0] * 0.9, bin_centers[0] * 1.1])
     elif len(bin_centers) > maxsize:
         bin_centers = np.linspace(bin_centers.min(), bin_centers.max(), maxsize)
         bins = bin_centers.copy()
@@ -71,8 +73,7 @@ def create_bins(
             [bin_centers[0] - bin_diffs[0] / 2], bin_centers[1:] - bin_diffs / 2
         )
         bins = np.append(bins, [bin_centers[-1] + bin_diffs[-1] / 2])
-    return bins
-
+    return bin_centers, bins
 
 def check_bins_update(
     x: Union[npt.NDArray[np.float_], npt.NDArray[np.int_]],
@@ -93,6 +94,7 @@ def check_bins_update(
         return False
 
 
+
 class HistogramPlotterAbsorptionNormalized:
     """
     Driver takes data from a fast device and a slow device, processes a trace
@@ -104,14 +106,14 @@ class HistogramPlotterAbsorptionNormalized:
         self.parent = parent
         self.time_offset = time_offset
         (
-            self.dev1,
+            (self.dev1,
             self.param1,
-            self.processing,
             self.paramabs,
-            self.paramabsnorm,
+            self.paramabsnorm),
+            self.processing,
             self.processingnorm,
-            self.dev2,
-            self.param2,
+            (self.dev2,
+            self.param2),
             self.nbins_max,
             self.absorption_cutoff,
         ) = params

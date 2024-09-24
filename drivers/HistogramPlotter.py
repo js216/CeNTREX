@@ -1,8 +1,8 @@
 import logging
 import time
+import traceback
 from copy import copy
 from typing import Dict, Sequence, Tuple, Union
-import traceback
 
 import numpy as np
 import numpy.typing as npt
@@ -291,7 +291,7 @@ class HistogramPlotter:
             mask = timestamps1 > self.timestamp_last_fetched
 
         if (len(mask) == 0) or (mask.sum() == 0):
-            return [], []
+            return []
 
         self.timestamp_last_fetched = timestamps1[mask][-1]
 
@@ -335,6 +335,7 @@ class HistogramPlotter:
                     x = data2_queue[mask][idd][idx2]
                     self.x_data.append(x)
                     self.x_data_new.append(x)
+
         return unprocessed_data
 
     def ProcessData(self):
@@ -360,7 +361,6 @@ class HistogramPlotter:
         elif len(unprocessed_data) == 0:
             return
 
-        print(unprocessed_data)
         for idx in reversed(range(len(unprocessed_data))):
             # self.processing string contains y which is then evaluated
             y = unprocessed_data[-idx - 1]  # noqa: F841

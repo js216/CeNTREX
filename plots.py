@@ -730,7 +730,7 @@ class Plotter(qt.QWidget):
                 # average sanity check
                 if self.config["n_average"] > len(grp):
                     logging.warning(
-                        "Plot error: Cannot average more traces than exist."
+                        f"{self.dev.config['name']} plot error: Cannot average more traces than exist."
                     )
                     return x, y
 
@@ -790,7 +790,7 @@ class Plotter(qt.QWidget):
             else:
                 x = dset[0][0, self.param_list.index(self.config["x"])].astype(float)
             if self.config["y"] == "(none)":
-                logging.warning("Plot error: y not valid.")
+                logging.warning(f"{self.dev.config['name']} plot error: y not valid.")
                 logging.warning("Plot warning: bad parameters")
                 return None
             y = dset[0][0, self.param_list.index(self.config["y"])].astype(float)
@@ -807,7 +807,7 @@ class Plotter(qt.QWidget):
             # average sanity check
             if self.config["n_average"] > self.dev.config["plots_queue_maxlen"]:
                 logging.warning(
-                    "Plot error: Cannot average more traces than are stored in"
+                    f"{self.dev.config['name']} plot error: Cannot average more traces than are stored in"
                     " plots_queue when plotting from the queue."
                 )
                 return x, y
@@ -817,7 +817,7 @@ class Plotter(qt.QWidget):
                 try:
                     dset = self.dev.config["plots_queue"][-(i + 1)]
                 except (KeyError, IndexError) as err:
-                    logging.warning("Plot averaging error: " + str(err))
+                    logging.warning(f"{self.dev.config['name']} plot averaging error: " + str(err))
                     logging.warning(traceback.format_exc())
                     break
 
@@ -848,7 +848,7 @@ class Plotter(qt.QWidget):
         try:
             x, y = data[0], data[1]
             if len(x) < 2:  # require at least two datapoints
-                raise ValueError("Require at least two datapoints")
+                raise ValueError(f"{self.dev.config['name']} require at least two datapoints")
         except (ValueError, TypeError) as e:
             logging.warning(e)
             logging.warning(traceback.format_exc())
@@ -876,7 +876,7 @@ class Plotter(qt.QWidget):
         # verify data shape
         if not x.shape == y.shape:
             logging.warning(
-                "Plot error: data shapes not matching: "
+                f"{self.dev.config['name']} plot error: data shapes not matching: "
                 + str(x.shape)
                 + " != "
                 + str(y.shape)

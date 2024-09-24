@@ -149,10 +149,19 @@ class SequencerGUI(qt.QWidget):
 
         # text box to enter the number of repetitions of the entire sequence
         self.repeat_le = qt.QLineEdit("# of repeats")
+        self.repeat_le.setValidator(PyQt5.QtGui.QIntValidator())
         sp = qt.QSizePolicy(qt.QSizePolicy.Preferred, qt.QSizePolicy.Preferred)
         sp.setHorizontalStretch(1)
         self.repeat_le.setSizePolicy(sp)
         self.bbox.addWidget(self.repeat_le)
+
+        pb = qt.QPushButton("Enable all")
+        pb.clicked[bool].connect(self.enable_all)
+        self.bbox.addWidget(pb)
+
+        pb = qt.QPushButton("Disable all")
+        pb.clicked[bool].connect(self.disable_all)
+        self.bbox.addWidget(pb)
 
         # button to loop forever, or not, the entire sequence
         self.loop_pb = qt.QPushButton("Single run")
@@ -348,6 +357,20 @@ class SequencerGUI(qt.QWidget):
         self.pause_pb.setText("Pause")
         self.pause_pb.disconnect()
         self.pause_pb.clicked[bool].connect(self.pause_sequencer)
+
+    def _enable_disable_all(self, item, enable: bool):
+        for i in range(item.childCount()):
+            if enable:
+                item.child(i).setCheckState(6, PyQt5.QtCore.Qt.Checked)
+            else:
+                item.child(i).setCheckState(6, PyQt5.QtCore.Qt.Unchecked)
+            self._enable_disable_all(item.child(i), enable)
+
+    def enable_all(self) -> None:
+        self._enable_disable_all(self.qtw.invisibleRootItem(), enable=True)
+
+    def disable_all(self) -> None:
+        self._enable_disable_all(self.qtw.invisibleRootItem(), enable=False)
 
 
 class Sequencer(threading.Thread, PyQt5.QtCore.QObject):

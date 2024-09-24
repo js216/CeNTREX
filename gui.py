@@ -285,6 +285,7 @@ class ControlGUI(qt.QWidget):
         self.make_devices()
         self.place_GUI_elements()
         self.place_device_controls()
+        self.refresh_COM_ports(button_pressed=True)
 
         self.mandatory_parameters = mandatory_parameters
 
@@ -1622,7 +1623,8 @@ class ControlGUI(qt.QWidget):
             # update the QComboBox of COM_port options
             update_QComboBox(
                 cbx=cbx,
-                options=pyvisa.ResourceManager().list_resources(),
+                options=list(pyvisa.ResourceManager().list_resources())
+                + [cbx.currentText()],
                 value=cbx.currentText(),
             )
 

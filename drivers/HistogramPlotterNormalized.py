@@ -199,7 +199,7 @@ class HistogramPlotterNormalized:
                 )
                 or self.redo_binning_flag
             ):
-                logging.info("redo binning")
+                logging.info("HistogramPlotterNormalized: redo binning")
                 self.redo_binning_flag = False
                 self.bin_centers, self.bin_edges = create_bins(
                     self.x_data, maxsize=self.nbins_max

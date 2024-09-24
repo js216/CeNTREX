@@ -208,7 +208,7 @@ class HistogramPlotterAbsorptionNormalized:
                 )
                 or self.redo_binning_flag
             ):
-                logging.info("redo binning")
+                logging.info("HistogramPlotterAbsorptionNormalized: redo binning")
 
                 m = np.array(self.y_data_norm) >= self.absorption_cutoff
                 if len(m) == 0 or m.sum() == 0:
@@ -217,13 +217,13 @@ class HistogramPlotterAbsorptionNormalized:
                     ).reshape(self.shape)
                     return [data, [{"timestamp": time.time() - self.time_offset}]]
 
-
                 self.redo_binning_flag = False
                 bin_edges = create_bins(self.x_data, maxsize=self.nbins_max)
                 self.binned_data = Histogram(bin_edges)
                 self.shape = (1, 2, len(self.binned_data))
                 self.binned_data.update(
-                    np.asarray(self.x_data)[m], np.asarray(self.y_data)[m] / np.asarray(self.y_data_norm)[m]
+                    np.asarray(self.x_data)[m],
+                    np.asarray(self.y_data)[m] / np.asarray(self.y_data_norm)[m],
                 )
 
                 self.x_data_new = []

@@ -37,10 +37,10 @@ class DummyDataTrace:
         amp *= a
 
         fl_signal = amp * (
-            signal.gaussian(2000, 200) + np.random.randn(2000) / 10 - 0.5 / 10
+            signal.windows.gaussian(2000, 200) + np.random.randn(2000) / 10 - 0.5 / 10
         )
         ab_signal = a * (
-            signal.gaussian(2000, 150) + np.random.randn(2000) / 5 - 0.5 / 10
+            signal.windows.gaussian(2000, 150) + np.random.randn(2000) / 5 - 0.5 / 10
         )
 
         dset = [

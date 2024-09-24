@@ -1260,6 +1260,164 @@ class ControlGUI(qt.QWidget):
                         )
                     )
 
+                elif param.get("type") == "device_list":
+                    # the label
+                    df.addWidget(
+                        qt.QLabel(param["label"]),
+                        param["row"],
+                        param["col"] - 1,
+                        alignment=PyQt5.QtCore.Qt.AlignRight,
+                    )
+
+                    # Device QComboBox
+                    devices = list(self.parent.devices.keys())
+                    c["QComboBox"] = qt.QComboBox()
+                    update_QComboBox(
+                        cbx=c["QComboBox"],
+                        options=list(set(devices) | set([param["value"]])),
+                        value="divide by?",
+                    )
+                    c["QComboBox"].setCurrentText(param["value"])
+                    df.addWidget(c["QComboBox"], param["row"], param["col"])
+
+                    # tooltip
+                    if param.get("tooltip"):
+                        c["QComboBox"].setToolTip(param["tooltip"])
+
+                    # commands for the QComboBox
+                    c["QComboBox"].activated[str].connect(
+                        lambda text, dev=dev, config=c_name: dev.config.change_param(
+                            config, text, sect="control_params"
+                        )
+                    )
+                    if param.get("command"):
+                        c["QComboBox"].activated[str].connect(
+                            lambda text,
+                            dev=dev,
+                            cmd=param["command"],
+                            qcb=c["QComboBox"]: self.queue_command(
+                                dev, cmd + "('" + qcb.currentText() + "')"
+                            )
+                        )
+
+                elif param.get("type") == "device_returns_list":
+                    # the frame for the row of controls
+                    box, ctrl_frame = LabelFrame(param["label"], type="hbox")
+                    df.addWidget(box, param["row"], param["col"])
+
+                    # Device QComboBox
+                    devices = list(self.parent.devices.keys())
+                    d = qt.QComboBox()
+                    update_QComboBox(
+                        cbx=d,
+                        options=list(set(devices) | set([param["device_value"]])),
+                        value="divide by?",
+                    )
+
+                    # commands for the QComboBox
+                    def change_param(text, dev=dev, config=c_name):
+                        dev.config["control_params"][config]["device_value"] = text
+                        value = dev.config["control_params"][config]["value"]
+                        dev.config["control_params"][config]["value"] = (text, value[1])
+
+                    d.activated[str].connect(change_param)
+                    d.setCurrentText(param["device_value"])
+                    ctrl_frame.addWidget(d)
+
+                    # tooltip
+                    if param.get("tooltip"):
+                        d.setToolTip(param["tooltip"])
+
+                    r = qt.QComboBox()
+                    update_QComboBox(
+                        cbx=r,
+                        options=list(
+                            self.parent.devices[d.currentText()].col_names_list
+                        ),
+                        value="divide by?",
+                    )
+
+                    def change_param(text, dev=dev, config=c_name):
+                        dev.config["control_params"][config]["return_value"] = text
+                        value = dev.config["control_params"][config]["value"]
+                        dev.config["control_params"][config]["value"] = (value[0], text)
+
+                    r.activated[str].connect(change_param)
+                    r.setCurrentText(param["return_value"])
+
+                    d.currentTextChanged.connect(
+                        lambda device, cbx=r: update_QComboBox(
+                            cbx, list(self.parent.devices[device].col_names_list), ""
+                        )
+                    )
+
+                    ctrl_frame.addWidget(r)
+
+                elif param.get("type") == "device_n_returns_list":
+                    # the frame for the row of controls
+                    box, ctrl_frame = LabelFrame(param["label"], type="hbox")
+                    df.addWidget(box, param["row"], param["col"])
+
+                    # Device QComboBox
+                    devices = list(self.parent.devices.keys())
+                    d = qt.QComboBox()
+                    update_QComboBox(
+                        cbx=d,
+                        options=list(set(devices) | set([param["device_value"]])),
+                        value="divide by?",
+                    )
+
+                    # commands for the QComboBox
+                    def change_param(text, dev=dev, config=c_name):
+                        dev.config["control_params"][config]["device_value"] = text
+                        value = dev.config["control_params"][config]["value"]
+                        dev.config["control_params"][config]["value"] = (
+                            text,
+                            value[1],
+                            value[2],
+                        )
+
+                    d.activated[str].connect(change_param)
+                    d.setCurrentText(param["device_value"])
+                    ctrl_frame.addWidget(d)
+
+                    # tooltip
+                    if param.get("tooltip"):
+                        d.setToolTip(param["tooltip"])
+
+                    returns = []
+                    for idr in range(int(param["nr_returns"])):
+                        returns.append(qt.QComboBox())
+                        r = returns[-1]
+                        update_QComboBox(
+                            cbx=r,
+                            options=list(
+                                self.parent.devices[d.currentText()].col_names_list
+                            ),
+                            value="divide by?",
+                        )
+
+                        def change_param(text, dev=dev, config=c_name):
+                            dev.config["control_params"][config][
+                                f"return_value_{idr+1}"
+                            ] = text
+                            value = list(dev.config["control_params"][config]["value"])
+                            value[idr + 1] = text
+                            dev.config["control_params"][config]["value"] = tuple(value)
+
+                        r.activated[str].connect(change_param)
+                        r.setCurrentText(param[f"return_value_{idr+1}"])
+
+                        ctrl_frame.addWidget(r)
+
+                    def update_returns(device, returns=returns):
+                        for r in returns:
+                            update_QComboBox(
+                                r, list(self.parent.devices[device].col_names_list), ""
+                            )
+
+                    d.currentTextChanged.connect(update_returns)
+
             ##################################
             # MONITORING                     #
             ##################################

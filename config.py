@@ -415,6 +415,46 @@ class DeviceConfig(Config):
             elif params[c].get("type") == "dummy":
                 ctrls[c] = {"type": params[c]["type"], "value": params[c]["value"]}
 
+            elif params[c].get("type") == "device_list":
+                ctrls[c] = {
+                    "label": params[c]["label"],
+                    "type": params[c]["type"],
+                    "row": int(params[c]["row"]),
+                    "col": int(params[c]["col"]),
+                    "value": params[c]["value"],
+                }
+
+            elif params[c].get("type") == "device_returns_list":
+                ctrls[c] = {
+                    "label": params[c]["label"],
+                    "type": params[c]["type"],
+                    "row": int(params[c]["row"]),
+                    "col": int(params[c]["col"]),
+                    "device_value": params[c]["device_value"],
+                    "return_value": params[c]["return_value"],
+                    "value": (params[c]["device_value"], params[c]["return_value"]),
+                }
+
+            elif params[c].get("type") == "device_n_returns_list":
+                ctrls[c] = {
+                    "label": params[c]["label"],
+                    "type": params[c]["type"],
+                    "row": int(params[c]["row"]),
+                    "col": int(params[c]["col"]),
+                    "device_value": params[c]["device_value"],
+                    "nr_returns": params[c]["nr_returns"],
+                }
+                for key in params[c].keys():
+                    if "return_value" in key:
+                        ctrls[c][key] = params[c][key]
+                ctrls[c]["value"] = tuple(
+                    [params[c]["device_value"]]
+                    + [
+                        params[c][f"return_value_{idr+1}"]
+                        for idr in range(int(params[c]["nr_returns"]))
+                    ]
+                )
+
             elif params[c].get("type"):
                 logging.warning("Control type not supported: " + params[c].get("type"))
 

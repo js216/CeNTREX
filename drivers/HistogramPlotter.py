@@ -42,11 +42,9 @@ class HistogramPlotter:
         self.parent = parent
         self.time_offset = time_offset
         (
-            self.dev1,
-            self.param1,
+            (self.dev1, self.param1),
             self.processing,
-            self.dev2,
-            self.param2,
+            (self.dev2, self.param2),
             self.nbins_max,
         ) = params
 

@@ -107,12 +107,10 @@ def error_box(title, text, message=""):
 
 
 def update_QComboBox(cbx, options, value):
-    # update the QComboBox with new runs
     cbx.clear()
     for option in options:
         cbx.addItem(option)
 
-    # select the last run by default
     cbx.setCurrentText(value)
 
 

@@ -205,11 +205,11 @@ class HistogramPlotter:
             ):
                 logging.info("HistogramPlotter: redo binning")
                 self.redo_binning_flag = False
-                self.bin_centers, self.bin_edges = create_bins(
+                _, bin_edges = create_bins(
                     self.x_data, maxsize=self.nbins_max
                 )
-                self.shape = (1, 2, len(self.bin_centers))
-                self.binned_data = Histogram(self.bin_edges)
+                self.binned_data = Histogram(bin_edges)
+                self.shape = (1, 2, len(self.binned_data))
                 self.binned_data.update(np.array(self.x_data), np.array(self.y_data))
 
                 self.x_data_new.clear()

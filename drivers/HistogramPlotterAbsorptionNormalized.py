@@ -15,6 +15,7 @@ def split(string, separator=","):
 class Histogram:
     def __init__(self, bin_edges: Union[Sequence[int], Sequence[float]]):
         self.bin_edges = bin_edges
+
         self.bin_centers = bin_edges[:-1] + np.diff(bin_edges) / 2
 
         self.data: Dict[int, Tuple[int, float]] = dict(
@@ -220,7 +221,7 @@ class HistogramPlotterAbsorptionNormalized:
                     return [data, [{"timestamp": time.time() - self.time_offset}]]
 
                 self.redo_binning_flag = False
-                bin_edges = create_bins(self.x_data, maxsize=self.nbins_max)
+                _, bin_edges = create_bins(self.x_data, maxsize=self.nbins_max)
                 self.binned_data = Histogram(bin_edges)
                 self.shape = (1, 2, len(self.binned_data))
                 self.binned_data.update(

@@ -1624,21 +1624,24 @@ class ControlGUI(qt.QWidget):
     def queue_command(self, dev, cmd):
         dev.commands.append(cmd)
 
-    def refresh_COM_ports(self, button_pressed):
-        for dev_name, dev in self.parent.devices.items():
-            # check device has a COM_port control
-            if not dev.config["control_GUI_elements"].get("COM_port"):
-                continue
-            else:
-                cbx = dev.config["control_GUI_elements"]["COM_port"]["QComboBox"]
+    # def refresh_COM_ports(self, button_pressed):
+    #     for dev_name, dev in self.parent.devices.items():
+    #         # check device has a COM_port control
+    #         if not dev.config["control_GUI_elements"].get("COM_port"):
+    #             continue
+    #         else:
+    #             cbx = dev.config["control_GUI_elements"]["COM_port"]["QComboBox"]
 
-            # update the QComboBox of COM_port options
-            update_QComboBox(
-                cbx=cbx,
-                options=list(pyvisa.ResourceManager().list_resources())
-                + [cbx.currentText()],
-                value=cbx.currentText(),
-            )
+    #         # update the QComboBox of COM_port options
+    #         update_QComboBox(
+    #             cbx=cbx,
+    #             options=list(pyvisa.ResourceManager().list_resources())
+    #             + [cbx.currentText()],
+    #             value=cbx.currentText(),
+    #         )
+
+    def refresh_COM_ports(self, button_pressed):
+        pass
 
     def edit_attrs(self, dev):
         # open the AttrEditor dialog window

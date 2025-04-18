@@ -35,7 +35,38 @@ def restart_device(device: Device, time_offset: float) -> Device:
 
     return device
 
-
+def do_read(device: Device, ret_val: list, c: str | None = None) -> None:
+    if device.config["slow_data"]:
+        try:
+            if np.ndim(ret_val) >= 2:
+                for row in ret_val:
+                    device.data_queue.append(row)
+                    device.config["plots_queue"].append(row)
+                    if c:
+                        device.events_queue.append(
+                            (time.time() - device.time_offset, c, "")
+                        )
+            else:
+                device.data_queue.append(ret_val)
+                device.config["plots_queue"].append(ret_val)
+                if c:
+                    device.events_queue.append(
+                        (time.time() - device.time_offset, c, "")
+                    )
+        except Exception as err:
+            device.data_queue.append(ret_val)
+            device.config["plots_queue"].append(ret_val)
+            if c:
+                device.events_queue.append(
+                    (time.time() - device.time_offset, c, "")
+                )
+    else:
+        device.data_queue.append(ret_val)
+        device.config["plots_queue"].append(ret_val)
+        if c:
+            device.events_queue.append(
+                (time.time() - device.time_offset, c, "")
+            )
 class Device(threading.Thread):
     def __init__(self, config: DeviceConfig):
         threading.Thread.__init__(self)
@@ -194,11 +225,7 @@ class Device(threading.Thread):
                             logging.warning(traceback.format_exc())
                             ret_val = str(err)
                         if (c == "ReadValue()") and ret_val:
-                            self.data_queue.append(ret_val)
-                            self.config["plots_queue"].append(ret_val)
-                            self.events_queue.append(
-                                (time.time() - self.time_offset, c, "")
-                            )
+                            do_read(self, ret_val, c)
                         else:
                             ret_val = "None" if not ret_val else ret_val
                             self.last_event = [
@@ -220,11 +247,7 @@ class Device(threading.Thread):
                             self.sequencer_errors_queue.append(e)
                             ret_val = e
                         if (c == "ReadValue()") and ret_val:
-                            self.data_queue.append(ret_val)
-                            self.config["plots_queue"].append(ret_val)
-                            self.events_queue.append(
-                                [time.time() - self.time_offset, c, ""]
-                            )
+                            do_read(self, ret_val, c)
                         else:
                             self.events_queue.append(
                                 [time.time() - self.time_offset, c, ret_val]
@@ -288,9 +311,7 @@ class Device(threading.Thread):
                         self.previous_data = last_data
 
                         if last_data and not isinstance(last_data, float):
-                            self.data_queue.append(last_data)
-                            self.config["plots_queue"].append(last_data)
-
+                            do_read(self, last_data)
                         # issue a warning if there's been too many sequential NaN
                         # returns
                         try:

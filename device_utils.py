@@ -21,4 +21,5 @@ def get_device_methods(device: str, devices: dict[str, Device]) -> list[str]:
         driver = getattr(driver_module, driver_name)
 
     methods = [m[0] for m in inspect.getmembers(driver, predicate=inspect.isfunction)]
+    methods.sort()
     return methods

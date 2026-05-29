@@ -162,6 +162,25 @@ class SPBMicrowaveCompatible:
             raise RuntimeError("missing process state")
         return state
 
+    def _wait_for_state(
+        self,
+        target_state: str,
+        *,
+        timeout_s: float = 30.0,
+        poll_s: float = 0.2,
+    ) -> str:
+        deadline = time.monotonic() + float(timeout_s)
+        target = str(target_state)
+        while True:
+            state = self._current_state()
+            if state == target:
+                return state
+            if state == "ERROR":
+                raise RuntimeError(f"process entered ERROR while waiting for {target}")
+            if time.monotonic() >= deadline:
+                raise TimeoutError(f"timed out waiting for {target}; current state is {state}")
+            time.sleep(float(poll_s))
+
     def _state_code(self, state: Any) -> float:
         if isinstance(state, str):
             return self.STATE_CODES.get(state, math.nan)
@@ -292,3 +311,75 @@ class SPBMicrowaveCompatible:
 
     def disable_rf(self) -> str:
         return self._command_result_text(self._process_call("disable_rf", {}))
+
+    def enable_microwaves(self) -> str:
+        return self.enable_rf()
+
+    def disable_microwaves(self) -> str:
+        return self.disable_rf()
+
+    def turn_on(self) -> str:
+        return self.enable_rf()
+
+    def turn_off(self) -> str:
+        return self.disable_rf()
+
+    def enable_power_and_phase_loop(
+        self,
+        gradient_sign: str = "positive",
+        *,
+        timeout_s: float = 30.0,
+        poll_s: float = 0.2,
+    ) -> str:
+        state = self._current_state()
+        if state == "ERROR":
+            raise RuntimeError("clear_error before enabling SPB microwave locks")
+        if state == "SAFE_OFF":
+            self.enable_rf()
+            state = self._wait_for_state("RF_ON", timeout_s=timeout_s, poll_s=poll_s)
+        if state == "RF_ON":
+            self._process_call("enter_power_locked", {})
+            state = self._wait_for_state(
+                "POWER_LOCKED",
+                timeout_s=timeout_s,
+                poll_s=poll_s,
+            )
+        if state == "POWER_LOCKED":
+            self._process_call(
+                "enter_circular_locked",
+                {"gradient_sign": str(gradient_sign)},
+            )
+            state = self._wait_for_state(
+                "CIRCULAR_LOCKED",
+                timeout_s=timeout_s,
+                poll_s=poll_s,
+            )
+        if state != "CIRCULAR_LOCKED":
+            raise RuntimeError(f"cannot enable power and phase loop from state {state}")
+        return "accepted"
+
+    def enable_microwaves_locked(
+        self,
+        gradient_sign: str = "positive",
+        *,
+        timeout_s: float = 30.0,
+        poll_s: float = 0.2,
+    ) -> str:
+        return self.enable_power_and_phase_loop(
+            gradient_sign,
+            timeout_s=timeout_s,
+            poll_s=poll_s,
+        )
+
+    def turn_on_locked(
+        self,
+        gradient_sign: str = "positive",
+        *,
+        timeout_s: float = 30.0,
+        poll_s: float = 0.2,
+    ) -> str:
+        return self.enable_power_and_phase_loop(
+            gradient_sign,
+            timeout_s=timeout_s,
+            poll_s=poll_s,
+        )

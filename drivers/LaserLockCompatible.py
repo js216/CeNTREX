@@ -41,7 +41,6 @@ class LaserLockCompatible:
         seed_power_signal: str = "power",
         synth_enable_signal_fmt: str = "enable {channel}",
         synth_frequency_signal_fmt: str = "frequency {channel}",
-        synth_frequency_setpoint_signal_fmt: str = "frequency {channel}",
         synth_power_signal_fmt: str = "power {channel}",
     ) -> None:
         self.time_offset = float(time_offset)
@@ -79,9 +78,6 @@ class LaserLockCompatible:
         self.seed_power_signal = str(seed_power_signal)
         self.synth_enable_signal_fmt = str(synth_enable_signal_fmt)
         self.synth_frequency_signal_fmt = str(synth_frequency_signal_fmt)
-        self.synth_frequency_setpoint_signal_fmt = str(
-            synth_frequency_setpoint_signal_fmt
-        )
         self.synth_power_signal_fmt = str(synth_power_signal_fmt)
 
         if self.nr_lasers <= 0:
@@ -123,10 +119,8 @@ class LaserLockCompatible:
         laser_labels: list[str] | None = None,
     ) -> tuple[list[tuple[str, str]], str, tuple[int]]:
         labels = list(laser_labels) if laser_labels is not None else ["RC", "ABS", "DET1"]
-        column_names_base = (
-            "nltl enable, nltl frequency, nltl frequency setpoint, nltl power"
-        ).split(",")
-        units_base = ["", "MHz", "MHz", "dBm"]
+        column_names_base = "nltl enable, nltl frequency, nltl power".split(",")
+        units_base = ["", "MHz", "dBm"]
 
         units = ["s"]
         column_names = ["time"]
@@ -141,7 +135,7 @@ class LaserLockCompatible:
             ("units", ",".join(units)),
         ]
         dtype = "f"
-        shape = (1 + len(labels) * 4,)
+        shape = (1 + len(labels) * 3,)
         return new_attributes, dtype, shape
 
     def __enter__(self) -> LaserLockCompatible:
@@ -317,25 +311,14 @@ class LaserLockCompatible:
                 label = self.laser_labels[laser_idx]
                 syn_enable_signal = self.synth_enable_signal_fmt.format(channel=channel)
                 syn_frequency_signal = self.synth_frequency_signal_fmt.format(channel=channel)
-                syn_frequency_setpoint_signal = (
-                    self.synth_frequency_setpoint_signal_fmt.format(channel=channel)
-                )
                 syn_power_signal = self.synth_power_signal_fmt.format(channel=channel)
                 syn_enable, _ = self._latest_value(synth_id, syn_enable_signal)
                 syn_frequency_hz, _ = self._latest_value(synth_id, syn_frequency_signal)
-                syn_frequency_setpoint_hz, _ = self._latest_value(
-                    synth_id, syn_frequency_setpoint_signal
-                )
                 syn_power_dbm, _ = self._latest_value(synth_id, syn_power_signal)
 
                 row = [
                     self._to_bool(syn_enable, field=f"{label} nltl enable"),
                     self._to_float(syn_frequency_hz, field=f"{label} nltl frequency")
-                    / 1e6,
-                    self._to_float(
-                        syn_frequency_setpoint_hz,
-                        field=f"{label} nltl frequency setpoint",
-                    )
                     / 1e6,
                     self._to_float(syn_power_dbm, field=f"{label} nltl power"),
                 ]
